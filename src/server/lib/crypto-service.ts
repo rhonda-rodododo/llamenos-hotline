@@ -41,19 +41,53 @@ import type { RecipientEnvelope } from '@shared/types'
  * All other encrypted fields use hub-key E2EE or envelope E2EE.
  */
 export class CryptoService {
+  private derivedKeys = new Map<string, Uint8Array>()
+  private cachedServerPrivateKey: Uint8Array | null = null
+  private cachedServerPubkey: string | null = null
+  private cachedHmacKey: Uint8Array | null = null
+
   constructor(
     private readonly serverSecret: string,
     private readonly hmacSecret: string
   ) {}
 
+  private deriveKey(label: string): Uint8Array {
+    let key = this.derivedKeys.get(label)
+    if (!key) {
+      key = hkdfDerive(hexToBytes(this.serverSecret), new Uint8Array(0), utf8ToBytes(label), 32)
+      this.derivedKeys.set(label, key)
+    }
+    return key
+  }
+
+  private getHmacKey(): Uint8Array {
+    if (!this.cachedHmacKey) {
+      this.cachedHmacKey = hexToBytes(this.hmacSecret)
+    }
+    return this.cachedHmacKey
+  }
+
+  private getServerPrivateKey(): { privateKey: Uint8Array; pubkey: string } {
+    if (!this.cachedServerPrivateKey) {
+      this.cachedServerPrivateKey = hkdfDerive(
+        hexToBytes(this.serverSecret),
+        utf8ToBytes(LABEL_SERVER_NOSTR_KEY),
+        utf8ToBytes(LABEL_SERVER_NOSTR_KEY_INFO),
+        32
+      )
+      this.cachedServerPubkey = bytesToHex(
+        secp256k1.getPublicKey(this.cachedServerPrivateKey, true).slice(1)
+      )
+    }
+    return { privateKey: this.cachedServerPrivateKey, pubkey: this.cachedServerPubkey! }
+  }
+
   serverEncrypt(plaintext: string, label: string): Ciphertext {
-    const key = hkdfDerive(hexToBytes(this.serverSecret), new Uint8Array(0), utf8ToBytes(label), 32)
-    return symmetricEncrypt(utf8ToBytes(plaintext), key)
+    return symmetricEncrypt(utf8ToBytes(plaintext), this.deriveKey(label))
   }
 
   serverDecrypt(ct: Ciphertext, label: string): string {
-    const key = hkdfDerive(hexToBytes(this.serverSecret), new Uint8Array(0), utf8ToBytes(label), 32)
-    return new TextDecoder().decode(symmetricDecrypt(ct, key))
+    return new TextDecoder().decode(symmetricDecrypt(ct, this.deriveKey(label)))
   }
 
   hubEncrypt(plaintext: string, hubKey: Uint8Array): Ciphertext {
@@ -85,9 +119,8 @@ export class CryptoService {
   }
 
   hmac(input: string, label: string): HmacHash {
-    const key = hexToBytes(this.hmacSecret)
     const data = utf8ToBytes(`${label}${input}`)
-    return bytesToHex(hmacSha256(key, data)) as HmacHash
+    return bytesToHex(hmacSha256(this.getHmacKey(), data)) as HmacHash
   }
 
   envelopeEncrypt(
@@ -143,18 +176,12 @@ export class CryptoService {
   unwrapHubKey(
     envelopes: Array<{ pubkey: string; wrappedKey: string; ephemeralPubkey: string }>
   ): Uint8Array {
-    const serverPrivateKey = hkdfDerive(
-      hexToBytes(this.serverSecret),
-      utf8ToBytes(LABEL_SERVER_NOSTR_KEY),
-      utf8ToBytes(LABEL_SERVER_NOSTR_KEY_INFO),
-      32
-    )
-    const serverPubkey = bytesToHex(secp256k1.getPublicKey(serverPrivateKey, true).slice(1))
-    const envelope = envelopes.find((e) => e.pubkey === serverPubkey)
+    const { privateKey, pubkey } = this.getServerPrivateKey()
+    const envelope = envelopes.find((e) => e.pubkey === pubkey)
     if (!envelope) {
-      throw new Error(`No hub key envelope for server pubkey ${serverPubkey}`)
+      throw new Error(`No hub key envelope for server pubkey ${pubkey}`)
     }
-    return eciesUnwrapKey(envelope, serverPrivateKey, LABEL_HUB_KEY_WRAP)
+    return eciesUnwrapKey(envelope, privateKey, LABEL_HUB_KEY_WRAP)
   }
 }
 

@@ -2,7 +2,7 @@ import type { Ciphertext } from '@shared/crypto-types'
 import { and, eq, lte, or } from 'drizzle-orm'
 import type { RecipientEnvelope } from '../../shared/types'
 import type { Database } from '../db'
-import { blastDeliveries, blasts, hubKeys, subscribers } from '../db/schema'
+import { blastDeliveries, blasts, subscribers } from '../db/schema'
 import type { CryptoService } from '../lib/crypto-service'
 import { AppError } from '../lib/errors'
 import type {
@@ -15,6 +15,7 @@ import type {
   Subscriber,
   SubscriberChannel,
 } from '../types'
+import type { SettingsService } from './settings'
 
 /** Pure filter: does a subscriber match the blast's targeting criteria? */
 export function matchesBlastFilters(
@@ -50,26 +51,14 @@ export function selectChannel(sub: Subscriber, targetChannels: string[]): Subscr
 }
 
 export class BlastService {
+  #settings: SettingsService
+
   constructor(
     protected readonly db: Database,
-    private readonly crypto: CryptoService
-  ) {}
-
-  async #getHubKey(hubId: string): Promise<Uint8Array | null> {
-    if (!hubId || hubId === 'global') return null
-    const envelopes = await this.db.select().from(hubKeys).where(eq(hubKeys.hubId, hubId))
-    if (envelopes.length === 0) return null
-    try {
-      return this.crypto.unwrapHubKey(
-        envelopes.map((r) => ({
-          pubkey: r.pubkey,
-          wrappedKey: r.encryptedKey,
-          ephemeralPubkey: r.ephemeralPubkey ?? '',
-        }))
-      )
-    } catch {
-      return null
-    }
+    private readonly crypto: CryptoService,
+    settings: SettingsService
+  ) {
+    this.#settings = settings
   }
 
   // ------------------------------------------------------------------ Blasts

@@ -1,5 +1,5 @@
 import { LABEL_USER_PII } from '@shared/crypto-labels'
-import { and, desc, eq, inArray, sql } from 'drizzle-orm'
+import { and, count, desc, eq, inArray, sql } from 'drizzle-orm'
 import type { MessageDeliveryStatus, RecipientEnvelope } from '../../shared/types'
 import type { Database } from '../db'
 import { conversations, messageEnvelopes, users } from '../db/schema'
@@ -29,29 +29,28 @@ export class ConversationService {
   ): Promise<{ conversations: Conversation[]; total: number }> {
     const hId = filters.hubId ?? 'global'
     const conditions: ReturnType<typeof eq>[] = [eq(conversations.hubId, hId)]
+    if (filters.status) conditions.push(eq(conversations.status, filters.status))
+    if (filters.assignedTo) conditions.push(eq(conversations.assignedTo, filters.assignedTo))
+    if (filters.channelType) conditions.push(eq(conversations.channelType, filters.channelType))
+    const whereClause = and(...conditions)
 
-    if (filters.status) {
-      conditions.push(eq(conversations.status, filters.status))
-    }
-    if (filters.assignedTo) {
-      conditions.push(eq(conversations.assignedTo, filters.assignedTo))
-    }
-    if (filters.channelType) {
-      conditions.push(eq(conversations.channelType, filters.channelType))
-    }
+    const [{ value: rawTotal }] = await this.db
+      .select({ value: count() })
+      .from(conversations)
+      .where(whereClause)
+    const total = Number(rawTotal)
 
+    const page = filters.page ?? 1
+    const limit = filters.limit ?? 50
+    const offset = (page - 1) * limit
     const rows = await this.db
       .select()
       .from(conversations)
-      .where(and(...conditions))
+      .where(whereClause)
       .orderBy(desc(conversations.lastMessageAt))
-
-    const all = rows.map((r) => this.#rowToConversation(r))
-    const total = all.length
-    const page = filters.page ?? 1
-    const limit = filters.limit ?? 50
-    const start = (page - 1) * limit
-    return { conversations: all.slice(start, start + limit), total }
+      .limit(limit)
+      .offset(offset)
+    return { conversations: rows.map((r) => this.#rowToConversation(r)), total }
   }
 
   async getConversation(id: string): Promise<Conversation | null> {
@@ -68,9 +67,11 @@ export class ConversationService {
     if (data.contactLast4) {
       const adminPubkeys = (await this.#getSuperAdminPubkeys()).filter(isValidPubkey)
       const recipientPubkeys = [
-        ...(data.assignedTo && isValidPubkey(data.assignedTo) ? [data.assignedTo] : []),
-        ...adminPubkeys,
-      ].filter((pk, i, arr) => arr.indexOf(pk) === i) // deduplicate
+        ...new Set([
+          ...(data.assignedTo && isValidPubkey(data.assignedTo) ? [data.assignedTo] : []),
+          ...adminPubkeys,
+        ]),
+      ]
       if (recipientPubkeys.length > 0) {
         const envelope = this.crypto.envelopeEncrypt(
           data.contactLast4,
@@ -197,15 +198,21 @@ export class ConversationService {
     page = 1,
     limit = 50
   ): Promise<{ messages: EncryptedMessage[]; total: number }> {
+    const [{ value: rawTotal }] = await this.db
+      .select({ value: count() })
+      .from(messageEnvelopes)
+      .where(eq(messageEnvelopes.conversationId, conversationId))
+    const total = Number(rawTotal)
+
+    const offset = (page - 1) * limit
     const rows = await this.db
       .select()
       .from(messageEnvelopes)
       .where(eq(messageEnvelopes.conversationId, conversationId))
       .orderBy(desc(messageEnvelopes.createdAt))
-    const messages = rows.map((r) => this.#rowToMessage(r))
-    const total = messages.length
-    const start = (page - 1) * limit
-    return { messages: messages.slice(start, start + limit), total }
+      .limit(limit)
+      .offset(offset)
+    return { messages: rows.map((r) => this.#rowToMessage(r)), total }
   }
 
   async addMessage(data: CreateMessageData): Promise<EncryptedMessage> {

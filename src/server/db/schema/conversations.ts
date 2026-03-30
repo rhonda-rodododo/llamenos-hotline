@@ -1,5 +1,6 @@
 import {
   boolean,
+  index,
   integer,
   pgEnum,
   pgTable,
@@ -42,30 +43,37 @@ export const conversations = pgTable(
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
     lastMessageAt: timestamp('last_message_at', { withTimezone: true }).notNull().defaultNow(),
   },
-  (table) => [unique().on(table.hubId, table.channelType, table.contactIdentifierHash)]
+  (table) => [
+    unique().on(table.hubId, table.channelType, table.contactIdentifierHash),
+    index('conversations_hub_idx').on(table.hubId),
+  ]
 )
 
-export const messageEnvelopes = pgTable('message_envelopes', {
-  id: text('id').primaryKey(),
-  conversationId: text('conversation_id').notNull(),
-  direction: text('direction').notNull(), // 'inbound' | 'outbound'
-  authorPubkey: text('author_pubkey').notNull(),
-  encryptedContent: text('encrypted_content').notNull(),
-  readerEnvelopes: jsonb<RecipientEnvelope[]>()('reader_envelopes').notNull().default([]),
-  hasAttachments: boolean('has_attachments').notNull().default(false),
-  attachmentIds: jsonb<string[]>()('attachment_ids').notNull().default([]),
-  externalId: text('external_id'),
-  status: text('status').notNull().default('pending'),
-  deliveryStatus: messageDeliveryStatusEnum('delivery_status').notNull().default('pending'),
-  deliveryStatusUpdatedAt: timestamp('delivery_status_updated_at', { withTimezone: true }),
-  providerMessageId: varchar('provider_message_id', { length: 128 }),
-  deliveryError: text('delivery_error'),
-  deliveredAt: timestamp('delivered_at', { withTimezone: true }),
-  readAt: timestamp('read_at', { withTimezone: true }),
-  failureReason: text('failure_reason'),
-  retryCount: integer('retry_count').notNull().default(0),
-  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
-})
+export const messageEnvelopes = pgTable(
+  'message_envelopes',
+  {
+    id: text('id').primaryKey(),
+    conversationId: text('conversation_id').notNull(),
+    direction: text('direction').notNull(), // 'inbound' | 'outbound'
+    authorPubkey: text('author_pubkey').notNull(),
+    encryptedContent: text('encrypted_content').notNull(),
+    readerEnvelopes: jsonb<RecipientEnvelope[]>()('reader_envelopes').notNull().default([]),
+    hasAttachments: boolean('has_attachments').notNull().default(false),
+    attachmentIds: jsonb<string[]>()('attachment_ids').notNull().default([]),
+    externalId: text('external_id'),
+    status: text('status').notNull().default('pending'),
+    deliveryStatus: messageDeliveryStatusEnum('delivery_status').notNull().default('pending'),
+    deliveryStatusUpdatedAt: timestamp('delivery_status_updated_at', { withTimezone: true }),
+    providerMessageId: varchar('provider_message_id', { length: 128 }),
+    deliveryError: text('delivery_error'),
+    deliveredAt: timestamp('delivered_at', { withTimezone: true }),
+    readAt: timestamp('read_at', { withTimezone: true }),
+    failureReason: text('failure_reason'),
+    retryCount: integer('retry_count').notNull().default(0),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [index('message_envelopes_conversation_idx').on(table.conversationId)]
+)
 
 export const fileRecords = pgTable('file_records', {
   id: text('id').primaryKey(),

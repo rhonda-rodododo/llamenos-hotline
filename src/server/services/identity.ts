@@ -66,9 +66,8 @@ export class IdentityService {
     // E2EE envelope-encrypt PII for user + admin pubkeys
     const adminPubkeys = (await this.getSuperAdminPubkeys()).filter(isValidPubkey)
     const piiRecipients = [
-      ...(isValidPubkey(data.pubkey) ? [data.pubkey] : []),
-      ...adminPubkeys,
-    ].filter((pk, i, arr) => arr.indexOf(pk) === i)
+      ...new Set([...(isValidPubkey(data.pubkey) ? [data.pubkey] : []), ...adminPubkeys]),
+    ]
 
     const nameEnvelope =
       data.name && piiRecipients.length > 0
@@ -133,9 +132,9 @@ export class IdentityService {
 
     if (allowed.name !== undefined || allowed.phone !== undefined) {
       const adminPubkeys = (await this.getSuperAdminPubkeys()).filter(isValidPubkey)
-      const piiRecipients = [...(isValidPubkey(pubkey) ? [pubkey] : []), ...adminPubkeys].filter(
-        (pk, i, arr) => arr.indexOf(pk) === i
-      )
+      const piiRecipients = [
+        ...new Set([...(isValidPubkey(pubkey) ? [pubkey] : []), ...adminPubkeys]),
+      ]
       if (piiRecipients.length > 0) {
         if (allowed.name !== undefined) {
           nameEnvelope = this.crypto.envelopeEncrypt(
@@ -397,9 +396,8 @@ export class IdentityService {
       // Encrypt user PII with E2EE envelopes
       const adminPubkeys = (await this.getSuperAdminPubkeys()).filter(isValidPubkey)
       const piiRecipients = [
-        ...(isValidPubkey(data.pubkey) ? [data.pubkey] : []),
-        ...adminPubkeys,
-      ].filter((pk, i, arr) => arr.indexOf(pk) === i)
+        ...new Set([...(isValidPubkey(data.pubkey) ? [data.pubkey] : []), ...adminPubkeys]),
+      ]
 
       const nameEnvelope =
         inviteName && piiRecipients.length > 0

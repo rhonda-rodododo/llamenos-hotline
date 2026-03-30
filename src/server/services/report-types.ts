@@ -2,31 +2,20 @@ import type { Ciphertext } from '@shared/crypto-types'
 import { and, eq, isNull } from 'drizzle-orm'
 import type { CreateReportTypeInput, ReportType, UpdateReportTypeInput } from '../../shared/types'
 import type { Database } from '../db'
-import { hubKeys, reportTypes } from '../db/schema'
+import { reportTypes } from '../db/schema'
 import type { CryptoService } from '../lib/crypto-service'
 import { AppError } from '../lib/errors'
+import type { SettingsService } from './settings'
 
 export class ReportTypeService {
+  #settings: SettingsService
+
   constructor(
     private readonly db: Database,
-    private readonly crypto: CryptoService
-  ) {}
-
-  async #getHubKey(hubId: string): Promise<Uint8Array | null> {
-    if (!hubId || hubId === 'global') return null
-    const envelopes = await this.db.select().from(hubKeys).where(eq(hubKeys.hubId, hubId))
-    if (envelopes.length === 0) return null
-    try {
-      return this.crypto.unwrapHubKey(
-        envelopes.map((r) => ({
-          pubkey: r.pubkey,
-          wrappedKey: r.encryptedKey,
-          ephemeralPubkey: r.ephemeralPubkey ?? '',
-        }))
-      )
-    } catch {
-      return null
-    }
+    private readonly crypto: CryptoService,
+    settings: SettingsService
+  ) {
+    this.#settings = settings
   }
 
   async listReportTypes(hubId: string): Promise<ReportType[]> {

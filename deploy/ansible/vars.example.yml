@@ -87,8 +87,11 @@ hmac_secret: "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
 # Generate with: openssl rand -base64 24
 pg_password: "dddddddddddddddddddddddd"
 
-# OPTIONAL: Connection pool size
-pg_pool_size: 10
+# OPTIONAL: Connection pool size (app-side pool per process)
+pg_pool_size: 20
+
+# OPTIONAL: PostgreSQL server max_connections (default: 1000)
+pg_max_connections: 1000
 
 # ─── Storage (RustFS) ──────────────────────────────────────────
 # REQUIRED: Access credentials

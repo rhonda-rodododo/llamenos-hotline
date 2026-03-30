@@ -1,7 +1,7 @@
 import type { Ciphertext } from '@shared/crypto-types'
 import { and, eq } from 'drizzle-orm'
 import type { Database } from '../db'
-import { activeShifts, hubKeys, ringGroups, shiftOverrides, shiftSchedules } from '../db/schema'
+import { activeShifts, ringGroups, shiftOverrides, shiftSchedules } from '../db/schema'
 import type { CryptoService } from '../lib/crypto-service'
 import { AppError } from '../lib/errors'
 import type {
@@ -14,32 +14,21 @@ import type {
   ShiftSchedule,
   StartShiftData,
 } from '../types'
+import type { SettingsService } from './settings'
 
 function isValidTimeFormat(time: string): boolean {
   return /^([01]\d|2[0-3]):[0-5]\d$/.test(time)
 }
 
 export class ShiftService {
+  #settings: SettingsService
+
   constructor(
     protected readonly db: Database,
-    private readonly crypto: CryptoService
-  ) {}
-
-  async #getHubKey(hubId: string): Promise<Uint8Array | null> {
-    if (!hubId || hubId === 'global') return null
-    const envelopes = await this.db.select().from(hubKeys).where(eq(hubKeys.hubId, hubId))
-    if (envelopes.length === 0) return null
-    try {
-      return this.crypto.unwrapHubKey(
-        envelopes.map((r) => ({
-          pubkey: r.pubkey,
-          wrappedKey: r.encryptedKey,
-          ephemeralPubkey: r.ephemeralPubkey ?? '',
-        }))
-      )
-    } catch {
-      return null
-    }
+    private readonly crypto: CryptoService,
+    settings: SettingsService
+  ) {
+    this.#settings = settings
   }
 
   // ------------------------------------------------------------------ Schedules

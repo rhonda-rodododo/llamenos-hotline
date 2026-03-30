@@ -222,64 +222,71 @@
     {
       "idx": 30,
       "version": "7",
-      "when": 1743292800000,
-      "tag": "0030_volunteer-to-user-rename",
+      "when": 1774844652826,
+      "tag": "0030_add_db_indexes",
       "breakpoints": true
     },
     {
       "idx": 31,
       "version": "7",
-      "when": 1743292800001,
-      "tag": "0031_pbac_permission_renames",
+      "when": 1743292800000,
+      "tag": "0031_volunteer-to-user-rename",
       "breakpoints": true
     },
     {
       "idx": 32,
       "version": "7",
-      "when": 1743379200000,
-      "tag": "0032_teams",
+      "when": 1743292800001,
+      "tag": "0032_pbac_permission_renames",
       "breakpoints": true
     },
     {
       "idx": 33,
       "version": "7",
-      "when": 1743465600000,
-      "tag": "0033_tags",
+      "when": 1743379200000,
+      "tag": "0033_teams",
       "breakpoints": true
     },
     {
       "idx": 34,
       "version": "7",
-      "when": 1743552000000,
-      "tag": "0034_contact_intakes",
+      "when": 1743465600000,
+      "tag": "0034_tags",
       "breakpoints": true
     },
     {
       "idx": 35,
       "version": "7",
-      "when": 1743638400000,
-      "tag": "0035_contact_merge",
+      "when": 1743552000000,
+      "tag": "0035_contact_intakes",
       "breakpoints": true
     },
     {
       "idx": 36,
       "version": "7",
-      "when": 1743724800000,
-      "tag": "0036_custom_field_visible_to",
+      "when": 1743638400000,
+      "tag": "0036_contact_merge",
       "breakpoints": true
     },
     {
       "idx": 37,
       "version": "7",
-      "when": 1743811200000,
-      "tag": "0037_drop_role_slug",
+      "when": 1743724800000,
+      "tag": "0037_custom_field_visible_to",
       "breakpoints": true
     },
     {
       "idx": 38,
       "version": "7",
+      "when": 1743811200000,
+      "tag": "0038_drop_role_slug",
+      "breakpoints": true
+    },
+    {
+      "idx": 39,
+      "version": "7",
       "when": 1743897600000,
-      "tag": "0038_user_phone_envelopes",
+      "tag": "0039_user_phone_envelopes",
       "breakpoints": true
     }
   ]

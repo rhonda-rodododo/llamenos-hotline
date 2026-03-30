@@ -16,7 +16,12 @@ import { initDb } from './db'
 import { loadEnv } from './env'
 import { scheduleBlastProcessor } from './jobs/blast-processor'
 import { scheduleRetentionPurge } from './jobs/retention-purge'
-import { closeNostrPublisher, getMessagingAdapter, getTelephony } from './lib/adapters'
+import {
+  closeNostrPublisher,
+  getMessagingAdapter,
+  getNostrPublisher,
+  getTelephony,
+} from './lib/adapters'
 import { CryptoService } from './lib/crypto-service'
 import { createStorageAdmin } from './lib/storage-admin'
 import { createStorageManager, resolveStorageCredentials } from './lib/storage-manager'
@@ -182,6 +187,15 @@ async function main() {
     env.SERVER_NOSTR_SECRET ?? ''
   )
   console.log('[llamenos] Blast delivery processor started (30s poll)')
+
+  // Eagerly connect Nostr publisher
+  const publisher = getNostrPublisher(env)
+  if (publisher.connect) {
+    publisher.connect().catch((err) => {
+      console.warn('[llamenos] Nostr publisher eager connect failed (will retry):', err)
+    })
+    console.log('[llamenos] Nostr publisher connecting eagerly')
+  }
 
   const { default: serverApp } = await import('./app')
 

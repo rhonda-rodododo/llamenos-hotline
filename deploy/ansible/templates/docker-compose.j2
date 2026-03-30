@@ -78,6 +78,7 @@ services:
     volumes:
       - postgres-data:/var/lib/postgresql/data
       - {{ app_dir }}/postgres-init:/docker-entrypoint-initdb.d:ro
+    command: ["postgres", "-c", "max_connections={{ pg_max_connections | default(1000) }}"]
     environment:
       - POSTGRES_DB=llamenos
       - POSTGRES_USER=llamenos
