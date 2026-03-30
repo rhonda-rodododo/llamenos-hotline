@@ -18,6 +18,28 @@ import {
 import type { Ciphertext, HmacHash } from '@shared/crypto-types'
 import type { RecipientEnvelope } from '@shared/types'
 
+/**
+ * Server-side cryptographic operations.
+ *
+ * Encryption tiers (in order of preference):
+ * 1. Envelope E2EE (ECIES per-recipient) — contacts, notes, PII, user/invite phone
+ * 2. Hub-key E2EE (symmetric, all hub members) — org metadata (role/hub/team/shift/tag names)
+ * 3. Server-key (below) — ONLY for fields the server must process at runtime
+ *
+ * Fields that MUST remain server-key encrypted:
+ * - provider_config credentials (server calls telephony/messaging APIs)
+ * - ivr_audio data (server serves to telephony bridge)
+ * - blast_settings welcome/bye/opt-in messages (server sends SMS)
+ * - push_subscriptions endpoint/auth/p256dh (server sends web push)
+ * - subscribers identifier (server sends blasts)
+ * - geocoding_config api_key (server calls geocoding API)
+ * - signal_registration_pending number (server registers with Signal bridge)
+ * - audit_log event/details (server writes audit entries)
+ * - active_calls caller number (server routes calls)
+ * - call_legs phone (server initiates call legs)
+ *
+ * All other encrypted fields use hub-key E2EE or envelope E2EE.
+ */
 export class CryptoService {
   constructor(
     private readonly serverSecret: string,
