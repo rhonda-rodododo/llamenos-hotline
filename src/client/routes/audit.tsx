@@ -12,7 +12,7 @@ import {
 import type { AuditLogEntry } from '@/lib/api'
 import { useAuth } from '@/lib/auth'
 import { useAuditLog } from '@/lib/queries/audit'
-import { useVolunteers } from '@/lib/queries/volunteers'
+import { useUsers } from '@/lib/queries/users'
 import { Link, createFileRoute } from '@tanstack/react-router'
 import { ChevronLeft, ChevronRight, ScrollText, Search } from 'lucide-react'
 import { useMemo, useState } from 'react'
@@ -104,7 +104,7 @@ function AuditPage() {
   }
 
   const { data, isLoading: loading } = useAuditLog(filters)
-  const { data: volunteers = [] } = useVolunteers()
+  const { data: users = [] } = useUsers()
 
   const entries = data?.entries ?? []
   const total = data?.total ?? 0
@@ -112,9 +112,9 @@ function AuditPage() {
 
   const nameMap = useMemo(() => {
     const map = new Map<string, string>()
-    for (const v of volunteers) map.set(v.pubkey, v.name)
+    for (const v of users) map.set(v.pubkey, v.name)
     return map
-  }, [volunteers])
+  }, [users])
 
   function clearFilters() {
     setSearchText('')
@@ -302,7 +302,7 @@ function ActorDisplay({ pubkey, nameMap }: { pubkey: string; nameMap: Map<string
   if (name) {
     return (
       <Link
-        to="/volunteers/$pubkey"
+        to="/users/$pubkey"
         params={{ pubkey }}
         className="inline-flex items-center gap-1.5 text-xs font-medium text-primary hover:underline"
       >

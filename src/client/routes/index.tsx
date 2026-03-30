@@ -5,10 +5,10 @@ import { useCallTimer, useCalls, useShiftStatus } from '@/lib/hooks'
 import {
   useCallAnalytics,
   useCallHoursAnalytics,
-  useVolunteerStatsAnalytics,
+  useUserStatsAnalytics,
 } from '@/lib/queries/analytics'
 import { useCallsTodayCount, usePresence } from '@/lib/queries/calls'
-import { useVolunteers } from '@/lib/queries/volunteers'
+import { useUsers } from '@/lib/queries/users'
 import { useTranscription } from '@/lib/transcription'
 import { useDecryptedArray } from '@/lib/use-decrypted'
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
@@ -17,7 +17,7 @@ import { useTranslation } from 'react-i18next'
 
 import { CallHoursChart } from '@/components/dashboard/call-hours-chart'
 import { CallVolumeChart } from '@/components/dashboard/call-volume-chart'
-import { VolunteerStatsTable } from '@/components/dashboard/volunteer-stats-table'
+import { UserStatsTable } from '@/components/dashboard/user-stats-table'
 import { GettingStartedChecklist } from '@/components/getting-started'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -66,7 +66,7 @@ function DashboardPage() {
   // React Query data
   const { data: callsToday = null } = useCallsTodayCount()
   const { data: presence = [] } = usePresence()
-  const { data: volunteersRaw = [] } = useVolunteers()
+  const { data: usersRaw = [] } = useUsers()
 
   // Analytics — enabled only when the section is open
   const { data: callVolumeData = [], isFetching: volumeLoading } = useCallAnalytics(
@@ -76,14 +76,14 @@ function DashboardPage() {
   const { data: callHoursData = [], isFetching: hoursLoading } = useCallHoursAnalytics(
     isAdmin && analyticsOpen
   )
-  const { data: volunteerStatsData = [], isFetching: statsLoading } = useVolunteerStatsAnalytics(
+  const { data: userStatsData = [], isFetching: statsLoading } = useUserStatsAnalytics(
     isAdmin && analyticsOpen
   )
 
   const analyticsLoading = volumeLoading || hoursLoading || statsLoading
 
-  // useVolunteers already decrypts PII fields in the query fn
-  const volunteers = volunteersRaw
+  // useUsers already decrypts PII fields in the query fn
+  const users = usersRaw
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -310,40 +310,40 @@ function DashboardPage() {
       )}
 
       {/* All active calls list (admin view) */}
-      {/* Volunteer status grid (admin only) */}
+      {/* User status grid (admin only) */}
       {isAdmin && (
         <Card>
           <CardHeader className="border-b">
             <CardTitle className="flex items-center gap-2 text-base">
               <Users className="h-4 w-4 text-primary" />
-              {t('dashboard.volunteerStatus')}
+              {t('dashboard.userStatus')}
             </CardTitle>
           </CardHeader>
           <CardContent>
             {presence.length === 0 ? (
               <p className="py-4 text-center text-sm text-muted-foreground">
-                {t('dashboard.noVolunteersOnline')}
+                {t('dashboard.noUsersOnline')}
               </p>
             ) : (
               <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4">
-                {presence.map((vol) => {
-                  const volInfo = volunteers.find((v) => v.pubkey === vol.pubkey)
+                {presence.map((u) => {
+                  const userInfo = users.find((v) => v.pubkey === u.pubkey)
                   return (
                     <div
-                      key={vol.pubkey}
+                      key={u.pubkey}
                       className="flex items-center gap-2 rounded-lg border border-border p-2"
                     >
                       <span
                         className={`h-2.5 w-2.5 shrink-0 rounded-full ${
-                          vol.status === 'on-call' ? 'bg-blue-500' : 'bg-green-500'
+                          u.status === 'on-call' ? 'bg-blue-500' : 'bg-green-500'
                         }`}
                       />
                       <div className="min-w-0">
                         <p className="truncate text-sm font-medium">
-                          {volInfo?.name || vol.pubkey.slice(0, 8)}
+                          {userInfo?.name || u.pubkey.slice(0, 8)}
                         </p>
                         <p className="text-xs text-muted-foreground">
-                          {vol.status === 'on-call'
+                          {u.status === 'on-call'
                             ? t('dashboard.onCall')
                             : t('dashboard.available')}
                         </p>
@@ -403,7 +403,7 @@ function DashboardPage() {
                   <h3 className="mb-3 text-sm font-medium">
                     {t('dashboard.analytics.teamPerformance')}
                   </h3>
-                  <VolunteerStatsTable data={volunteerStatsData} loading={analyticsLoading} />
+                  <UserStatsTable data={userStatsData} loading={analyticsLoading} />
                 </div>
               </CardContent>
             </CollapsibleContent>
@@ -438,8 +438,8 @@ function DashboardPage() {
                       <p className="text-xs text-muted-foreground">
                         {call.answeredBy &&
                           (() => {
-                            const vol = volunteers.find((v) => v.pubkey === call.answeredBy)
-                            return vol ? vol.name : t('calls.active')
+                            const u = users.find((v) => v.pubkey === call.answeredBy)
+                            return u ? u.name : t('calls.active')
                           })()}
                       </p>
                     </div>

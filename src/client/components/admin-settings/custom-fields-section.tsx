@@ -74,8 +74,8 @@ export function CustomFieldsSection({
           required: editing.required ?? false,
           options: editing.options,
           validation: editing.validation,
-          visibleToVolunteers: editing.visibleToVolunteers ?? true,
-          editableByVolunteers: editing.editableByVolunteers ?? true,
+          visibleToUsers: editing.visibleToUsers ?? true,
+          editableByUsers: editing.editableByUsers ?? true,
           context: editing.context ?? 'all',
           order: fields.length,
           createdAt: new Date().toISOString(),
@@ -145,7 +145,7 @@ export function CustomFieldsSection({
                       {t('customFields.required')}
                     </Badge>
                   )}
-                  {!field.visibleToVolunteers && (
+                  {!field.visibleToUsers && (
                     <Badge variant="secondary" className="text-[10px]">
                       {t('customFields.adminOnly')}
                     </Badge>
@@ -423,21 +423,21 @@ export function CustomFieldsSection({
           <div className="flex flex-wrap gap-4">
             <div className="flex items-center gap-2">
               <Switch
-                checked={editing.visibleToVolunteers ?? true}
+                checked={editing.visibleToUsers ?? true}
                 onCheckedChange={(checked) =>
-                  setEditing((prev) => ({ ...(prev ?? {}), visibleToVolunteers: checked }))
+                  setEditing((prev) => ({ ...(prev ?? {}), visibleToUsers: checked }))
                 }
               />
-              <Label className="text-sm">{t('customFields.visibleToVolunteers')}</Label>
+              <Label className="text-sm">{t('customFields.visibleToUsers')}</Label>
             </div>
             <div className="flex items-center gap-2">
               <Switch
-                checked={editing.editableByVolunteers ?? true}
+                checked={editing.editableByUsers ?? true}
                 onCheckedChange={(checked) =>
-                  setEditing((prev) => ({ ...(prev ?? {}), editableByVolunteers: checked }))
+                  setEditing((prev) => ({ ...(prev ?? {}), editableByUsers: checked }))
                 }
               />
-              <Label className="text-sm">{t('customFields.editableByVolunteers')}</Label>
+              <Label className="text-sm">{t('customFields.editableByUsers')}</Label>
             </div>
           </div>
 
@@ -464,8 +464,8 @@ export function CustomFieldsSection({
               setEditing({
                 type: 'text',
                 required: false,
-                visibleToVolunteers: true,
-                editableByVolunteers: true,
+                visibleToUsers: true,
+                editableByUsers: true,
               })
             }
           >

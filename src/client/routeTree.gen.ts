@@ -9,7 +9,7 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as VolunteersRouteImport } from './routes/volunteers'
+import { Route as UsersRouteImport } from './routes/users'
 import { Route as ShiftsRouteImport } from './routes/shifts'
 import { Route as SetupRouteImport } from './routes/setup'
 import { Route as SettingsRouteImport } from './routes/settings'
@@ -28,16 +28,16 @@ import { Route as BlastsRouteImport } from './routes/blasts'
 import { Route as BansRouteImport } from './routes/bans'
 import { Route as AuditRouteImport } from './routes/audit'
 import { Route as IndexRouteImport } from './routes/index'
-import { Route as VolunteersPubkeyRouteImport } from './routes/volunteers_.$pubkey'
+import { Route as UsersPubkeyRouteImport } from './routes/users_.$pubkey'
 import { Route as NotesNoteIdRouteImport } from './routes/notes.$noteId'
 import { Route as ContactsContactIdRouteImport } from './routes/contacts_.$contactId'
 import { Route as CallsCallIdRouteImport } from './routes/calls.$callId'
 import { Route as AdminSettingsRouteImport } from './routes/admin/settings'
 import { Route as AdminHubsRouteImport } from './routes/admin/hubs'
 
-const VolunteersRoute = VolunteersRouteImport.update({
-  id: '/volunteers',
-  path: '/volunteers',
+const UsersRoute = UsersRouteImport.update({
+  id: '/users',
+  path: '/users',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ShiftsRoute = ShiftsRouteImport.update({
@@ -130,9 +130,9 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const VolunteersPubkeyRoute = VolunteersPubkeyRouteImport.update({
-  id: '/volunteers_/$pubkey',
-  path: '/volunteers/$pubkey',
+const UsersPubkeyRoute = UsersPubkeyRouteImport.update({
+  id: '/users_/$pubkey',
+  path: '/users/$pubkey',
   getParentRoute: () => rootRouteImport,
 } as any)
 const NotesNoteIdRoute = NotesNoteIdRouteImport.update({
@@ -180,13 +180,13 @@ export interface FileRoutesByFullPath {
   '/settings': typeof SettingsRoute
   '/setup': typeof SetupRoute
   '/shifts': typeof ShiftsRoute
-  '/volunteers': typeof VolunteersRoute
+  '/users': typeof UsersRoute
   '/admin/hubs': typeof AdminHubsRoute
   '/admin/settings': typeof AdminSettingsRoute
   '/calls/$callId': typeof CallsCallIdRoute
   '/contacts/$contactId': typeof ContactsContactIdRoute
   '/notes/$noteId': typeof NotesNoteIdRoute
-  '/volunteers/$pubkey': typeof VolunteersPubkeyRoute
+  '/users/$pubkey': typeof UsersPubkeyRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -207,13 +207,13 @@ export interface FileRoutesByTo {
   '/settings': typeof SettingsRoute
   '/setup': typeof SetupRoute
   '/shifts': typeof ShiftsRoute
-  '/volunteers': typeof VolunteersRoute
+  '/users': typeof UsersRoute
   '/admin/hubs': typeof AdminHubsRoute
   '/admin/settings': typeof AdminSettingsRoute
   '/calls/$callId': typeof CallsCallIdRoute
   '/contacts/$contactId': typeof ContactsContactIdRoute
   '/notes/$noteId': typeof NotesNoteIdRoute
-  '/volunteers/$pubkey': typeof VolunteersPubkeyRoute
+  '/users/$pubkey': typeof UsersPubkeyRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -235,13 +235,13 @@ export interface FileRoutesById {
   '/settings': typeof SettingsRoute
   '/setup': typeof SetupRoute
   '/shifts': typeof ShiftsRoute
-  '/volunteers': typeof VolunteersRoute
+  '/users': typeof UsersRoute
   '/admin/hubs': typeof AdminHubsRoute
   '/admin/settings': typeof AdminSettingsRoute
   '/calls/$callId': typeof CallsCallIdRoute
   '/contacts_/$contactId': typeof ContactsContactIdRoute
   '/notes/$noteId': typeof NotesNoteIdRoute
-  '/volunteers_/$pubkey': typeof VolunteersPubkeyRoute
+  '/users_/$pubkey': typeof UsersPubkeyRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -264,13 +264,13 @@ export interface FileRouteTypes {
     | '/settings'
     | '/setup'
     | '/shifts'
-    | '/volunteers'
+    | '/users'
     | '/admin/hubs'
     | '/admin/settings'
     | '/calls/$callId'
     | '/contacts/$contactId'
     | '/notes/$noteId'
-    | '/volunteers/$pubkey'
+    | '/users/$pubkey'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -291,13 +291,13 @@ export interface FileRouteTypes {
     | '/settings'
     | '/setup'
     | '/shifts'
-    | '/volunteers'
+    | '/users'
     | '/admin/hubs'
     | '/admin/settings'
     | '/calls/$callId'
     | '/contacts/$contactId'
     | '/notes/$noteId'
-    | '/volunteers/$pubkey'
+    | '/users/$pubkey'
   id:
     | '__root__'
     | '/'
@@ -318,13 +318,13 @@ export interface FileRouteTypes {
     | '/settings'
     | '/setup'
     | '/shifts'
-    | '/volunteers'
+    | '/users'
     | '/admin/hubs'
     | '/admin/settings'
     | '/calls/$callId'
     | '/contacts_/$contactId'
     | '/notes/$noteId'
-    | '/volunteers_/$pubkey'
+    | '/users_/$pubkey'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -346,20 +346,20 @@ export interface RootRouteChildren {
   SettingsRoute: typeof SettingsRoute
   SetupRoute: typeof SetupRoute
   ShiftsRoute: typeof ShiftsRoute
-  VolunteersRoute: typeof VolunteersRoute
+  UsersRoute: typeof UsersRoute
   AdminHubsRoute: typeof AdminHubsRoute
   AdminSettingsRoute: typeof AdminSettingsRoute
   ContactsContactIdRoute: typeof ContactsContactIdRoute
-  VolunteersPubkeyRoute: typeof VolunteersPubkeyRoute
+  UsersPubkeyRoute: typeof UsersPubkeyRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/volunteers': {
-      id: '/volunteers'
-      path: '/volunteers'
-      fullPath: '/volunteers'
-      preLoaderRoute: typeof VolunteersRouteImport
+    '/users': {
+      id: '/users'
+      path: '/users'
+      fullPath: '/users'
+      preLoaderRoute: typeof UsersRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/shifts': {
@@ -488,11 +488,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/volunteers_/$pubkey': {
-      id: '/volunteers_/$pubkey'
-      path: '/volunteers/$pubkey'
-      fullPath: '/volunteers/$pubkey'
-      preLoaderRoute: typeof VolunteersPubkeyRouteImport
+    '/users_/$pubkey': {
+      id: '/users_/$pubkey'
+      path: '/users/$pubkey'
+      fullPath: '/users/$pubkey'
+      preLoaderRoute: typeof UsersPubkeyRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/notes/$noteId': {
@@ -572,11 +572,11 @@ const rootRouteChildren: RootRouteChildren = {
   SettingsRoute: SettingsRoute,
   SetupRoute: SetupRoute,
   ShiftsRoute: ShiftsRoute,
-  VolunteersRoute: VolunteersRoute,
+  UsersRoute: UsersRoute,
   AdminHubsRoute: AdminHubsRoute,
   AdminSettingsRoute: AdminSettingsRoute,
   ContactsContactIdRoute: ContactsContactIdRoute,
-  VolunteersPubkeyRoute: VolunteersPubkeyRoute,
+  UsersPubkeyRoute: UsersPubkeyRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

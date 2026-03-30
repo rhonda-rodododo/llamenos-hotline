@@ -2,7 +2,7 @@
  * React Query hooks for conversations resource management.
  *
  * Conversations use per-message envelope encryption (XChaCha20-Poly1305 + ECIES).
- * The list is decrypted via decryptArrayFields + LABEL_VOLUNTEER_PII.
+ * The list is decrypted via decryptArrayFields + LABEL_USER_PII.
  * Message decryption is done client-side via decryptMessage().
  *
  * Real-time updates arrive via Nostr (useConversations in hooks.ts);
@@ -22,7 +22,7 @@ import { useAuth } from '@/lib/auth'
 import { decryptMessage } from '@/lib/crypto'
 import { decryptArrayFields } from '@/lib/decrypt-fields'
 import * as keyManager from '@/lib/key-manager'
-import { LABEL_VOLUNTEER_PII } from '@shared/crypto-labels'
+import { LABEL_USER_PII } from '@shared/crypto-labels'
 import { queryOptions, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { queryKeys } from './keys'
 
@@ -46,7 +46,7 @@ type ConversationMessagesAuth = {
 
 /**
  * Fetch and decrypt the conversation list.
- * Decrypts PII fields (contactLast4, etc.) via decryptArrayFields + LABEL_VOLUNTEER_PII.
+ * Decrypts PII fields (contactLast4, etc.) via decryptArrayFields + LABEL_USER_PII.
  * staleTime=0: Nostr is primary for real-time updates; REST is the fallback/seed.
  * refetchInterval=30_000 polls every 30s as safety net.
  */
@@ -60,7 +60,7 @@ export const conversationsListOptions = () =>
         await decryptArrayFields(
           conversations as unknown as Record<string, unknown>[],
           pubkey,
-          LABEL_VOLUNTEER_PII
+          LABEL_USER_PII
         )
       }
       return conversations

@@ -11,7 +11,7 @@ import {
 import { ScrollArea } from '@/components/ui/scroll-area'
 import type { Conversation } from '@/lib/api'
 import { useUpdateConversation } from '@/lib/queries/conversations'
-import { useVolunteers } from '@/lib/queries/volunteers'
+import { useUsers } from '@/lib/queries/users'
 import { useToast } from '@/lib/toast'
 import { AlertCircle, Loader2, User, Users } from 'lucide-react'
 import { useState } from 'react'
@@ -34,29 +34,29 @@ export function ReassignDialog({
   const { toast } = useToast()
   const [selectedPubkey, setSelectedPubkey] = useState<string | null>(null)
 
-  const volunteersQuery = useVolunteers()
-  const rawVolunteers = volunteersQuery.data ?? []
-  const loading = volunteersQuery.isLoading
+  const usersQuery = useUsers()
+  const rawUsers = usersQuery.data ?? []
+  const loading = usersQuery.isLoading
 
   const updateConversation = useUpdateConversation()
   const reassigning = updateConversation.isPending
 
-  // useVolunteers already decrypts PII fields in the query fn
-  // Filter to eligible volunteers: active, messaging enabled, not the current assignee
-  const eligibleVolunteers = rawVolunteers.filter(
+  // useUsers already decrypts PII fields in the query fn
+  // Filter to eligible users: active, messaging enabled, not the current assignee
+  const eligibleUsers = rawUsers.filter(
     (v) => v.active && v.messagingEnabled !== false && v.pubkey !== conversation.assignedTo
   )
 
-  // Check if volunteer can handle this channel
-  const canHandleChannel = (vol: (typeof eligibleVolunteers)[number]) => {
-    if (!vol.supportedMessagingChannels || vol.supportedMessagingChannels.length === 0) {
+  // Check if user can handle this channel
+  const canHandleChannel = (u: (typeof eligibleUsers)[number]) => {
+    if (!u.supportedMessagingChannels || u.supportedMessagingChannels.length === 0) {
       return true // Empty array means all channels
     }
-    return vol.supportedMessagingChannels.includes(conversation.channelType as string)
+    return u.supportedMessagingChannels.includes(conversation.channelType as string)
   }
 
-  // Sort volunteers: capable first, then alphabetically
-  const sortedVolunteers = [...eligibleVolunteers].sort((a, b) => {
+  // Sort users: capable first, then alphabetically
+  const sortedUsers = [...eligibleUsers].sort((a, b) => {
     const aCanHandle = canHandleChannel(a)
     const bCanHandle = canHandleChannel(b)
     if (aCanHandle && !bCanHandle) return -1
@@ -109,7 +109,7 @@ export function ReassignDialog({
           </DialogTitle>
           <DialogDescription>
             {t('conversations.reassignDescription', {
-              defaultValue: 'Select a volunteer to handle this conversation.',
+              defaultValue: 'Select a user to handle this conversation.',
             })}
           </DialogDescription>
         </DialogHeader>
@@ -118,27 +118,27 @@ export function ReassignDialog({
           <div className="flex items-center justify-center py-8">
             <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
           </div>
-        ) : eligibleVolunteers.length === 0 ? (
+        ) : eligibleUsers.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-8 text-center">
             <AlertCircle className="h-8 w-8 text-muted-foreground mb-2" />
             <p className="text-sm text-muted-foreground">
-              {t('conversations.noVolunteersAvailable', {
-                defaultValue: 'No volunteers available',
+              {t('conversations.noUsersAvailable', {
+                defaultValue: 'No users available',
               })}
             </p>
           </div>
         ) : (
           <ScrollArea className="max-h-64">
             <div className="space-y-2 pr-4">
-              {sortedVolunteers.map((vol) => {
-                const capable = canHandleChannel(vol)
-                const isSelected = selectedPubkey === vol.pubkey
+              {sortedUsers.map((u) => {
+                const capable = canHandleChannel(u)
+                const isSelected = selectedPubkey === u.pubkey
 
                 return (
                   <button
-                    key={vol.pubkey}
+                    key={u.pubkey}
                     type="button"
-                    onClick={() => setSelectedPubkey(vol.pubkey)}
+                    onClick={() => setSelectedPubkey(u.pubkey)}
                     disabled={!capable}
                     className={`w-full flex items-center gap-3 rounded-lg border p-3 text-left transition-colors ${
                       isSelected
@@ -149,12 +149,12 @@ export function ReassignDialog({
                     }`}
                   >
                     <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-sm font-semibold text-primary">
-                      {vol.name.charAt(0).toUpperCase()}
+                      {u.name.charAt(0).toUpperCase()}
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
-                        <span className="font-medium truncate">{vol.name}</span>
-                        {vol.onBreak && (
+                        <span className="font-medium truncate">{u.name}</span>
+                        {u.onBreak && (
                           <Badge
                             variant="outline"
                             className="text-xs border-yellow-500/50 text-yellow-600"

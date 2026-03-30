@@ -61,8 +61,8 @@ export function TranscriptionSection({
           checked={allowOptOut}
           onCheckedChange={async (checked) => {
             try {
-              const res = await updateTranscriptionSettings({ allowVolunteerOptOut: checked })
-              onOptOutChange(res.allowVolunteerOptOut)
+              const res = await updateTranscriptionSettings({ allowUserOptOut: checked })
+              onOptOutChange(res.allowUserOptOut)
             } catch {
               toast(t('common.error'), 'error')
             }

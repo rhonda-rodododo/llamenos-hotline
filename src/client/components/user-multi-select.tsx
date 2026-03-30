@@ -8,33 +8,33 @@ import {
   CommandList,
 } from '@/components/ui/command'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
-import type { Volunteer } from '@/lib/api'
+import type { User } from '@/lib/api'
 import { useDecryptedArray } from '@/lib/use-decrypted'
 import { cn } from '@/lib/utils'
 import { Check, ChevronsUpDown, X } from 'lucide-react'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
-interface VolunteerMultiSelectProps {
-  volunteers: Volunteer[]
+interface UserMultiSelectProps {
+  users: User[]
   selected: string[]
   onSelectionChange: (pubkeys: string[]) => void
   placeholder?: string
   className?: string
 }
 
-export function VolunteerMultiSelect({
-  volunteers,
+export function UserMultiSelect({
+  users,
   selected,
   onSelectionChange,
   placeholder,
   className,
-}: VolunteerMultiSelectProps) {
+}: UserMultiSelectProps) {
   const { t } = useTranslation()
   const [open, setOpen] = useState(false)
-  const decryptedVolunteers = useDecryptedArray(volunteers)
+  const decryptedUsers = useDecryptedArray(users)
 
-  const selectedVolunteers = decryptedVolunteers.filter((v) => selected.includes(v.pubkey))
+  const selectedUsers = decryptedUsers.filter((v) => selected.includes(v.pubkey))
 
   function toggle(pubkey: string) {
     onSelectionChange(
@@ -60,24 +60,24 @@ export function VolunteerMultiSelect({
             className
           )}
         >
-          {selectedVolunteers.length > 0 ? (
-            selectedVolunteers.map((vol) => (
-              <Badge key={vol.pubkey} variant="secondary" className="max-w-[150px] gap-0.5 pr-0.5">
-                <span className="truncate" title={vol.name}>
-                  {vol.name}
+          {selectedUsers.length > 0 ? (
+            selectedUsers.map((u) => (
+              <Badge key={u.pubkey} variant="secondary" className="max-w-[150px] gap-0.5 pr-0.5">
+                <span className="truncate" title={u.name}>
+                  {u.name}
                 </span>
                 <span
                   role="button"
                   tabIndex={0}
-                  aria-label={t('shifts.removeVolunteer', {
-                    name: vol.name,
+                  aria-label={t('shifts.removeUser', {
+                    name: u.name,
                   })}
                   className="ml-0.5 rounded-full p-0.5 hover:bg-muted-foreground/20"
-                  onClick={(e) => remove(vol.pubkey, e)}
+                  onClick={(e) => remove(u.pubkey, e)}
                   onKeyDown={(e) => {
                     if (e.key === 'Enter' || e.key === ' ') {
                       e.preventDefault()
-                      remove(vol.pubkey, e)
+                      remove(u.pubkey, e)
                     }
                   }}
                 >
@@ -86,9 +86,7 @@ export function VolunteerMultiSelect({
               </Badge>
             ))
           ) : (
-            <span className="text-muted-foreground">
-              {placeholder || t('shifts.searchVolunteers')}
-            </span>
+            <span className="text-muted-foreground">{placeholder || t('shifts.searchUsers')}</span>
           )}
           <ChevronsUpDown className="ml-auto h-4 w-4 shrink-0 opacity-50" />
         </button>
@@ -96,31 +94,27 @@ export function VolunteerMultiSelect({
       <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
         <Command
           filter={(value, search) => {
-            const vol = decryptedVolunteers.find((v) => v.pubkey === value)
-            if (!vol) return 0
-            const haystack = `${vol.name} ${vol.phone} ${vol.pubkey}`.toLowerCase()
+            const u = decryptedUsers.find((v) => v.pubkey === value)
+            if (!u) return 0
+            const haystack = `${u.name} ${u.phone} ${u.pubkey}`.toLowerCase()
             return haystack.includes(search.toLowerCase()) ? 1 : 0
           }}
         >
-          <CommandInput placeholder={t('shifts.searchVolunteers')} />
+          <CommandInput placeholder={t('shifts.searchUsers')} />
           <CommandList className="max-h-[200px]">
-            <CommandEmpty>{t('shifts.noVolunteersFound')}</CommandEmpty>
+            <CommandEmpty>{t('shifts.noUsersFound')}</CommandEmpty>
             <CommandGroup>
-              {decryptedVolunteers.map((vol) => (
-                <CommandItem
-                  key={vol.pubkey}
-                  value={vol.pubkey}
-                  onSelect={() => toggle(vol.pubkey)}
-                >
+              {decryptedUsers.map((u) => (
+                <CommandItem key={u.pubkey} value={u.pubkey} onSelect={() => toggle(u.pubkey)}>
                   <Check
                     className={cn(
                       'h-4 w-4',
-                      selected.includes(vol.pubkey) ? 'opacity-100' : 'opacity-0'
+                      selected.includes(u.pubkey) ? 'opacity-100' : 'opacity-0'
                     )}
                   />
-                  <span className="truncate">{vol.name}</span>
+                  <span className="truncate">{u.name}</span>
                   <span className="ml-auto font-mono text-xs text-muted-foreground">
-                    {vol.pubkey.slice(0, 8)}…
+                    {u.pubkey.slice(0, 8)}…
                   </span>
                 </CommandItem>
               ))}

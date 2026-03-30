@@ -9,7 +9,7 @@
  * → decrypted value written to `foo`.
  */
 
-import { LABEL_VOLUNTEER_PII } from '@shared/crypto-labels'
+import { LABEL_USER_PII } from '@shared/crypto-labels'
 import type { RecipientEnvelope } from '@shared/types'
 import { getCryptoWorker } from './crypto-worker-client'
 
@@ -123,13 +123,13 @@ export function resolveEncryptedFields(
  *
  * @param obj           Plain object with `encryptedFoo` + `fooEnvelopes` pairs.
  * @param readerPubkey  The current user's x-only public key hex.
- * @param label         Domain separation label (defaults to LABEL_VOLUNTEER_PII).
+ * @param label         Domain separation label (defaults to LABEL_USER_PII).
  * @returns The same object, mutated in place.
  */
 export async function decryptObjectFields<T extends Record<string, unknown>>(
   obj: T,
   readerPubkey: string,
-  label: string = LABEL_VOLUNTEER_PII
+  label: string = LABEL_USER_PII
 ): Promise<T> {
   const refs = resolveEncryptedFields(obj, readerPubkey)
   if (refs.length === 0) return obj
@@ -172,13 +172,13 @@ export async function decryptObjectFields<T extends Record<string, unknown>>(
  *
  * @param items         Array of plain objects.
  * @param readerPubkey  The current user's x-only public key hex.
- * @param label         Domain separation label (defaults to LABEL_VOLUNTEER_PII).
+ * @param label         Domain separation label (defaults to LABEL_USER_PII).
  * @returns The same array, with each item mutated in place.
  */
 export async function decryptArrayFields<T extends Record<string, unknown>>(
   items: T[],
   readerPubkey: string,
-  label: string = LABEL_VOLUNTEER_PII
+  label: string = LABEL_USER_PII
 ): Promise<T[]> {
   await Promise.all(items.map((item) => decryptObjectFields(item, readerPubkey, label)))
   return items

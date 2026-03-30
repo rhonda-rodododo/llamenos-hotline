@@ -4,11 +4,11 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Checkbox } from '@/components/ui/checkbox'
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
-import { type Volunteer, getVolunteerUnmasked } from '@/lib/api'
+import { type User, getUserUnmasked } from '@/lib/api'
 import { useAuth } from '@/lib/auth'
 import { useAuditLog } from '@/lib/queries/audit'
 import { useShifts } from '@/lib/queries/shifts'
-import { useUpdateVolunteer, useVolunteer } from '@/lib/queries/volunteers'
+import { useUpdateUser, useUser } from '@/lib/queries/users'
 import { useToast } from '@/lib/toast'
 import { LANGUAGES } from '@shared/languages'
 import { Link, createFileRoute } from '@tanstack/react-router'
@@ -25,15 +25,15 @@ import {
   ScrollText,
   Shield,
   ShieldCheck,
-  User,
+  User as UserIcon,
 } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 const MESSAGING_CHANNELS = ['sms', 'whatsapp', 'signal', 'rcs', 'web'] as const
 
-export const Route = createFileRoute('/volunteers_/$pubkey')({
-  component: VolunteerProfilePage,
+export const Route = createFileRoute('/users_/$pubkey')({
+  component: UserProfilePage,
 })
 
 const DAY_KEYS = [
@@ -46,7 +46,7 @@ const DAY_KEYS = [
   'saturday',
 ] as const
 
-function VolunteerProfilePage() {
+function UserProfilePage() {
   const { t } = useTranslation()
   const { isAdmin } = useAuth()
   const { pubkey } = Route.useParams()
@@ -56,21 +56,21 @@ function VolunteerProfilePage() {
   const [savingChannels, setSavingChannels] = useState(false)
   const auditLimit = 20
 
-  // React Query: volunteer (already decrypted by query fn), shifts, audit log
-  const { data: volunteer, isLoading: loading } = useVolunteer(pubkey)
+  // React Query: user (already decrypted by query fn), shifts, audit log
+  const { data: user, isLoading: loading } = useUser(pubkey)
   const { data: allShifts = [] } = useShifts()
   const { data: auditData, isLoading: auditLoading } = useAuditLog({
     page: auditPage,
     limit: auditLimit,
     actorPubkey: pubkey,
   })
-  const updateVolunteerMutation = useUpdateVolunteer()
+  const updateUserMutation = useUpdateUser()
 
   const auditEntries = auditData?.entries ?? []
   const auditTotal = auditData?.total ?? 0
 
   const assignedShifts = useMemo(
-    () => allShifts.filter((s) => s.volunteerPubkeys.includes(pubkey)),
+    () => allShifts.filter((s) => s.userPubkeys.includes(pubkey)),
     [allShifts, pubkey]
   )
 
@@ -88,15 +88,15 @@ function VolunteerProfilePage() {
     )
   }
 
-  if (!volunteer) {
+  if (!user) {
     return (
       <div className="space-y-4">
         <Link
-          to="/volunteers"
+          to="/users"
           className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
         >
           <ArrowLeft className="h-4 w-4" />
-          {t('nav.volunteers')}
+          {t('nav.users')}
         </Link>
         <div className="py-8 text-center text-muted-foreground">{t('common.noData')}</div>
       </div>
@@ -104,8 +104,8 @@ function VolunteerProfilePage() {
   }
 
   const auditTotalPages = Math.ceil(auditTotal / auditLimit)
-  // useVolunteer already decrypts name/phone via the query fn
-  const displayName = volunteer.name
+  // useUser already decrypts name/phone via the query fn
+  const displayName = user.name
 
   const langMap = new Map(LANGUAGES.map((l) => [l.code, l]))
 
@@ -113,14 +113,14 @@ function VolunteerProfilePage() {
     <div className="space-y-6">
       {/* Back link */}
       <Link
-        to="/volunteers"
+        to="/users"
         className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
       >
         <ArrowLeft className="h-4 w-4" />
-        {t('nav.volunteers')}
+        {t('nav.users')}
       </Link>
 
-      {/* Volunteer Info Card */}
+      {/* User Info Card */}
       <Card>
         <CardContent className="pt-6">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
@@ -130,39 +130,38 @@ function VolunteerProfilePage() {
             <div className="flex-1 space-y-3">
               <div>
                 <h1 className="text-xl font-bold">{displayName}</h1>
-                <code className="text-xs text-muted-foreground">{volunteer.pubkey}</code>
+                <code className="text-xs text-muted-foreground">{user.pubkey}</code>
               </div>
               <div className="flex flex-wrap gap-2">
                 <Badge
                   variant={
-                    volunteer.roles.includes('role-super-admin') ||
-                    volunteer.roles.includes('role-hub-admin')
+                    user.roles.includes('role-super-admin') || user.roles.includes('role-hub-admin')
                       ? 'default'
                       : 'secondary'
                   }
                 >
-                  {volunteer.roles.includes('role-super-admin') ||
-                  volunteer.roles.includes('role-hub-admin') ? (
+                  {user.roles.includes('role-super-admin') ||
+                  user.roles.includes('role-hub-admin') ? (
                     <>
-                      <ShieldCheck className="h-3 w-3" /> {t('volunteers.roleAdmin')}
+                      <ShieldCheck className="h-3 w-3" /> {t('users.roleAdmin')}
                     </>
                   ) : (
                     <>
-                      <Shield className="h-3 w-3" /> {t('volunteers.roleVolunteer')}
+                      <Shield className="h-3 w-3" /> {t('users.roleVolunteer')}
                     </>
                   )}
                 </Badge>
                 <Badge
                   variant="outline"
                   className={
-                    volunteer.active
+                    user.active
                       ? 'border-green-500/50 text-green-700 dark:text-green-400'
                       : 'border-red-500/50 text-red-700 dark:text-red-400'
                   }
                 >
-                  {volunteer.active ? t('volunteers.active') : t('volunteers.inactive')}
+                  {user.active ? t('users.active') : t('users.inactive')}
                 </Badge>
-                {volunteer.onBreak && (
+                {user.onBreak && (
                   <Badge
                     variant="outline"
                     className="border-yellow-500/50 text-yellow-700 dark:text-yellow-400"
@@ -175,14 +174,14 @@ function VolunteerProfilePage() {
               <div className="flex flex-wrap gap-x-6 gap-y-1 text-sm text-muted-foreground">
                 <span className="flex items-center gap-1.5">
                   <Phone className="h-3.5 w-3.5" />
-                  <span className="font-mono text-xs">{unmaskedPhone ?? volunteer.phone}</span>
+                  <span className="font-mono text-xs">{unmaskedPhone ?? user.phone}</span>
                   <button
                     onClick={async () => {
                       if (unmaskedPhone) {
                         setUnmaskedPhone(null)
                       } else {
-                        const vol = await getVolunteerUnmasked(volunteer.pubkey)
-                        setUnmaskedPhone(vol.volunteer.phone)
+                        const res = await getUserUnmasked(user.pubkey)
+                        setUnmaskedPhone(res.user.phone)
                       }
                     }}
                     className="text-muted-foreground hover:text-foreground"
@@ -191,9 +190,8 @@ function VolunteerProfilePage() {
                   </button>
                 </span>
                 <span className="flex items-center gap-1.5">
-                  <User className="h-3.5 w-3.5" />
-                  {t('volunteerProfile.joined')}{' '}
-                  {new Date(volunteer.createdAt).toLocaleDateString()}
+                  <UserIcon className="h-3.5 w-3.5" />
+                  {t('userProfile.joined')} {new Date(user.createdAt).toLocaleDateString()}
                 </span>
               </div>
             </div>
@@ -206,13 +204,13 @@ function VolunteerProfilePage() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base">
             <Clock className="h-4 w-4 text-muted-foreground" />
-            {t('volunteerProfile.assignedShifts')}
+            {t('userProfile.assignedShifts')}
           </CardTitle>
         </CardHeader>
         <CardContent className="p-0">
           {assignedShifts.length === 0 ? (
             <div className="px-6 pb-6 text-sm text-muted-foreground">
-              {t('volunteerProfile.noShifts')}
+              {t('userProfile.noShifts')}
             </div>
           ) : (
             <div className="divide-y divide-border">
@@ -240,19 +238,19 @@ function VolunteerProfilePage() {
 
       {/* Messaging Channels Configuration */}
       <MessagingChannelsCard
-        volunteer={volunteer}
+        user={user}
         saving={savingChannels}
         onSave={async (channels, enabled) => {
           setSavingChannels(true)
           try {
-            await updateVolunteerMutation.mutateAsync({
+            await updateUserMutation.mutateAsync({
               pubkey,
               data: {
                 supportedMessagingChannels: channels,
                 messagingEnabled: enabled,
               },
             })
-            toast(t('volunteerProfile.channelsSaved'), 'success')
+            toast(t('userProfile.channelsSaved'), 'success')
           } catch {
             toast(t('common.error'), 'error')
           } finally {
@@ -266,7 +264,7 @@ function VolunteerProfilePage() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base">
             <ScrollText className="h-4 w-4 text-muted-foreground" />
-            {t('volunteerProfile.activity')}
+            {t('userProfile.activity')}
             {auditTotal > 0 && (
               <span className="text-xs font-normal text-muted-foreground">({auditTotal})</span>
             )}
@@ -285,7 +283,7 @@ function VolunteerProfilePage() {
             </div>
           ) : auditEntries.length === 0 ? (
             <div className="px-6 pb-6 text-sm text-muted-foreground">
-              {t('volunteerProfile.noActivity')}
+              {t('userProfile.noActivity')}
             </div>
           ) : (
             <div className="divide-y divide-border">
@@ -341,25 +339,25 @@ function VolunteerProfilePage() {
 }
 
 function MessagingChannelsCard({
-  volunteer,
+  user,
   saving,
   onSave,
 }: {
-  volunteer: Volunteer
+  user: User
   saving: boolean
   onSave: (channels: string[], enabled: boolean) => Promise<void>
 }) {
   const { t } = useTranslation()
-  const [enabled, setEnabled] = useState(volunteer.messagingEnabled !== false)
-  const [channels, setChannels] = useState<string[]>(volunteer.supportedMessagingChannels || [])
+  const [enabled, setEnabled] = useState(user.messagingEnabled !== false)
+  const [channels, setChannels] = useState<string[]>(user.supportedMessagingChannels || [])
   const [dirty, setDirty] = useState(false)
 
   const channelLabels: Record<string, string> = {
-    sms: t('volunteerProfile.channelSms'),
-    whatsapp: t('volunteerProfile.channelWhatsapp'),
-    signal: t('volunteerProfile.channelSignal'),
-    rcs: t('volunteerProfile.channelRcs'),
-    web: t('volunteerProfile.channelWeb'),
+    sms: t('userProfile.channelSms'),
+    whatsapp: t('userProfile.channelWhatsapp'),
+    signal: t('userProfile.channelSignal'),
+    rcs: t('userProfile.channelRcs'),
+    web: t('userProfile.channelWeb'),
   }
 
   function toggleChannel(ch: string) {
@@ -380,17 +378,17 @@ function MessagingChannelsCard({
       <CardHeader>
         <CardTitle className="flex items-center gap-2 text-base">
           <MessageSquare className="h-4 w-4 text-muted-foreground" />
-          {t('volunteerProfile.messagingChannels')}
+          {t('userProfile.messagingChannels')}
         </CardTitle>
-        <CardDescription>{t('volunteerProfile.messagingChannelsDescription')}</CardDescription>
+        <CardDescription>{t('userProfile.messagingChannelsDescription')}</CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
         {/* Messaging Enabled Toggle */}
         <div className="flex items-center justify-between">
           <div className="space-y-0.5">
-            <Label htmlFor="messaging-enabled">{t('volunteerProfile.messagingEnabled')}</Label>
+            <Label htmlFor="messaging-enabled">{t('userProfile.messagingEnabled')}</Label>
             <p className="text-xs text-muted-foreground">
-              {t('volunteerProfile.messagingEnabledDescription')}
+              {t('userProfile.messagingEnabledDescription')}
             </p>
           </div>
           <Switch id="messaging-enabled" checked={enabled} onCheckedChange={handleEnabledChange} />
@@ -399,7 +397,7 @@ function MessagingChannelsCard({
         {/* Channel Selection */}
         {enabled && (
           <div className="space-y-3">
-            <Label>{t('volunteerProfile.selectChannels')}</Label>
+            <Label>{t('userProfile.selectChannels')}</Label>
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
               {MESSAGING_CHANNELS.map((ch) => (
                 <label
@@ -416,7 +414,7 @@ function MessagingChannelsCard({
             </div>
             <p className="text-xs text-muted-foreground">
               {channels.length === 0
-                ? t('volunteerProfile.allChannels')
+                ? t('userProfile.allChannels')
                 : `${channels.length} ${channels.length === 1 ? 'channel' : 'channels'} selected`}
             </p>
           </div>

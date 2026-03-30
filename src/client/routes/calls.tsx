@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input'
 import { VoicemailPlayer } from '@/components/voicemail-player'
 import { useAuth } from '@/lib/auth'
 import { useCallHistory } from '@/lib/queries/calls'
-import { useVolunteers } from '@/lib/queries/volunteers'
+import { useUsers } from '@/lib/queries/users'
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
 import { Link } from '@tanstack/react-router'
 import {
@@ -64,16 +64,16 @@ function CallHistoryPage() {
     voicemailOnly: voicemailOnly || undefined,
   })
 
-  const { data: volunteers = [] } = useVolunteers()
+  const { data: users = [] } = useUsers()
 
   const calls = data?.calls ?? []
   const total = data?.total ?? 0
 
   const nameMap = useMemo(() => {
     const map = new Map<string, string>()
-    for (const v of volunteers) map.set(v.pubkey, v.name)
+    for (const v of users) map.set(v.pubkey, v.name)
     return map
-  }, [volunteers])
+  }, [users])
 
   function handleSearch(e: React.FormEvent) {
     e.preventDefault()
@@ -246,9 +246,7 @@ function CallHistoryPage() {
                       <div className="flex items-center gap-1.5">
                         <PhoneIncoming className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
                         <span className="text-sm font-medium">
-                          {call.answeredBy
-                            ? nameMap.get(call.answeredBy) || t('volunteers.title')
-                            : '-'}
+                          {call.answeredBy ? nameMap.get(call.answeredBy) || t('users.title') : '-'}
                         </span>
                       </div>
                     )}

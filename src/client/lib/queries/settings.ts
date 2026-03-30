@@ -38,7 +38,7 @@ import {
 import { decryptArrayFields } from '@/lib/decrypt-fields'
 import * as keyManager from '@/lib/key-manager'
 import { type WebAuthnCredentialInfo, listCredentials } from '@/lib/webauthn'
-import { LABEL_VOLUNTEER_PII } from '@shared/crypto-labels'
+import { LABEL_USER_PII } from '@shared/crypto-labels'
 import type { MessagingConfig, RetentionSettings, TelephonyProviderDraft } from '@shared/types'
 import { queryOptions, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { queryKeys } from './keys'
@@ -332,7 +332,7 @@ export function useUpdateRetentionSettings() {
 
 /**
  * Fetch and decrypt the current user's WebAuthn credentials.
- * Label names (encryptedLabel → label) are encrypted with LABEL_VOLUNTEER_PII.
+ * Label names (encryptedLabel → label) are encrypted with LABEL_USER_PII.
  */
 export const webAuthnCredsOptions = () =>
   queryOptions({
@@ -344,7 +344,7 @@ export const webAuthnCredsOptions = () =>
         await decryptArrayFields(
           creds as unknown as Record<string, unknown>[],
           pubkey,
-          LABEL_VOLUNTEER_PII
+          LABEL_USER_PII
         )
       }
       return creds

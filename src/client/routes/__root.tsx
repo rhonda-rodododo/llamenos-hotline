@@ -411,8 +411,8 @@ function AuthenticatedLayout() {
                 <NavLink to="/shifts" icon={<Clock className="h-4 w-4" />}>
                   {t('nav.shifts')}
                 </NavLink>
-                <NavLink to="/volunteers" icon={<Users className="h-4 w-4" />}>
-                  {t('nav.volunteers')}
+                <NavLink to="/users" icon={<Users className="h-4 w-4" />}>
+                  {t('nav.users')}
                 </NavLink>
                 <NavLink to="/bans" icon={<ShieldBan className="h-4 w-4" />}>
                   {t('nav.banList')}

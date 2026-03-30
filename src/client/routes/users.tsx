@@ -14,7 +14,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { type InviteDeliveryChannel, getVolunteerUnmasked, type updateVolunteer } from '@/lib/api'
+import { type InviteDeliveryChannel, getUserUnmasked, type updateUser } from '@/lib/api'
 import { useAuth } from '@/lib/auth'
 import { generateKeyPair } from '@/lib/crypto'
 import {
@@ -25,12 +25,7 @@ import {
   useSendInvite,
 } from '@/lib/queries/invites'
 import { useRoles } from '@/lib/queries/roles'
-import {
-  useCreateVolunteer,
-  useDeleteVolunteer,
-  useUpdateVolunteer,
-  useVolunteers,
-} from '@/lib/queries/volunteers'
+import { useCreateUser, useDeleteUser, useUpdateUser, useUsers } from '@/lib/queries/users'
 import { useToast } from '@/lib/toast'
 import { usePinChallenge } from '@/lib/use-pin-challenge'
 import { createFileRoute } from '@tanstack/react-router'
@@ -53,8 +48,8 @@ import {
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
-export const Route = createFileRoute('/volunteers')({
-  component: VolunteersPage,
+export const Route = createFileRoute('/users')({
+  component: UsersPage,
 })
 
 function maskedPhone(phone: string) {
@@ -75,16 +70,16 @@ function channelLabel(channel: string): string {
   }
 }
 
-function VolunteersPage() {
+function UsersPage() {
   const { t } = useTranslation()
   const { isAdmin } = useAuth()
   const { toast } = useToast()
 
-  // --- React Query: volunteers ---
-  const { data: volunteers = [], isLoading: volunteersLoading } = useVolunteers()
-  const createVolunteerMutation = useCreateVolunteer()
-  const updateVolunteerMutation = useUpdateVolunteer()
-  const deleteVolunteerMutation = useDeleteVolunteer()
+  // --- React Query: users ---
+  const { data: users = [], isLoading: usersLoading } = useUsers()
+  const createUserMutation = useCreateUser()
+  const updateUserMutation = useUpdateUser()
+  const deleteUserMutation = useDeleteUser()
 
   // --- React Query: invites, roles, channels ---
   const { data: invites = [], isLoading: invitesLoading } = useInvites()
@@ -99,7 +94,7 @@ function VolunteersPage() {
   const [inviteLink, setInviteLink] = useState<string | null>(null)
   const [sendInviteForCode, setSendInviteForCode] = useState<string | null>(null)
 
-  const loading = volunteersLoading || invitesLoading
+  const loading = usersLoading || invitesLoading
 
   // useInvites() already decrypts in the query fn
   const decryptedInvites = invites
@@ -113,7 +108,7 @@ function VolunteersPage() {
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-2">
           <UserPlus className="h-6 w-6 text-primary" />
-          <h1 className="text-xl font-bold sm:text-2xl">{t('volunteers.title')}</h1>
+          <h1 className="text-xl font-bold sm:text-2xl">{t('users.title')}</h1>
         </div>
         <div className="flex gap-2">
           <Button
@@ -124,7 +119,7 @@ function VolunteersPage() {
             }}
           >
             <Mail className="h-4 w-4" />
-            {t('volunteers.inviteVolunteer')}
+            {t('users.inviteUser')}
           </Button>
           <Button
             data-testid="volunteer-add-btn"
@@ -134,7 +129,7 @@ function VolunteersPage() {
             }}
           >
             <UserPlus className="h-4 w-4" />
-            {t('volunteers.addVolunteer')}
+            {t('users.addUser')}
           </Button>
         </div>
       </div>
@@ -147,10 +142,10 @@ function VolunteersPage() {
               <Key className="mt-0.5 h-4 w-4 text-yellow-600 dark:text-yellow-400" />
               <div>
                 <p className="text-sm font-medium text-yellow-800 dark:text-yellow-300">
-                  {t('volunteers.inviteGenerated')}
+                  {t('users.inviteGenerated')}
                 </p>
                 <p className="mt-0.5 text-xs text-yellow-600 dark:text-yellow-400/80">
-                  {t('volunteers.secretKeyWarning')}
+                  {t('users.secretKeyWarning')}
                 </p>
               </div>
             </div>
@@ -194,10 +189,10 @@ function VolunteersPage() {
               <Mail className="mt-0.5 h-4 w-4 text-green-600 dark:text-green-400" />
               <div>
                 <p className="text-sm font-medium text-green-800 dark:text-green-300">
-                  {t('volunteers.inviteCreated')}
+                  {t('users.inviteCreated')}
                 </p>
                 <p className="mt-0.5 text-xs text-green-600 dark:text-green-400/80">
-                  {t('volunteers.inviteLinkLabel')}
+                  {t('users.inviteLinkLabel')}
                 </p>
               </div>
             </div>
@@ -246,11 +241,11 @@ function VolunteersPage() {
         />
       )}
 
-      {/* Add volunteer form */}
+      {/* Add user form */}
       {showAddForm && (
-        <AddVolunteerForm
+        <AddUserForm
           roles={roles}
-          createMutation={createVolunteerMutation}
+          createMutation={createUserMutation}
           onCreated={(nsec) => {
             setGeneratedNsec(nsec)
             setShowAddForm(false)
@@ -265,7 +260,7 @@ function VolunteersPage() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-base">
               <Mail className="h-4 w-4 text-muted-foreground" />
-              {t('volunteers.pendingInvites')}
+              {t('users.pendingInvites')}
             </CardTitle>
           </CardHeader>
           <CardContent className="p-0">
@@ -280,11 +275,11 @@ function VolunteersPage() {
                     <p className="text-xs text-muted-foreground">{maskedPhone(invite.phone)}</p>
                     <p className="mt-0.5 text-xs text-muted-foreground">
                       {invite.deliverySentAt
-                        ? t('volunteers.inviteSentVia', {
+                        ? t('users.inviteSentVia', {
                             channel: channelLabel(invite.deliveryChannel ?? ''),
                             date: new Date(invite.deliverySentAt).toLocaleDateString(),
                           })
-                        : t('volunteers.inviteNotSent')}
+                        : t('users.inviteNotSent')}
                     </p>
                   </div>
                   <div className="flex items-center gap-2">
@@ -297,14 +292,14 @@ function VolunteersPage() {
                       data-testid={`send-invite-btn-${invite.code}`}
                     >
                       <Send className="h-3 w-3" />
-                      {t('volunteers.sendInvite')}
+                      {t('users.sendInvite')}
                     </Button>
                     <Button
                       variant="ghost"
                       size="sm"
                       onClick={() => {
                         revokeInviteMutation.mutate(invite.code, {
-                          onSuccess: () => toast(t('volunteers.inviteRevoked'), 'success'),
+                          onSuccess: () => toast(t('users.inviteRevoked'), 'success'),
                           onError: () => toast(t('common.error'), 'error'),
                         })
                       }}
@@ -312,7 +307,7 @@ function VolunteersPage() {
                       className="text-destructive hover:text-destructive"
                     >
                       <X className="h-3 w-3" />
-                      {t('volunteers.revokeInvite')}
+                      {t('users.revokeInvite')}
                     </Button>
                   </div>
                 </div>
@@ -329,7 +324,7 @@ function VolunteersPage() {
           availableChannels={availableChannels ?? { signal: false, whatsapp: false, sms: false }}
           onSent={(channel) => {
             setSendInviteForCode(null)
-            toast(t('volunteers.inviteSentSuccess', { channel: channelLabel(channel) }), 'success')
+            toast(t('users.inviteSentSuccess', { channel: channelLabel(channel) }), 'success')
           }}
           onCopyLink={() => {
             const link = `${window.location.origin}/onboarding?code=${sendInviteForCode}`
@@ -341,7 +336,7 @@ function VolunteersPage() {
         />
       )}
 
-      {/* Volunteers list */}
+      {/* Users list */}
       <Card>
         <CardContent className="p-0">
           {loading ? (
@@ -357,17 +352,17 @@ function VolunteersPage() {
                 </div>
               ))}
             </div>
-          ) : volunteers.length === 0 ? (
+          ) : users.length === 0 ? (
             <div className="p-8 text-center text-muted-foreground">{t('common.noData')}</div>
           ) : (
-            <div data-testid="volunteer-list" className="divide-y divide-border">
-              {volunteers.map((vol) => (
-                <VolunteerRow
-                  key={vol.pubkey}
-                  volunteer={vol}
+            <div data-testid="user-list" className="divide-y divide-border">
+              {users.map((u) => (
+                <UserRow
+                  key={u.pubkey}
+                  user={u}
                   roles={roles}
-                  onUpdate={(pubkey, data) => updateVolunteerMutation.mutate({ pubkey, data })}
-                  onDelete={(pubkey) => deleteVolunteerMutation.mutate(pubkey)}
+                  onUpdate={(pubkey, data) => updateUserMutation.mutate({ pubkey, data })}
+                  onDelete={(pubkey) => deleteUserMutation.mutate(pubkey)}
                 />
               ))}
             </div>
@@ -397,7 +392,7 @@ function InviteForm({
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (!isValidE164(phone)) {
-      toast(t('volunteers.invalidPhone'), 'error')
+      toast(t('users.invalidPhone'), 'error')
       return
     }
     createInviteMutation.mutate(
@@ -405,7 +400,7 @@ function InviteForm({
       {
         onSuccess: (res) => {
           onCreated(res.invite)
-          toast(t('volunteers.inviteCreated'), 'success')
+          toast(t('users.inviteCreated'), 'success')
         },
         onError: () => {
           toast(t('common.error'), 'error')
@@ -419,14 +414,14 @@ function InviteForm({
       <CardHeader>
         <CardTitle className="flex items-center gap-2 text-base">
           <Mail className="h-4 w-4 text-muted-foreground" />
-          {t('volunteers.inviteVolunteer')}
+          {t('users.inviteUser')}
         </CardTitle>
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div className="space-y-2">
-              <Label htmlFor="invite-name">{t('volunteers.name')}</Label>
+              <Label htmlFor="invite-name">{t('users.name')}</Label>
               <Input
                 id="invite-name"
                 value={name}
@@ -435,12 +430,12 @@ function InviteForm({
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="invite-phone">{t('volunteers.phone')}</Label>
+              <Label htmlFor="invite-phone">{t('users.phone')}</Label>
               <PhoneInput id="invite-phone" value={phone} onChange={setPhone} required />
             </div>
           </div>
           <div className="space-y-2">
-            <Label htmlFor="invite-role">{t('volunteers.role')}</Label>
+            <Label htmlFor="invite-role">{t('users.role')}</Label>
             <Select value={roleId} onValueChange={setRoleId}>
               <SelectTrigger id="invite-role">
                 <SelectValue />
@@ -456,7 +451,7 @@ function InviteForm({
           </div>
           <div className="flex gap-2">
             <Button type="submit" disabled={createInviteMutation.isPending}>
-              {createInviteMutation.isPending ? t('common.loading') : t('volunteers.createInvite')}
+              {createInviteMutation.isPending ? t('common.loading') : t('users.createInvite')}
             </Button>
             <Button type="button" variant="outline" onClick={onCancel}>
               {t('common.cancel')}
@@ -468,14 +463,14 @@ function InviteForm({
   )
 }
 
-function AddVolunteerForm({
+function AddUserForm({
   roles,
   createMutation,
   onCreated,
   onCancel,
 }: {
   roles: import('@/lib/api').RoleDefinition[]
-  createMutation: ReturnType<typeof useCreateVolunteer>
+  createMutation: ReturnType<typeof useCreateUser>
   onCreated: (nsec: string) => void
   onCancel: () => void
 }) {
@@ -488,7 +483,7 @@ function AddVolunteerForm({
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (!isValidE164(phone)) {
-      toast(t('volunteers.invalidPhone'), 'error')
+      toast(t('users.invalidPhone'), 'error')
       return
     }
     const keyPair = generateKeyPair()
@@ -497,7 +492,7 @@ function AddVolunteerForm({
       {
         onSuccess: () => {
           onCreated(keyPair.nsec)
-          toast(t('volunteers.volunteerAdded'), 'success')
+          toast(t('users.userAdded'), 'success')
         },
         onError: () => {
           toast(t('common.error'), 'error')
@@ -511,14 +506,14 @@ function AddVolunteerForm({
       <CardHeader>
         <CardTitle className="flex items-center gap-2 text-base">
           <UserPlus className="h-4 w-4 text-muted-foreground" />
-          {t('volunteers.addVolunteer')}
+          {t('users.addUser')}
         </CardTitle>
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div className="space-y-2">
-              <Label htmlFor="vol-name">{t('volunteers.name')}</Label>
+              <Label htmlFor="vol-name">{t('users.name')}</Label>
               <Input
                 id="vol-name"
                 value={name}
@@ -527,12 +522,12 @@ function AddVolunteerForm({
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="vol-phone">{t('volunteers.phone')}</Label>
+              <Label htmlFor="vol-phone">{t('users.phone')}</Label>
               <PhoneInput id="vol-phone" value={phone} onChange={setPhone} required />
             </div>
           </div>
           <div className="space-y-2">
-            <Label htmlFor="vol-role">{t('volunteers.role')}</Label>
+            <Label htmlFor="vol-role">{t('users.role')}</Label>
             <Select value={roleId} onValueChange={setRoleId}>
               <SelectTrigger id="vol-role">
                 <SelectValue />
@@ -565,15 +560,15 @@ function AddVolunteerForm({
   )
 }
 
-function VolunteerRow({
-  volunteer,
+function UserRow({
+  user,
   roles,
   onUpdate,
   onDelete,
 }: {
-  volunteer: import('@/lib/queries/volunteers').Volunteer
+  user: import('@/lib/queries/users').User
   roles: import('@/lib/api').RoleDefinition[]
-  onUpdate: (pubkey: string, data: Parameters<typeof updateVolunteer>[1]) => void
+  onUpdate: (pubkey: string, data: Parameters<typeof updateUser>[1]) => void
   onDelete: (pubkey: string) => void
 }) {
   const { t } = useTranslation()
@@ -582,28 +577,28 @@ function VolunteerRow({
   const [unmaskedPhone, setUnmaskedPhone] = useState<string | null>(null)
   const pinChallenge = usePinChallenge()
 
-  // Volunteer data is already decrypted by useVolunteers() in the parent.
-  const primaryRoleId = volunteer.roles[0] || 'role-volunteer'
+  // User data is already decrypted by useUsers() in the parent.
+  const primaryRoleId = user.roles[0] || 'role-volunteer'
   const primaryRole = roles.find((r) => r.id === primaryRoleId)
   const isAdminRole = primaryRoleId === 'role-super-admin' || primaryRoleId === 'role-hub-admin'
-  const displayName = volunteer.name
+  const displayName = user.name
 
   function changeRole(newRoleId: string) {
     if (newRoleId === primaryRoleId) return
-    onUpdate(volunteer.pubkey, { roles: [newRoleId] })
+    onUpdate(user.pubkey, { roles: [newRoleId] })
   }
 
   function toggleActive() {
-    onUpdate(volunteer.pubkey, { active: !volunteer.active })
+    onUpdate(user.pubkey, { active: !user.active })
   }
 
   function handleDelete() {
-    onDelete(volunteer.pubkey)
+    onDelete(user.pubkey)
   }
 
   return (
     <div
-      data-testid={`volunteer-row-${volunteer.pubkey.slice(0, 8)}`}
+      data-testid={`user-row-${user.pubkey.slice(0, 8)}`}
       className="flex flex-col gap-2 px-4 py-3 sm:flex-row sm:items-center sm:gap-4 sm:px-6"
     >
       <div className="flex items-center gap-3 sm:gap-4">
@@ -614,12 +609,12 @@ function VolunteerRow({
           <p className="text-sm font-medium">
             {displayName}{' '}
             <span className="font-mono text-xs text-muted-foreground">
-              ({volunteer.pubkey.slice(0, 8)})
+              ({user.pubkey.slice(0, 8)})
             </span>
           </p>
-          {volunteer.phone && (
+          {user.phone && (
             <p className="flex items-center gap-1 font-mono text-xs text-muted-foreground">
-              {unmaskedPhone ?? volunteer.phone}
+              {unmaskedPhone ?? user.phone}
               <button
                 onClick={async () => {
                   if (unmaskedPhone) {
@@ -627,8 +622,8 @@ function VolunteerRow({
                   } else {
                     const ok = await pinChallenge.requirePin()
                     if (ok) {
-                      const vol = await getVolunteerUnmasked(volunteer.pubkey)
-                      setUnmaskedPhone(vol.volunteer.phone)
+                      const res = await getUserUnmasked(user.pubkey)
+                      setUnmaskedPhone(res.user.phone)
                     }
                   }
                 }}
@@ -645,23 +640,23 @@ function VolunteerRow({
         <Badge variant={isAdminRole ? 'default' : 'secondary'}>
           {isAdminRole && <ShieldCheck className="h-3 w-3" />}
           {primaryRole?.name || primaryRoleId}
-          {volunteer.roles.length > 1 && (
-            <span className="ml-1 text-xs opacity-70">+{volunteer.roles.length - 1}</span>
+          {user.roles.length > 1 && (
+            <span className="ml-1 text-xs opacity-70">+{user.roles.length - 1}</span>
           )}
         </Badge>
-        <button onClick={toggleActive} aria-pressed={volunteer.active}>
+        <button onClick={toggleActive} aria-pressed={user.active}>
           <Badge
             variant="outline"
             className={
-              volunteer.active
+              user.active
                 ? 'border-green-500/50 text-green-700 dark:text-green-400'
                 : 'border-red-500/50 text-red-700 dark:text-red-400'
             }
           >
-            {volunteer.active ? t('volunteers.active') : t('volunteers.inactive')}
+            {user.active ? t('users.active') : t('users.inactive')}
           </Badge>
         </button>
-        {volunteer.onBreak && (
+        {user.onBreak && (
           <Badge
             variant="outline"
             className="border-yellow-500/50 text-yellow-700 dark:text-yellow-400"
@@ -674,7 +669,7 @@ function VolunteerRow({
           <Select value={primaryRoleId} onValueChange={changeRole}>
             <SelectTrigger
               className="h-7 w-auto gap-1 border-none bg-transparent px-2 text-xs shadow-none"
-              aria-label={t('volunteers.changeRole')}
+              aria-label={t('users.changeRole')}
             >
               <Shield className="h-3 w-3" />
               <SelectValue />
@@ -688,7 +683,7 @@ function VolunteerRow({
             </SelectContent>
           </Select>
           <Button
-            data-testid="volunteer-delete-btn"
+            data-testid="user-delete-btn"
             variant="ghost"
             size="icon-xs"
             onClick={() => setShowDeleteConfirm(true)}
@@ -703,8 +698,8 @@ function VolunteerRow({
       <ConfirmDialog
         open={showDeleteConfirm}
         onOpenChange={setShowDeleteConfirm}
-        title={t('volunteers.removeVolunteer')}
-        description={`${displayName} (${volunteer.phone})`}
+        title={t('users.removeUser')}
+        description={`${displayName} (${user.phone})`}
         confirmLabel={t('common.delete')}
         onConfirm={handleDelete}
       />
@@ -757,11 +752,11 @@ function SendInviteDialog({
 
   function handleSend() {
     if (!isValidE164(phone)) {
-      toast(t('volunteers.invalidPhone'), 'error')
+      toast(t('users.invalidPhone'), 'error')
       return
     }
     if (selectedChannel === 'sms' && !acknowledgedInsecure) {
-      toast(t('volunteers.smsAcknowledgeRequired'), 'error')
+      toast(t('users.smsAcknowledgeRequired'), 'error')
       return
     }
     sendInviteMutation.mutate(
@@ -789,7 +784,7 @@ function SendInviteDialog({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <MessageCircle className="h-4 w-4 text-primary" />
-            {t('volunteers.sendInviteTitle')}
+            {t('users.sendInviteTitle')}
           </DialogTitle>
         </DialogHeader>
 
@@ -798,7 +793,7 @@ function SendInviteDialog({
             <>
               {/* Phone number */}
               <div className="space-y-2">
-                <Label htmlFor="send-phone">{t('volunteers.phone')}</Label>
+                <Label htmlFor="send-phone">{t('users.phone')}</Label>
                 <PhoneInput
                   id="send-phone"
                   value={phone}
@@ -810,7 +805,7 @@ function SendInviteDialog({
 
               {/* Channel selector */}
               <div className="space-y-2">
-                <Label htmlFor="send-channel">{t('volunteers.inviteChannel')}</Label>
+                <Label htmlFor="send-channel">{t('users.inviteChannel')}</Label>
                 <Select
                   value={selectedChannel}
                   onValueChange={(v) => setSelectedChannel(v as InviteDeliveryChannel)}
@@ -834,7 +829,7 @@ function SendInviteDialog({
                   <div className="flex items-start gap-2">
                     <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400" />
                     <p className="text-xs text-amber-800 dark:text-amber-300">
-                      {t('volunteers.smsInsecureWarning')}
+                      {t('users.smsInsecureWarning')}
                     </p>
                   </div>
                   <label className="mt-2 flex cursor-pointer items-start gap-2">
@@ -846,7 +841,7 @@ function SendInviteDialog({
                       className="mt-0.5 h-4 w-4 rounded border-input accent-primary"
                     />
                     <span className="text-xs text-amber-800 dark:text-amber-300">
-                      {t('volunteers.smsAcknowledge')}
+                      {t('users.smsAcknowledge')}
                     </span>
                   </label>
                 </div>
@@ -863,19 +858,17 @@ function SendInviteDialog({
                   className="flex-1"
                 >
                   <Send className="h-4 w-4" />
-                  {sendInviteMutation.isPending ? t('common.loading') : t('volunteers.sendInvite')}
+                  {sendInviteMutation.isPending ? t('common.loading') : t('users.sendInvite')}
                 </Button>
                 <Button variant="outline" onClick={onCopyLink} data-testid="copy-invite-link-btn">
                   <Copy className="h-4 w-4" />
-                  {t('volunteers.copyLink')}
+                  {t('users.copyLink')}
                 </Button>
               </div>
             </>
           ) : (
             <div className="space-y-3">
-              <p className="text-sm text-muted-foreground">
-                {t('volunteers.noChannelsConfigured')}
-              </p>
+              <p className="text-sm text-muted-foreground">{t('users.noChannelsConfigured')}</p>
               <Button
                 variant="outline"
                 onClick={onCopyLink}
@@ -883,7 +876,7 @@ function SendInviteDialog({
                 data-testid="copy-invite-link-btn"
               >
                 <Copy className="h-4 w-4" />
-                {t('volunteers.copyLink')}
+                {t('users.copyLink')}
               </Button>
             </div>
           )}

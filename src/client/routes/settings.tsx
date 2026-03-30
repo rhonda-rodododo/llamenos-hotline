@@ -117,7 +117,7 @@ function SettingsPage() {
     const promises: Promise<void>[] = [
       getTranscriptionSettings()
         .then((r) => {
-          setCanOptOut(r.allowVolunteerOptOut)
+          setCanOptOut(r.allowUserOptOut)
         })
         .catch(() => {}),
       getWebRtcStatus()

@@ -1,18 +1,18 @@
 import { Skeleton } from '@/components/ui/skeleton'
-import type { VolunteerStatEntry } from '@/lib/api'
+import type { UserStatEntry } from '@/lib/api'
 import { useTranslation } from 'react-i18next'
 
 interface Props {
-  data: VolunteerStatEntry[]
+  data: UserStatEntry[]
   loading: boolean
 }
 
-export function VolunteerStatsTable({ data, loading }: Props) {
+export function UserStatsTable({ data, loading }: Props) {
   const { t } = useTranslation()
 
   if (loading) {
     return (
-      <div className="space-y-2" data-testid="volunteer-stats-skeleton">
+      <div className="space-y-2" data-testid="user-stats-skeleton">
         <Skeleton className="h-8 w-full" />
         <Skeleton className="h-8 w-full" />
         <Skeleton className="h-8 w-full" />
@@ -24,7 +24,7 @@ export function VolunteerStatsTable({ data, loading }: Props) {
     return (
       <p
         className="py-4 text-center text-sm text-muted-foreground"
-        data-testid="volunteer-stats-no-data"
+        data-testid="user-stats-no-data"
       >
         {t('dashboard.analytics.noData')}
       </p>
@@ -34,13 +34,11 @@ export function VolunteerStatsTable({ data, loading }: Props) {
   const sorted = [...data].sort((a, b) => b.callsAnswered - a.callsAnswered)
 
   return (
-    <div className="overflow-x-auto" data-testid="volunteer-stats-table">
+    <div className="overflow-x-auto" data-testid="user-stats-table">
       <table className="w-full text-sm">
         <thead>
           <tr className="border-b border-border text-left text-xs text-muted-foreground">
-            <th className="pb-2 pr-4 font-medium">
-              {t('volunteers.title', { defaultValue: 'Volunteer' })}
-            </th>
+            <th className="pb-2 pr-4 font-medium">{t('users.title', { defaultValue: 'User' })}</th>
             <th className="pb-2 text-right font-medium">{t('dashboard.analytics.answered')}</th>
           </tr>
         </thead>

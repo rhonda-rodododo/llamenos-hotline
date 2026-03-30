@@ -169,9 +169,9 @@ export function SetupWizard({ needsBootstrap = false }: { needsBootstrap?: boole
             setActiveHub(hubId)
           }
           await seedDemoData()
-          // Invalidate volunteers and shifts caches so newly-created demo data
+          // Invalidate users and shifts caches so newly-created demo data
           // is immediately visible when navigating to those pages.
-          void queryClient.invalidateQueries({ queryKey: queryKeys.volunteers.all })
+          void queryClient.invalidateQueries({ queryKey: queryKeys.users.all })
           void queryClient.invalidateQueries({ queryKey: queryKeys.shifts.all })
         } catch {
           toast(

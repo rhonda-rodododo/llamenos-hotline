@@ -6,9 +6,9 @@ import { useAuth } from '@/lib/auth'
 import { decryptCallRecord, decryptNoteV2, decryptTranscription } from '@/lib/crypto'
 import { decryptObjectFields } from '@/lib/decrypt-fields'
 import * as keyManager from '@/lib/key-manager'
-import { useVolunteers } from '@/lib/queries/volunteers'
+import { useUsers } from '@/lib/queries/users'
 import { useToast } from '@/lib/toast'
-import { LABEL_VOLUNTEER_PII } from '@shared/crypto-labels'
+import { LABEL_USER_PII } from '@shared/crypto-labels'
 import type { NotePayload } from '@shared/types'
 import { Link, createFileRoute, useNavigate } from '@tanstack/react-router'
 import {
@@ -52,8 +52,8 @@ function CallDetailPage() {
   const [auditEntries, setAuditEntries] = useState<AuditLogEntry[]>([])
   const [loading, setLoading] = useState(true)
 
-  // useVolunteers decrypts PII fields (name) in the query fn
-  const { data: volunteers = [] } = useVolunteers()
+  // useUsers decrypts PII fields (name) in the query fn
+  const { data: users = [] } = useUsers()
 
   useEffect(() => {
     setLoading(true)
@@ -127,7 +127,7 @@ function CallDetailPage() {
         await decryptObjectFields(
           result as unknown as Record<string, unknown>,
           publicKey,
-          LABEL_VOLUNTEER_PII
+          LABEL_USER_PII
         )
       }
 
@@ -135,12 +135,12 @@ function CallDetailPage() {
     })()
   }, [call, hasNsec, publicKey])
 
-  // useVolunteers already decrypts name/phone in the query fn
+  // useUsers already decrypts name/phone in the query fn
   const nameMap = useMemo(() => {
     const map = new Map<string, string>()
-    for (const v of volunteers) map.set(v.pubkey, v.name)
+    for (const v of users) map.set(v.pubkey, v.name)
     return map
-  }, [volunteers])
+  }, [users])
 
   if (loading) {
     return (
@@ -158,7 +158,7 @@ function CallDetailPage() {
     )
   }
 
-  const volunteerName = decryptedCallWithFields.answeredBy
+  const answeredByName = decryptedCallWithFields.answeredBy
     ? nameMap.get(decryptedCallWithFields.answeredBy) ||
       decryptedCallWithFields.answeredBy.slice(0, 8)
     : null
@@ -204,7 +204,7 @@ function CallDetailPage() {
                 <>
                   <PhoneIncoming className="h-4 w-4 text-muted-foreground" />
                   <span className="text-sm">
-                    {t('callHistory.answeredBy')}: {volunteerName || '-'}
+                    {t('callHistory.answeredBy')}: {answeredByName || '-'}
                   </span>
                 </>
               )}

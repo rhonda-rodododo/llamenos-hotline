@@ -90,7 +90,7 @@ function AdminSettingsPage() {
 
   const ivrEnabled = ivrEnabledData ?? [...IVR_LANGUAGES]
   const globalTranscription = transcriptionSettings?.globalEnabled ?? false
-  const allowVolunteerOptOut = transcriptionSettings?.allowVolunteerOptOut ?? false
+  const allowUserOptOut = transcriptionSettings?.allowUserOptOut ?? false
   const reportTypes = reportTypesData ?? []
 
   // Sync provider draft when config loads
@@ -161,12 +161,12 @@ function AdminSettingsPage() {
 
   // Compute status summaries for collapsed sections
   const passkeyStatus = webauthnSettings
-    ? webauthnSettings.requireForAdmins && webauthnSettings.requireForVolunteers
+    ? webauthnSettings.requireForAdmins && webauthnSettings.requireForUsers
       ? t('webauthn.requiredAll', { defaultValue: 'Required for all' })
       : webauthnSettings.requireForAdmins
         ? t('webauthn.requiredAdmins', { defaultValue: 'Required for admins' })
-        : webauthnSettings.requireForVolunteers
-          ? t('webauthn.requiredVolunteers', { defaultValue: 'Required for volunteers' })
+        : webauthnSettings.requireForUsers
+          ? t('webauthn.requiredUsers', { defaultValue: 'Required for users' })
           : t('webauthn.notRequired', { defaultValue: 'Not required' })
     : undefined
 
@@ -247,7 +247,7 @@ function AdminSettingsPage() {
 
       <TranscriptionSection
         globalEnabled={globalTranscription}
-        allowOptOut={allowVolunteerOptOut}
+        allowOptOut={allowUserOptOut}
         onGlobalChange={(enabled: boolean) =>
           queryClient.setQueryData(queryKeys.settings.transcription(), {
             ...transcriptionSettings,
@@ -257,7 +257,7 @@ function AdminSettingsPage() {
         onOptOutChange={(enabled: boolean) =>
           queryClient.setQueryData(queryKeys.settings.transcription(), {
             ...transcriptionSettings,
-            allowVolunteerOptOut: enabled,
+            allowUserOptOut: enabled,
           })
         }
         onConfirmToggle={handleConfirmToggle}

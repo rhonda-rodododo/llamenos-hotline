@@ -3,8 +3,8 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { VolunteerMultiSelect } from '@/components/volunteer-multi-select'
-import type { Shift, Volunteer } from '@/lib/api'
+import { UserMultiSelect } from '@/components/user-multi-select'
+import type { Shift, User } from '@/lib/api'
 import { useAuth } from '@/lib/auth'
 import { useConfig } from '@/lib/config'
 import { decryptHubField, encryptHubField } from '@/lib/hub-field-crypto'
@@ -16,7 +16,7 @@ import {
   useShifts,
   useUpdateShift,
 } from '@/lib/queries/shifts'
-import { useVolunteers } from '@/lib/queries/volunteers'
+import { useUsers } from '@/lib/queries/users'
 import { useToast } from '@/lib/toast'
 import { createFileRoute } from '@tanstack/react-router'
 import { CalendarPlus, Clock, LifeBuoy, Pencil, Trash2, Users } from 'lucide-react'
@@ -47,7 +47,7 @@ function ShiftsPage() {
   const [editingShift, setEditingShift] = useState<Shift | null>(null)
 
   const { data: shifts = [], isLoading: shiftsLoading } = useShifts()
-  const { data: volunteers = [] } = useVolunteers()
+  const { data: users = [] } = useUsers()
   const { data: fallback = [] } = useFallbackGroup()
   const createShift = useCreateShift()
   const updateShift = useUpdateShift()
@@ -88,7 +88,7 @@ function ShiftsPage() {
       {(showForm || editingShift) && (
         <ShiftForm
           shift={editingShift}
-          volunteers={volunteers}
+          users={users}
           hubId={hubId}
           onSave={async (data) => {
             if (editingShift) {
@@ -169,11 +169,11 @@ function ShiftsPage() {
                       ))}
                     </div>
                     <p
-                      data-testid="shift-volunteer-count"
+                      data-testid="shift-user-count"
                       className="mt-2 flex items-center gap-1.5 text-xs text-muted-foreground"
                     >
                       <Users className="h-3 w-3" />
-                      {shift.volunteerPubkeys.length} {t('shifts.volunteers').toLowerCase()}
+                      {shift.userPubkeys.length} {t('shifts.users').toLowerCase()}
                     </p>
                   </div>
                   <div className="flex gap-1">
@@ -218,8 +218,8 @@ function ShiftsPage() {
           <CardDescription>{t('shifts.fallbackDescription')}</CardDescription>
         </CardHeader>
         <CardContent>
-          <VolunteerMultiSelect
-            volunteers={volunteers.filter((v) => v.active)}
+          <UserMultiSelect
+            users={users.filter((v) => v.active)}
             selected={fallback}
             onSelectionChange={handleSaveFallback}
           />
@@ -231,13 +231,13 @@ function ShiftsPage() {
 
 function ShiftForm({
   shift,
-  volunteers,
+  users,
   hubId,
   onSave,
   onCancel,
 }: {
   shift: Shift | null
-  volunteers: Volunteer[]
+  users: User[]
   hubId: string
   onSave: (data: Partial<Shift>) => void
   onCancel: () => void
@@ -249,9 +249,7 @@ function ShiftForm({
   const [startTime, setStartTime] = useState(shift?.startTime || '09:00')
   const [endTime, setEndTime] = useState(shift?.endTime || '17:00')
   const [days, setDays] = useState<number[]>(shift?.days || [1, 2, 3, 4, 5])
-  const [selectedVolunteers, setSelectedVolunteers] = useState<string[]>(
-    shift?.volunteerPubkeys || []
-  )
+  const [selectedUsers, setSelectedUsers] = useState<string[]>(shift?.userPubkeys || [])
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -261,7 +259,7 @@ function ShiftForm({
       startTime,
       endTime,
       days,
-      volunteerPubkeys: selectedVolunteers,
+      userPubkeys: selectedUsers,
     })
   }
 
@@ -329,12 +327,12 @@ function ShiftForm({
             </div>
           </div>
           <div className="space-y-2">
-            <Label>{t('shifts.assignVolunteers')}</Label>
-            <VolunteerMultiSelect
-              volunteers={volunteers.filter((v) => v.active)}
-              selected={selectedVolunteers}
-              onSelectionChange={setSelectedVolunteers}
-              placeholder={t('shifts.searchVolunteers')}
+            <Label>{t('shifts.assignUsers')}</Label>
+            <UserMultiSelect
+              users={users.filter((v) => v.active)}
+              selected={selectedUsers}
+              onSelectionChange={setSelectedUsers}
+              placeholder={t('shifts.searchUsers')}
             />
           </div>
           <div className="flex gap-2">
