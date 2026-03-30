@@ -22,7 +22,7 @@ export default defineConfig({
   use: {
     baseURL: process.env.PLAYWRIGHT_BASE_URL || "http://localhost:3000",
     ignoreHTTPSErrors: !!process.env.PLAYWRIGHT_IGNORE_HTTPS_ERRORS,
-    trace: "on-first-retry",
+    trace: "retain-on-failure",
     actionTimeout: 10_000,
     navigationTimeout: 15_000,
   },

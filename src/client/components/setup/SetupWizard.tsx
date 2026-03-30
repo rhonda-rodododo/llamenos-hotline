@@ -134,12 +134,13 @@ export function SetupWizard({ needsBootstrap = false }: { needsBootstrap?: boole
   async function handleNext() {
     if (step === TOTAL_STEPS - 1) return
     setSaving(true)
+    // Always advance the step — save is best-effort for persistence
+    setStep((s) => s + 1)
     try {
       await updateSetupState({
         selectedChannels: data.selectedChannels,
         completedSteps: Array.from({ length: step + 1 }, (_, i) => String(i)),
       })
-      setStep((s) => s + 1)
     } catch {
       toast(t('setup.saveFailed'), 'error')
     } finally {
