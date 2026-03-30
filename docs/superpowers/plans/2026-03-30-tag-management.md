@@ -48,7 +48,28 @@ In the migration:
 CREATE INDEX contacts_tags_gin_idx ON contacts USING GIN (tags);
 ```
 
-- [ ] **Step 3: Add strictTags to hub settings**
+- [ ] **Step 3: Add `tags:create` to PERMISSION_CATALOG and update default roles**
+
+In `src/shared/permissions.ts`, add to catalog:
+```typescript
+'tags:create': {
+  label: 'Create new tags',
+  group: 'tags',
+  subgroup: 'actions',
+},
+```
+
+Add `'tags'` to `PERMISSION_GROUP_LABELS`:
+```typescript
+tags: 'Tags',
+```
+
+Update `DEFAULT_ROLES`:
+- **Hub Admin**: already has `*` or can be granted explicitly
+- **Case Manager**: add `'tags:create'` to permissions array
+- **Volunteer**: no `tags:create`
+
+- [ ] **Step 4: Add strictTags to hub settings**
 
 Add to the appropriate settings table or as a column on `hubs`:
 ```typescript
@@ -89,7 +110,16 @@ Test cases:
 - Reject freeform when user lacks `tags:create`
 - Default tag seeding on hub creation
 
-- [ ] **Step 2: Implement TagsService**
+- [ ] **Step 2: Implement TagsService and register in DI**
+
+**CRITICAL:** Register in `src/server/services/index.ts`:
+```typescript
+// Add to Services interface:
+tags: TagsService
+
+// Add to createServices():
+tags: new TagsService(db, crypto),
+```
 
 ```typescript
 export class TagsService {
@@ -104,17 +134,26 @@ export class TagsService {
 }
 ```
 
-- [ ] **Step 3: Run tests**
+- [ ] **Step 3: Hook default tag seeding into hub creation**
+
+In the hub creation flow (likely `src/server/routes/hubs.ts` or `src/server/services/settings.ts`), after a hub is created, call:
+```typescript
+await services.tags.seedDefaultTags(hubId, createdBy, hubKey)
+```
+
+This seeds the 9 default tags from the spec (repeat-caller, detained, released, legal-aid, shelter-contact, family-member, urgent, follow-up, resolved) with hub-key encrypted labels and categories.
+
+- [ ] **Step 4: Run tests**
 
 ```bash
 bun test src/server/services/tags.integration.test.ts
 ```
 
-- [ ] **Step 4: Commit**
+- [ ] **Step 5: Commit**
 
 ```bash
-git add src/server/services/tags.ts src/server/services/tags.integration.test.ts
-git commit -m "feat: add TagsService with CRUD, freeform gating, and default seeding"
+git add src/server/services/tags.ts src/server/services/tags.integration.test.ts src/server/services/index.ts src/shared/permissions.ts src/server/routes/hubs.ts
+git commit -m "feat: add TagsService with CRUD, freeform gating, default seeding, and hub creation hook"
 ```
 
 ---

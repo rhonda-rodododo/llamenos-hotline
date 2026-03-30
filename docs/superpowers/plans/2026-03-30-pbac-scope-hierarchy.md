@@ -393,18 +393,57 @@ function getContactScope(permissions: string[]): 'own' | 'assigned' | 'all' | nu
 For `GET /api/contacts`, filter by scope before returning results.
 For `PATCH /api/contacts/:id` and `DELETE /api/contacts/:id`, verify scope before allowing the operation.
 
-- [ ] **Step 4: Run tests**
+- [ ] **Step 4: Add wildcard types from spec Section 7**
+
+Add to `src/shared/permissions.ts`:
+```typescript
+export type PermissionDomain = Permission extends `${infer D}:${string}` ? D : never
+export type WildcardPermission = `${PermissionDomain}:*` | '*'
+export type PermissionOrWildcard = Permission | WildcardPermission
+```
+
+These ensure roles can type-safely reference wildcards while route guards use concrete `Permission` values.
+
+- [ ] **Step 5: Document resolver semantics for other domains**
+
+The contacts resolver is the only one with active scope enforcement now. Add a JSDoc comment in `assignment-resolver.ts` documenting the planned resolver semantics for the other 5 domains (from spec Section 3):
+
+```typescript
+/**
+ * Domain-specific "assigned" definitions (implement resolvers as scope enforcement is added):
+ * - notes: authorPubkey = user OR note linked to a call the user handled
+ * - conversations: assignedTo = user
+ * - reports: assignedTo = user OR submittedBy = user
+ * - files: file attached to a resource the user is assigned to
+ * - shifts: user is listed in the shift's userPubkeys array
+ */
+```
+
+These resolvers will be implemented when their respective routes add scope enforcement.
+
+- [ ] **Step 6: Update contacts service to read/write assignedTo**
+
+In `src/server/services/contacts.ts`:
+- Accept `assignedTo` in `createContact()` and `updateContact()` methods
+- Include `assignedTo` in `listContacts()` response
+- Add `assignedTo` query filter to list endpoint
+
+In `src/server/routes/contacts.ts`:
+- Accept `assignedTo` in POST and PATCH bodies
+- Add `assignedTo` filter parameter to GET
+
+- [ ] **Step 7: Run tests**
 
 ```bash
 bun test src/server/lib/assignment-resolver.test.ts
 bun run test:api
 ```
 
-- [ ] **Step 5: Commit**
+- [ ] **Step 8: Commit**
 
 ```bash
-git add src/server/lib/assignment-resolver.ts src/server/lib/assignment-resolver.test.ts src/server/routes/contacts.ts src/server/services/contacts.ts src/server/db/schema/contacts.ts
-git commit -m "feat: add assignment resolver and scope enforcement for contacts"
+git add src/server/lib/assignment-resolver.ts src/server/lib/assignment-resolver.test.ts src/server/routes/contacts.ts src/server/services/contacts.ts src/server/db/schema/contacts.ts src/shared/permissions.ts
+git commit -m "feat: add assignment resolver, scope enforcement, wildcard types, and assignedTo field"
 ```
 
 ---

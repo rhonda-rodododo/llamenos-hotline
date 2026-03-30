@@ -232,7 +232,16 @@ export const contactIntakes = pgTable('contact_intakes', {
 })
 ```
 
-- [ ] **Step 3: Implement IntakesService**
+- [ ] **Step 3: Implement IntakesService and register in DI**
+
+**CRITICAL:** Register in `src/server/services/index.ts`:
+```typescript
+// Add to Services interface:
+intakes: IntakesService
+
+// Add to createServices():
+intakes: new IntakesService(db, crypto),
+```
 
 CRUD methods: `submitIntake`, `listIntakes` (filtered by status, scoped by permission), `getIntake`, `updateIntakeStatus` (review/merge/dismiss).
 

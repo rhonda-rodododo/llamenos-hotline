@@ -95,20 +95,24 @@ const { encryptedName, encryptedDescription } = await c.req.json()
 
 For each component that displays or edits these fields:
 
-Read path:
+**Read path** (all components displaying org metadata):
 ```typescript
 const hubKey = useHubKey(hubId)
 const name = hubKey ? hubDecrypt(role.encryptedName, hubKey) : null
 ```
 
-Write path:
+**Write path** (admin forms that create/edit org metadata):
 ```typescript
 const hubKey = useHubKey(hubId)
 const encryptedName = hubEncrypt(name, hubKey)
 await updateRole({ encryptedName })
 ```
 
-Components show skeleton/placeholder until hub key is available (requires PIN unlock).
+**Specific UI flows to address:**
+- Hub switcher: show generic placeholder until PIN unlock + hub key decryption
+- Admin settings pages (roles, custom fields, report types, shifts, ring groups, blasts): skeleton loaders until hub key available
+- Call ring screen: show "Incoming call" without hub name pre-unlock, add hub name after unlock
+- All admin creation/edit forms: encrypt text fields with hub key before API call
 
 - [ ] **Step 5: Verify serverEncrypt/serverDecrypt removal**
 
@@ -136,21 +140,34 @@ git commit -m "feat(phase2b): upgrade 13 org metadata fields from server-key to 
 
 ---
 
-### Task 2: Phase 2C — Drop Roles Slug Column
+### Task 2: Phase 2C — Drop Residual Plaintext & Verify Constraints
 
 **Files:**
 - Modify: `src/server/db/schema/settings.ts`
 - Create: migration file
 
-- [ ] **Step 1: Migration**
+- [ ] **Step 1: Migration — drop slug and add NOT NULL constraints**
 
 ```sql
 ALTER TABLE roles DROP COLUMN slug;
+
+-- Verify NOT NULL on all required encrypted columns
+ALTER TABLE hubs ALTER COLUMN encrypted_name SET NOT NULL;
+ALTER TABLE roles ALTER COLUMN encrypted_name SET NOT NULL;
+ALTER TABLE custom_field_definitions ALTER COLUMN encrypted_field_name SET NOT NULL;
+ALTER TABLE custom_field_definitions ALTER COLUMN encrypted_label SET NOT NULL;
+ALTER TABLE report_types ALTER COLUMN encrypted_name SET NOT NULL;
+ALTER TABLE shift_schedules ALTER COLUMN encrypted_name SET NOT NULL;
+ALTER TABLE ring_groups ALTER COLUMN encrypted_name SET NOT NULL;
+ALTER TABLE blasts ALTER COLUMN encrypted_name SET NOT NULL;
+ALTER TABLE audit_log ALTER COLUMN encrypted_event SET NOT NULL;
+ALTER TABLE audit_log ALTER COLUMN encrypted_details SET NOT NULL;
+ALTER TABLE ivr_audio ALTER COLUMN encrypted_audio_data SET NOT NULL;
 ```
 
 - [ ] **Step 2: Update schema**
 
-Remove `slug` from Drizzle schema in `settings.ts`.
+Remove `slug` from Drizzle schema in `settings.ts`. Verify NOT NULL annotations match migration.
 
 - [ ] **Step 3: Update code referencing role.slug**
 
@@ -158,19 +175,35 @@ Remove `slug` from Drizzle schema in `settings.ts`.
 grep -rn "\.slug\b" src/ --include="*.ts" --include="*.tsx" | grep -i role
 ```
 
-Replace with `role.id` where used for identification. System roles identified by `isDefault` flag.
+Replace with `role.id` where used for identification.
 
-- [ ] **Step 4: Run tests**
+- [ ] **Step 4: Grep for plaintext fallback patterns**
+
+```bash
+grep -rn "serverDecrypt.*||.*''\\|serverDecrypt.*??\\|fallback.*plaintext" src/server/ --include="*.ts"
+```
+
+Remove any dual-read patterns that fall back to plaintext columns when encrypted columns are empty. All writes should go to encrypted columns exclusively.
+
+- [ ] **Step 5: Positive regression test for server-key fields**
+
+Verify that fields that MUST stay server-key (`blast_settings`, `audit_log`, `ivr_audio`) still work:
+```bash
+bun test src/server/services/records.integration.test.ts  # audit log tests
+bun test src/server/services/blasts.integration.test.ts   # blast settings tests if exist
+```
+
+- [ ] **Step 6: Run tests**
 
 ```bash
 bun run typecheck && bun run build && bun run test:unit && bun run test:api
 ```
 
-- [ ] **Step 5: Commit**
+- [ ] **Step 7: Commit**
 
 ```bash
 git add src/server/db/schema/settings.ts drizzle/ src/
-git commit -m "feat(phase2c): drop roles.slug column, use role.id for identification"
+git commit -m "feat(phase2c): drop roles.slug, add NOT NULL constraints, remove plaintext fallbacks"
 ```
 
 ---
@@ -218,6 +251,32 @@ Same pattern for invite phone encryption.
 - [ ] **Step 4: Update read paths — return envelopes, client decrypts**
 
 Service methods that return user/invite data should include `phoneEnvelopes`. Client uses `decryptObjectFields()` to decrypt (same pattern as `encryptedName` + `nameEnvelopes`).
+
+- [ ] **Step 4b: Update client write paths — encrypt before sending**
+
+For volunteer phone (profile update) and invite phone (invite creation), the CLIENT must encrypt before sending:
+
+```typescript
+// In user profile update form:
+const { ciphertext, envelopes } = await envelopeEncrypt(phone, [myPubkey, ...adminPubkeys], LABEL_USER_PII)
+await updateUser(pubkey, { encryptedPhone: ciphertext, phoneEnvelopes: envelopes })
+
+// In invite creation form:
+const { ciphertext, envelopes } = await envelopeEncrypt(phone, [myPubkey], LABEL_USER_PII)
+await createInvite({ ...data, encryptedPhone: ciphertext, phoneEnvelopes: envelopes })
+```
+
+The server route must accept `encryptedPhone` + `phoneEnvelopes` instead of plaintext `phone`.
+
+- [ ] **Step 4c: Verify "already E2EE" fields are truly E2EE**
+
+The spec lists 7 fields as "already E2EE." Verify each uses `envelopeEncrypt()`/`envelopeDecrypt()` in the service layer, NOT `serverEncrypt()`/`serverDecrypt()`:
+
+```bash
+grep -n "serverEncrypt\|serverDecrypt" src/server/services/identity.ts src/server/services/records.ts src/server/services/conversations.ts src/server/services/push.ts | grep -i "name\|last4\|label\|reason\|phone"
+```
+
+Any hits on fields that should be E2EE (volunteer name, ban phone/reason, invite name, callerLast4, contactLast4, deviceLabel, webauthn label) are bugs — fix them to use envelope encryption.
 
 - [ ] **Step 5: Audit remaining serverEncrypt/serverDecrypt calls**
 

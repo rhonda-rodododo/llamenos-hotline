@@ -102,9 +102,20 @@ Create `src/server/services/teams.integration.test.ts` with tests for:
 - Bulk assign contacts
 - Auto-assign on call linking (when handler is on team)
 
-- [ ] **Step 2: Implement TeamsService**
+- [ ] **Step 2: Implement TeamsService and register in DI**
 
-Create `src/server/services/teams.ts`:
+Create `src/server/services/teams.ts`.
+
+**CRITICAL:** Also register in `src/server/services/index.ts`:
+```typescript
+// Add to Services interface:
+teams: TeamsService
+
+// Add to createServices():
+teams: new TeamsService(db, crypto),
+```
+
+Service methods:
 - `createTeam(hubId, encryptedName, encryptedDescription, createdBy)`
 - `listTeams(hubId)` — with member/contact counts
 - `updateTeam(id, data)`
@@ -216,7 +227,29 @@ authenticated.route('/teams', teamsRoutes)
 
 - [ ] **Step 3: Write API tests**
 
-Create `tests/api/teams.spec.ts` covering all endpoints, permission gating, cascade behavior.
+Create `tests/api/teams.spec.ts` following existing API test pattern:
+
+```typescript
+import { expect, test } from '@playwright/test'
+import { ADMIN_NSEC } from '../helpers'
+import { createAuthedRequestFromNsec } from '../helpers/authed-request'
+
+test.describe('Teams API', () => {
+  test.describe.configure({ mode: 'serial' })
+
+  test('list teams returns empty array for new hub', async ({ request }) => {
+    const api = createAuthedRequestFromNsec(request, ADMIN_NSEC)
+    const res = await api.get('/api/teams')
+    expect(res.status()).toBe(200)
+    const data = await res.json()
+    expect(data).toHaveProperty('teams')
+  })
+
+  // ... create, members, contacts, permission gating, cascade
+})
+```
+
+Cover: all 10 endpoints, `users:manage-roles` permission gating for admin ops, `contacts:update-assigned` for contact assignment, cascade delete behavior.
 
 - [ ] **Step 4: Run tests**
 
