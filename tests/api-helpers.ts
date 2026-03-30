@@ -48,14 +48,23 @@ interface CreateShiftResult {
   name: string
 }
 
-export type RoleAlias = 'super-admin' | 'hub-admin' | 'reviewer' | 'volunteer' | 'reporter'
+export type RoleAlias =
+  | 'super-admin'
+  | 'hub-admin'
+  | 'case-manager'
+  | 'reviewer'
+  | 'volunteer'
+  | 'reporter'
+  | 'voicemail-reviewer'
 
 const ROLE_ID_MAP: Record<RoleAlias, string> = {
   'super-admin': 'role-super-admin',
   'hub-admin': 'role-hub-admin',
+  'case-manager': 'role-case-manager',
   reviewer: 'role-reviewer',
   volunteer: 'role-volunteer',
   reporter: 'role-reporter',
+  'voicemail-reviewer': 'role-voicemail-reviewer',
 }
 
 // Monotonic counter to ensure unique phones even within the same millisecond
@@ -136,8 +145,9 @@ export class TestContext {
     const adminApi = createAuthedRequestFromNsec(request, ADMIN_NSEC)
     const hubName = opts?.hubName ?? uniqueName('TestHub')
 
-    // Create a hub
-    const hubRes = await adminApi.post('/api/hubs', { name: hubName })
+    // Create a hub — send encryptedName (tests pass plaintext as the marker value since
+    // server stores it pass-through; no real hub-key encryption in test context)
+    const hubRes = await adminApi.post('/api/hubs', { encryptedName: hubName })
     if (!hubRes.ok()) {
       throw new Error(`Failed to create test hub: ${hubRes.status()} ${await hubRes.text()}`)
     }
@@ -378,7 +388,7 @@ export async function createShiftViaApi(
   const userPubkeys = options?.userPubkeys || []
 
   const res = await request.post('/api/shifts', {
-    data: { name, startTime, endTime, days, userPubkeys },
+    data: { encryptedName: name, startTime, endTime, days, userPubkeys },
   })
 
   if (!res.ok()) {

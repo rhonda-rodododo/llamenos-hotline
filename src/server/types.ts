@@ -593,7 +593,8 @@ export interface UpdateRoleData {
 
 export interface CreateHubData {
   id: string
-  name: string
+  /** Plaintext name (legacy / server-side fallback). Prefer encryptedName for new clients. */
+  name?: string
   description?: string
   status?: 'active' | 'suspended' | 'archived'
   phoneNumber?: string
@@ -730,7 +731,8 @@ export interface ShiftSchedule {
 
 export interface CreateScheduleData {
   hubId?: string
-  name: string
+  /** Plaintext name (legacy / server-side fallback). Prefer encryptedName for new clients. */
+  name?: string
   startTime: string
   endTime: string
   days: number[]

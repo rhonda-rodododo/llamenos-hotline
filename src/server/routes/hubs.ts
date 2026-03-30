@@ -32,17 +32,22 @@ routes.post('/', requirePermission('system:manage-hubs'), async (c) => {
   const services = c.get('services')
   const pubkey = c.get('pubkey')
   const body = (await c.req.json()) as {
-    name: string
+    name?: string
+    encryptedName?: string
     description?: string
+    encryptedDescription?: string
     phoneNumber?: string
   }
 
-  if (!body.name?.trim()) return c.json({ error: 'Name required' }, 400)
+  const nameValue = body.encryptedName?.trim() || body.name?.trim()
+  if (!nameValue) return c.json({ error: 'Name required' }, 400)
 
   const hub = await services.settings.createHub({
     id: crypto.randomUUID(),
-    name: body.name.trim(),
+    name: body.name?.trim(),
+    encryptedName: body.encryptedName?.trim(),
     description: body.description?.trim(),
+    encryptedDescription: body.encryptedDescription?.trim(),
     status: 'active',
     phoneNumber: body.phoneNumber?.trim(),
     createdBy: pubkey,
