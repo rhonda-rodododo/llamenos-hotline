@@ -6,6 +6,7 @@ import {
   type Permission,
   type PermissionMeta,
   hasPermission,
+  permissionGranted,
 } from './permissions'
 
 describe('typed permission catalog', () => {
@@ -36,6 +37,46 @@ describe('typed permission catalog', () => {
   test('Permission type includes all catalog keys', () => {
     const keys = Object.keys(PERMISSION_CATALOG) as Permission[]
     expect(keys.length).toBeGreaterThan(60)
+  })
+})
+
+describe('scope hierarchy', () => {
+  test('read-all subsumes read-assigned', () => {
+    expect(permissionGranted(['contacts:read-all'], 'contacts:read-assigned')).toBe(true)
+  })
+
+  test('read-all subsumes read-own', () => {
+    expect(permissionGranted(['contacts:read-all'], 'contacts:read-own')).toBe(true)
+  })
+
+  test('read-assigned subsumes read-own', () => {
+    expect(permissionGranted(['contacts:read-assigned'], 'contacts:read-own')).toBe(true)
+  })
+
+  test('read-own does NOT subsume read-assigned', () => {
+    expect(permissionGranted(['contacts:read-own'], 'contacts:read-assigned')).toBe(false)
+  })
+
+  test('read-own does NOT subsume read-all', () => {
+    expect(permissionGranted(['contacts:read-own'], 'contacts:read-all')).toBe(false)
+  })
+
+  test('update-all subsumes update-own', () => {
+    expect(permissionGranted(['notes:update-all'], 'notes:update-own')).toBe(true)
+  })
+
+  test('scope hierarchy works across domains independently', () => {
+    expect(permissionGranted(['contacts:read-all'], 'notes:read-own')).toBe(false)
+  })
+
+  test('wildcard still works', () => {
+    expect(permissionGranted(['*'], 'contacts:read-own')).toBe(true)
+    expect(permissionGranted(['contacts:*'], 'contacts:read-own')).toBe(true)
+  })
+
+  test('non-scoped permissions unaffected', () => {
+    expect(permissionGranted(['contacts:create'], 'contacts:create')).toBe(true)
+    expect(permissionGranted(['contacts:create'], 'contacts:delete')).toBe(false)
   })
 })
 

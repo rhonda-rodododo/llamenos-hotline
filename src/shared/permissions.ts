@@ -589,9 +589,16 @@ export const DEFAULT_ROLES: Omit<Role, 'createdAt' | 'updatedAt'>[] = [
 
 // --- Permission Resolution ---
 
+const SCOPE_LEVELS: Record<string, number> = {
+  own: 0,
+  assigned: 1,
+  all: 2,
+}
+
 /**
  * Check if a set of permissions grants a specific permission.
  * Supports exact match, domain wildcards (e.g. "calls:*"), and global wildcard "*".
+ * Also resolves scope hierarchy: -all subsumes -assigned subsumes -own.
  */
 export function permissionGranted(grantedPermissions: string[], required: string): boolean {
   // Global wildcard
@@ -601,6 +608,22 @@ export function permissionGranted(grantedPermissions: string[], required: string
   // Domain wildcard (e.g. "calls:*" matches "calls:answer")
   const domain = required.split(':')[0]
   if (grantedPermissions.includes(`${domain}:*`)) return true
+
+  // Scope hierarchy: -all subsumes -assigned subsumes -own
+  const scopeMatch = required.match(/^(.+)-(own|assigned|all)$/)
+  if (scopeMatch) {
+    const [, base, requiredScope] = scopeMatch
+    const requiredLevel = SCOPE_LEVELS[requiredScope]
+    if (requiredLevel === undefined) return false
+    for (const granted of grantedPermissions) {
+      const grantedMatch = granted.match(/^(.+)-(own|assigned|all)$/)
+      if (grantedMatch && grantedMatch[1] === base) {
+        const grantedLevel = SCOPE_LEVELS[grantedMatch[2]]
+        if (grantedLevel !== undefined && grantedLevel >= requiredLevel) return true
+      }
+    }
+  }
+
   return false
 }
 
