@@ -1,96 +1,89 @@
 ---
 title: 시작하기
-description: 1시간 이내에 나만의 Llamenos 핫라인을 배포하세요.
+description: 몇 분 만에 나만의 Llamenos 핫라인을 배포하세요.
 ---
 
-1시간 이내에 나만의 Llamenos 핫라인을 배포하세요. Cloudflare 계정, 전화 서비스 제공업체 계정, 그리고 Bun이 설치된 컴퓨터가 필요합니다.
+Llamenos 핫라인을 로컬 또는 서버에서 실행하세요. Docker만 있으면 됩니다 — Node.js, Bun 또는 기타 런타임은 필요하지 않습니다.
+
+## 작동 방식
+
+누군가 핫라인 번호로 전화하면, Llamenos가 근무 중인 모든 자원봉사자에게 동시에 전화를 연결합니다. 가장 먼저 받는 자원봉사자가 연결되고, 나머지는 울림이 중단됩니다. 통화 후 자원봉사자는 대화에 대한 암호화된 메모를 저장할 수 있습니다.
+
+```mermaid
+flowchart TD
+    A["수신 전화"] --> B{"교대 근무 중?"}
+    B -->|예| C["모든 근무 자원봉사자에게 연결"]
+    B -->|아니오| D["대체 그룹에 연결"]
+    C --> E{"첫 번째 응답"}
+    D --> E
+    E -->|"응답함"| F["통화 연결"]
+    E -->|"응답 없음"| G["음성 사서함"]
+    F --> H["암호화된 메모 저장"]
+```
+
+SMS, WhatsApp, Signal 메시지에도 동일하게 적용됩니다 — 자원봉사자가 응답할 수 있는 통합 **대화** 뷰에 표시됩니다.
 
 ## 사전 요구 사항
 
-- [Bun](https://bun.sh) v1.0 이상 (런타임 및 패키지 관리자)
-- [Cloudflare](https://www.cloudflare.com) 계정 (무료 티어로 개발 가능)
-- 전화 서비스 제공업체 계정 — [Twilio](https://www.twilio.com)가 가장 쉽게 시작할 수 있지만, Llamenos는 [SignalWire](/docs/setup-signalwire), [Vonage](/docs/setup-vonage), [Plivo](/docs/setup-plivo), [자체 호스팅 Asterisk](/docs/setup-asterisk)도 지원합니다. 선택에 도움이 필요하면 [전화 서비스 제공업체](/docs/telephony-providers) 비교 페이지를 참조하세요.
+- [Docker](https://docs.docker.com/get-docker/) (Docker Compose v2 포함)
+- `openssl` (대부분의 Linux 및 macOS 시스템에 사전 설치됨)
 - Git
 
-## 1. 클론 및 설치
+## 빠른 시작
 
 ```bash
 git clone https://github.com/rhonda-rodododo/llamenos.git
 cd llamenos
-bun install
+./scripts/docker-setup.sh
 ```
 
-## 2. 관리자 키 쌍 생성
+필요한 모든 시크릿을 생성하고, 애플리케이션을 빌드하며, 서비스를 시작합니다. 완료되면 **http://localhost:8000**을 방문하면 설정 마법사가 다음을 안내합니다:
 
-관리자 계정을 위한 Nostr 키 쌍을 생성합니다. 이 과정에서 비밀 키(nsec)와 공개 키(npub/hex)가 생성됩니다.
+1. **관리자 계정 생성** — 브라우저에서 암호화 키 쌍을 생성합니다
+2. **핫라인 이름 지정** — 표시 이름을 설정합니다
+3. **채널 선택** — 음성, SMS, WhatsApp, Signal 및/또는 보고서를 활성화합니다
+4. **제공업체 구성** — 활성화된 각 채널의 자격 증명을 입력합니다
+5. **검토 및 완료**
+
+### 데모 모드 체험
+
+사전 입력된 샘플 데이터와 원클릭 로그인으로 탐색 (계정 생성 불필요):
 
 ```bash
-bun run bootstrap-admin
+./scripts/docker-setup.sh --demo
 ```
 
-`nsec`를 안전하게 보관하세요 — 이것이 관리자 로그인 자격 증명입니다. 다음 단계에서 16진수 공개 키가 필요합니다.
+## 프로덕션 배포
 
-## 3. 비밀 값 구성
-
-로컬 개발을 위해 프로젝트 루트에 `.dev.vars` 파일을 생성합니다. 이 예시는 Twilio를 사용합니다 — 다른 제공업체를 사용하는 경우 Twilio 변수를 건너뛰고 첫 로그인 후 관리자 UI에서 제공업체를 구성할 수 있습니다.
+실제 도메인과 자동 TLS가 있는 서버의 경우:
 
 ```bash
-# .dev.vars
-TWILIO_ACCOUNT_SID=your_twilio_account_sid
-TWILIO_AUTH_TOKEN=your_twilio_auth_token
-TWILIO_PHONE_NUMBER=+1234567890
-ADMIN_PUBKEY=your_hex_public_key_from_step_2
-ENVIRONMENT=development
+./scripts/docker-setup.sh --domain hotline.yourorg.com --email admin@yourorg.com
 ```
 
-프로덕션 환경에서는 Wrangler 시크릿으로 설정합니다:
+Caddy가 자동으로 Let's Encrypt TLS 인증서를 프로비저닝합니다. 포트 80과 443이 열려 있는지 확인하세요. `--domain` 옵션은 TLS, 로그 순환 및 리소스 제한을 추가하는 Docker Compose 프로덕션 오버레이를 활성화합니다.
 
-```bash
-bunx wrangler secret put ADMIN_PUBKEY
-# Twilio를 환경 변수로 기본 제공업체로 사용하는 경우:
-bunx wrangler secret put TWILIO_ACCOUNT_SID
-bunx wrangler secret put TWILIO_AUTH_TOKEN
-bunx wrangler secret put TWILIO_PHONE_NUMBER
-```
+서버 강화, 백업, 모니터링 및 선택적 서비스에 대한 전체 세부 정보는 [Docker Compose 배포 가이드](/docs/deploy-docker)를 참조하세요.
 
-> **참고**: 환경 변수 대신 관리자 설정 UI를 통해 전화 서비스 제공업체를 완전히 구성할 수도 있습니다. Twilio가 아닌 제공업체의 경우 이 방법이 필수입니다. [제공업체 설정 가이드](/docs/telephony-providers)를 참조하세요.
+## Webhook 구성
 
-## 4. 전화 서비스 웹훅 구성
+배포 후 텔레포니 제공업체의 webhook을 배포 URL로 지정하세요:
 
-전화 서비스 제공업체가 음성 웹훅을 Worker로 보내도록 구성합니다. 웹훅 URL은 제공업체에 관계없이 동일합니다:
+| Webhook | URL |
+|---------|-----|
+| 음성 (수신) | `https://your-domain/api/telephony/incoming` |
+| 음성 (상태) | `https://your-domain/api/telephony/status` |
+| SMS | `https://your-domain/api/messaging/sms/webhook` |
+| WhatsApp | `https://your-domain/api/messaging/whatsapp/webhook` |
+| Signal | 브리지를 `https://your-domain/api/messaging/signal/webhook`으로 전달하도록 구성 |
 
-- **수신 전화 URL**: `https://your-worker.your-domain.com/telephony/incoming` (POST)
-- **상태 콜백 URL**: `https://your-worker.your-domain.com/telephony/status` (POST)
-
-제공업체별 웹훅 설정 안내는 다음을 참조하세요: [Twilio](/docs/setup-twilio), [SignalWire](/docs/setup-signalwire), [Vonage](/docs/setup-vonage), [Plivo](/docs/setup-plivo), [Asterisk](/docs/setup-asterisk).
-
-로컬 개발 시, 로컬 Worker를 전화 서비스 제공업체에 노출하기 위해 터널(Cloudflare Tunnel 또는 ngrok 등)이 필요합니다.
-
-## 5. 로컬 실행
-
-Worker 개발 서버(백엔드 + 프론트엔드)를 시작합니다:
-
-```bash
-# 프론트엔드 자산을 먼저 빌드
-bun run build
-
-# Worker 개발 서버 시작
-bun run dev:worker
-```
-
-앱은 `http://localhost:8787`에서 접속 가능합니다. 2단계에서 생성한 관리자 nsec로 로그인하세요.
-
-## 6. Cloudflare에 배포
-
-```bash
-bun run deploy
-```
-
-이 명령은 프론트엔드를 빌드하고 Durable Objects와 함께 Worker를 Cloudflare에 배포합니다. 배포 후, 전화 서비스 제공업체의 웹훅 URL을 프로덕션 Worker URL로 업데이트하세요.
+제공업체별 설정: [Twilio](/docs/setup-twilio), [SignalWire](/docs/setup-signalwire), [Vonage](/docs/setup-vonage), [Plivo](/docs/setup-plivo), [Asterisk](/docs/setup-asterisk), [SMS](/docs/setup-sms), [WhatsApp](/docs/setup-whatsapp), [Signal](/docs/setup-signal).
 
 ## 다음 단계
 
-- [관리자 가이드](/docs/admin-guide) — 자원봉사자 추가, 근무 일정 생성, 설정 구성
+- [Docker Compose 배포](/docs/deploy-docker) — 백업 및 모니터링이 포함된 전체 프로덕션 배포 가이드
+- [관리자 가이드](/docs/admin-guide) — 자원봉사자 추가, 교대 생성, 채널 및 설정 구성
 - [자원봉사자 가이드](/docs/volunteer-guide) — 자원봉사자에게 공유하세요
-- [전화 서비스 제공업체](/docs/telephony-providers) — 제공업체 비교 및 필요시 Twilio에서 전환
+- [리포터 가이드](/docs/reporter-guide) — 암호화된 보고서 제출을 위한 리포터 역할 설정
+- [텔레포니 제공업체](/docs/telephony-providers) — 음성 제공업체 비교
 - [보안 모델](/security) — 암호화 및 위협 모델 이해

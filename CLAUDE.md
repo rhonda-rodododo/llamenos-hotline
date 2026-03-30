@@ -141,7 +141,7 @@ PLAYWRIGHT_WORKERS=3 bunx playwright test    # Run with 3 workers (after isolati
 
 **Key config files**: `playwright.config.ts`, `.env` (DATABASE_URL, HMAC_SECRET, Twilio creds + ADMIN_PUBKEY, gitignored)
 
-**Local E2E tests**: Copy `.dev.vars.local.example` to `.dev.vars.local`, fill in your values, then start backing services with `bun run dev:docker` before running `bun run dev:server`.
+**Local E2E tests**: Copy `.env.local.example` to `.env.local`, fill in your values, then start backing services with `bun run dev:docker` before running `bun run dev:server`.
 
 ## Claude Code Working Style
 
@@ -158,7 +158,7 @@ PLAYWRIGHT_WORKERS=3 bunx playwright test    # Run with 3 workers (after isolati
 - Keep the file tree lean. Use git commits frequently to checkpoint progress.
 - No legacy fallbacks or migration code until this file notes the app is in production.
 - Use `docs/epics/` for planning feature epics. Track backlog in `docs/NEXT_BACKLOG.md` and completed work in `docs/COMPLETED_BACKLOG.md` with every iteration
-- Use context7 plugin to look up current docs for Twilio, Cloudflare Workers, TanStack, shadcn/ui, and other libraries before implementing.
+- Use context7 plugin to look up current docs for Twilio, Hono, TanStack, shadcn/ui, Drizzle, and other libraries before implementing.
 - Use the feature-dev plugin for guided development of complex features.
 - Use Playwright plugin for E2E test development and debugging.
 - Clean up unused files/configs when pivoting. Keep code modular and DRY — refactor proactively.

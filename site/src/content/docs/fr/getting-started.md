@@ -1,96 +1,89 @@
 ---
 title: Premiers pas
-description: Deployez votre propre ligne Llamenos en moins d'une heure.
+description: Deployez votre propre ligne Llamenos en quelques minutes.
 ---
 
-Deployez votre propre ligne Llamenos en moins d'une heure. Vous aurez besoin d'un compte Cloudflare, d'un compte fournisseur de telephonie et d'une machine avec Bun installe.
+Lancez une ligne Llamenos en local ou sur un serveur. Seul Docker est necessaire — pas besoin de Node.js, Bun ou d'autres environnements d'execution.
+
+## Comment ca fonctionne
+
+Lorsque quelqu'un appelle votre numero de ligne, Llamenos achemine l'appel simultanement vers tous les benevoles de permanence. Le premier benevole a repondre est connecte, et les autres cessent de sonner. Apres l'appel, le benevole peut enregistrer des notes chiffrees sur la conversation.
+
+```mermaid
+flowchart TD
+    A["Appel entrant"] --> B{"Permanence active ?"}
+    B -->|Oui| C["Sonner tous les benevoles de permanence"]
+    B -->|Non| D["Sonner le groupe de secours"]
+    C --> E{"Premier decroche"}
+    D --> E
+    E -->|"Repondu"| F["Connecter l'appel"]
+    E -->|"Pas de reponse"| G["Messagerie vocale"]
+    F --> H["Enregistrer une note chiffree"]
+```
+
+Le meme principe s'applique aux messages SMS, WhatsApp et Signal — ils apparaissent dans une vue unifiee **Conversations** ou les benevoles peuvent repondre.
 
 ## Prerequis
 
-- [Bun](https://bun.sh) v1.0 ou ulterieur (runtime et gestionnaire de paquets)
-- Un compte [Cloudflare](https://www.cloudflare.com) (le niveau gratuit suffit pour le developpement)
-- Un compte fournisseur de telephonie -- [Twilio](https://www.twilio.com) est le plus simple pour commencer, mais Llamenos prend aussi en charge [SignalWire](/docs/setup-signalwire), [Vonage](/docs/setup-vonage), [Plivo](/docs/setup-plivo) et [Asterisk auto-heberge](/docs/setup-asterisk). Consultez la [comparaison des fournisseurs de telephonie](/docs/telephony-providers) pour vous aider a choisir.
+- [Docker](https://docs.docker.com/get-docker/) avec Docker Compose v2
+- `openssl` (pre-installe sur la plupart des systemes Linux et macOS)
 - Git
 
-## 1. Cloner et installer
+## Demarrage rapide
 
 ```bash
 git clone https://github.com/rhonda-rodododo/llamenos.git
 cd llamenos
-bun install
+./scripts/docker-setup.sh
 ```
 
-## 2. Generer la paire de cles administrateur
+Cela genere tous les secrets necessaires, construit l'application et demarre les services. Une fois termine, rendez-vous sur **http://localhost:8000** et l'assistant de configuration vous guidera pour :
 
-Generez une paire de cles Nostr pour le compte administrateur. Cela produit une cle secrete (nsec) et une cle publique (npub/hex).
+1. **Creer votre compte administrateur** — genere une paire de cles cryptographiques dans votre navigateur
+2. **Nommer votre ligne** — definissez le nom d'affichage
+3. **Choisir les canaux** — activez Voix, SMS, WhatsApp, Signal et/ou Rapports
+4. **Configurer les fournisseurs** — entrez les identifiants pour chaque canal active
+5. **Verifier et terminer**
+
+### Essayer le mode demo
+
+Pour explorer avec des donnees d'exemple pre-remplies et une connexion en un clic (sans creation de compte) :
 
 ```bash
-bun run bootstrap-admin
+./scripts/docker-setup.sh --demo
 ```
 
-Conservez le `nsec` en lieu sur -- c'est votre identifiant de connexion administrateur. Vous aurez besoin de la cle publique hexadecimale pour l'etape suivante.
+## Deploiement en production
 
-## 3. Configurer les secrets
-
-Creez un fichier `.dev.vars` a la racine du projet pour le developpement local. Cet exemple utilise Twilio -- si vous utilisez un autre fournisseur, vous pouvez ignorer les variables Twilio et configurer votre fournisseur via l'interface d'administration apres la premiere connexion.
+Pour un serveur avec un vrai domaine et TLS automatique :
 
 ```bash
-# .dev.vars
-TWILIO_ACCOUNT_SID=your_twilio_account_sid
-TWILIO_AUTH_TOKEN=your_twilio_auth_token
-TWILIO_PHONE_NUMBER=+1234567890
-ADMIN_PUBKEY=your_hex_public_key_from_step_2
-ENVIRONMENT=development
+./scripts/docker-setup.sh --domain ligne.votreorg.com --email admin@votreorg.com
 ```
 
-Pour la production, definissez-les en tant que secrets Wrangler :
+Caddy provisionne automatiquement les certificats TLS Let's Encrypt. Assurez-vous que les ports 80 et 443 sont ouverts. L'option `--domain` active la couche de production Docker Compose, qui ajoute TLS, la rotation des logs et les limites de ressources.
 
-```bash
-bunx wrangler secret put ADMIN_PUBKEY
-# Si vous utilisez Twilio comme fournisseur par defaut via les variables d'environnement :
-bunx wrangler secret put TWILIO_ACCOUNT_SID
-bunx wrangler secret put TWILIO_AUTH_TOKEN
-bunx wrangler secret put TWILIO_PHONE_NUMBER
-```
+Consultez le [guide de deploiement Docker Compose](/docs/deploy-docker) pour les details complets sur le durcissement du serveur, les sauvegardes, la surveillance et les services optionnels.
 
-> **Remarque** : Vous pouvez aussi configurer votre fournisseur de telephonie entierement via l'interface d'administration des parametres, au lieu d'utiliser des variables d'environnement. C'est obligatoire pour les fournisseurs autres que Twilio. Consultez le [guide de configuration de votre fournisseur](/docs/telephony-providers).
+## Configurer les webhooks
 
-## 4. Configurer les webhooks de telephonie
+Apres le deploiement, dirigez les webhooks de votre fournisseur de telephonie vers votre URL de deploiement :
 
-Configurez votre fournisseur de telephonie pour envoyer les webhooks vocaux a votre Worker. Les URL de webhook sont les memes quel que soit le fournisseur :
+| Webhook | URL |
+|---------|-----|
+| Voix (entrant) | `https://votre-domaine/api/telephony/incoming` |
+| Voix (statut) | `https://votre-domaine/api/telephony/status` |
+| SMS | `https://votre-domaine/api/messaging/sms/webhook` |
+| WhatsApp | `https://votre-domaine/api/messaging/whatsapp/webhook` |
+| Signal | Configurez le bridge pour rediriger vers `https://votre-domaine/api/messaging/signal/webhook` |
 
-- **URL d'appel entrant** : `https://your-worker.your-domain.com/telephony/incoming` (POST)
-- **URL de rappel de statut** : `https://your-worker.your-domain.com/telephony/status` (POST)
+Pour la configuration specifique a chaque fournisseur : [Twilio](/docs/setup-twilio), [SignalWire](/docs/setup-signalwire), [Vonage](/docs/setup-vonage), [Plivo](/docs/setup-plivo), [Asterisk](/docs/setup-asterisk), [SMS](/docs/setup-sms), [WhatsApp](/docs/setup-whatsapp), [Signal](/docs/setup-signal).
 
-Pour les instructions de configuration specifiques a chaque fournisseur, consultez : [Twilio](/docs/setup-twilio), [SignalWire](/docs/setup-signalwire), [Vonage](/docs/setup-vonage), [Plivo](/docs/setup-plivo) ou [Asterisk](/docs/setup-asterisk).
+## Prochaines etapes
 
-Pour le developpement local, vous aurez besoin d'un tunnel (comme Cloudflare Tunnel ou ngrok) pour exposer votre Worker local a votre fournisseur de telephonie.
-
-## 5. Executer localement
-
-Demarrez le serveur de developpement Worker (backend + frontend) :
-
-```bash
-# Construire les ressources frontend d'abord
-bun run build
-
-# Demarrer le serveur de developpement Worker
-bun run dev:worker
-```
-
-L'application sera disponible a l'adresse `http://localhost:8787`. Connectez-vous avec le nsec administrateur de l'etape 2.
-
-## 6. Deployer sur Cloudflare
-
-```bash
-bun run deploy
-```
-
-Cela construit le frontend et deploie le Worker avec les Durable Objects sur Cloudflare. Apres le deploiement, mettez a jour les URL de webhook de votre fournisseur de telephonie pour pointer vers l'URL du Worker de production.
-
-## Etapes suivantes
-
-- [Guide administrateur](/docs/admin-guide) -- ajouter des benevoles, creer des equipes, configurer les parametres
-- [Guide du benevole](/docs/volunteer-guide) -- a partager avec vos benevoles
-- [Fournisseurs de telephonie](/docs/telephony-providers) -- comparer les fournisseurs et changer de Twilio si necessaire
-- [Modele de securite](/security) -- comprendre le chiffrement et le modele de menaces
+- [Deploiement Docker Compose](/docs/deploy-docker) — guide complet de deploiement en production avec sauvegardes et surveillance
+- [Guide administrateur](/docs/admin-guide) — ajouter des benevoles, creer des permanences, configurer les canaux et parametres
+- [Guide du benevole](/docs/volunteer-guide) — partagez avec vos benevoles
+- [Guide du rapporteur](/docs/reporter-guide) — configurer le role de rapporteur pour les soumissions de rapports chiffres
+- [Fournisseurs de telephonie](/docs/telephony-providers) — comparer les fournisseurs vocaux
+- [Modele de securite](/security) — comprendre le chiffrement et le modele de menace

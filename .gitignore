@@ -1,11 +1,11 @@
 node_modules/
 dist/
-.dev.vars
 .wrangler/
 *.local
 .env
 .env.*
 !.env.example
+!.env.local.example
 !.env.live.example
 !.env.dev.defaults
 test-results/
@@ -38,7 +38,7 @@ apps/desktop/target/
 
 # Crypto build outputs
 packages/crypto/dist/
-.dev.vars.local
+.env.local
 .worktrees/
 .claude/projects/
 .claude/scheduled_tasks.lock

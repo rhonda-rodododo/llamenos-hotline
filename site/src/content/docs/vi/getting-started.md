@@ -1,96 +1,89 @@
 ---
-title: Bắt đầu
-description: Triển khai đường dây nóng Llamenos của riêng bạn trong vòng một giờ.
+title: Bat dau
+description: Trien khai duong day nong Llamenos cua rieng ban trong vai phut.
 ---
 
-Triển khai đường dây nóng Llamenos của riêng bạn trong vòng một giờ. Bạn sẽ cần một tài khoản Cloudflare, một tài khoản nhà cung cấp dịch vụ điện thoại và một máy tính đã cài đặt Bun.
+Chay duong day nong Llamenos tai may cuc bo hoac tren may chu. Chi can Docker — khong can Node.js, Bun hay bat ky runtime nao khac.
 
-## Yêu cầu tiên quyết
+## Cach hoat dong
 
-- [Bun](https://bun.sh) phiên bản v1.0 trở lên (runtime và trình quản lý gói)
-- Một tài khoản [Cloudflare](https://www.cloudflare.com) (gói miễn phí đủ dùng cho phát triển)
-- Một tài khoản nhà cung cấp dịch vụ điện thoại — [Twilio](https://www.twilio.com) là lựa chọn dễ bắt đầu nhất, nhưng Llamenos cũng hỗ trợ [SignalWire](/docs/setup-signalwire), [Vonage](/docs/setup-vonage), [Plivo](/docs/setup-plivo) và [Asterisk tự lưu trữ](/docs/setup-asterisk). Xem trang [So sánh nhà cung cấp dịch vụ điện thoại](/docs/telephony-providers) để được hỗ trợ lựa chọn.
+Khi ai do goi den so duong day nong cua ban, Llamenos dinh tuyen cuoc goi den tat ca tinh nguyen vien dang truc cung luc. Tinh nguyen vien dau tien tra loi se duoc ket noi, va nhung nguoi khac ngung reo. Sau cuoc goi, tinh nguyen vien co the luu ghi chu ma hoa ve cuoc tro chuyen.
+
+```mermaid
+flowchart TD
+    A["Cuoc goi den"] --> B{"Ca truc hoat dong?"}
+    B -->|Co| C["Reo tat ca tinh nguyen vien dang truc"]
+    B -->|Khong| D["Reo nhom du phong"]
+    C --> E{"Nguoi dau tien tra loi"}
+    D --> E
+    E -->|"Da tra loi"| F["Ket noi cuoc goi"]
+    E -->|"Khong tra loi"| G["Thu thoai"]
+    F --> H["Luu ghi chu ma hoa"]
+```
+
+Tuong tu voi tin nhan SMS, WhatsApp va Signal — chung hien thi trong giao dien **Hoi thoai** thong nhat noi tinh nguyen vien co the tra loi.
+
+## Dieu kien tien quyet
+
+- [Docker](https://docs.docker.com/get-docker/) voi Docker Compose v2
+- `openssl` (da cai san tren hau het cac he thong Linux va macOS)
 - Git
 
-## 1. Sao chép và cài đặt
+## Bat dau nhanh
 
 ```bash
 git clone https://github.com/rhonda-rodododo/llamenos.git
 cd llamenos
-bun install
+./scripts/docker-setup.sh
 ```
 
-## 2. Tạo cặp khóa quản trị viên
+Lenh nay tao tat ca cac secret can thiet, build ung dung va khoi dong cac dich vu. Sau khi hoan tat, truy cap **http://localhost:8000** va trinh huong dan cai dat se dan ban qua:
 
-Tạo một cặp khóa Nostr cho tài khoản quản trị viên. Thao tác này tạo ra một khóa bí mật (nsec) và khóa công khai (npub/hex).
+1. **Tao tai khoan quan tri vien** — tao cap khoa mat ma trong trinh duyet cua ban
+2. **Dat ten duong day nong** — thiet lap ten hien thi
+3. **Chon kenh** — kich hoat Voice, SMS, WhatsApp, Signal va/hoac Bao cao
+4. **Cau hinh nha cung cap** — nhap thong tin xac thuc cho tung kenh da kich hoat
+5. **Xem lai va hoan tat**
+
+### Thu che do demo
+
+De kham pha voi du lieu mau va dang nhap mot cham (khong can tao tai khoan):
 
 ```bash
-bun run bootstrap-admin
+./scripts/docker-setup.sh --demo
 ```
 
-Hãy lưu trữ `nsec` một cách an toàn — đây là thông tin đăng nhập quản trị viên của bạn. Bạn sẽ cần khóa công khai dạng hex cho bước tiếp theo.
+## Trien khai san xuat
 
-## 3. Cấu hình khóa bí mật
-
-Tạo một tệp `.dev.vars` tại thư mục gốc của dự án cho phát triển cục bộ. Ví dụ này sử dụng Twilio — nếu bạn sử dụng nhà cung cấp khác, bạn có thể bỏ qua các biến Twilio và cấu hình nhà cung cấp của bạn qua giao diện quản trị sau lần đăng nhập đầu tiên.
+Cho may chu voi ten mien thuc va TLS tu dong:
 
 ```bash
-# .dev.vars
-TWILIO_ACCOUNT_SID=your_twilio_account_sid
-TWILIO_AUTH_TOKEN=your_twilio_auth_token
-TWILIO_PHONE_NUMBER=+1234567890
-ADMIN_PUBKEY=your_hex_public_key_from_step_2
-ENVIRONMENT=development
+./scripts/docker-setup.sh --domain hotline.yourorg.com --email admin@yourorg.com
 ```
 
-Đối với môi trường sản xuất, hãy đặt các giá trị này làm Wrangler secret:
+Caddy tu dong cap chung chi TLS Let's Encrypt. Dam bao cong 80 va 443 da mo. Tuy chon `--domain` kich hoat lop san xuat Docker Compose, them TLS, xoay vong log va gioi han tai nguyen.
 
-```bash
-bunx wrangler secret put ADMIN_PUBKEY
-# Nếu sử dụng Twilio làm nhà cung cấp mặc định qua biến môi trường:
-bunx wrangler secret put TWILIO_ACCOUNT_SID
-bunx wrangler secret put TWILIO_AUTH_TOKEN
-bunx wrangler secret put TWILIO_PHONE_NUMBER
-```
+Xem [huong dan trien khai Docker Compose](/docs/deploy-docker) de biet chi tiet day du ve tang cuong bao mat may chu, sao luu, giam sat va cac dich vu tuy chon.
 
-> **Lưu ý**: Bạn cũng có thể cấu hình nhà cung cấp dịch vụ điện thoại hoàn toàn thông qua giao diện quản trị thay vì sử dụng biến môi trường. Điều này là bắt buộc đối với các nhà cung cấp không phải Twilio. Xem [hướng dẫn thiết lập cho nhà cung cấp của bạn](/docs/telephony-providers).
+## Cau hinh webhook
 
-## 4. Cấu hình webhook dịch vụ điện thoại
+Sau khi trien khai, tro webhook cua nha cung cap dien thoai den URL trien khai cua ban:
 
-Cấu hình nhà cung cấp dịch vụ điện thoại để gửi webhook thoại đến Worker của bạn. URL webhook giống nhau bất kể nhà cung cấp nào:
+| Webhook | URL |
+|---------|-----|
+| Voice (den) | `https://your-domain/api/telephony/incoming` |
+| Voice (trang thai) | `https://your-domain/api/telephony/status` |
+| SMS | `https://your-domain/api/messaging/sms/webhook` |
+| WhatsApp | `https://your-domain/api/messaging/whatsapp/webhook` |
+| Signal | Cau hinh bridge chuyen tiep den `https://your-domain/api/messaging/signal/webhook` |
 
-- **URL cuộc gọi đến**: `https://your-worker.your-domain.com/telephony/incoming` (POST)
-- **URL callback trạng thái**: `https://your-worker.your-domain.com/telephony/status` (POST)
+Cau hinh theo nha cung cap: [Twilio](/docs/setup-twilio), [SignalWire](/docs/setup-signalwire), [Vonage](/docs/setup-vonage), [Plivo](/docs/setup-plivo), [Asterisk](/docs/setup-asterisk), [SMS](/docs/setup-sms), [WhatsApp](/docs/setup-whatsapp), [Signal](/docs/setup-signal).
 
-Để xem hướng dẫn thiết lập webhook theo từng nhà cung cấp, hãy tham khảo: [Twilio](/docs/setup-twilio), [SignalWire](/docs/setup-signalwire), [Vonage](/docs/setup-vonage), [Plivo](/docs/setup-plivo), hoặc [Asterisk](/docs/setup-asterisk).
+## Buoc tiep theo
 
-Khi phát triển cục bộ, bạn sẽ cần một đường hầm (như Cloudflare Tunnel hoặc ngrok) để cho phép nhà cung cấp dịch vụ điện thoại truy cập Worker cục bộ của bạn.
-
-## 5. Chạy cục bộ
-
-Khởi động máy chủ phát triển Worker (backend + frontend):
-
-```bash
-# Xây dựng tài nguyên frontend trước
-bun run build
-
-# Khởi động máy chủ phát triển Worker
-bun run dev:worker
-```
-
-Ứng dụng sẽ có sẵn tại `http://localhost:8787`. Đăng nhập bằng nsec quản trị viên từ bước 2.
-
-## 6. Triển khai lên Cloudflare
-
-```bash
-bun run deploy
-```
-
-Lệnh này xây dựng frontend và triển khai Worker cùng Durable Objects lên Cloudflare. Sau khi triển khai, hãy cập nhật URL webhook của nhà cung cấp dịch vụ điện thoại để trỏ đến URL Worker sản xuất.
-
-## Các bước tiếp theo
-
-- [Hướng dẫn quản trị viên](/docs/admin-guide) — thêm tình nguyện viên, tạo ca trực, cấu hình cài đặt
-- [Hướng dẫn tình nguyện viên](/docs/volunteer-guide) — chia sẻ với tình nguyện viên của bạn
-- [Nhà cung cấp dịch vụ điện thoại](/docs/telephony-providers) — so sánh nhà cung cấp và chuyển đổi từ Twilio nếu cần
-- [Mô hình bảo mật](/security) — hiểu mô hình mã hóa và đe dọa
+- [Trien khai Docker Compose](/docs/deploy-docker) — huong dan trien khai san xuat day du voi sao luu va giam sat
+- [Huong dan Quan tri vien](/docs/admin-guide) — them tinh nguyen vien, tao ca truc, cau hinh kenh va cai dat
+- [Huong dan Tinh nguyen vien](/docs/volunteer-guide) — chia se voi tinh nguyen vien cua ban
+- [Huong dan Phong vien](/docs/reporter-guide) — thiet lap vai tro phong vien de gui bao cao ma hoa
+- [Nha cung cap Dien thoai](/docs/telephony-providers) — so sanh cac nha cung cap voice
+- [Mo hinh Bao mat](/security) — tim hieu ve ma hoa va mo hinh de doa

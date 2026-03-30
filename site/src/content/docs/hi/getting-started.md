@@ -1,96 +1,89 @@
 ---
 title: शुरू करना
-description: एक घंटे से भी कम समय में अपनी Llamenos हॉटलाइन तैनात करें।
+description: कुछ ही मिनटों में अपनी Llamenos हॉटलाइन तैनात करें।
 ---
 
-एक घंटे से भी कम समय में अपनी Llamenos हॉटलाइन तैनात करें। आपको एक Cloudflare अकाउंट, एक टेलीफ़ोनी प्रदाता अकाउंट, और Bun इंस्टॉल की गई मशीन की आवश्यकता होगी।
+Llamenos हॉटलाइन को स्थानीय रूप से या सर्वर पर चालू करें। केवल Docker आवश्यक है — Node.js, Bun या अन्य रनटाइम की कोई आवश्यकता नहीं।
+
+## यह कैसे काम करता है
+
+जब कोई आपके हॉटलाइन नंबर पर कॉल करता है, तो Llamenos कॉल को एक साथ सभी ड्यूटी पर मौजूद स्वयंसेवकों तक पहुँचाता है। जो स्वयंसेवक पहले उठाता है, वह जुड़ जाता है, और बाकी की रिंग बंद हो जाती है। कॉल समाप्त होने के बाद, स्वयंसेवक बातचीत के बारे में एन्क्रिप्टेड नोट्स सहेज सकता है।
+
+```mermaid
+flowchart TD
+    A["आने वाली कॉल"] --> B{"शिफ्ट सक्रिय?"}
+    B -->|हाँ| C["सभी शिफ्ट स्वयंसेवकों को रिंग करें"]
+    B -->|नहीं| D["फॉलबैक ग्रुप को रिंग करें"]
+    C --> E{"पहला पिकअप"}
+    D --> E
+    E -->|"उत्तर दिया"| F["कॉल कनेक्ट करें"]
+    E -->|"कोई उत्तर नहीं"| G["वॉइसमेल"]
+    F --> H["एन्क्रिप्टेड नोट सहेजें"]
+```
+
+SMS, WhatsApp और Signal संदेशों पर भी यही लागू होता है — वे एक एकीकृत **वार्तालाप** दृश्य में दिखाई देते हैं जहाँ स्वयंसेवक जवाब दे सकते हैं।
 
 ## पूर्वापेक्षाएँ
 
-- [Bun](https://bun.sh) v1.0 या बाद का संस्करण (रनटाइम और पैकेज मैनेजर)
-- एक [Cloudflare](https://www.cloudflare.com) अकाउंट (फ्री टियर विकास के लिए पर्याप्त है)
-- एक टेलीफ़ोनी प्रदाता अकाउंट — [Twilio](https://www.twilio.com) शुरू करने के लिए सबसे आसान है, लेकिन Llamenos [SignalWire](/docs/setup-signalwire), [Vonage](/docs/setup-vonage), [Plivo](/docs/setup-plivo), और [सेल्फ़-होस्टेड Asterisk](/docs/setup-asterisk) का भी समर्थन करता है। चुनने में सहायता के लिए [टेलीफ़ोनी प्रदाता](/docs/telephony-providers) तुलना देखें।
+- [Docker](https://docs.docker.com/get-docker/) Docker Compose v2 के साथ
+- `openssl` (अधिकांश Linux और macOS सिस्टम पर पहले से इंस्टॉल)
 - Git
 
-## 1. क्लोन और इंस्टॉल करें
+## त्वरित शुरुआत
 
 ```bash
 git clone https://github.com/rhonda-rodododo/llamenos.git
 cd llamenos
-bun install
+./scripts/docker-setup.sh
 ```
 
-## 2. एडमिन कीपेयर बूटस्ट्रैप करें
+यह सभी आवश्यक सीक्रेट्स जनरेट करता है, एप्लिकेशन बनाता है, और सेवाएँ शुरू करता है। पूरा होने पर, **http://localhost:8000** पर जाएँ और सेटअप विज़ार्ड आपको मार्गदर्शन करेगा:
 
-एडमिन अकाउंट के लिए एक Nostr कीपेयर जनरेट करें। यह एक सीक्रेट की (nsec) और पब्लिक की (npub/hex) उत्पन्न करता है।
+1. **अपना एडमिन अकाउंट बनाएँ** — आपके ब्राउज़र में क्रिप्टोग्राफ़िक की-पेयर जनरेट करता है
+2. **अपनी हॉटलाइन का नाम रखें** — प्रदर्शन नाम सेट करें
+3. **चैनल चुनें** — वॉइस, SMS, WhatsApp, Signal और/या रिपोर्ट्स सक्षम करें
+4. **प्रदाता कॉन्फ़िगर करें** — प्रत्येक सक्षम चैनल के लिए क्रेडेंशियल दर्ज करें
+5. **समीक्षा करें और समाप्त करें**
+
+### डेमो मोड आज़माएँ
+
+पहले से भरे नमूना डेटा और एक-क्लिक लॉगिन के साथ अन्वेषण करने के लिए (अकाउंट बनाने की आवश्यकता नहीं):
 
 ```bash
-bun run bootstrap-admin
+./scripts/docker-setup.sh --demo
 ```
 
-`nsec` को सुरक्षित रूप से सहेजें — यह आपका एडमिन लॉगिन क्रेडेंशियल है। अगले चरण के लिए आपको hex पब्लिक की की आवश्यकता होगी।
+## प्रोडक्शन तैनाती
 
-## 3. सीक्रेट्स कॉन्फ़िगर करें
-
-स्थानीय विकास के लिए प्रोजेक्ट रूट में `.dev.vars` फ़ाइल बनाएँ। यह उदाहरण Twilio का उपयोग करता है — यदि आप किसी अन्य प्रदाता का उपयोग कर रहे हैं, तो आप Twilio वेरिएबल्स को छोड़ सकते हैं और पहले लॉगिन के बाद एडमिन UI से अपने प्रदाता को कॉन्फ़िगर कर सकते हैं।
+वास्तविक डोमेन और स्वचालित TLS वाले सर्वर के लिए:
 
 ```bash
-# .dev.vars
-TWILIO_ACCOUNT_SID=your_twilio_account_sid
-TWILIO_AUTH_TOKEN=your_twilio_auth_token
-TWILIO_PHONE_NUMBER=+1234567890
-ADMIN_PUBKEY=your_hex_public_key_from_step_2
-ENVIRONMENT=development
+./scripts/docker-setup.sh --domain hotline.yourorg.com --email admin@yourorg.com
 ```
 
-प्रोडक्शन के लिए, इन्हें Wrangler सीक्रेट्स के रूप में सेट करें:
+Caddy स्वचालित रूप से Let's Encrypt TLS प्रमाणपत्र प्रदान करता है। सुनिश्चित करें कि पोर्ट 80 और 443 खुले हैं। `--domain` विकल्प Docker Compose प्रोडक्शन ओवरले सक्रिय करता है, जो TLS, लॉग रोटेशन और संसाधन सीमाएँ जोड़ता है।
 
-```bash
-bunx wrangler secret put ADMIN_PUBKEY
-# यदि Twilio को डिफ़ॉल्ट प्रदाता के रूप में env vars से उपयोग कर रहे हैं:
-bunx wrangler secret put TWILIO_ACCOUNT_SID
-bunx wrangler secret put TWILIO_AUTH_TOKEN
-bunx wrangler secret put TWILIO_PHONE_NUMBER
-```
+सर्वर हार्डनिंग, बैकअप, मॉनिटरिंग और वैकल्पिक सेवाओं के पूर्ण विवरण के लिए [Docker Compose तैनाती गाइड](/docs/deploy-docker) देखें।
 
-> **नोट**: आप एनवायरनमेंट वेरिएबल्स के बजाय एडमिन सेटिंग्स UI से भी अपने टेलीफ़ोनी प्रदाता को पूरी तरह से कॉन्फ़िगर कर सकते हैं। गैर-Twilio प्रदाताओं के लिए यह आवश्यक है। अपने प्रदाता की [सेटअप गाइड](/docs/telephony-providers) देखें।
+## Webhooks कॉन्फ़िगर करें
 
-## 4. टेलीफ़ोनी webhooks कॉन्फ़िगर करें
+तैनाती के बाद, अपने टेलीफ़ोनी प्रदाता के webhooks को अपनी तैनाती URL पर पॉइंट करें:
 
-अपने टेलीफ़ोनी प्रदाता को वॉइस webhooks आपके Worker को भेजने के लिए कॉन्फ़िगर करें। Webhook URLs सभी प्रदाताओं के लिए समान हैं:
+| Webhook | URL |
+|---------|-----|
+| वॉइस (इनकमिंग) | `https://your-domain/api/telephony/incoming` |
+| वॉइस (स्टेटस) | `https://your-domain/api/telephony/status` |
+| SMS | `https://your-domain/api/messaging/sms/webhook` |
+| WhatsApp | `https://your-domain/api/messaging/whatsapp/webhook` |
+| Signal | ब्रिज को `https://your-domain/api/messaging/signal/webhook` पर फॉरवर्ड करने के लिए कॉन्फ़िगर करें |
 
-- **इनकमिंग कॉल URL**: `https://your-worker.your-domain.com/telephony/incoming` (POST)
-- **स्टेटस कॉलबैक URL**: `https://your-worker.your-domain.com/telephony/status` (POST)
-
-प्रदाता-विशिष्ट webhook सेटअप निर्देशों के लिए देखें: [Twilio](/docs/setup-twilio), [SignalWire](/docs/setup-signalwire), [Vonage](/docs/setup-vonage), [Plivo](/docs/setup-plivo), या [Asterisk](/docs/setup-asterisk)।
-
-स्थानीय विकास के लिए, आपको अपने स्थानीय Worker को टेलीफ़ोनी प्रदाता के लिए एक्सपोज़ करने हेतु एक टनल (जैसे Cloudflare Tunnel या ngrok) की आवश्यकता होगी।
-
-## 5. स्थानीय रूप से चलाएँ
-
-Worker डेव सर्वर शुरू करें (बैकएंड + फ्रंटएंड):
-
-```bash
-# पहले फ्रंटएंड एसेट्स बिल्ड करें
-bun run build
-
-# Worker डेव सर्वर शुरू करें
-bun run dev:worker
-```
-
-ऐप `http://localhost:8787` पर उपलब्ध होगा। चरण 2 से एडमिन nsec के साथ लॉग इन करें।
-
-## 6. Cloudflare पर तैनात करें
-
-```bash
-bun run deploy
-```
-
-यह फ्रंटएंड बिल्ड करता है और Durable Objects के साथ Worker को Cloudflare पर तैनात करता है। तैनाती के बाद, अपने टेलीफ़ोनी प्रदाता के webhook URLs को प्रोडक्शन Worker URL की ओर अपडेट करें।
+प्रदाता-विशिष्ट सेटअप के लिए: [Twilio](/docs/setup-twilio), [SignalWire](/docs/setup-signalwire), [Vonage](/docs/setup-vonage), [Plivo](/docs/setup-plivo), [Asterisk](/docs/setup-asterisk), [SMS](/docs/setup-sms), [WhatsApp](/docs/setup-whatsapp), [Signal](/docs/setup-signal)।
 
 ## अगले कदम
 
-- [एडमिन गाइड](/docs/admin-guide) — वॉलंटियर जोड़ें, शिफ्ट बनाएँ, सेटिंग्स कॉन्फ़िगर करें
-- [वॉलंटियर गाइड](/docs/volunteer-guide) — अपने वॉलंटियर्स के साथ साझा करें
-- [टेलीफ़ोनी प्रदाता](/docs/telephony-providers) — प्रदाताओं की तुलना करें और ज़रूरत पड़ने पर Twilio से बदलें
-- [सुरक्षा मॉडल](/security) — एन्क्रिप्शन और थ्रेट मॉडल को समझें
+- [Docker Compose तैनाती](/docs/deploy-docker) — बैकअप और मॉनिटरिंग के साथ पूर्ण प्रोडक्शन तैनाती गाइड
+- [एडमिन गाइड](/docs/admin-guide) — स्वयंसेवक जोड़ें, शिफ्ट बनाएँ, चैनल और सेटिंग्स कॉन्फ़िगर करें
+- [स्वयंसेवक गाइड](/docs/volunteer-guide) — अपने स्वयंसेवकों के साथ साझा करें
+- [रिपोर्टर गाइड](/docs/reporter-guide) — एन्क्रिप्टेड रिपोर्ट सबमिशन के लिए रिपोर्टर भूमिका सेट करें
+- [टेलीफ़ोनी प्रदाता](/docs/telephony-providers) — वॉइस प्रदाताओं की तुलना करें
+- [सुरक्षा मॉडल](/security) — एन्क्रिप्शन और खतरे के मॉडल को समझें
