@@ -9,6 +9,7 @@ import { ReportTypesSection } from '@/components/admin-settings/report-types-sec
 import { RolesSection } from '@/components/admin-settings/roles-section'
 import { SignalChannelSection } from '@/components/admin-settings/signal-channel-section'
 import { SpamSection } from '@/components/admin-settings/spam-section'
+import { TagsSection } from '@/components/admin-settings/tags-section'
 import { TeamsSection } from '@/components/admin-settings/teams-section'
 import { TelephonyProviderSection } from '@/components/admin-settings/telephony-provider-section'
 import { TranscriptionSection } from '@/components/admin-settings/transcription-section'
@@ -238,6 +239,12 @@ function AdminSettingsPage() {
         expanded={expanded.has('teams')}
         onToggle={(open) => toggleSection('teams', open)}
         statusSummary={t('teams.summary', { defaultValue: 'Manage teams' })}
+      />
+
+      <TagsSection
+        expanded={expanded.has('tags')}
+        onToggle={(open) => toggleSection('tags', open)}
+        statusSummary={t('tags.summary', { defaultValue: 'Manage tags' })}
       />
 
       <TelephonyProviderSection

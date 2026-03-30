@@ -1,6 +1,7 @@
 import { ConfirmDialog } from '@/components/confirm-dialog'
 import { ContactRelationshipSection } from '@/components/contacts/contact-relationship-section'
 import { ContactTimeline } from '@/components/contacts/contact-timeline'
+import { TagBadge, useTagLookup } from '@/components/tag-input'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -64,6 +65,7 @@ function ContactProfilePage() {
   const { data: relationships = [] } = useContactRelationships()
   const { data: allContacts = [] } = useContacts()
   const deleteContactMutation = useDeleteContact()
+  const tagDefs = useTagLookup()
   const { data: teams = [] } = useTeams()
   const assignTeamContacts = useAssignTeamContacts()
   const unassignTeamContact = useUnassignTeamContact()
@@ -98,7 +100,10 @@ function ContactProfilePage() {
   async function handleDelete() {
     await deleteContactMutation.mutateAsync(contactId)
     toast.success(t('contacts.deleted'))
-    navigate({ to: '/contacts', search: { contactType: '', riskLevel: '', q: '', teamId: '' } })
+    navigate({
+      to: '/contacts',
+      search: { contactType: '', riskLevel: '', q: '', teamId: '', tag: '' },
+    })
   }
 
   if (loading) {
@@ -129,7 +134,7 @@ function ContactProfilePage() {
           onClick={() =>
             navigate({
               to: '/contacts',
-              search: { contactType: '', riskLevel: '', q: '', teamId: '' },
+              search: { contactType: '', riskLevel: '', q: '', teamId: '', tag: '' },
             })
           }
         >
@@ -153,7 +158,7 @@ function ContactProfilePage() {
             onClick={() =>
               navigate({
                 to: '/contacts',
-                search: { contactType: '', riskLevel: '', q: '', teamId: '' },
+                search: { contactType: '', riskLevel: '', q: '', teamId: '', tag: '' },
               })
             }
           >
@@ -208,11 +213,12 @@ function ContactProfilePage() {
 
               {contact.tags.length > 0 && (
                 <div className="flex flex-wrap gap-1">
-                  {contact.tags.map((tag) => (
-                    <Badge key={tag} variant="secondary" className="text-xs">
-                      {tag}
-                    </Badge>
-                  ))}
+                  {contact.tags.map((slug) => {
+                    const def = tagDefs.find((t) => t.name === slug)
+                    return (
+                      <TagBadge key={slug} label={def?.label ?? slug} color={def?.color ?? ''} />
+                    )
+                  })}
                 </div>
               )}
 
@@ -317,7 +323,7 @@ function ContactProfilePage() {
               navigate({
                 to: '/contacts/$contactId',
                 params: { contactId: cid },
-                search: { contactType: '', riskLevel: '', q: '', teamId: '' },
+                search: { contactType: '', riskLevel: '', q: '', teamId: '', tag: '' },
               })
             }
           />

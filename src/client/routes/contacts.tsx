@@ -1,4 +1,5 @@
 import { CreateContactDialog } from '@/components/contacts/create-contact-dialog'
+import { TagBadge, useTagLookup } from '@/components/tag-input'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
@@ -38,6 +39,7 @@ type ContactsSearch = {
   riskLevel: string
   q: string
   teamId: string
+  tag: string
 }
 
 export const Route = createFileRoute('/contacts')({
@@ -46,6 +48,7 @@ export const Route = createFileRoute('/contacts')({
     riskLevel: (search?.riskLevel as string) || '',
     q: (search?.q as string) || '',
     teamId: (search?.teamId as string) || '',
+    tag: (search?.tag as string) || '',
   }),
   component: ContactDirectoryPage,
 })
@@ -60,7 +63,7 @@ const RISK_COLORS: Record<string, string> = {
 function ContactDirectoryPage() {
   const { t } = useTranslation()
   const navigate = useNavigate({ from: '/contacts' })
-  const { contactType, riskLevel, q, teamId } = Route.useSearch()
+  const { contactType, riskLevel, q, teamId, tag } = Route.useSearch()
   const [searchInput, setSearchInput] = useState(q)
   const [createOpen, setCreateOpen] = useState(false)
   const { currentHubId } = useConfig()
@@ -72,6 +75,7 @@ function ContactDirectoryPage() {
   })
   const { data: teams = [] } = useTeams()
   const { data: teamContacts = [] } = useTeamContacts(teamId || '')
+  const tagDefs = useTagLookup()
 
   const decryptedContacts = contacts as unknown as DecryptedContact[]
 
@@ -89,6 +93,11 @@ function ContactDirectoryPage() {
       result = result.filter((c) => teamContactIds.has(c.id))
     }
 
+    // Filter by tag
+    if (tag) {
+      result = result.filter((c) => c.tags.includes(tag))
+    }
+
     // Filter by search query
     if (q) {
       const lower = q.toLowerCase()
@@ -96,7 +105,7 @@ function ContactDirectoryPage() {
     }
 
     return result
-  }, [decryptedContacts, q, teamContactIds])
+  }, [decryptedContacts, q, teamContactIds, tag])
 
   function handleSearch(e: React.FormEvent) {
     e.preventDefault()
@@ -113,6 +122,10 @@ function ContactDirectoryPage() {
 
   function handleTeamChange(value: string) {
     navigate({ search: (prev) => ({ ...prev, teamId: value === 'all' ? '' : value }) })
+  }
+
+  function handleTagChange(value: string) {
+    navigate({ search: (prev) => ({ ...prev, tag: value === 'all' ? '' : value }) })
   }
 
   function getContactTypeLabel(type: string): string {
@@ -202,6 +215,29 @@ function ContactDirectoryPage() {
                   </SelectContent>
                 </Select>
               )}
+              {tagDefs.length > 0 && (
+                <Select value={tag || 'all'} onValueChange={handleTagChange}>
+                  <SelectTrigger data-testid="tag-filter" className="w-36">
+                    <SelectValue placeholder={t('tags.tag', { defaultValue: 'Tag' })} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">
+                      {t('tags.allTags', { defaultValue: 'All Tags' })}
+                    </SelectItem>
+                    {tagDefs.map((td) => (
+                      <SelectItem key={td.id} value={td.name}>
+                        <span className="flex items-center gap-2">
+                          <span
+                            className="h-2.5 w-2.5 rounded-full shrink-0"
+                            style={{ backgroundColor: td.color || '#888' }}
+                          />
+                          {td.label}
+                        </span>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
             </div>
           </div>
         </CardContent>
@@ -258,11 +294,16 @@ function ContactDirectoryPage() {
                   )}
                   {contact.tags.length > 0 && (
                     <div className="flex flex-wrap gap-1">
-                      {contact.tags.slice(0, 3).map((tag) => (
-                        <Badge key={tag} variant="secondary" className="text-xs">
-                          {tag}
-                        </Badge>
-                      ))}
+                      {contact.tags.slice(0, 3).map((slug) => {
+                        const def = tagDefs.find((t) => t.name === slug)
+                        return (
+                          <TagBadge
+                            key={slug}
+                            label={def?.label ?? slug}
+                            color={def?.color ?? ''}
+                          />
+                        )
+                      })}
                       {contact.tags.length > 3 && (
                         <Badge variant="secondary" className="text-xs">
                           +{contact.tags.length - 3}

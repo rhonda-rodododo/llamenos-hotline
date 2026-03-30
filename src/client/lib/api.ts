@@ -806,6 +806,53 @@ export async function unassignTeamContact(teamId: string, contactId: string) {
   return request<{ ok: true }>(`/teams/${teamId}/contacts/${contactId}`, { method: 'DELETE' })
 }
 
+// --- Tags ---
+
+export interface Tag {
+  id: string
+  hubId: string
+  name: string
+  encryptedLabel: Ciphertext
+  color: string
+  encryptedCategory: Ciphertext | null
+  createdBy: string
+  createdAt: string
+}
+
+export async function listTags() {
+  return request<{ tags: Tag[] }>('/tags')
+}
+
+export async function createTag(data: {
+  name: string
+  encryptedLabel: Ciphertext
+  color?: string
+  encryptedCategory?: Ciphertext
+}) {
+  return request<{ tag: Tag }>('/tags', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  })
+}
+
+export async function updateTag(
+  id: string,
+  data: {
+    encryptedLabel?: Ciphertext
+    color?: string
+    encryptedCategory?: Ciphertext | null
+  }
+) {
+  return request<{ tag: Tag }>(`/tags/${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify(data),
+  })
+}
+
+export async function deleteTag(id: string) {
+  return request<{ ok: true; removedFromContacts: number }>(`/tags/${id}`, { method: 'DELETE' })
+}
+
 // --- Types ---
 
 /** @deprecated Use roles array + permissions */
