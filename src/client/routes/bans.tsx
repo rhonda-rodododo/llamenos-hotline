@@ -120,7 +120,7 @@ function AddBanForm({
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (!isValidE164(phone)) {
-      toast(t('volunteers.invalidPhone'), 'error')
+      toast(t('users.invalidPhone'), 'error')
       return
     }
     addBan.mutate(
@@ -252,7 +252,7 @@ function BulkImportForm({
       .filter(Boolean)
     const invalid = phones.filter((p) => !/^\+\d{7,15}$/.test(p))
     if (invalid.length > 0) {
-      toast(`${t('volunteers.invalidPhone')}: ${invalid[0]}`, 'error')
+      toast(`${t('users.invalidPhone')}: ${invalid[0]}`, 'error')
       return
     }
     bulkAddBans.mutate(

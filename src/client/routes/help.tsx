@@ -249,9 +249,9 @@ function HelpPage() {
             {isAdmin && (
               <>
                 <NavQuickLink
-                  to="/volunteers"
+                  to="/users"
                   icon={<Users className="h-3.5 w-3.5" />}
-                  label={t('nav.volunteers')}
+                  label={t('nav.users')}
                 />
                 <NavQuickLink
                   to="/shifts"
