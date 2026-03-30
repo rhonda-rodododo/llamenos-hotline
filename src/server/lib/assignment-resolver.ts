@@ -1,6 +1,6 @@
 import { and, eq, sql } from 'drizzle-orm'
 import type { Database } from '../db'
-import { contactCallLinks, contacts } from '../db/schema/contacts'
+import { contacts } from '../db/schema/contacts'
 
 export interface AssignmentCheck {
   resourceId: string
