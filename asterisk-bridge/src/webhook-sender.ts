@@ -1,4 +1,4 @@
-import type { BridgeConfig, WebhookPayload, BridgeCommand } from './types'
+import type { BridgeCommand, BridgeConfig, WebhookPayload } from './types'
 
 /**
  * WebhookSender — sends HMAC-SHA256 signed HTTP webhooks to the
@@ -10,9 +10,25 @@ import type { BridgeConfig, WebhookPayload, BridgeCommand } from './types'
  */
 export class WebhookSender {
   private config: BridgeConfig
+  private cachedHmacKey: Buffer | null = null
+  private hmacModule: typeof import('node:crypto') | null = null
 
   constructor(config: BridgeConfig) {
     this.config = config
+  }
+
+  private async getHmacModule() {
+    if (!this.hmacModule) {
+      this.hmacModule = await import('node:crypto')
+    }
+    return this.hmacModule
+  }
+
+  private getHmacKey(): Buffer {
+    if (!this.cachedHmacKey) {
+      this.cachedHmacKey = Buffer.from(this.config.bridgeSecret)
+    }
+    return this.cachedHmacKey
   }
 
   /**
@@ -28,7 +44,7 @@ export class WebhookSender {
   async sendWebhook(
     path: string,
     payload: WebhookPayload,
-    queryParams?: Record<string, string>,
+    queryParams?: Record<string, string>
   ): Promise<Response> {
     // Build the URL
     let url = `${this.config.workerWebhookUrl}${path}`
@@ -118,7 +134,7 @@ export class WebhookSender {
       commands.push({
         action: 'playback',
         channelId,
-        media: `sound:custom/tts`, // Asterisk TTS or pre-rendered audio
+        media: 'sound:custom/tts', // Asterisk TTS or pre-rendered audio
         text,
         language,
       })
@@ -140,8 +156,8 @@ export class WebhookSender {
     if (gatherMatch) {
       const attrs = gatherMatch[1]
       const inner = gatherMatch[2]
-      const numDigits = parseInt(attrs.match(/numDigits="(\d+)"/)?.[1] ?? '1')
-      const timeout = parseInt(attrs.match(/timeout="(\d+)"/)?.[1] ?? '5')
+      const numDigits = Number.parseInt(attrs.match(/numDigits="(\d+)"/)?.[1] ?? '1')
+      const timeout = Number.parseInt(attrs.match(/timeout="(\d+)"/)?.[1] ?? '5')
       const action = attrs.match(/action="([^"]*)"/)?.[1] ?? ''
 
       // Parse the action URL for path and params
@@ -241,7 +257,7 @@ export class WebhookSender {
     const recordMatch = twiml.match(/<Record\s+([^/]*)\/?>/)
     if (recordMatch) {
       const attrs = recordMatch[1]
-      const maxLength = parseInt(attrs.match(/maxLength="(\d+)"/)?.[1] ?? '120')
+      const maxLength = Number.parseInt(attrs.match(/maxLength="(\d+)"/)?.[1] ?? '120')
       const action = attrs.match(/action="([^"]*)"/)?.[1] ?? ''
       const statusCallback = attrs.match(/recordingStatusCallback="([^"]*)"/)?.[1] ?? ''
 
@@ -314,12 +330,8 @@ export class WebhookSender {
       dataString += key + params.get(key)
     }
 
-    const encoder = new TextEncoder()
-    const keyData = encoder.encode(this.config.bridgeSecret)
-
-    // Use Node.js/Bun crypto for HMAC
-    const { createHmac } = await import('crypto')
-    const hmac = createHmac('sha256', keyData)
+    const { createHmac } = await this.getHmacModule()
+    const hmac = createHmac('sha256', this.getHmacKey())
     hmac.update(dataString)
     return hmac.digest('base64')
   }
