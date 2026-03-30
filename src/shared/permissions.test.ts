@@ -26,9 +26,8 @@ describe('typed permission catalog', () => {
   })
 
   test('scope permissions follow naming convention', () => {
-    const legacyKeys = new Set(['shifts:read']) // Will be renamed to shifts:read-all in Task 3
     for (const [key, meta] of Object.entries(PERMISSION_CATALOG)) {
-      if (meta.subgroup === 'scope' && !legacyKeys.has(key)) {
+      if (meta.subgroup === 'scope') {
         expect(key).toMatch(/-(own|assigned|all)$/)
       }
     }
@@ -113,5 +112,59 @@ describe('voicemail permissions', () => {
     expect(reviewer.permissions).toContain('voicemail:notify')
     expect(reviewer.permissions).toContain('notes:read-all')
     expect(reviewer.permissions).toContain('calls:read-history')
+    expect(reviewer.permissions).toContain('contacts:envelope-summary')
+    expect(reviewer.permissions).toContain('contacts:read-assigned')
+    expect(reviewer.permissions).not.toContain('contacts:read-summary')
+  })
+})
+
+describe('case manager role', () => {
+  test('Case Manager role exists in DEFAULT_ROLES', () => {
+    const cm = DEFAULT_ROLES.find((r) => r.id === 'role-case-manager')
+    expect(cm).toBeDefined()
+    expect(cm!.isDefault).toBe(true)
+    expect(cm!.isSystem).toBe(false)
+  })
+
+  test('Case Manager has expected permissions', () => {
+    const cm = DEFAULT_ROLES.find((r) => r.id === 'role-case-manager')!
+    expect(cm.permissions).toContain('contacts:read-assigned')
+    expect(cm.permissions).toContain('contacts:update-assigned')
+    expect(cm.permissions).toContain('contacts:envelope-summary')
+    expect(cm.permissions).toContain('contacts:envelope-full')
+    expect(cm.permissions).toContain('contacts:create')
+    expect(cm.permissions).toContain('contacts:link')
+    expect(cm.permissions).toContain('notes:read-all')
+    expect(cm.permissions).toContain('notes:create')
+    expect(cm.permissions).toContain('conversations:read-assigned')
+    expect(cm.permissions).toContain('conversations:send')
+    expect(cm.permissions).toContain('calls:read-history')
+    expect(cm.permissions).toContain('files:upload')
+    expect(cm.permissions).toContain('files:download-assigned')
+    expect(cm.permissions).toContain('gdpr:consent')
+    expect(cm.permissions).toContain('gdpr:export')
+    expect(cm.permissions).toContain('gdpr:erase-self')
+  })
+
+  test('Case Manager does NOT have admin-level permissions', () => {
+    const cm = DEFAULT_ROLES.find((r) => r.id === 'role-case-manager')!
+    expect(cm.permissions).not.toContain('*')
+    expect(cm.permissions).not.toContain('users:delete')
+    expect(cm.permissions).not.toContain('settings:manage')
+    expect(cm.permissions).not.toContain('contacts:delete')
+    expect(cm.permissions).not.toContain('contacts:read-all')
+  })
+})
+
+describe('volunteer role permission renames', () => {
+  test('Volunteer has contacts:envelope-summary (renamed from contacts:read-summary)', () => {
+    const vol = DEFAULT_ROLES.find((r) => r.id === 'role-volunteer')!
+    expect(vol.permissions).toContain('contacts:envelope-summary')
+    expect(vol.permissions).not.toContain('contacts:read-summary')
+  })
+
+  test('Volunteer has contacts:read-own', () => {
+    const vol = DEFAULT_ROLES.find((r) => r.id === 'role-volunteer')!
+    expect(vol.permissions).toContain('contacts:read-own')
   })
 })

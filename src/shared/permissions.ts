@@ -78,16 +78,6 @@ export const PERMISSION_CATALOG = {
   'contacts:update-all': { label: 'Edit any contact', group: 'contacts', subgroup: 'scope' },
 
   // --- Contacts: Tiers ---
-  'contacts:read-summary': {
-    label: 'View contact summaries (display name, notes, tags)',
-    group: 'contacts',
-    subgroup: 'tiers',
-  },
-  'contacts:read-pii': {
-    label: 'View contact PII (full name, phone, email, address)',
-    group: 'contacts',
-    subgroup: 'tiers',
-  },
   'contacts:envelope-summary': {
     label: 'Access display name, tags, risk level, notes',
     group: 'contacts',
@@ -267,8 +257,6 @@ export const PERMISSION_CATALOG = {
     subgroup: 'scope',
   },
   'shifts:read-all': { label: 'View all shifts', group: 'shifts', subgroup: 'scope' },
-  // NOTE: 'shifts:read' kept for backward compatibility — will be renamed to shifts:read-all in Task 3
-  'shifts:read': { label: 'View all shifts', group: 'shifts', subgroup: 'scope' },
 
   // --- Shifts: Actions ---
   'shifts:create': { label: 'Create shifts', group: 'shifts', subgroup: 'actions' },
@@ -517,6 +505,40 @@ export const DEFAULT_ROLES: Omit<Role, 'createdAt' | 'updatedAt'>[] = [
     description: 'Reviews notes and reports from assigned users or shifts',
   },
   {
+    id: 'role-case-manager',
+    name: 'Case Manager',
+    slug: 'case-manager',
+    permissions: [
+      'contacts:read-assigned',
+      'contacts:update-assigned',
+      'contacts:envelope-summary',
+      'contacts:envelope-full',
+      'contacts:create',
+      'contacts:link',
+      'notes:read-all',
+      'notes:create',
+      'notes:update-own',
+      'notes:reply',
+      'conversations:read-assigned',
+      'conversations:send',
+      'reports:read-assigned',
+      'reports:update',
+      'reports:send-message',
+      'calls:read-history',
+      'calls:read-active',
+      'files:upload',
+      'files:download-assigned',
+      'shifts:read-own',
+      'voicemail:read',
+      'gdpr:consent',
+      'gdpr:export',
+      'gdpr:erase-self',
+    ],
+    isDefault: true,
+    isSystem: false,
+    description: 'Triages intake, manages assigned contact records, coordinates support networks',
+  },
+  {
     id: 'role-volunteer',
     name: 'Volunteer',
     slug: 'volunteer',
@@ -548,7 +570,8 @@ export const DEFAULT_ROLES: Omit<Role, 'createdAt' | 'updatedAt'>[] = [
       'voicemail:read',
       'calls:read-history',
       'contacts:create',
-      'contacts:read-summary',
+      'contacts:read-own',
+      'contacts:envelope-summary',
     ],
     isDefault: true,
     isSystem: false,
@@ -578,7 +601,8 @@ export const DEFAULT_ROLES: Omit<Role, 'createdAt' | 'updatedAt'>[] = [
       'voicemail:read',
       'voicemail:notify',
       'notes:read-all',
-      'contacts:read-summary',
+      'contacts:read-assigned',
+      'contacts:envelope-summary',
       'calls:read-history',
     ],
     isDefault: true,
@@ -652,14 +676,15 @@ export function hasPermission(roleIds: string[], roles: Role[], permission: stri
 
 /**
  * Get the "primary" role for display purposes — the highest-privilege role.
- * Order: super-admin > hub-admin > reviewer > volunteer > reporter > custom
+ * Order: super-admin > hub-admin > case-manager > reviewer > volunteer > reporter > custom
  */
 const ROLE_PRIORITY: Record<string, number> = {
   'role-super-admin': 0,
   'role-hub-admin': 1,
-  'role-reviewer': 2,
-  'role-volunteer': 3,
-  'role-reporter': 4,
+  'role-case-manager': 2,
+  'role-reviewer': 3,
+  'role-volunteer': 4,
+  'role-reporter': 5,
 }
 
 export function getPrimaryRole(roleIds: string[], roles: Role[]): Role | undefined {

@@ -395,7 +395,7 @@ test.describe('Custom role with specific permissions', () => {
     const roleRes = await setupApi.post('/api/settings/roles', {
       name: 'Shift Viewer',
       slug: `shift-viewer-${Date.now().toString(36)}`,
-      permissions: ['shifts:read', 'bans:read'],
+      permissions: ['shifts:read-all', 'bans:read'],
       description: 'Can only view shifts and bans',
     })
     expect(roleRes.status()).toBe(201)
@@ -429,7 +429,7 @@ test.describe('Custom role with specific permissions', () => {
     const meBody = await meRes.json()
 
     // Should have custom role permissions
-    expect(meBody.permissions).toContain('shifts:read')
+    expect(meBody.permissions).toContain('shifts:read-all')
     expect(meBody.permissions).toContain('bans:read')
 
     // Should NOT have any other permissions

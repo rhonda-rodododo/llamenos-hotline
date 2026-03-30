@@ -140,13 +140,13 @@ export const LABEL_VOICEMAIL_TRANSCRIPT = 'llamenos:voicemail-transcript'
 
 // --- Contact Directory Encryption ---
 
-/** Contact summary (Tier 1) — display name, notes, languages. Enveloped for contacts:read-summary recipients. */
+/** Contact summary (Tier 1) — display name, notes, languages. Enveloped for contacts:envelope-summary recipients. */
 export const LABEL_CONTACT_SUMMARY = 'llamenos:contact-summary'
 
-/** Contact PII (Tier 2) — full name, phone, email, address, DOB. Enveloped for contacts:read-pii recipients. */
+/** Contact PII (Tier 2) — full name, phone, email, address, DOB. Enveloped for contacts:envelope-full recipients. */
 export const LABEL_CONTACT_PII = 'llamenos:contact-pii'
 
-/** Contact relationship payload — fully E2EE, server sees nothing. Enveloped for contacts:read-pii recipients. */
+/** Contact relationship payload — fully E2EE, server sees nothing. Enveloped for contacts:envelope-full recipients. */
 export const LABEL_CONTACT_RELATIONSHIP = 'llamenos:contact-relationship'
 
 // --- Storage Credential Encryption ---

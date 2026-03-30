@@ -38,7 +38,7 @@ function ContactProfilePage() {
 
   const [deleteOpen, setDeleteOpen] = useState(false)
 
-  const canReadPii = hasPermission('contacts:read-pii')
+  const canReadPii = hasPermission('contacts:envelope-full')
   const canDelete = hasPermission('contacts:delete')
 
   // React Query: contact detail (decrypts summary+PII tiers in query fn),

@@ -8,8 +8,8 @@ import type { AppEnv } from '../types'
 
 const contacts = new Hono<AppEnv>()
 
-// Base permission — all routes require contacts:read-summary
-contacts.use('*', requirePermission('contacts:read-summary'))
+// Base permission — all routes require contacts:envelope-summary
+contacts.use('*', requirePermission('contacts:envelope-summary'))
 
 // ------------------------------------------------------------------ Static routes (MUST precede /:id)
 
@@ -29,10 +29,10 @@ contacts.get('/recipients', async (c) => {
   for (const usr of allUsers) {
     if (!usr.active) continue
     const perms = resolveHubPermissions(usr.roles, usr.hubRoles ?? [], allRoles, hubId)
-    if (permissionGranted(perms, 'contacts:read-summary')) {
+    if (permissionGranted(perms, 'contacts:envelope-summary')) {
       summaryPubkeys.push(usr.pubkey)
     }
-    if (permissionGranted(perms, 'contacts:read-pii')) {
+    if (permissionGranted(perms, 'contacts:envelope-full')) {
       piiPubkeys.push(usr.pubkey)
     }
   }
@@ -72,7 +72,7 @@ contacts.post('/hash-phone', async (c) => {
 })
 
 // GET /contacts/relationships — list all relationships for hub
-contacts.get('/relationships', requirePermission('contacts:read-pii'), async (c) => {
+contacts.get('/relationships', requirePermission('contacts:envelope-full'), async (c) => {
   const services = c.get('services')
   const hubId = c.get('hubId') ?? 'global'
   const relationships = await services.contacts.listRelationships(hubId)

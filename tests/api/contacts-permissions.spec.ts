@@ -3,16 +3,16 @@
  *
  * Verifies that each endpoint enforces the correct permission tier:
  *
- *   contacts:read-summary  — base gate on all routes (user has this)
- *   contacts:create        — POST /contacts, POST /contacts/relationships (user has this)
- *   contacts:read-pii      — GET /contacts/relationships (user LACKS this)
+ *   contacts:envelope-summary  — base gate on all routes (user has this)
+ *   contacts:create            — POST /contacts, POST /contacts/relationships (user has this)
+ *   contacts:envelope-full     — GET /contacts/relationships (user LACKS this)
  *   contacts:update-summary — PATCH /contacts/:id with summary fields (user LACKS this)
  *   contacts:update-pii    — PATCH /contacts/:id with PII fields (user LACKS this)
  *   contacts:delete        — DELETE /contacts/:id (user LACKS this)
  *   contacts:link          — POST/DELETE /contacts/:id/link (user LACKS this)
  *
  * Permission concern noted: POST /contacts/relationships only requires contacts:create,
- * but GET /contacts/relationships requires contacts:read-pii. This asymmetry means a
+ * but GET /contacts/relationships requires contacts:envelope-full. This asymmetry means a
  * user can create relationships they cannot read — likely intentional (blind record
  * creation) but worth flagging for spec review.
  */
@@ -113,14 +113,14 @@ test.describe('Contact Directory — Permission Boundaries', () => {
   // Currently these tests use global routes which return 400 for users.
   // TODO: Set up hub + hub membership for user to test hub-scoped permission boundaries.
 
-  test.skip('user can list contacts (contacts:read-summary)', async ({ request }) => {
+  test.skip('user can list contacts (contacts:envelope-summary)', async ({ request }) => {
     const res = await userApiFor(request).get('/api/contacts')
     expect(res.status()).toBe(200)
     const data = await res.json()
     expect(data).toHaveProperty('contacts')
   })
 
-  test.skip('user can get a single contact (contacts:read-summary)', async ({ request }) => {
+  test.skip('user can get a single contact (contacts:envelope-summary)', async ({ request }) => {
     const res = await userApiFor(request).get(`/api/contacts/${contactId}`)
     expect(res.status()).toBe(200)
   })
@@ -139,7 +139,7 @@ test.describe('Contact Directory — Permission Boundaries', () => {
   test.skip('user can create a relationship (contacts:create)', async ({ request }) => {
     // POST /contacts/relationships only requires contacts:create — user has this.
     // NOTE: This is an asymmetry: the user can create relationships they cannot read
-    // (GET /relationships requires contacts:read-pii). See file-level comment.
+    // (GET /relationships requires contacts:envelope-full). See file-level comment.
     const res = await userApiFor(request).post('/api/contacts/relationships', {
       encryptedPayload: 'vol-rel-payload',
       payloadEnvelopes: [],
@@ -147,7 +147,7 @@ test.describe('Contact Directory — Permission Boundaries', () => {
     expect(res.status()).toBe(201)
   })
 
-  test.skip('user can query check-duplicate endpoint (contacts:read-summary)', async ({
+  test.skip('user can query check-duplicate endpoint (contacts:envelope-summary)', async ({
     request,
   }) => {
     const res = await userApiFor(request).get(
@@ -157,7 +157,7 @@ test.describe('Contact Directory — Permission Boundaries', () => {
     expect(res.status()).toBe(200)
   })
 
-  test.skip('user can use hash-phone endpoint (contacts:read-summary)', async ({ request }) => {
+  test.skip('user can use hash-phone endpoint (contacts:envelope-summary)', async ({ request }) => {
     const res = await userApiFor(request).post('/api/contacts/hash-phone', {
       phone: '+15550001234',
     })
@@ -166,7 +166,7 @@ test.describe('Contact Directory — Permission Boundaries', () => {
     expect(data).toHaveProperty('identifierHash')
   })
 
-  test.skip('user can get recipients list (contacts:read-summary)', async ({ request }) => {
+  test.skip('user can get recipients list (contacts:envelope-summary)', async ({ request }) => {
     const res = await userApiFor(request).get('/api/contacts/recipients')
     expect(res.status()).toBe(200)
   })
@@ -189,7 +189,7 @@ test.describe('Contact Directory — Permission Boundaries', () => {
   test.skip('user cannot update summary fields (missing contacts:update-summary)', async ({
     request,
   }) => {
-    // User only has contacts:create and contacts:read-summary —
+    // User only has contacts:create and contacts:envelope-summary —
     // contacts:update-summary is NOT included in role-volunteer
     const res = await userApiFor(request).patch(`/api/contacts/${contactId}`, {
       riskLevel: 'critical',
@@ -225,7 +225,9 @@ test.describe('Contact Directory — Permission Boundaries', () => {
     expect(res.status()).toBe(403)
   })
 
-  test.skip('user cannot list relationships (missing contacts:read-pii)', async ({ request }) => {
+  test.skip('user cannot list relationships (missing contacts:envelope-full)', async ({
+    request,
+  }) => {
     const res = await userApiFor(request).get('/api/contacts/relationships')
     expect(res.status()).toBe(403)
   })
@@ -260,7 +262,9 @@ test.describe('Contact Directory — Permission Boundaries', () => {
     expect([200, 404]).toContain(res.status())
   })
 
-  test('admin can list relationships (contacts:read-pii via contacts:*)', async ({ request }) => {
+  test('admin can list relationships (contacts:envelope-full via contacts:*)', async ({
+    request,
+  }) => {
     const res = await adminApi(request).get('/api/contacts/relationships')
     expect(res.status()).toBe(200)
     const data = await res.json()

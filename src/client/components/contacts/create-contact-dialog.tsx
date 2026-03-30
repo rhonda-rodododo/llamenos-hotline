@@ -87,7 +87,7 @@ export function CreateContactDialog({ open, onOpenChange, onCreated }: Props) {
   const { toast } = useToast()
   const { hasPermission } = useAuth()
 
-  const canViewPii = hasPermission('contacts:read-pii')
+  const canViewPii = hasPermission('contacts:envelope-full')
 
   const [form, setForm] = useState<FormState>(INITIAL_FORM)
   const [submitting, setSubmitting] = useState(false)

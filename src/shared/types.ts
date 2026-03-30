@@ -164,14 +164,14 @@ export interface RelationshipPayload {
   isEmergency: boolean
 }
 
-/** Contact summary fields (Tier 1 — all members with contacts:read-summary) */
+/** Contact summary fields (Tier 1 — all members with contacts:envelope-summary) */
 export interface ContactSummary {
   displayName: string
   notes: string
   languages: string[]
 }
 
-/** Contact PII fields (Tier 2 — per-field encrypted for contacts:read-pii) */
+/** Contact PII fields (Tier 2 — per-field encrypted for contacts:envelope-full) */
 export interface ContactPIIBlob {
   emailAddresses: string[]
   address: string

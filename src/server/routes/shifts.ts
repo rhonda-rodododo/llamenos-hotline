@@ -30,7 +30,7 @@ shifts.put('/fallback', requirePermission('shifts:manage-fallback'), async (c) =
   return c.json({ ok: true })
 })
 
-shifts.get('/', requirePermission('shifts:read'), async (c) => {
+shifts.get('/', requirePermission('shifts:read-all'), async (c) => {
   const services = c.get('services')
   const hubId = c.get('hubId')
   const schedules = await services.shifts.getSchedules(hubId)
