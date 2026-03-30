@@ -140,12 +140,12 @@ test.describe('In-Browser Admin Bootstrap', () => {
     // Acknowledge backup saved
     await page.getByText('I have saved my recovery key').click()
 
-    // Click continue to setup
+    // Click continue to setup — this triggers importKey (PBKDF2 600K) + signIn API call
     await page.getByRole('button', { name: /continue to setup/i }).click()
 
     // Wait for bootstrap to complete and wizard to advance
-    // Should advance to the normal setup wizard
-    await expect(page.getByText('Setup Wizard')).toBeVisible({ timeout: 10000 })
+    // importKey runs PBKDF2 600K iterations which can take 15s+ on CI VMs
+    await expect(page.getByText('Setup Wizard')).toBeVisible({ timeout: 45000 })
     await expect(page.getByText('Identity', { exact: true })).toBeVisible()
 
     // A11y: progress bar should have proper ARIA attributes
@@ -169,8 +169,8 @@ test.describe('In-Browser Admin Bootstrap', () => {
     }
     await page.keyboard.press('Enter')
 
-    // Should advance back to the wizard after PIN entry
-    await expect(page.getByText('Setup Wizard')).toBeVisible({ timeout: 10000 })
+    // Should advance back to the wizard after PIN entry (PBKDF2 unlock can be slow on CI)
+    await expect(page.getByText('Setup Wizard')).toBeVisible({ timeout: 30000 })
     await expect(page.getByText('Identity', { exact: true })).toBeVisible()
   })
 
