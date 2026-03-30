@@ -144,8 +144,9 @@ test.describe('In-Browser Admin Bootstrap', () => {
     await page.getByRole('button', { name: /continue to setup/i }).click()
 
     // Wait for bootstrap to complete and wizard to advance
-    // importKey runs PBKDF2 600K iterations which can take 15s+ on CI VMs
-    await expect(page.getByText('Setup Wizard')).toBeVisible({ timeout: 45000 })
+    // importKey runs PBKDF2 600K iterations which can take 30s+ on CI VMs,
+    // followed by signIn API call + 1s success step delay
+    await expect(page.getByText('Setup Wizard')).toBeVisible({ timeout: 90000 })
     await expect(page.getByText('Identity', { exact: true })).toBeVisible()
 
     // A11y: progress bar should have proper ARIA attributes
