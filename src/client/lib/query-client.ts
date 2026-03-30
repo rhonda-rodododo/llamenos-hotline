@@ -39,9 +39,15 @@ keyManager.onLock(() => {
 })
 
 // On unlock: invalidate encrypted queries so they are re-fetched and
-// decrypted with the newly loaded key.
+// decrypted with the newly loaded key — but only if there's an active
+// auth session. During bootstrap/onboarding the key unlocks before
+// a JWT exists; firing queries without a token causes a 401 cascade.
 keyManager.onUnlock(() => {
-  for (const key of ENCRYPTED_QUERY_KEYS) {
-    void queryClient.invalidateQueries({ queryKey: [key] })
-  }
+  // Dynamic import to avoid circular dependency
+  import('./auth-facade-client').then(({ authFacadeClient }) => {
+    if (!authFacadeClient.getAccessToken()) return
+    for (const key of ENCRYPTED_QUERY_KEYS) {
+      void queryClient.invalidateQueries({ queryKey: [key] })
+    }
+  })
 })
