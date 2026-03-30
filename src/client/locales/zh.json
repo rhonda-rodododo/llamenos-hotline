@@ -88,10 +88,8 @@
     "goOnBreak": "休息一下",
     "endBreak": "结束休息",
     "breakDescription": "休息期间不会接到电话",
-    "volunteerStatus": "用户状态",
     "available": "可用",
     "offline": "离线",
-    "noVolunteersOnline": "没有用户在线",
     "activity": "Activity",
     "blasts": "Message Blasts",
     "blastsSubtitle": "Send broadcast messages to subscribers",
@@ -127,7 +125,9 @@
       "answered": "Answered",
       "unanswered": "Unanswered",
       "voicemail": "Voicemail"
-    }
+    },
+    "userStatus": "用户状态",
+    "noUsersOnline": "没有用户在线"
   },
   "calls": {
     "incoming": "来电",
@@ -274,8 +274,6 @@
       "saturday": "星期六",
       "sunday": "星期日"
     },
-    "searchVolunteers": "搜索用户...",
-    "noVolunteersFound": "未找到用户",
     "selectedCount": "已选择 {{count}} 人",
     "removeVolunteer": "移除 {{name}}",
     "activeCalls": "%d active call(s)",
@@ -312,7 +310,9 @@
     "since": "Since",
     "status": "Shift Status",
     "today": "Today",
-    "weeklySchedule": "Weekly Schedule"
+    "weeklySchedule": "Weekly Schedule",
+    "searchUsers": "搜索用户...",
+    "noUsersFound": "未找到用户"
   },
   "webauthn": {
     "title": "通行密钥",
@@ -719,26 +719,6 @@
     "empty": "No custom fields defined",
     "visibleToUsers": "对用户可见",
     "editableByUsers": "用户可编辑"
-  },
-  "volunteerProfile": {
-    "joined": "加入于",
-    "assignedShifts": "已分配班次",
-    "noShifts": "未分配任何班次",
-    "activity": "活动记录",
-    "noActivity": "无活动记录",
-    "messagingChannels": "Messaging Channels",
-    "messagingChannelsDescription": "Channels this volunteer can handle",
-    "messagingEnabled": "Messaging Enabled",
-    "messagingEnabledDescription": "Allow this volunteer to handle messaging conversations",
-    "allChannels": "All Channels",
-    "noChannels": "No messaging",
-    "channelSms": "SMS",
-    "channelWhatsapp": "WhatsApp",
-    "channelSignal": "Signal",
-    "channelRcs": "RCS",
-    "channelWeb": "Web",
-    "channelsSaved": "Channel settings saved",
-    "selectChannels": "Select channels"
   },
   "notifications": {
     "promptText": "Enable notifications to get alerted when calls come in.",
@@ -1384,5 +1364,25 @@
     "inviteSentSuccess": "Invite sent successfully",
     "inviteSentVia": "Sent via",
     "userAdded": "用户添加成功"
+  },
+  "userProfile": {
+    "joined": "加入于",
+    "assignedShifts": "已分配班次",
+    "noShifts": "未分配任何班次",
+    "activity": "活动记录",
+    "noActivity": "无活动记录",
+    "messagingChannels": "Messaging Channels",
+    "messagingChannelsDescription": "Channels this volunteer can handle",
+    "messagingEnabled": "Messaging Enabled",
+    "messagingEnabledDescription": "Allow this volunteer to handle messaging conversations",
+    "allChannels": "All Channels",
+    "noChannels": "No messaging",
+    "channelSms": "SMS",
+    "channelWhatsapp": "WhatsApp",
+    "channelSignal": "Signal",
+    "channelRcs": "RCS",
+    "channelWeb": "Web",
+    "channelsSaved": "Channel settings saved",
+    "selectChannels": "Select channels"
   }
 }

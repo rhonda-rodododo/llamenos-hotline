@@ -88,10 +88,8 @@
     "goOnBreak": "Уйти на перерыв",
     "endBreak": "Завершить перерыв",
     "breakDescription": "Вы не будете получать звонки во время перерыва",
-    "volunteerStatus": "Статус волонтёра",
     "available": "Доступен",
     "offline": "Не в сети",
-    "noVolunteersOnline": "Нет волонтёров в сети",
     "activity": "Activity",
     "blasts": "Message Blasts",
     "blastsSubtitle": "Send broadcast messages to subscribers",
@@ -127,7 +125,9 @@
       "answered": "Answered",
       "unanswered": "Unanswered",
       "voicemail": "Voicemail"
-    }
+    },
+    "userStatus": "Статус волонтёра",
+    "noUsersOnline": "Нет волонтёров в сети"
   },
   "calls": {
     "incoming": "Входящий звонок",
@@ -274,8 +274,6 @@
       "saturday": "Суббота",
       "sunday": "Воскресенье"
     },
-    "searchVolunteers": "Поиск волонтёров...",
-    "noVolunteersFound": "Волонтёры не найдены",
     "selectedCount": "Выбрано: {{count}}",
     "removeVolunteer": "Убрать {{name}}",
     "activeCalls": "%d active call(s)",
@@ -312,7 +310,9 @@
     "since": "Since",
     "status": "Shift Status",
     "today": "Today",
-    "weeklySchedule": "Weekly Schedule"
+    "weeklySchedule": "Weekly Schedule",
+    "searchUsers": "Поиск волонтёров...",
+    "noUsersFound": "Волонтёры не найдены"
   },
   "webauthn": {
     "title": "Ключи доступа",
@@ -719,26 +719,6 @@
     "empty": "No custom fields defined",
     "visibleToUsers": "Видимое для волонтёров",
     "editableByUsers": "Редактируемое волонтёрами"
-  },
-  "volunteerProfile": {
-    "joined": "Присоединился",
-    "assignedShifts": "Назначенные смены",
-    "noShifts": "Нет назначенных смен",
-    "activity": "Активность",
-    "noActivity": "Нет записанной активности",
-    "messagingChannels": "Messaging Channels",
-    "messagingChannelsDescription": "Channels this volunteer can handle",
-    "messagingEnabled": "Messaging Enabled",
-    "messagingEnabledDescription": "Allow this volunteer to handle messaging conversations",
-    "allChannels": "All Channels",
-    "noChannels": "No messaging",
-    "channelSms": "SMS",
-    "channelWhatsapp": "WhatsApp",
-    "channelSignal": "Signal",
-    "channelRcs": "RCS",
-    "channelWeb": "Web",
-    "channelsSaved": "Channel settings saved",
-    "selectChannels": "Select channels"
   },
   "notifications": {
     "promptText": "Enable notifications to get alerted when calls come in.",
@@ -1384,5 +1364,25 @@
     "inviteSentSuccess": "Invite sent successfully",
     "inviteSentVia": "Sent via",
     "userAdded": "Волонтёр успешно добавлен"
+  },
+  "userProfile": {
+    "joined": "Присоединился",
+    "assignedShifts": "Назначенные смены",
+    "noShifts": "Нет назначенных смен",
+    "activity": "Активность",
+    "noActivity": "Нет записанной активности",
+    "messagingChannels": "Messaging Channels",
+    "messagingChannelsDescription": "Channels this volunteer can handle",
+    "messagingEnabled": "Messaging Enabled",
+    "messagingEnabledDescription": "Allow this volunteer to handle messaging conversations",
+    "allChannels": "All Channels",
+    "noChannels": "No messaging",
+    "channelSms": "SMS",
+    "channelWhatsapp": "WhatsApp",
+    "channelSignal": "Signal",
+    "channelRcs": "RCS",
+    "channelWeb": "Web",
+    "channelsSaved": "Channel settings saved",
+    "selectChannels": "Select channels"
   }
 }

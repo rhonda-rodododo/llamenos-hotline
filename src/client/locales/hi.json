@@ -88,10 +88,8 @@
     "goOnBreak": "ब्रेक लें",
     "endBreak": "ब्रेक समाप्त करें",
     "breakDescription": "ब्रेक के दौरान आपको कॉल नहीं आएंगी",
-    "volunteerStatus": "उपयोगकर्ता की स्थिति",
     "available": "उपलब्ध",
     "offline": "ऑफ़लाइन",
-    "noVolunteersOnline": "कोई उपयोगकर्ता ऑनलाइन नहीं",
     "activity": "Activity",
     "blasts": "Message Blasts",
     "blastsSubtitle": "Send broadcast messages to subscribers",
@@ -127,7 +125,9 @@
       "answered": "Answered",
       "unanswered": "Unanswered",
       "voicemail": "Voicemail"
-    }
+    },
+    "userStatus": "उपयोगकर्ता की स्थिति",
+    "noUsersOnline": "कोई उपयोगकर्ता ऑनलाइन नहीं"
   },
   "calls": {
     "incoming": "आने वाली कॉल",
@@ -274,8 +274,6 @@
       "saturday": "शनिवार",
       "sunday": "रविवार"
     },
-    "searchVolunteers": "उपयोगकर्ताों को खोजें...",
-    "noVolunteersFound": "कोई उपयोगकर्ता नहीं मिला",
     "selectedCount": "{{count}} चयनित",
     "removeVolunteer": "{{name}} को हटाएँ",
     "activeCalls": "%d active call(s)",
@@ -312,7 +310,9 @@
     "since": "Since",
     "status": "Shift Status",
     "today": "Today",
-    "weeklySchedule": "Weekly Schedule"
+    "weeklySchedule": "Weekly Schedule",
+    "searchUsers": "उपयोगकर्ताों को खोजें...",
+    "noUsersFound": "कोई उपयोगकर्ता नहीं मिला"
   },
   "webauthn": {
     "title": "पासकी",
@@ -719,26 +719,6 @@
     "empty": "No custom fields defined",
     "visibleToUsers": "उपयोगकर्ताों को दिखाई दे",
     "editableByUsers": "उपयोगकर्ताओं द्वारा संपादन योग्य"
-  },
-  "volunteerProfile": {
-    "joined": "शामिल हुए",
-    "assignedShifts": "निर्धारित शिफ्ट",
-    "noShifts": "कोई शिफ्ट निर्धारित नहीं",
-    "activity": "गतिविधि",
-    "noActivity": "कोई गतिविधि दर्ज नहीं",
-    "messagingChannels": "Messaging Channels",
-    "messagingChannelsDescription": "Channels this volunteer can handle",
-    "messagingEnabled": "Messaging Enabled",
-    "messagingEnabledDescription": "Allow this volunteer to handle messaging conversations",
-    "allChannels": "All Channels",
-    "noChannels": "No messaging",
-    "channelSms": "SMS",
-    "channelWhatsapp": "WhatsApp",
-    "channelSignal": "Signal",
-    "channelRcs": "RCS",
-    "channelWeb": "Web",
-    "channelsSaved": "Channel settings saved",
-    "selectChannels": "Select channels"
   },
   "notifications": {
     "promptText": "Enable notifications to get alerted when calls come in.",
@@ -1384,5 +1364,25 @@
     "inviteSentSuccess": "Invite sent successfully",
     "inviteSentVia": "Sent via",
     "userAdded": "उपयोगकर्ता सफलतापूर्वक जोड़ा गया"
+  },
+  "userProfile": {
+    "joined": "शामिल हुए",
+    "assignedShifts": "निर्धारित शिफ्ट",
+    "noShifts": "कोई शिफ्ट निर्धारित नहीं",
+    "activity": "गतिविधि",
+    "noActivity": "कोई गतिविधि दर्ज नहीं",
+    "messagingChannels": "Messaging Channels",
+    "messagingChannelsDescription": "Channels this volunteer can handle",
+    "messagingEnabled": "Messaging Enabled",
+    "messagingEnabledDescription": "Allow this volunteer to handle messaging conversations",
+    "allChannels": "All Channels",
+    "noChannels": "No messaging",
+    "channelSms": "SMS",
+    "channelWhatsapp": "WhatsApp",
+    "channelSignal": "Signal",
+    "channelRcs": "RCS",
+    "channelWeb": "Web",
+    "channelsSaved": "Channel settings saved",
+    "selectChannels": "Select channels"
   }
 }

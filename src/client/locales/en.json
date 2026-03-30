@@ -88,10 +88,8 @@
     "goOnBreak": "Take a Break",
     "endBreak": "End Break",
     "breakDescription": "You won't receive calls while on break",
-    "volunteerStatus": "Volunteer Status",
     "available": "Available",
     "offline": "Offline",
-    "noVolunteersOnline": "No users online",
     "activity": "Activity",
     "blasts": "Message Blasts",
     "blastsSubtitle": "Send broadcast messages to subscribers",
@@ -127,7 +125,9 @@
       "answered": "Answered",
       "unanswered": "Unanswered",
       "voicemail": "Voicemail"
-    }
+    },
+    "userStatus": "User Status",
+    "noUsersOnline": "No users online"
   },
   "calls": {
     "incoming": "Incoming Call",
@@ -289,8 +289,6 @@
       "saturday": "Saturday",
       "sunday": "Sunday"
     },
-    "searchVolunteers": "Search volunteers...",
-    "noVolunteersFound": "No users found",
     "selectedCount": "{{count}} selected",
     "removeVolunteer": "Remove {{name}}",
     "activeCalls": "%d active call(s)",
@@ -327,7 +325,9 @@
     "since": "Since",
     "status": "Shift Status",
     "today": "Today",
-    "weeklySchedule": "Weekly Schedule"
+    "weeklySchedule": "Weekly Schedule",
+    "searchUsers": "Search users...",
+    "noUsersFound": "No users found"
   },
   "webauthn": {
     "title": "Passkeys",
@@ -846,26 +846,6 @@
     },
     "visibleToUsers": "Visible to users",
     "editableByUsers": "Editable by users"
-  },
-  "volunteerProfile": {
-    "joined": "Joined",
-    "assignedShifts": "Assigned Shifts",
-    "noShifts": "Not assigned to any shifts",
-    "activity": "Activity",
-    "noActivity": "No activity recorded",
-    "messagingChannels": "Messaging Channels",
-    "messagingChannelsDescription": "Channels this volunteer can handle",
-    "messagingEnabled": "Messaging Enabled",
-    "messagingEnabledDescription": "Allow this volunteer to handle messaging conversations",
-    "allChannels": "All Channels",
-    "noChannels": "No messaging",
-    "channelSms": "SMS",
-    "channelWhatsapp": "WhatsApp",
-    "channelSignal": "Signal",
-    "channelRcs": "RCS",
-    "channelWeb": "Web",
-    "channelsSaved": "Channel settings saved",
-    "selectChannels": "Select channels"
   },
   "setup": {
     "title": "Setup Wizard",
@@ -1512,5 +1492,25 @@
     "inviteSentSuccess": "Invite sent successfully",
     "inviteSentVia": "Sent via",
     "userAdded": "User added successfully"
+  },
+  "userProfile": {
+    "joined": "Joined",
+    "assignedShifts": "Assigned Shifts",
+    "noShifts": "Not assigned to any shifts",
+    "activity": "Activity",
+    "noActivity": "No activity recorded",
+    "messagingChannels": "Messaging Channels",
+    "messagingChannelsDescription": "Channels this volunteer can handle",
+    "messagingEnabled": "Messaging Enabled",
+    "messagingEnabledDescription": "Allow this volunteer to handle messaging conversations",
+    "allChannels": "All Channels",
+    "noChannels": "No messaging",
+    "channelSms": "SMS",
+    "channelWhatsapp": "WhatsApp",
+    "channelSignal": "Signal",
+    "channelRcs": "RCS",
+    "channelWeb": "Web",
+    "channelsSaved": "Channel settings saved",
+    "selectChannels": "Select channels"
   }
 }

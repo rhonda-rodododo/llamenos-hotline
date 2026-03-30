@@ -88,10 +88,8 @@
     "goOnBreak": "أخذ استراحة",
     "endBreak": "إنهاء الاستراحة",
     "breakDescription": "لن تتلقى مكالمات أثناء الاستراحة",
-    "volunteerStatus": "حالة المتطوع",
     "available": "متاح",
     "offline": "غير متصل",
-    "noVolunteersOnline": "لا يوجد مستخدمون متصلون",
     "activity": "Activity",
     "blasts": "Message Blasts",
     "blastsSubtitle": "Send broadcast messages to subscribers",
@@ -127,7 +125,9 @@
       "answered": "Answered",
       "unanswered": "Unanswered",
       "voicemail": "Voicemail"
-    }
+    },
+    "userStatus": "حالة المستخدم",
+    "noUsersOnline": "لا يوجد مستخدمون متصلون"
   },
   "calls": {
     "incoming": "مكالمة واردة",
@@ -274,8 +274,6 @@
       "saturday": "السبت",
       "sunday": "الأحد"
     },
-    "searchVolunteers": "البحث عن متطوعين...",
-    "noVolunteersFound": "لم يتم العثور على مستخدمين",
     "selectedCount": "{{count}} محدد",
     "removeVolunteer": "إزالة {{name}}",
     "activeCalls": "%d active call(s)",
@@ -312,7 +310,9 @@
     "since": "Since",
     "status": "Shift Status",
     "today": "Today",
-    "weeklySchedule": "Weekly Schedule"
+    "weeklySchedule": "Weekly Schedule",
+    "searchUsers": "البحث عن متطوعين...",
+    "noUsersFound": "لم يتم العثور على مستخدمين"
   },
   "webauthn": {
     "title": "مفاتيح المرور",
@@ -719,26 +719,6 @@
     "empty": "No custom fields defined",
     "visibleToUsers": "مرئي للمستخدمين",
     "editableByUsers": "قابل للتعديل من المتطوعين"
-  },
-  "volunteerProfile": {
-    "joined": "انضم في",
-    "assignedShifts": "المناوبات المعينة",
-    "noShifts": "لم يتم تعيين أي مناوبات",
-    "activity": "النشاط",
-    "noActivity": "لا يوجد نشاط مسجل",
-    "messagingChannels": "Messaging Channels",
-    "messagingChannelsDescription": "Channels this volunteer can handle",
-    "messagingEnabled": "Messaging Enabled",
-    "messagingEnabledDescription": "Allow this volunteer to handle messaging conversations",
-    "allChannels": "All Channels",
-    "noChannels": "No messaging",
-    "channelSms": "SMS",
-    "channelWhatsapp": "WhatsApp",
-    "channelSignal": "Signal",
-    "channelRcs": "RCS",
-    "channelWeb": "Web",
-    "channelsSaved": "Channel settings saved",
-    "selectChannels": "Select channels"
   },
   "notifications": {
     "promptText": "Enable notifications to get alerted when calls come in.",
@@ -1384,5 +1364,25 @@
     "inviteSentSuccess": "Invite sent successfully",
     "inviteSentVia": "Sent via",
     "userAdded": "تمت إضافة المستخدم بنجاح"
+  },
+  "userProfile": {
+    "joined": "انضم في",
+    "assignedShifts": "المناوبات المعينة",
+    "noShifts": "لم يتم تعيين أي مناوبات",
+    "activity": "النشاط",
+    "noActivity": "لا يوجد نشاط مسجل",
+    "messagingChannels": "Messaging Channels",
+    "messagingChannelsDescription": "Channels this volunteer can handle",
+    "messagingEnabled": "Messaging Enabled",
+    "messagingEnabledDescription": "Allow this volunteer to handle messaging conversations",
+    "allChannels": "All Channels",
+    "noChannels": "No messaging",
+    "channelSms": "SMS",
+    "channelWhatsapp": "WhatsApp",
+    "channelSignal": "Signal",
+    "channelRcs": "RCS",
+    "channelWeb": "Web",
+    "channelsSaved": "Channel settings saved",
+    "selectChannels": "Select channels"
   }
 }

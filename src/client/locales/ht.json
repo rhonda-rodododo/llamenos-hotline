@@ -88,10 +88,8 @@
     "goOnBreak": "Pran yon Pòz",
     "endBreak": "Fini Pòz",
     "breakDescription": "Ou pa p resevwa apèl pandan pòz la",
-    "volunteerStatus": "Eta Itilizatè",
     "available": "Disponib",
     "offline": "Òflayn",
-    "noVolunteersOnline": "Pa gen volontè an liy",
     "activity": "Activity",
     "blasts": "Message Blasts",
     "blastsSubtitle": "Send broadcast messages to subscribers",
@@ -127,7 +125,9 @@
       "answered": "Answered",
       "unanswered": "Unanswered",
       "voicemail": "Voicemail"
-    }
+    },
+    "userStatus": "Eta Itilizatè",
+    "noUsersOnline": "Pa gen volontè an liy"
   },
   "calls": {
     "incoming": "Apèl Antre",
@@ -274,8 +274,6 @@
       "saturday": "Samdi",
       "sunday": "Dimanch"
     },
-    "searchVolunteers": "Chèche volontè...",
-    "noVolunteersFound": "Pa jwenn volontè",
     "selectedCount": "{{count}} chwazi",
     "removeVolunteer": "Retire {{name}}",
     "activeCalls": "%d active call(s)",
@@ -312,7 +310,9 @@
     "since": "Since",
     "status": "Shift Status",
     "today": "Today",
-    "weeklySchedule": "Weekly Schedule"
+    "weeklySchedule": "Weekly Schedule",
+    "searchUsers": "Chèche volontè...",
+    "noUsersFound": "Pa jwenn volontè"
   },
   "webauthn": {
     "title": "Kle aksè",
@@ -719,26 +719,6 @@
     "empty": "No custom fields defined",
     "visibleToUsers": "Vizib pou itilizatè",
     "editableByUsers": "Modifyab pa volontè"
-  },
-  "volunteerProfile": {
-    "joined": "Te antre",
-    "assignedShifts": "Shift yo ki asiyen",
-    "noShifts": "Pa gen shift ki asiyen",
-    "activity": "Aktivite",
-    "noActivity": "Pa gen aktivite anrejistre",
-    "messagingChannels": "Messaging Channels",
-    "messagingChannelsDescription": "Channels this volunteer can handle",
-    "messagingEnabled": "Messaging Enabled",
-    "messagingEnabledDescription": "Allow this volunteer to handle messaging conversations",
-    "allChannels": "All Channels",
-    "noChannels": "No messaging",
-    "channelSms": "SMS",
-    "channelWhatsapp": "WhatsApp",
-    "channelSignal": "Signal",
-    "channelRcs": "RCS",
-    "channelWeb": "Web",
-    "channelsSaved": "Channel settings saved",
-    "selectChannels": "Select channels"
   },
   "notifications": {
     "promptText": "Enable notifications to get alerted when calls come in.",
@@ -1384,5 +1364,25 @@
     "inviteSentSuccess": "Invite sent successfully",
     "inviteSentVia": "Sent via",
     "userAdded": "Itilizatè ajoute avèk siksè"
+  },
+  "userProfile": {
+    "joined": "Te antre",
+    "assignedShifts": "Shift yo ki asiyen",
+    "noShifts": "Pa gen shift ki asiyen",
+    "activity": "Aktivite",
+    "noActivity": "Pa gen aktivite anrejistre",
+    "messagingChannels": "Messaging Channels",
+    "messagingChannelsDescription": "Channels this volunteer can handle",
+    "messagingEnabled": "Messaging Enabled",
+    "messagingEnabledDescription": "Allow this volunteer to handle messaging conversations",
+    "allChannels": "All Channels",
+    "noChannels": "No messaging",
+    "channelSms": "SMS",
+    "channelWhatsapp": "WhatsApp",
+    "channelSignal": "Signal",
+    "channelRcs": "RCS",
+    "channelWeb": "Web",
+    "channelsSaved": "Channel settings saved",
+    "selectChannels": "Select channels"
   }
 }

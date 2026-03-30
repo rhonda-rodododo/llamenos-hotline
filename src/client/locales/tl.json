@@ -88,10 +88,8 @@
     "goOnBreak": "Mag-break",
     "endBreak": "Tapusin ang Break",
     "breakDescription": "Hindi ka makakatanggap ng mga tawag habang naka-break",
-    "volunteerStatus": "Status ng Boluntaryo",
     "available": "Available",
     "offline": "Offline",
-    "noVolunteersOnline": "Walang boluntaryo na online",
     "activity": "Activity",
     "blasts": "Message Blasts",
     "blastsSubtitle": "Send broadcast messages to subscribers",
@@ -127,7 +125,9 @@
       "answered": "Answered",
       "unanswered": "Unanswered",
       "voicemail": "Voicemail"
-    }
+    },
+    "userStatus": "Status ng Boluntaryo",
+    "noUsersOnline": "Walang boluntaryo na online"
   },
   "calls": {
     "incoming": "Papasok na Tawag",
@@ -274,8 +274,6 @@
       "saturday": "Sabado",
       "sunday": "Linggo"
     },
-    "searchVolunteers": "Maghanap ng mga boluntaryo...",
-    "noVolunteersFound": "Walang nahanap na boluntaryo",
     "selectedCount": "{{count}} ang napili",
     "removeVolunteer": "Alisin si {{name}}",
     "activeCalls": "%d active call(s)",
@@ -312,7 +310,9 @@
     "since": "Since",
     "status": "Shift Status",
     "today": "Today",
-    "weeklySchedule": "Weekly Schedule"
+    "weeklySchedule": "Weekly Schedule",
+    "searchUsers": "Maghanap ng mga boluntaryo...",
+    "noUsersFound": "Walang nahanap na boluntaryo"
   },
   "webauthn": {
     "title": "Mga Passkey",
@@ -719,26 +719,6 @@
     "empty": "No custom fields defined",
     "visibleToUsers": "Nakikita ng mga boluntaryo",
     "editableByUsers": "Maaaring i-edit ng mga boluntaryo"
-  },
-  "volunteerProfile": {
-    "joined": "Sumali noong",
-    "assignedShifts": "Mga Nakatalagang Shift",
-    "noShifts": "Walang nakatalagang shift",
-    "activity": "Aktibidad",
-    "noActivity": "Walang naitatalang aktibidad",
-    "messagingChannels": "Messaging Channels",
-    "messagingChannelsDescription": "Channels this volunteer can handle",
-    "messagingEnabled": "Messaging Enabled",
-    "messagingEnabledDescription": "Allow this volunteer to handle messaging conversations",
-    "allChannels": "All Channels",
-    "noChannels": "No messaging",
-    "channelSms": "SMS",
-    "channelWhatsapp": "WhatsApp",
-    "channelSignal": "Signal",
-    "channelRcs": "RCS",
-    "channelWeb": "Web",
-    "channelsSaved": "Channel settings saved",
-    "selectChannels": "Select channels"
   },
   "notifications": {
     "promptText": "Enable notifications to get alerted when calls come in.",
@@ -1384,5 +1364,25 @@
     "inviteSentSuccess": "Invite sent successfully",
     "inviteSentVia": "Sent via",
     "userAdded": "Matagumpay na naidagdag ang boluntaryo"
+  },
+  "userProfile": {
+    "joined": "Sumali noong",
+    "assignedShifts": "Mga Nakatalagang Shift",
+    "noShifts": "Walang nakatalagang shift",
+    "activity": "Aktibidad",
+    "noActivity": "Walang naitatalang aktibidad",
+    "messagingChannels": "Messaging Channels",
+    "messagingChannelsDescription": "Channels this volunteer can handle",
+    "messagingEnabled": "Messaging Enabled",
+    "messagingEnabledDescription": "Allow this volunteer to handle messaging conversations",
+    "allChannels": "All Channels",
+    "noChannels": "No messaging",
+    "channelSms": "SMS",
+    "channelWhatsapp": "WhatsApp",
+    "channelSignal": "Signal",
+    "channelRcs": "RCS",
+    "channelWeb": "Web",
+    "channelsSaved": "Channel settings saved",
+    "selectChannels": "Select channels"
   }
 }

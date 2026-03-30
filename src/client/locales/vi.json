@@ -88,10 +88,8 @@
     "goOnBreak": "Nghỉ giải lao",
     "endBreak": "Kết thúc nghỉ",
     "breakDescription": "Bạn sẽ không nhận cuộc gọi khi đang nghỉ",
-    "volunteerStatus": "Trạng thái tình nguyện viên",
     "available": "Sẵn sàng",
     "offline": "Ngoại tuyến",
-    "noVolunteersOnline": "Không có người dùng trực tuyến",
     "activity": "Activity",
     "blasts": "Message Blasts",
     "blastsSubtitle": "Send broadcast messages to subscribers",
@@ -127,7 +125,9 @@
       "answered": "Answered",
       "unanswered": "Unanswered",
       "voicemail": "Voicemail"
-    }
+    },
+    "userStatus": "Trạng thái người dùng",
+    "noUsersOnline": "Không có người dùng trực tuyến"
   },
   "calls": {
     "incoming": "Cuộc gọi đến",
@@ -274,8 +274,6 @@
       "saturday": "Thứ Bảy",
       "sunday": "Chủ Nhật"
     },
-    "searchVolunteers": "Tìm tình nguyện viên...",
-    "noVolunteersFound": "Không tìm thấy người dùng",
     "selectedCount": "Đã chọn {{count}}",
     "removeVolunteer": "Xóa {{name}}",
     "activeCalls": "%d active call(s)",
@@ -312,7 +310,9 @@
     "since": "Since",
     "status": "Shift Status",
     "today": "Today",
-    "weeklySchedule": "Weekly Schedule"
+    "weeklySchedule": "Weekly Schedule",
+    "searchUsers": "Tìm tình nguyện viên...",
+    "noUsersFound": "Không tìm thấy người dùng"
   },
   "webauthn": {
     "title": "Khóa truy cập",
@@ -719,26 +719,6 @@
     "empty": "No custom fields defined",
     "visibleToUsers": "Hiển thị cho người dùng",
     "editableByUsers": "Người dùng có thể chỉnh sửa"
-  },
-  "volunteerProfile": {
-    "joined": "Tham gia",
-    "assignedShifts": "Ca trực được phân công",
-    "noShifts": "Chưa được phân công ca trực nào",
-    "activity": "Hoạt động",
-    "noActivity": "Chưa có hoạt động nào",
-    "messagingChannels": "Messaging Channels",
-    "messagingChannelsDescription": "Channels this volunteer can handle",
-    "messagingEnabled": "Messaging Enabled",
-    "messagingEnabledDescription": "Allow this volunteer to handle messaging conversations",
-    "allChannels": "All Channels",
-    "noChannels": "No messaging",
-    "channelSms": "SMS",
-    "channelWhatsapp": "WhatsApp",
-    "channelSignal": "Signal",
-    "channelRcs": "RCS",
-    "channelWeb": "Web",
-    "channelsSaved": "Channel settings saved",
-    "selectChannels": "Select channels"
   },
   "notifications": {
     "promptText": "Enable notifications to get alerted when calls come in.",
@@ -1384,5 +1364,25 @@
     "inviteSentSuccess": "Invite sent successfully",
     "inviteSentVia": "Sent via",
     "userAdded": "Đã thêm tình nguyện viên thành công"
+  },
+  "userProfile": {
+    "joined": "Tham gia",
+    "assignedShifts": "Ca trực được phân công",
+    "noShifts": "Chưa được phân công ca trực nào",
+    "activity": "Hoạt động",
+    "noActivity": "Chưa có hoạt động nào",
+    "messagingChannels": "Messaging Channels",
+    "messagingChannelsDescription": "Channels this volunteer can handle",
+    "messagingEnabled": "Messaging Enabled",
+    "messagingEnabledDescription": "Allow this volunteer to handle messaging conversations",
+    "allChannels": "All Channels",
+    "noChannels": "No messaging",
+    "channelSms": "SMS",
+    "channelWhatsapp": "WhatsApp",
+    "channelSignal": "Signal",
+    "channelRcs": "RCS",
+    "channelWeb": "Web",
+    "channelsSaved": "Channel settings saved",
+    "selectChannels": "Select channels"
   }
 }

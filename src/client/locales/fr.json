@@ -88,10 +88,8 @@
     "goOnBreak": "Prendre une pause",
     "endBreak": "Fin de pause",
     "breakDescription": "Vous ne recevrez pas d'appels pendant la pause",
-    "volunteerStatus": "Statut du bénévole",
     "available": "Disponible",
     "offline": "Hors ligne",
-    "noVolunteersOnline": "Aucun utilisateur en ligne",
     "activity": "Activity",
     "blasts": "Message Blasts",
     "blastsSubtitle": "Send broadcast messages to subscribers",
@@ -127,7 +125,9 @@
       "answered": "Answered",
       "unanswered": "Unanswered",
       "voicemail": "Voicemail"
-    }
+    },
+    "userStatus": "Statut du bénévole",
+    "noUsersOnline": "Aucun utilisateur en ligne"
   },
   "calls": {
     "incoming": "Appel entrant",
@@ -274,8 +274,6 @@
       "saturday": "Samedi",
       "sunday": "Dimanche"
     },
-    "searchVolunteers": "Rechercher des bénévoles...",
-    "noVolunteersFound": "Aucun utilisateur trouvé",
     "selectedCount": "{{count}} sélectionnés",
     "removeVolunteer": "Retirer {{name}}",
     "activeCalls": "%d active call(s)",
@@ -312,7 +310,9 @@
     "since": "Since",
     "status": "Shift Status",
     "today": "Today",
-    "weeklySchedule": "Weekly Schedule"
+    "weeklySchedule": "Weekly Schedule",
+    "searchUsers": "Rechercher des bénévoles...",
+    "noUsersFound": "Aucun utilisateur trouvé"
   },
   "webauthn": {
     "title": "Clés d'accès",
@@ -719,26 +719,6 @@
     "empty": "No custom fields defined",
     "visibleToUsers": "Visible par les bénévoles",
     "editableByUsers": "Modifiable par les utilisateurs"
-  },
-  "volunteerProfile": {
-    "joined": "Inscrit le",
-    "assignedShifts": "Quarts assignés",
-    "noShifts": "Aucun quart assigné",
-    "activity": "Activité",
-    "noActivity": "Aucune activité enregistrée",
-    "messagingChannels": "Messaging Channels",
-    "messagingChannelsDescription": "Channels this volunteer can handle",
-    "messagingEnabled": "Messaging Enabled",
-    "messagingEnabledDescription": "Allow this volunteer to handle messaging conversations",
-    "allChannels": "All Channels",
-    "noChannels": "No messaging",
-    "channelSms": "SMS",
-    "channelWhatsapp": "WhatsApp",
-    "channelSignal": "Signal",
-    "channelRcs": "RCS",
-    "channelWeb": "Web",
-    "channelsSaved": "Channel settings saved",
-    "selectChannels": "Select channels"
   },
   "notifications": {
     "promptText": "Enable notifications to get alerted when calls come in.",
@@ -1384,5 +1364,25 @@
     "inviteSentSuccess": "Invite sent successfully",
     "inviteSentVia": "Sent via",
     "userAdded": "Utilisateur ajouté avec succès"
+  },
+  "userProfile": {
+    "joined": "Inscrit le",
+    "assignedShifts": "Quarts assignés",
+    "noShifts": "Aucun quart assigné",
+    "activity": "Activité",
+    "noActivity": "Aucune activité enregistrée",
+    "messagingChannels": "Messaging Channels",
+    "messagingChannelsDescription": "Channels this volunteer can handle",
+    "messagingEnabled": "Messaging Enabled",
+    "messagingEnabledDescription": "Allow this volunteer to handle messaging conversations",
+    "allChannels": "All Channels",
+    "noChannels": "No messaging",
+    "channelSms": "SMS",
+    "channelWhatsapp": "WhatsApp",
+    "channelSignal": "Signal",
+    "channelRcs": "RCS",
+    "channelWeb": "Web",
+    "channelsSaved": "Channel settings saved",
+    "selectChannels": "Select channels"
   }
 }

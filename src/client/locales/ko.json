@@ -88,10 +88,8 @@
     "goOnBreak": "휴식하기",
     "endBreak": "휴식 종료",
     "breakDescription": "휴식 중에는 전화를 받지 않습니다",
-    "volunteerStatus": "사용자 상태",
     "available": "대기 중",
     "offline": "오프라인",
-    "noVolunteersOnline": "온라인 사용자가 없습니다",
     "activity": "Activity",
     "blasts": "Message Blasts",
     "blastsSubtitle": "Send broadcast messages to subscribers",
@@ -127,7 +125,9 @@
       "answered": "Answered",
       "unanswered": "Unanswered",
       "voicemail": "Voicemail"
-    }
+    },
+    "userStatus": "사용자 상태",
+    "noUsersOnline": "온라인 사용자가 없습니다"
   },
   "calls": {
     "incoming": "수신 전화",
@@ -274,8 +274,6 @@
       "saturday": "토요일",
       "sunday": "일요일"
     },
-    "searchVolunteers": "사용자 검색...",
-    "noVolunteersFound": "사용자를 찾을 수 없습니다",
     "selectedCount": "{{count}}명 선택됨",
     "removeVolunteer": "{{name}} 제거",
     "activeCalls": "%d active call(s)",
@@ -312,7 +310,9 @@
     "since": "Since",
     "status": "Shift Status",
     "today": "Today",
-    "weeklySchedule": "Weekly Schedule"
+    "weeklySchedule": "Weekly Schedule",
+    "searchUsers": "사용자 검색...",
+    "noUsersFound": "사용자를 찾을 수 없습니다"
   },
   "webauthn": {
     "title": "패스키",
@@ -719,26 +719,6 @@
     "empty": "No custom fields defined",
     "visibleToUsers": "사용자에게 표시",
     "editableByUsers": "사용자가 편집 가능"
-  },
-  "volunteerProfile": {
-    "joined": "가입일",
-    "assignedShifts": "배정된 교대",
-    "noShifts": "배정된 교대가 없습니다",
-    "activity": "활동",
-    "noActivity": "기록된 활동이 없습니다",
-    "messagingChannels": "Messaging Channels",
-    "messagingChannelsDescription": "Channels this volunteer can handle",
-    "messagingEnabled": "Messaging Enabled",
-    "messagingEnabledDescription": "Allow this volunteer to handle messaging conversations",
-    "allChannels": "All Channels",
-    "noChannels": "No messaging",
-    "channelSms": "SMS",
-    "channelWhatsapp": "WhatsApp",
-    "channelSignal": "Signal",
-    "channelRcs": "RCS",
-    "channelWeb": "Web",
-    "channelsSaved": "Channel settings saved",
-    "selectChannels": "Select channels"
   },
   "notifications": {
     "promptText": "Enable notifications to get alerted when calls come in.",
@@ -1384,5 +1364,25 @@
     "inviteSentSuccess": "Invite sent successfully",
     "inviteSentVia": "Sent via",
     "userAdded": "사용자가 성공적으로 추가되었습니다"
+  },
+  "userProfile": {
+    "joined": "가입일",
+    "assignedShifts": "배정된 교대",
+    "noShifts": "배정된 교대가 없습니다",
+    "activity": "활동",
+    "noActivity": "기록된 활동이 없습니다",
+    "messagingChannels": "Messaging Channels",
+    "messagingChannelsDescription": "Channels this volunteer can handle",
+    "messagingEnabled": "Messaging Enabled",
+    "messagingEnabledDescription": "Allow this volunteer to handle messaging conversations",
+    "allChannels": "All Channels",
+    "noChannels": "No messaging",
+    "channelSms": "SMS",
+    "channelWhatsapp": "WhatsApp",
+    "channelSignal": "Signal",
+    "channelRcs": "RCS",
+    "channelWeb": "Web",
+    "channelsSaved": "Channel settings saved",
+    "selectChannels": "Select channels"
   }
 }
