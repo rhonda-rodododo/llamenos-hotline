@@ -12,14 +12,19 @@ import {
 } from '@/components/ui/select'
 import { Skeleton } from '@/components/ui/skeleton'
 import { type ContactRecord, listContacts } from '@/lib/api'
-import { useAuth } from '@/lib/auth'
-import { tryDecryptField } from '@/lib/envelope-field-crypto'
+import { useDecryptedArray } from '@/lib/use-decrypted'
 import { LABEL_CONTACT_SUMMARY } from '@shared/crypto-labels'
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
 import { BookUser, Plus, Search } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
+
+/** ContactRecord augmented with fields populated by decryptObjectFields */
+type DecryptedContact = ContactRecord & {
+  displayName?: string
+  notes?: string
+}
 
 type ContactsSearch = {
   contactType: string
@@ -45,7 +50,6 @@ const RISK_COLORS: Record<string, string> = {
 
 function ContactDirectoryPage() {
   const { t } = useTranslation()
-  const { hasNsec } = useAuth()
   const navigate = useNavigate({ from: '/contacts' })
   const { contactType, riskLevel, q } = Route.useSearch()
   const [contacts, setContacts] = useState<ContactRecord[]>([])
@@ -69,24 +73,14 @@ function ContactDirectoryPage() {
   }, [fetchContacts])
 
   // Decrypt display names client-side, then filter by query
-  const decryptedContacts = useMemo(
-    () =>
-      contacts.map((c) => ({
-        ...c,
-        displayName: tryDecryptField(
-          c.encryptedDisplayName,
-          c.displayNameEnvelopes,
-          '[encrypted]',
-          LABEL_CONTACT_SUMMARY
-        ),
-      })),
-    [contacts, hasNsec]
-  )
+  const decryptedContacts = useDecryptedArray(contacts, LABEL_CONTACT_SUMMARY) as DecryptedContact[]
 
   const filtered = useMemo(() => {
     if (!q) return decryptedContacts
     const lower = q.toLowerCase()
-    return decryptedContacts.filter((c) => c.displayName.toLowerCase().includes(lower))
+    return decryptedContacts.filter((c) =>
+      (c.displayName ?? '[encrypted]').toLowerCase().includes(lower)
+    )
   }, [decryptedContacts, q])
 
   function handleSearch(e: React.FormEvent) {
@@ -213,7 +207,7 @@ function ContactDirectoryPage() {
                   }}
                 >
                   <span className="min-w-0 flex-1 truncate text-sm font-medium">
-                    {contact.displayName}
+                    {contact.displayName ?? '[encrypted]'}
                   </span>
                   <Badge variant="outline" className="shrink-0 text-xs capitalize">
                     {getContactTypeLabel(contact.contactType)}

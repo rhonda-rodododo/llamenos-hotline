@@ -1,0 +1,103 @@
+# IdP-auth branch dev port offsets — isolated from v1 (llamenos-hotline) and v2 (llamenos)
+#
+# v2 (llamenos):             postgres:5432, rustfs:9000/9001, strfry:7777
+# v1 (llamenos-hotline):     postgres:5433, rustfs:9002/9003, strfry:7778, authentik:9100, app:3000, bridge:3001
+# idp-auth (this branch):    postgres:5434, rustfs:9004/9005, strfry:7779, authentik:9101, app:3002, bridge:3003
+#
+# Usage:
+#   docker compose --env-file deploy/docker/.env.dev.defaults \
+#     -f deploy/docker/docker-compose.yml \
+#     -f deploy/docker/docker-compose.dev-idp.yml \
+#     --profile asterisk up -d
+
+# IMPORTANT: Always use -p llamenos-idp (or COMPOSE_PROJECT_NAME=llamenos-idp) to get
+# separate containers from v1. Otherwise Docker Compose will reuse llamenos-* containers.
+
+# Override the internal network to allow port mappings on the host
+networks:
+  internal:
+    internal: false
+
+services:
+  postgres:
+    ports:
+      - "5434:5432"
+    environment:
+      POSTGRES_DB: llamenos_idp
+      POSTGRES_USER: llamenos
+      POSTGRES_PASSWORD: llamenos
+  rustfs:
+    ports:
+      - "9004:9000"
+      - "9005:9001"
+  strfry:
+    ports:
+      - "7779:7777"
+    volumes:
+      - ./strfry-test.conf:/etc/strfry.conf:ro
+
+  # Authentik IdP — offset from v1's 9100
+  authentik-server:
+    ports:
+      - "9101:9000"
+
+  # Asterisk PBX — offset from v1
+  asterisk:
+    ports:
+      - "8091:8088"     # ARI HTTP/WS
+      - "8092:8089"     # WSS for browser SIP
+      - "5063:5060/udp" # SIP UDP
+      - "5063:5060/tcp" # SIP TCP
+    volumes:
+      - ../asterisk-bridge/dev-certs/asterisk.pem:/etc/asterisk/keys/asterisk.pem:ro
+      - ../asterisk-bridge/dev-certs/asterisk.key:/etc/asterisk/keys/asterisk.key:ro
+
+  # ARI bridge — webhook to idp-auth app port (3002)
+  asterisk-bridge:
+    environment:
+      - ARI_URL=ws://asterisk:8088/ari/events
+      - ARI_REST_URL=http://asterisk:8088/ari
+      - ARI_USERNAME=llamenos
+      - ARI_PASSWORD=changeme
+      - WORKER_WEBHOOK_URL=http://host.docker.internal:3002
+      - BRIDGE_SECRET=dev-bridge-secret
+      - BRIDGE_PORT=3003
+      - HOTLINE_NUMBER=${HOTLINE_NUMBER:-}
+      - SIP_PROVIDER=${SIP_PROVIDER:-}
+      - SIP_USERNAME=${SIP_USERNAME:-}
+      - SIP_PASSWORD=${SIP_PASSWORD:-}
+    ports:
+      - "3003:3003"     # Bridge HTTP API
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      asterisk:
+        condition: service_healthy
+
+  coturn:
+    image: coturn/coturn:4.6
+    restart: unless-stopped
+    ports:
+      - "3479:3478"
+      - "3479:3478/tcp"
+    command: >
+      turnserver
+      --realm=localhost
+      --use-auth-secret
+      --static-auth-secret=dev-turn-secret-changeme
+      --listening-port=3478
+      --min-port=49152
+      --max-port=49172
+      --no-cli
+      --fingerprint
+      --log-file=stdout
+    networks:
+      - internal
+
+  # Disable app and caddy — we run the app directly
+  app:
+    profiles:
+      - disabled
+  caddy:
+    profiles:
+      - disabled

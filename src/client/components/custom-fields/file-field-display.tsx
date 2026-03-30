@@ -3,7 +3,6 @@ import { getFileMetadata } from '@/lib/api'
 import { useAuth } from '@/lib/auth'
 import { decryptFileMetadata } from '@/lib/file-crypto'
 import { downloadAndDecryptFile, triggerBrowserDownload } from '@/lib/file-upload'
-import { getSecretKey } from '@/lib/key-manager'
 import type { CustomFieldDefinition, EncryptedFileMetadata, FileFieldValue } from '@shared/types'
 import { Download, File as FileIcon, Image as ImageIcon } from 'lucide-react'
 import { useEffect, useState } from 'react'
@@ -40,18 +39,13 @@ export function FileFieldDisplay({ definition: _definition, value }: Props) {
     let cancelled = false
     ;(async () => {
       try {
-        const secretKey = getSecretKey()
         const metaResponse = await getFileMetadata(value.fileId)
         const myMeta = metaResponse.metadata.find((m) => m.pubkey === publicKey)
         if (!myMeta) {
           if (!cancelled) setUnavailable(true)
           return
         }
-        const decrypted = decryptFileMetadata(
-          myMeta.encryptedContent,
-          myMeta.ephemeralPubkey,
-          secretKey
-        )
+        const decrypted = await decryptFileMetadata(myMeta.encryptedContent, myMeta.ephemeralPubkey)
         if (!decrypted) {
           if (!cancelled) setUnavailable(true)
           return
@@ -75,8 +69,7 @@ export function FileFieldDisplay({ definition: _definition, value }: Props) {
     let cancelled = false
     ;(async () => {
       try {
-        const secretKey = getSecretKey()
-        const { blob } = await downloadAndDecryptFile(value.fileId, publicKey, secretKey)
+        const { blob } = await downloadAndDecryptFile(value.fileId, publicKey)
         objectUrl = URL.createObjectURL(blob)
         if (!cancelled) setImagePreviewUrl(objectUrl)
       } catch {
@@ -94,8 +87,7 @@ export function FileFieldDisplay({ definition: _definition, value }: Props) {
     if (!publicKey || !metadata) return
     setDownloading(true)
     try {
-      const secretKey = getSecretKey()
-      const { blob } = await downloadAndDecryptFile(value.fileId, publicKey, secretKey)
+      const { blob } = await downloadAndDecryptFile(value.fileId, publicKey)
       triggerBrowserDownload(blob, metadata.originalName)
     } catch {
       // Download errors are surfaced via the button state — no further action needed

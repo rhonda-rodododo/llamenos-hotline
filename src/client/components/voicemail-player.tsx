@@ -2,7 +2,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { type EncryptedNote, downloadFile, getFileEnvelopes, listNotes } from '@/lib/api'
 import { useAuth } from '@/lib/auth'
-import { decryptNote, decryptNoteV2 } from '@/lib/crypto'
+import { decryptNoteV2 } from '@/lib/crypto'
 import { decryptFile } from '@/lib/file-crypto'
 import * as keyManager from '@/lib/key-manager'
 import type { FileKeyEnvelope } from '@shared/types'
@@ -45,15 +45,15 @@ export function VoicemailPlayer({ fileId, callId, canListen }: VoicemailPlayerPr
     setTranscriptError(false)
 
     listNotes({ callId, limit: 100 })
-      .then(({ notes }) => {
+      .then(async ({ notes }) => {
         const vmNote = notes.find((n: EncryptedNote) => n.authorPubkey === 'system:voicemail')
         if (!vmNote) {
           setTranscript(null)
           return
         }
 
-        const sk = keyManager.isUnlocked() ? keyManager.getSecretKey() : null
-        if (!hasNsec || !sk || !publicKey) {
+        const unlocked = await keyManager.isUnlocked()
+        if (!hasNsec || !unlocked || !publicKey) {
           setTranscript(null)
           return
         }
@@ -66,11 +66,7 @@ export function VoicemailPlayer({ fileId, callId, canListen }: VoicemailPlayerPr
 
         let text: string | null = null
         if (envelope) {
-          const payload = decryptNoteV2(vmNote.encryptedContent, envelope, sk)
-          text = payload?.text ?? null
-        } else {
-          // Fallback: legacy unencrypted or v1 encryption
-          const payload = decryptNote(vmNote.encryptedContent, sk)
+          const payload = await decryptNoteV2(vmNote.encryptedContent, envelope)
           text = payload?.text ?? null
         }
         setTranscript(text)
@@ -86,8 +82,8 @@ export function VoicemailPlayer({ fileId, callId, canListen }: VoicemailPlayerPr
     setAudioLoading(true)
     setAudioError(false)
     try {
-      const sk = keyManager.isUnlocked() ? keyManager.getSecretKey() : null
-      if (!sk) throw new Error('Key not unlocked')
+      const unlocked = await keyManager.isUnlocked()
+      if (!unlocked) throw new Error('Key not unlocked')
 
       const [content, { envelopes }] = await Promise.all([
         downloadFile(fileId),
@@ -101,7 +97,7 @@ export function VoicemailPlayer({ fileId, callId, canListen }: VoicemailPlayerPr
 
       if (!envelope) throw new Error('No key envelope found')
 
-      const { blob } = await decryptFile(content, envelope, sk)
+      const { blob } = await decryptFile(content, envelope)
       const url = URL.createObjectURL(blob)
       setBlobUrl(url)
     } catch {

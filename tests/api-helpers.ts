@@ -8,11 +8,16 @@
  * Use these helpers in beforeAll/beforeEach hooks to set up test fixtures.
  */
 
-import { type APIRequestContext } from '@playwright/test'
-import { generateSecretKey, getPublicKey as nostrGetPubkey } from 'nostr-tools/pure'
+import type { APIRequestContext } from '@playwright/test'
 import { nip19 } from 'nostr-tools'
-import { createAuthedRequestFromNsec, createAuthedRequest, type AuthedRequest } from './helpers/authed-request'
+import { generateSecretKey, getPublicKey as nostrGetPubkey } from 'nostr-tools/pure'
 import { ADMIN_NSEC } from './helpers'
+import {
+  type AuthedRequest,
+  createAuthedRequest,
+  createAuthedRequestFromNsec,
+  enrollInAuthentik,
+} from './helpers/authed-request'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -48,9 +53,9 @@ export type RoleAlias = 'super-admin' | 'hub-admin' | 'reviewer' | 'volunteer' |
 const ROLE_ID_MAP: Record<RoleAlias, string> = {
   'super-admin': 'role-super-admin',
   'hub-admin': 'role-hub-admin',
-  'reviewer': 'role-reviewer',
-  'volunteer': 'role-volunteer',
-  'reporter': 'role-reporter',
+  reviewer: 'role-reviewer',
+  volunteer: 'role-volunteer',
+  reporter: 'role-reporter',
 }
 
 // Monotonic counter to ensure unique phones even within the same millisecond
@@ -113,7 +118,7 @@ export class TestContext {
     request: APIRequestContext,
     adminApi: AuthedRequest,
     hubId: string,
-    hubName: string,
+    hubName: string
   ) {
     this.rawRequest = request
     this._adminApi = adminApi
@@ -126,7 +131,7 @@ export class TestContext {
     opts?: {
       roles?: RoleAlias[]
       hubName?: string
-    },
+    }
   ): Promise<TestContext> {
     const adminApi = createAuthedRequestFromNsec(request, ADMIN_NSEC)
     const hubName = opts?.hubName ?? uniqueName('TestHub')
@@ -169,6 +174,9 @@ export class TestContext {
       throw new Error(`Failed to create ${role}: ${createRes.status()} ${await createRes.text()}`)
     }
 
+    // Enroll in Authentik so userinfo / token refresh works for this user
+    await enrollInAuthentik(this.adminApi, pubkey)
+
     // Add as hub member
     await this.adminApi.post(`/api/hubs/${this.hubId}/members`, {
       pubkey,
@@ -184,7 +192,8 @@ export class TestContext {
   /** Get the TestUser for a role. Throws if not created. */
   user(role: RoleAlias): TestUser {
     const u = this.users.get(role)
-    if (!u) throw new Error(`No user for role '${role}'. Did you include it in TestContext.create()?`)
+    if (!u)
+      throw new Error(`No user for role '${role}'. Did you include it in TestContext.create()?`)
     return u
   }
 
@@ -269,7 +278,7 @@ export class TestContext {
  */
 export async function createVolunteerViaApi(
   request: APIRequestContext,
-  options?: { name?: string; phone?: string; roleIds?: string[] },
+  options?: { name?: string; phone?: string; roleIds?: string[] }
 ): Promise<CreateVolunteerResult> {
   const name = options?.name || uniqueName('TestVol')
   const phone = options?.phone || uniquePhone()
@@ -286,6 +295,9 @@ export async function createVolunteerViaApi(
     throw new Error(`Failed to create volunteer: ${res.status()} ${await res.text()}`)
   }
 
+  // Enroll in Authentik so userinfo / token refresh works for this user
+  await enrollInAuthentik(adminApi, actualPubkey)
+
   return { pubkey: actualPubkey, nsec, name, phone }
 }
 
@@ -295,7 +307,7 @@ export async function createVolunteerViaApi(
  */
 export async function createVolunteerWithKey(
   request: APIRequestContext,
-  options?: { name?: string; phone?: string; roleIds?: string[] },
+  options?: { name?: string; phone?: string; roleIds?: string[] }
 ): Promise<CreateVolunteerResult & { sk: Uint8Array }> {
   const name = options?.name || uniqueName('TestVol')
   const phone = options?.phone || uniquePhone()
@@ -312,12 +324,15 @@ export async function createVolunteerWithKey(
     throw new Error(`Failed to create volunteer: ${res.status()} ${await res.text()}`)
   }
 
+  // Enroll in Authentik so userinfo / token refresh works for this user
+  await enrollInAuthentik(adminApi, actualPubkey)
+
   return { pubkey: actualPubkey, nsec, name, phone, sk }
 }
 
 export async function deleteVolunteerViaApi(
   request: APIRequestContext,
-  pubkey: string,
+  pubkey: string
 ): Promise<void> {
   const adminApi = createAuthedRequestFromNsec(request, ADMIN_NSEC)
   const res = await adminApi.delete(`/api/volunteers/${pubkey}`)
@@ -328,7 +343,7 @@ export async function deleteVolunteerViaApi(
 
 export async function createBanViaApi(
   request: APIRequestContext,
-  options?: { phone?: string; reason?: string },
+  options?: { phone?: string; reason?: string }
 ): Promise<CreateBanResult> {
   const phone = options?.phone || uniquePhone()
   const reason = options?.reason || 'E2E test ban'
@@ -344,10 +359,7 @@ export async function createBanViaApi(
   return { phone, reason }
 }
 
-export async function removeBanViaApi(
-  request: APIRequestContext,
-  phone: string,
-): Promise<void> {
+export async function removeBanViaApi(request: APIRequestContext, phone: string): Promise<void> {
   const res = await request.delete(`/api/bans/${encodeURIComponent(phone)}`)
   if (!res.ok()) {
     throw new Error(`Failed to remove ban: ${res.status()} ${await res.text()}`)
@@ -362,7 +374,7 @@ export async function createShiftViaApi(
     endTime?: string
     days?: number[]
     volunteerPubkeys?: string[]
-  },
+  }
 ): Promise<CreateShiftResult> {
   const name = options?.name || uniqueName('TestShift')
   const startTime = options?.startTime || '09:00'
@@ -382,10 +394,7 @@ export async function createShiftViaApi(
   return { id: data.shift.id, name }
 }
 
-export async function deleteShiftViaApi(
-  request: APIRequestContext,
-  id: string,
-): Promise<void> {
+export async function deleteShiftViaApi(request: APIRequestContext, id: string): Promise<void> {
   const res = await request.delete(`/api/shifts/${id}`)
   if (!res.ok()) {
     throw new Error(`Failed to delete shift: ${res.status()} ${await res.text()}`)
@@ -393,7 +402,7 @@ export async function deleteShiftViaApi(
 }
 
 export async function listVolunteersViaApi(
-  request: APIRequestContext,
+  request: APIRequestContext
 ): Promise<Array<{ pubkey: string; name: string; phone: string }>> {
   const res = await request.get('/api/volunteers')
   if (!res.ok()) {
@@ -404,7 +413,7 @@ export async function listVolunteersViaApi(
 }
 
 export async function listBansViaApi(
-  request: APIRequestContext,
+  request: APIRequestContext
 ): Promise<Array<{ phone: string; reason: string }>> {
   const res = await request.get('/api/bans')
   if (!res.ok()) {
@@ -415,7 +424,7 @@ export async function listBansViaApi(
 }
 
 export async function listShiftsViaApi(
-  request: APIRequestContext,
+  request: APIRequestContext
 ): Promise<Array<{ id: string; name: string }>> {
   const res = await request.get('/api/shifts')
   if (!res.ok()) {
@@ -431,7 +440,7 @@ export async function cleanupTestData(
     volunteerPubkeys?: string[]
     banPhones?: string[]
     shiftIds?: string[]
-  },
+  }
 ): Promise<void> {
   const errors: Error[] = []
 
@@ -460,6 +469,6 @@ export async function cleanupTestData(
   }
 
   if (errors.length > 0) {
-    console.warn('Cleanup errors:', errors.map(e => e.message).join(', '))
+    console.warn('Cleanup errors:', errors.map((e) => e.message).join(', '))
   }
 }

@@ -35,6 +35,16 @@ services:
       - TWILIO_PHONE_NUMBER=${TWILIO_PHONE_NUMBER}
       - SERVER_NOSTR_SECRET=${SERVER_NOSTR_SECRET}
       - NOSTR_RELAY_URL=${NOSTR_RELAY_URL}
+      # IdP Auth (Authentik)
+      - IDP_ADAPTER=${IDP_ADAPTER}
+      - AUTHENTIK_URL=${AUTHENTIK_URL}
+      - AUTHENTIK_API_TOKEN=${AUTHENTIK_BOOTSTRAP_TOKEN}
+      - IDP_VALUE_ENCRYPTION_KEY=${IDP_VALUE_ENCRYPTION_KEY}
+      - IDP_VALUE_KEY_VERSION=${IDP_VALUE_KEY_VERSION}
+      - JWT_SECRET=${JWT_SECRET}
+      - AUTH_WEBAUTHN_RP_ID=${AUTH_WEBAUTHN_RP_ID}
+      - AUTH_WEBAUTHN_RP_NAME=${AUTH_WEBAUTHN_RP_NAME}
+      - AUTH_WEBAUTHN_ORIGIN=${AUTH_WEBAUTHN_ORIGIN}
     networks:
       - web
       - internal
@@ -44,6 +54,8 @@ services:
       rustfs:
         condition: service_healthy
       strfry:
+        condition: service_healthy
+      authentik-server:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:3000/api/health"]
@@ -65,6 +77,7 @@ services:
     restart: unless-stopped
     volumes:
       - postgres-data:/var/lib/postgresql/data
+      - {{ app_dir }}/postgres-init:/docker-entrypoint-initdb.d:ro
     environment:
       - POSTGRES_DB=llamenos
       - POSTGRES_USER=llamenos
@@ -235,6 +248,71 @@ services:
     security_opt:
       - no-new-privileges:true
 
+  # ── Core: Authentik IdP ──────────────────────────────────────
+
+  authentik-server:
+    image: {{ authentik_image | default('ghcr.io/goauthentik/server:2025.12') }}
+    command: server
+    restart: unless-stopped
+    environment:
+      AUTHENTIK_SECRET_KEY: ${AUTHENTIK_SECRET_KEY}
+      AUTHENTIK_POSTGRESQL__HOST: postgres
+      AUTHENTIK_POSTGRESQL__PORT: 5432
+      AUTHENTIK_POSTGRESQL__USER: llamenos
+      AUTHENTIK_POSTGRESQL__PASSWORD: ${PG_PASSWORD}
+      AUTHENTIK_POSTGRESQL__NAME: authentik
+      AUTHENTIK_BOOTSTRAP_TOKEN: ${AUTHENTIK_BOOTSTRAP_TOKEN}
+    ports:
+      - "{{ authentik_port | default(9000) }}:9000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - internal
+    volumes:
+      - authentik-media:/media
+      - authentik-templates:/templates
+      - {{ app_dir }}/authentik-blueprints:/blueprints/custom:ro
+    healthcheck:
+      test: ["CMD", "ak", "healthcheck"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    security_opt:
+      - no-new-privileges:true
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+
+  authentik-worker:
+    image: {{ authentik_image | default('ghcr.io/goauthentik/server:2025.12') }}
+    command: worker
+    restart: unless-stopped
+    environment:
+      AUTHENTIK_SECRET_KEY: ${AUTHENTIK_SECRET_KEY}
+      AUTHENTIK_POSTGRESQL__HOST: postgres
+      AUTHENTIK_POSTGRESQL__PORT: 5432
+      AUTHENTIK_POSTGRESQL__USER: llamenos
+      AUTHENTIK_POSTGRESQL__PASSWORD: ${PG_PASSWORD}
+      AUTHENTIK_POSTGRESQL__NAME: authentik
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - internal
+    volumes:
+      - authentik-media:/media
+      - authentik-templates:/templates
+      - {{ app_dir }}/authentik-blueprints:/blueprints/custom:ro
+    security_opt:
+      - no-new-privileges:true
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+
 {% if watchtower_enabled | default(false) %}
   # ── Optional: Watchtower (Auto-Updates) ─────────────────────
 
@@ -288,6 +366,8 @@ volumes:
   caddy-config:
   rustfs-data:
   nostr-data:
+  authentik-media:
+  authentik-templates:
 {% if 'asterisk' in compose_profiles %}
   asterisk-config:
 {% endif %}

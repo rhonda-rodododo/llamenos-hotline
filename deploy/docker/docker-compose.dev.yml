@@ -31,6 +31,11 @@ services:
     volumes:
       - ./strfry-test.conf:/etc/strfry.conf:ro
 
+  # Authentik IdP — dev port offset (9100 to avoid conflict with MinIO console at 9003)
+  authentik-server:
+    ports:
+      - "9100:9000"
+
   # Asterisk PBX — dev port offsets
   asterisk:
     ports:

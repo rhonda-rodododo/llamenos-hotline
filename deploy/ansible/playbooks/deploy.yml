@@ -25,6 +25,10 @@
 - name: Deploy Llamenos
   hosts: all
   become: true
+  vars:
+    # After hardening, SSH is restricted to deploy_user only.
+    # Override the connection user for deployment tasks.
+    ansible_user: "{{ deploy_user | default('deploy') }}"
   roles:
     - role: docker
       tags: [docker, deploy]

@@ -4,11 +4,15 @@ import { Button } from '@/components/ui/button'
 import { bootstrapAdmin } from '@/lib/api'
 import { useAuth } from '@/lib/auth'
 import { createBackup, downloadBackupFile, generateRecoveryKey } from '@/lib/backup'
-import { createAuthToken, generateKeyPair } from '@/lib/crypto'
+import { generateKeyPair } from '@/lib/crypto'
 import { setLanguage } from '@/lib/i18n'
 import * as keyManager from '@/lib/key-manager'
-import { isValidPin } from '@/lib/key-store'
 import { useToast } from '@/lib/toast'
+import { utf8ToBytes } from '@noble/ciphers/utils.js'
+import { schnorr } from '@noble/curves/secp256k1.js'
+import { sha256 } from '@noble/hashes/sha2.js'
+import { bytesToHex, hexToBytes } from '@noble/hashes/utils.js'
+import { AUTH_PREFIX } from '@shared/crypto-labels'
 import { LANGUAGES } from '@shared/languages'
 import {
   AlertTriangle,
@@ -55,6 +59,7 @@ export function AdminBootstrap({ onComplete }: AdminBootstrapProps) {
   const [backupAcknowledged, setBackupAcknowledged] = useState(false)
   const [backupDownloaded, setBackupDownloaded] = useState(false)
   const [pubkey, setPubkey] = useState('')
+  const [idpNsecSecret, setIdpNsecSecret] = useState<Uint8Array | null>(null)
 
   const stepHeadingRef = useRef<HTMLHeadingElement>(null)
   const langGroupRef = useRef<HTMLDivElement>(null)
@@ -106,7 +111,7 @@ export function AdminBootstrap({ onComplete }: AdminBootstrapProps) {
 
   function handlePinComplete(enteredPin: string) {
     if (pinStep === 'create') {
-      if (!isValidPin(enteredPin)) {
+      if (!keyManager.isValidPin(enteredPin)) {
         setPinError(t('pin.tooShort'))
         return
       }
@@ -133,12 +138,16 @@ export function AdminBootstrap({ onComplete }: AdminBootstrapProps) {
       setPubkey(kp.publicKey)
       setConfirmedPin(pin)
 
-      // Create Schnorr signature to prove key ownership
-      const tokenJson = createAuthToken(kp.secretKey, Date.now(), 'POST', '/api/auth/bootstrap')
-      const parsed = JSON.parse(tokenJson)
+      // Create Schnorr signature to prove key ownership (key is local, not yet in worker)
+      const ts = Date.now()
+      const message = `${AUTH_PREFIX}${kp.publicKey}:${ts}:POST:/api/auth/bootstrap`
+      const messageHash = sha256(utf8ToBytes(message))
+      const signature = schnorr.sign(messageHash, kp.secretKey)
+      const token = bytesToHex(signature)
 
-      // Call bootstrap endpoint
-      await bootstrapAdmin(parsed.pubkey, parsed.timestamp, parsed.token)
+      // Call bootstrap endpoint — returns nsecSecret from IdP enrollment
+      const bootstrapResult = await bootstrapAdmin(kp.publicKey, ts, token)
+      setIdpNsecSecret(hexToBytes(bootstrapResult.nsecSecret))
 
       // Generate recovery key
       const rk = generateRecoveryKey()
@@ -163,8 +172,16 @@ export function AdminBootstrap({ onComplete }: AdminBootstrapProps) {
 
   async function handleComplete() {
     try {
-      // Import key via key manager (encrypts with PIN and loads into memory)
-      await keyManager.importKey(nsec, confirmedPin)
+      if (!idpNsecSecret) throw new Error('Missing IdP nsecSecret')
+      // Import key via key manager (encrypts with PIN and real IdP nsecSecret)
+      await keyManager.importKey(
+        nsec,
+        confirmedPin,
+        pubkey,
+        idpNsecSecret,
+        undefined,
+        window.location.origin
+      )
       // Mark bootstrap as complete BEFORE signIn triggers re-renders
       sessionStorage.setItem('bootstrapComplete', '1')
       await signIn(nsec)

@@ -4,6 +4,7 @@ import { sha256 } from '@noble/hashes/sha2.js'
 import { bytesToHex, hexToBytes, utf8ToBytes } from '@noble/hashes/utils.js'
 import { LABEL_HUB_KEY_WRAP } from '@shared/crypto-labels'
 import { Hono } from 'hono'
+import { getIdPAdapter } from '../app'
 import type { AppEnv } from '../types'
 
 function rand(n: number): Uint8Array {
@@ -68,6 +69,16 @@ dev.post('/test-reset', async (c) => {
       await services.identity.updateVolunteer(c.env.ADMIN_PUBKEY, { profileCompleted: true })
     } catch {
       // Admin may already exist
+    }
+    // Enroll admin in IdP (Authentik) so JWT auth + userinfo work in tests
+    const idp = getIdPAdapter()
+    if (idp) {
+      try {
+        const existing = await idp.getUser(c.env.ADMIN_PUBKEY)
+        if (!existing) await idp.createUser(c.env.ADMIN_PUBKEY)
+      } catch {
+        // IdP enrollment may fail or user may already exist
+      }
     }
     // Create default hub with hub key envelopes so pages requiring hub context work
     try {

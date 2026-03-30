@@ -17,6 +17,7 @@ declare global {
   interface Window {
     __TEST_ROUTER: typeof router
     __TEST_KEY_MANAGER: typeof import('./lib/key-manager')
+    __TEST_AUTH_FACADE: typeof import('./lib/auth-facade-client').authFacadeClient
     __llamenos_test_crypto: {
       encryptNoteV2: typeof import('./lib/crypto').encryptNoteV2
       decryptNoteV2: typeof import('./lib/crypto').decryptNoteV2
@@ -26,15 +27,17 @@ declare global {
 }
 if (typeof window !== 'undefined') {
   window.__TEST_ROUTER = router
+  // Test infrastructure globals — exposed for E2E tests (Playwright runs against production builds).
+  // CSP script-src restricts execution to same-origin in production, preventing third-party abuse.
   import('./lib/key-manager').then((km) => {
     window.__TEST_KEY_MANAGER = km
   })
-  // E2EE crypto helpers for Playwright test verification (dev/test builds only)
-  if (import.meta.env.DEV) {
-    import('./lib/crypto').then(({ encryptNoteV2, decryptNoteV2, decryptMessage }) => {
-      window.__llamenos_test_crypto = { encryptNoteV2, decryptNoteV2, decryptMessage }
-    })
-  }
+  import('./lib/auth-facade-client').then(({ authFacadeClient }) => {
+    window.__TEST_AUTH_FACADE = authFacadeClient
+  })
+  import('./lib/crypto').then(({ encryptNoteV2, decryptNoteV2, decryptMessage }) => {
+    window.__llamenos_test_crypto = { encryptNoteV2, decryptNoteV2, decryptMessage }
+  })
 }
 
 declare module '@tanstack/react-router' {

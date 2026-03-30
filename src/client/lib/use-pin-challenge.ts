@@ -8,6 +8,7 @@
  */
 
 import { useCallback, useRef, useState } from 'react'
+import { authFacadeClient } from './auth-facade-client'
 import * as keyManager from './key-manager'
 
 const MAX_ATTEMPTS = 3
@@ -51,31 +52,37 @@ export function usePinChallenge(): PinChallengeReturn {
     })
   }, [])
 
-  const handleComplete = useCallback(async (pin: string) => {
-    // Try to verify the PIN by attempting unlock
-    // If already unlocked, we need to verify against stored key
-    const result = await keyManager.unlock(pin)
+  const handleComplete = useCallback(
+    async (pin: string) => {
+      // Try to verify the PIN by attempting unlock
+      // If already unlocked, we need to verify against stored key
+      const result = await keyManager.unlock(pin)
 
-    if (result) {
-      // PIN correct
-      setState({ isOpen: false, attempts: 0, error: false })
-      resolveRef.current?.(true)
-      resolveRef.current = null
-    } else {
-      // Wrong PIN
-      setState((prev) => {
-        const newAttempts = prev.attempts + 1
-        if (newAttempts >= MAX_ATTEMPTS) {
-          // Max attempts exceeded — close dialog, wipe key
-          keyManager.wipeKey()
+      if (result) {
+        // PIN correct
+        setState({ isOpen: false, attempts: 0, error: false })
+        resolveRef.current?.(true)
+        resolveRef.current = null
+      } else {
+        // Wrong PIN — check attempts outside setState to allow async wipe
+        const currentAttempts = state.attempts + 1
+        if (currentAttempts >= MAX_ATTEMPTS) {
+          // Max attempts exceeded — wipe key + clear session, then close dialog.
+          // await ensures key is fully wiped and onLock callbacks fire
+          // before we resolve, so auth state updates before dialog closes.
+          // clearAccessToken ensures isAuthenticated becomes false immediately.
+          await keyManager.wipeKey()
+          authFacadeClient.clearAccessToken()
+          setState({ isOpen: false, attempts: 0, error: false })
           resolveRef.current?.(false)
           resolveRef.current = null
-          return { isOpen: false, attempts: 0, error: false }
+        } else {
+          setState((prev) => ({ ...prev, attempts: prev.attempts + 1, error: true }))
         }
-        return { ...prev, attempts: newAttempts, error: true }
-      })
-    }
-  }, [])
+      }
+    },
+    [state.attempts]
+  )
 
   const handleCancel = useCallback(() => {
     setState({ isOpen: false, attempts: 0, error: false })

@@ -2,6 +2,7 @@ import { utf8ToBytes } from '@noble/ciphers/utils.js'
 import { secp256k1 } from '@noble/curves/secp256k1.js'
 import { bytesToHex, hexToBytes } from '@noble/hashes/utils.js'
 import {
+  HMAC_IP_PREFIX,
   LABEL_HUB_KEY_WRAP,
   LABEL_SERVER_NOSTR_KEY,
   LABEL_SERVER_NOSTR_KEY_INFO,
@@ -133,4 +134,15 @@ export class CryptoService {
     }
     return eciesUnwrapKey(envelope, serverPrivateKey, LABEL_HUB_KEY_WRAP)
   }
+}
+
+/**
+ * Standalone helper: hash an IP address for rate limiting.
+ * Uses HMAC-SHA256 with the server HMAC secret to prevent precomputation attacks.
+ * Truncated to 24 hex chars for storage efficiency.
+ */
+export function hashIP(ip: string, secret: string): string {
+  const key = hexToBytes(secret)
+  const input = utf8ToBytes(`${HMAC_IP_PREFIX}${ip}`)
+  return bytesToHex(hmacSha256(key, input)).slice(0, 24)
 }

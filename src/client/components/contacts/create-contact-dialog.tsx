@@ -25,14 +25,32 @@ import {
   hashContactPhone,
 } from '@/lib/api'
 import { useAuth } from '@/lib/auth'
-import { ClientCryptoService } from '@/lib/crypto-service'
 import * as keyManager from '@/lib/key-manager'
 import { useToast } from '@/lib/toast'
+import { utf8ToBytes } from '@noble/ciphers/utils.js'
 import { LABEL_CONTACT_PII, LABEL_CONTACT_SUMMARY } from '@shared/crypto-labels'
-import type { HmacHash } from '@shared/crypto-types'
+import { eciesWrapKey, symmetricEncrypt } from '@shared/crypto-primitives'
+import type { Ciphertext, HmacHash } from '@shared/crypto-types'
+import type { RecipientEnvelope } from '@shared/types'
 import { AlertTriangle, Loader2, Lock } from 'lucide-react'
 import { useCallback, useState } from 'react'
 import { useTranslation } from 'react-i18next'
+
+/** Envelope-encrypt plaintext for multiple recipients (public-key only, no secret key needed). */
+function envelopeEncrypt(
+  plaintext: string,
+  recipientPubkeys: string[],
+  label: string
+): { encrypted: Ciphertext; envelopes: RecipientEnvelope[] } {
+  const messageKey = new Uint8Array(32)
+  crypto.getRandomValues(messageKey)
+  const encrypted = symmetricEncrypt(utf8ToBytes(plaintext), messageKey)
+  const envelopes: RecipientEnvelope[] = recipientPubkeys.map((pk) => ({
+    pubkey: pk,
+    ...eciesWrapKey(messageKey, pk, label),
+  }))
+  return { encrypted, envelopes }
+}
 
 interface Props {
   open: boolean
@@ -112,7 +130,8 @@ export function CreateContactDialog({ open, onOpenChange, onCreated }: Props) {
       return
     }
 
-    if (!keyManager.isUnlocked()) {
+    const unlocked = await keyManager.isUnlocked()
+    if (!unlocked) {
       setError(
         t('contacts.errorKeyLocked', 'Encryption key is locked. Please unlock your key first.')
       )
@@ -121,14 +140,11 @@ export function CreateContactDialog({ open, onOpenChange, onCreated }: Props) {
 
     setSubmitting(true)
     try {
-      const sk = keyManager.getSecretKey()
-      const pk = keyManager.getPublicKeyHex()
+      const pk = await keyManager.getPublicKeyHex()
       if (!pk) {
         setError(t('contacts.errorNoPubkey', 'Could not retrieve public key'))
         return
       }
-
-      const crypto = new ClientCryptoService(sk, pk)
 
       // Fetch authorized recipients from server — ensure current user is always included
       const { summaryPubkeys, piiPubkeys } = await getContactRecipients()
@@ -141,32 +157,31 @@ export function CreateContactDialog({ open, onOpenChange, onCreated }: Props) {
         .filter(Boolean)
 
       // Encrypt Tier 1: display name (required)
-      const { encrypted: encryptedDisplayName, envelopes: displayNameEnvelopes } =
-        crypto.envelopeEncrypt(form.displayName.trim(), summaryPubkeys, LABEL_CONTACT_SUMMARY)
+      const { encrypted: encryptedDisplayName, envelopes: displayNameEnvelopes } = envelopeEncrypt(
+        form.displayName.trim(),
+        summaryPubkeys,
+        LABEL_CONTACT_SUMMARY
+      )
 
       // Encrypt notes if present
       let encryptedNotes: string | undefined
-      let notesEnvelopes: ReturnType<typeof crypto.envelopeEncrypt>['envelopes'] | undefined
+      let notesEnvelopes: RecipientEnvelope[] | undefined
       if (form.notes.trim()) {
-        const result = crypto.envelopeEncrypt(
-          form.notes.trim(),
-          summaryPubkeys,
-          LABEL_CONTACT_SUMMARY
-        )
+        const result = envelopeEncrypt(form.notes.trim(), summaryPubkeys, LABEL_CONTACT_SUMMARY)
         encryptedNotes = result.encrypted
         notesEnvelopes = result.envelopes
       }
 
       // Encrypt Tier 2 fields if present
       let encryptedFullName: string | undefined
-      let fullNameEnvelopes: ReturnType<typeof crypto.envelopeEncrypt>['envelopes'] | undefined
+      let fullNameEnvelopes: RecipientEnvelope[] | undefined
       let encryptedPhone: string | undefined
-      let phoneEnvelopes: ReturnType<typeof crypto.envelopeEncrypt>['envelopes'] | undefined
+      let phoneEnvelopes: RecipientEnvelope[] | undefined
       let identifierHash: HmacHash | undefined
 
       if (canViewPii) {
         if (form.fullName.trim()) {
-          const result = crypto.envelopeEncrypt(form.fullName.trim(), piiPubkeys, LABEL_CONTACT_PII)
+          const result = envelopeEncrypt(form.fullName.trim(), piiPubkeys, LABEL_CONTACT_PII)
           encryptedFullName = result.encrypted
           fullNameEnvelopes = result.envelopes
         }
@@ -175,7 +190,7 @@ export function CreateContactDialog({ open, onOpenChange, onCreated }: Props) {
           // Get HMAC from server (client doesn't have the HMAC secret)
           const { identifierHash: hash } = await hashContactPhone(form.phone.trim())
           identifierHash = hash as HmacHash
-          const result = crypto.envelopeEncrypt(form.phone.trim(), piiPubkeys, LABEL_CONTACT_PII)
+          const result = envelopeEncrypt(form.phone.trim(), piiPubkeys, LABEL_CONTACT_PII)
           encryptedPhone = result.encrypted
           phoneEnvelopes = result.envelopes
         }

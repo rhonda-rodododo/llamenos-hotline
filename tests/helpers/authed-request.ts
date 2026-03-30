@@ -1,12 +1,12 @@
 /**
  * Headless authenticated request helper for API integration tests.
  *
- * Replaces the page.evaluate(apiCall) pattern by generating Schnorr auth
- * tokens directly in Node/Bun, without needing a browser context.
+ * Generates JWT auth tokens directly in Node/Bun, without needing a browser context.
  */
 import type { APIRequestContext, APIResponse } from '@playwright/test'
-import { getPublicKey, nip19 } from 'nostr-tools'
-import { createAuthToken } from '../../src/client/lib/crypto'
+import { getPublicKey } from 'nostr-tools'
+import { nip19 } from 'nostr-tools'
+import { signAccessToken } from '../../src/server/lib/jwt'
 
 interface RequestOpts {
   headers?: Record<string, string>
@@ -25,24 +25,23 @@ export interface AuthedRequest {
 /**
  * Create an authenticated request wrapper around Playwright's APIRequestContext.
  *
+ * Uses JWT tokens signed with the test JWT_SECRET for authentication.
+ *
  * @param request - Playwright's request fixture
  * @param secretKey - Nostr secret key as Uint8Array (32 bytes)
+ * @param permissions - Optional permissions array (defaults to ['admin'])
  * @returns AuthedRequest with methods that auto-sign each request
  */
 export function createAuthedRequest(
   request: APIRequestContext,
-  secretKey: Uint8Array
+  secretKey: Uint8Array,
+  permissions: string[] = ['*']
 ): AuthedRequest {
   const pubkey = getPublicKey(secretKey)
+  const jwtSecret = process.env.JWT_SECRET || 'test-jwt-secret'
 
-  function authHeaders(
-    method: string,
-    path: string,
-    extra?: Record<string, string>
-  ): Record<string, string> {
-    // Strip query params — server verifies against url.pathname only
-    const pathname = path.split('?')[0]
-    const token = createAuthToken(secretKey, Date.now(), method, pathname)
+  async function authHeaders(extra?: Record<string, string>): Promise<Record<string, string>> {
+    const token = await signAccessToken({ pubkey, permissions }, jwtSecret, { expiresIn: '15m' })
     return {
       Authorization: `Bearer ${token}`,
       'Content-Type': 'application/json',
@@ -52,30 +51,30 @@ export function createAuthedRequest(
 
   return {
     pubkey,
-    get(path, opts?) {
-      return request.get(path, { headers: authHeaders('GET', path, opts?.headers) })
+    async get(path, opts?) {
+      return request.get(path, { headers: await authHeaders(opts?.headers) })
     },
-    post(path, data?, opts?) {
+    async post(path, data?, opts?) {
       return request.post(path, {
-        headers: authHeaders('POST', path, opts?.headers),
+        headers: await authHeaders(opts?.headers),
         ...(data !== undefined ? { data } : {}),
       })
     },
-    put(path, data?, opts?) {
+    async put(path, data?, opts?) {
       return request.put(path, {
-        headers: authHeaders('PUT', path, opts?.headers),
+        headers: await authHeaders(opts?.headers),
         ...(data !== undefined ? { data } : {}),
       })
     },
-    patch(path, data?, opts?) {
+    async patch(path, data?, opts?) {
       return request.patch(path, {
-        headers: authHeaders('PATCH', path, opts?.headers),
+        headers: await authHeaders(opts?.headers),
         ...(data !== undefined ? { data } : {}),
       })
     },
-    delete(path, data?, opts?) {
+    async delete(path, data?, opts?) {
       return request.delete(path, {
-        headers: authHeaders('DELETE', path, opts?.headers),
+        headers: await authHeaders(opts?.headers),
         ...(data !== undefined ? { data } : {}),
       })
     },
@@ -88,9 +87,29 @@ export function createAuthedRequest(
  */
 export function createAuthedRequestFromNsec(
   request: APIRequestContext,
-  nsec: string
+  nsec: string,
+  permissions?: string[]
 ): AuthedRequest {
   const decoded = nip19.decode(nsec)
   if (decoded.type !== 'nsec') throw new Error(`Expected nsec, got ${decoded.type}`)
-  return createAuthedRequest(request, decoded.data)
+  return createAuthedRequest(request, decoded.data, permissions)
+}
+
+/**
+ * Enroll a pubkey in Authentik via POST /api/auth/enroll.
+ *
+ * The enroll endpoint is idempotent — calling it twice for the same pubkey is safe.
+ * Returns the hex-encoded nsecSecret assigned to the user in Authentik.
+ *
+ * @param adminApi - An AuthedRequest with `volunteers:create` or `*` permission
+ * @param pubkey - The hex pubkey of the user to enroll
+ * @returns The hex-encoded nsecSecret
+ */
+export async function enrollInAuthentik(adminApi: AuthedRequest, pubkey: string): Promise<string> {
+  const res = await adminApi.post('/api/auth/enroll', { pubkey })
+  if (!res.ok()) {
+    throw new Error(`Failed to enroll ${pubkey} in Authentik: ${res.status()} ${await res.text()}`)
+  }
+  const data = (await res.json()) as { nsecSecret: string }
+  return data.nsecSecret
 }

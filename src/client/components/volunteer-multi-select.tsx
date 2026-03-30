@@ -9,7 +9,7 @@ import {
 } from '@/components/ui/command'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import type { Volunteer } from '@/lib/api'
-import { tryDecryptField } from '@/lib/envelope-field-crypto'
+import { useDecryptedArray } from '@/lib/use-decrypted'
 import { cn } from '@/lib/utils'
 import { Check, ChevronsUpDown, X } from 'lucide-react'
 import { useState } from 'react'
@@ -32,8 +32,9 @@ export function VolunteerMultiSelect({
 }: VolunteerMultiSelectProps) {
   const { t } = useTranslation()
   const [open, setOpen] = useState(false)
+  const decryptedVolunteers = useDecryptedArray(volunteers)
 
-  const selectedVolunteers = volunteers.filter((v) => selected.includes(v.pubkey))
+  const selectedVolunteers = decryptedVolunteers.filter((v) => selected.includes(v.pubkey))
 
   function toggle(pubkey: string) {
     onSelectionChange(
@@ -62,17 +63,14 @@ export function VolunteerMultiSelect({
           {selectedVolunteers.length > 0 ? (
             selectedVolunteers.map((vol) => (
               <Badge key={vol.pubkey} variant="secondary" className="max-w-[150px] gap-0.5 pr-0.5">
-                <span
-                  className="truncate"
-                  title={tryDecryptField(vol.encryptedName, vol.nameEnvelopes, vol.name)}
-                >
-                  {tryDecryptField(vol.encryptedName, vol.nameEnvelopes, vol.name)}
+                <span className="truncate" title={vol.name}>
+                  {vol.name}
                 </span>
                 <span
                   role="button"
                   tabIndex={0}
                   aria-label={t('shifts.removeVolunteer', {
-                    name: tryDecryptField(vol.encryptedName, vol.nameEnvelopes, vol.name),
+                    name: vol.name,
                   })}
                   className="ml-0.5 rounded-full p-0.5 hover:bg-muted-foreground/20"
                   onClick={(e) => remove(vol.pubkey, e)}
@@ -98,10 +96,9 @@ export function VolunteerMultiSelect({
       <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
         <Command
           filter={(value, search) => {
-            const vol = volunteers.find((v) => v.pubkey === value)
+            const vol = decryptedVolunteers.find((v) => v.pubkey === value)
             if (!vol) return 0
-            const haystack =
-              `${tryDecryptField(vol.encryptedName, vol.nameEnvelopes, vol.name)} ${vol.phone} ${vol.pubkey}`.toLowerCase()
+            const haystack = `${vol.name} ${vol.phone} ${vol.pubkey}`.toLowerCase()
             return haystack.includes(search.toLowerCase()) ? 1 : 0
           }}
         >
@@ -109,7 +106,7 @@ export function VolunteerMultiSelect({
           <CommandList className="max-h-[200px]">
             <CommandEmpty>{t('shifts.noVolunteersFound')}</CommandEmpty>
             <CommandGroup>
-              {volunteers.map((vol) => (
+              {decryptedVolunteers.map((vol) => (
                 <CommandItem
                   key={vol.pubkey}
                   value={vol.pubkey}
@@ -121,9 +118,7 @@ export function VolunteerMultiSelect({
                       selected.includes(vol.pubkey) ? 'opacity-100' : 'opacity-0'
                     )}
                   />
-                  <span className="truncate">
-                    {tryDecryptField(vol.encryptedName, vol.nameEnvelopes, vol.name)}
-                  </span>
+                  <span className="truncate">{vol.name}</span>
                   <span className="ml-auto font-mono text-xs text-muted-foreground">
                     {vol.pubkey.slice(0, 8)}…
                   </span>

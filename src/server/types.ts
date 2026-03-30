@@ -91,6 +91,10 @@ export interface Env {
   HOTLINE_NAME: string
   ENVIRONMENT: string
   HMAC_SECRET: string
+  JWT_SECRET: string
+  AUTH_WEBAUTHN_RP_ID: string
+  AUTH_WEBAUTHN_RP_NAME: string
+  AUTH_WEBAUTHN_ORIGIN: string
   E2E_TEST_SECRET?: string
   DEV_RESET_SECRET?: string
 

@@ -2,7 +2,6 @@ import { MessageStatusIcon } from '@/components/MessageStatusIcon'
 import type { ConversationMessage } from '@/lib/api'
 import { useAuth } from '@/lib/auth'
 import { decryptMessage } from '@/lib/crypto'
-import * as keyManager from '@/lib/key-manager'
 import { ArrowDown, Loader2, Lock } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -26,29 +25,26 @@ export function ConversationThread({
 
   // Decrypt messages when they change
   useEffect(() => {
-    if (messages.length === 0 || !publicKey) return
+    if (messages.length === 0 || !publicKey || !hasNsec) return
+    ;(async () => {
+      const newDecrypted = new Map<string, string>()
 
-    const secretKey = resolveSecretKey()
-    if (!secretKey) return
-
-    const newDecrypted = new Map<string, string>()
-
-    for (const msg of messages) {
-      if (msg.encryptedContent && msg.readerEnvelopes?.length) {
-        const plaintext = decryptMessage(
-          msg.encryptedContent,
-          msg.readerEnvelopes,
-          secretKey,
-          publicKey
-        )
-        if (plaintext !== null) {
-          newDecrypted.set(msg.id, plaintext)
+      for (const msg of messages) {
+        if (msg.encryptedContent && msg.readerEnvelopes?.length) {
+          const plaintext = await decryptMessage(
+            msg.encryptedContent,
+            msg.readerEnvelopes,
+            publicKey
+          )
+          if (plaintext !== null) {
+            newDecrypted.set(msg.id, plaintext)
+          }
         }
       }
-    }
 
-    setDecryptedContent(newDecrypted)
-  }, [messages, publicKey])
+      setDecryptedContent(newDecrypted)
+    })()
+  }, [messages, publicKey, hasNsec])
 
   // Auto-scroll to bottom when new messages arrive
   // biome-ignore lint/correctness/useExhaustiveDependencies: messages is used as a trigger to run this effect when new messages arrive
@@ -69,17 +65,6 @@ export function ConversationThread({
     if (scrollRef.current) {
       scrollRef.current.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' })
     }
-  }
-
-  function resolveSecretKey(): Uint8Array | null {
-    if (keyManager.isUnlocked()) {
-      try {
-        return keyManager.getSecretKey()
-      } catch {
-        return null
-      }
-    }
-    return null
   }
 
   function formatTimestamp(iso: string): string {

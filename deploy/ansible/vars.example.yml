@@ -137,6 +137,37 @@ sip_password: ""   # SIP password / auth token
 # OPTIONAL: Signal bridge settings (only used if 'signal' profile enabled)
 signal_image: bbernhard/signal-cli-rest-api:0.92
 
+# ─── IdP Auth (Authentik) ───────────────────────────────────
+# REQUIRED: Secret key for Authentik (at least 50 chars, random)
+# Generate with: openssl rand -hex 32
+authentik_secret_key: "gggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggg"
+
+# REQUIRED: Bootstrap token — auto-created on first Authentik startup, used by the app as API token.
+# Generate with: openssl rand -hex 32
+authentik_bootstrap_token: ""
+
+# REQUIRED: 32-byte key for encrypting IdP attribute values at rest (base64-encoded)
+# Generate with: openssl rand -base64 32
+idp_value_encryption_key: ""
+
+# OPTIONAL: Key version for rotation support (increment when rotating idp_value_encryption_key)
+idp_value_key_version: 1
+
+# REQUIRED: Secret for signing JWTs (at least 32 chars)
+# Generate with: openssl rand -hex 32
+jwt_secret: "hhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhh"
+
+# OPTIONAL: WebAuthn Relying Party settings
+# auth_webauthn_rp_id: "hotline.example.org"         # defaults to domain
+# auth_webauthn_rp_name: "Llamenos"
+# auth_webauthn_origin: "https://hotline.example.org" # defaults to https://domain
+
+# OPTIONAL: Authentik Docker image (pin for reproducible deployments)
+# authentik_image: ghcr.io/goauthentik/server:2025.12
+
+# OPTIONAL: Port Authentik listens on (default: 9000, internal only — proxied via Caddy)
+# authentik_port: 9000
+
 # ─── Backup ─────────────────────────────────────────────────────
 # OPTIONAL: Enable automated backups
 backup_enabled: true

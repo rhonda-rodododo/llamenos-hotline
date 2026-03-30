@@ -1,6 +1,11 @@
 import { describe, expect, test } from 'bun:test'
 import type { BlastContent } from '@shared/types'
-import { decryptBlastContent, encryptBlastContent, encryptMessage, generateKeyPair } from './crypto'
+import {
+  decryptBlastContentWithKey,
+  encryptBlastContent,
+  encryptMessage,
+  generateKeyPair,
+} from './crypto'
 
 describe('blast content encryption', () => {
   const admin1 = generateKeyPair()
@@ -16,7 +21,7 @@ describe('blast content encryption', () => {
     ])
     expect(encryptedContent).toBeTruthy()
     expect(contentEnvelopes).toHaveLength(2)
-    const decrypted = decryptBlastContent(
+    const decrypted = decryptBlastContentWithKey(
       encryptedContent,
       contentEnvelopes,
       admin1.secretKey,
@@ -30,7 +35,7 @@ describe('blast content encryption', () => {
       admin1.publicKey,
       server.publicKey,
     ])
-    const decrypted = decryptBlastContent(
+    const decrypted = decryptBlastContentWithKey(
       encryptedContent,
       contentEnvelopes,
       server.secretKey,
@@ -47,10 +52,20 @@ describe('blast content encryption', () => {
     ])
     expect(contentEnvelopes).toHaveLength(3)
     expect(
-      decryptBlastContent(encryptedContent, contentEnvelopes, admin1.secretKey, admin1.publicKey)
+      decryptBlastContentWithKey(
+        encryptedContent,
+        contentEnvelopes,
+        admin1.secretKey,
+        admin1.publicKey
+      )
     ).toEqual(content)
     expect(
-      decryptBlastContent(encryptedContent, contentEnvelopes, admin2.secretKey, admin2.publicKey)
+      decryptBlastContentWithKey(
+        encryptedContent,
+        contentEnvelopes,
+        admin2.secretKey,
+        admin2.publicKey
+      )
     ).toEqual(content)
   })
 
@@ -61,7 +76,7 @@ describe('blast content encryption', () => {
     ])
     const wrongKey = generateKeyPair()
     expect(
-      decryptBlastContent(
+      decryptBlastContentWithKey(
         encryptedContent,
         contentEnvelopes,
         wrongKey.secretKey,
@@ -73,7 +88,7 @@ describe('blast content encryption', () => {
   test('domain separation: LABEL_BLAST_CONTENT vs LABEL_MESSAGE are incompatible', () => {
     const { encryptedContent, readerEnvelopes } = encryptMessage('hello', [admin1.publicKey])
     // readerEnvelopes has same shape as contentEnvelopes, try to decrypt as blast
-    const decrypted = decryptBlastContent(
+    const decrypted = decryptBlastContentWithKey(
       encryptedContent,
       readerEnvelopes,
       admin1.secretKey,
@@ -84,7 +99,9 @@ describe('blast content encryption', () => {
 
   test('empty content envelopes returns null', () => {
     const { encryptedContent } = encryptBlastContent(content, [admin1.publicKey])
-    expect(decryptBlastContent(encryptedContent, [], admin1.secretKey, admin1.publicKey)).toBeNull()
+    expect(
+      decryptBlastContentWithKey(encryptedContent, [], admin1.secretKey, admin1.publicKey)
+    ).toBeNull()
   })
 
   test('nonce uniqueness — same content produces different ciphertext', () => {

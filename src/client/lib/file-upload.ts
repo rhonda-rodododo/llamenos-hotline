@@ -82,8 +82,7 @@ export interface DownloadedFile {
  */
 export async function downloadAndDecryptFile(
   fileId: string,
-  callerPubkey: string,
-  secretKey: Uint8Array
+  callerPubkey: string
 ): Promise<DownloadedFile> {
   // Fetch key envelopes and find the one for this caller
   const envelopes = await getFileEnvelopes(fileId)
@@ -98,7 +97,7 @@ export async function downloadAndDecryptFile(
   if (!myMeta) {
     throw new Error('No metadata envelope found for caller')
   }
-  const metadata = decryptFileMetadata(myMeta.encryptedContent, myMeta.ephemeralPubkey, secretKey)
+  const metadata = await decryptFileMetadata(myMeta.encryptedContent, myMeta.ephemeralPubkey)
   if (!metadata) {
     throw new Error('Failed to decrypt file metadata')
   }
@@ -107,7 +106,7 @@ export async function downloadAndDecryptFile(
   const encryptedContent = await downloadFile(fileId)
 
   // Decrypt using the unwrapped file key (decryptFile extracts the key internally from the envelope)
-  const { blob } = await decryptFile(encryptedContent, myEnvelope, secretKey)
+  const { blob } = await decryptFile(encryptedContent, myEnvelope)
 
   // Verify checksum
   const hashBuffer = await crypto.subtle.digest('SHA-256', await blob.arrayBuffer())

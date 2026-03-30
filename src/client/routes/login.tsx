@@ -22,7 +22,7 @@ import {
 import { useConfig } from '@/lib/config'
 import { isValidNsec } from '@/lib/crypto'
 import * as keyManager from '@/lib/key-manager'
-import { hasStoredKey } from '@/lib/key-store'
+import { hasStoredKey } from '@/lib/key-manager'
 import { useTheme } from '@/lib/theme'
 import { isWebAuthnAvailable } from '@/lib/webauthn'
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
@@ -101,8 +101,9 @@ function LoginPage() {
     }
   }
 
-  function handlePinWipe() {
-    keyManager.wipeKey()
+  async function handlePinWipe() {
+    await keyManager.wipeKey()
+    sessionStorage.removeItem('returnTo')
     setValidationError(
       t('lock.keyWiped', {
         defaultValue: 'Key wiped after too many failed attempts. Please restore from backup.',
@@ -209,7 +210,20 @@ function LoginPage() {
       }
       // Import the recovered key with the new PIN
       try {
-        await keyManager.importKey(recoveredNsec, pin)
+        const kpModule = await import('@/lib/crypto')
+        const kp = kpModule.keyPairFromNsec(recoveredNsec)
+        const recoveredPubkey = kp?.publicKey ?? ''
+        // Recovery flow: user already exists in IdP, but we don't have a JWT yet.
+        // Use synthetic value — auto-rotation to real IdP value happens on first unlock.
+        const { syntheticIdpValue } = await import('@/lib/key-store-v2')
+        await keyManager.importKey(
+          recoveredNsec,
+          pin,
+          recoveredPubkey,
+          syntheticIdpValue('device-link'),
+          undefined,
+          'device-link'
+        )
         await signIn(recoveredNsec)
         navigate({ to: '/' })
       } catch {

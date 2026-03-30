@@ -19,16 +19,12 @@ test.describe('File Custom Field', () => {
     // Inject authed fetch helper for direct API calls
     await page.evaluate(() => {
       window.__authedFetch = async (url: string, options: RequestInit = {}) => {
-        // biome-ignore lint/suspicious/noExplicitAny: test helper
-        const km = (window as any).__TEST_KEY_MANAGER
         const headers: Record<string, string> = {
           'Content-Type': 'application/json',
           ...((options.headers as Record<string, string>) || {}),
         }
-        if (km?.isUnlocked()) {
-          const reqMethod = (options.method || 'GET').toUpperCase()
-          const reqPath = new URL(url, location.origin).pathname
-          const token = km.createAuthToken(Date.now(), reqMethod, reqPath)
+        const token = sessionStorage.getItem('__TEST_JWT')
+        if (token) {
           headers.Authorization = `Bearer ${token}`
         }
         return fetch(url, { ...options, headers })
@@ -144,12 +140,10 @@ test.describe('File Custom Field', () => {
         const uploadId = initData.uploadId as string
 
         // Upload chunk
-        // biome-ignore lint/suspicious/noExplicitAny: test helper
-        const km = (window as any).__TEST_KEY_MANAGER
         const headers: Record<string, string> = { 'Content-Type': 'application/octet-stream' }
-        if (km?.isUnlocked()) {
-          const token = km.createAuthToken(Date.now(), 'PUT', `/api/uploads/${uploadId}/chunks/0`)
-          headers.Authorization = `Bearer ${token}`
+        const chunkToken = sessionStorage.getItem('__TEST_JWT')
+        if (chunkToken) {
+          headers.Authorization = `Bearer ${chunkToken}`
         }
         await fetch(`/api/uploads/${uploadId}/chunks/0`, {
           method: 'PUT',

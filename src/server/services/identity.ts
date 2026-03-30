@@ -5,8 +5,8 @@ import type { MessagingChannelType } from '../../shared/types'
 import type { Database } from '../db'
 import {
   inviteCodes,
+  jwtRevocations,
   provisionRooms,
-  serverSessions,
   volunteers,
   webauthnChallenges,
   webauthnCredentials,
@@ -18,7 +18,6 @@ import type {
   AddWebAuthnCredentialData,
   CreateInviteData,
   CreateProvisionRoomData,
-  CreateSessionData,
   CreateVolunteerData,
   CreateWebAuthnChallengeData,
   ProvisionRoomStatus,
@@ -28,13 +27,7 @@ import type {
   UpdateVolunteerData,
   UpdateWebAuthnCounterData,
 } from '../types'
-import type {
-  InviteCode,
-  ServerSession,
-  Volunteer,
-  WebAuthnCredential,
-  WebAuthnSettings,
-} from '../types'
+import type { InviteCode, Volunteer, WebAuthnCredential, WebAuthnSettings } from '../types'
 
 /** Check if a string is a valid 64-char hex secp256k1 x-only pubkey */
 const isValidPubkey = (pk: string) => /^[0-9a-f]{64}$/i.test(pk)
@@ -562,82 +555,6 @@ export class IdentityService {
     return updated
   }
 
-  // ------------------------------------------------------------------ Sessions
-
-  async createSession(data: CreateSessionData): Promise<ServerSession> {
-    const tokenBytes = new Uint8Array(32)
-    crypto.getRandomValues(tokenBytes)
-    const token = Array.from(tokenBytes)
-      .map((b) => b.toString(16).padStart(2, '0'))
-      .join('')
-
-    const expiresAt = new Date(Date.now() + 8 * 60 * 60 * 1000)
-    const [row] = await this.db
-      .insert(serverSessions)
-      .values({ token, pubkey: data.pubkey, expiresAt })
-      .returning()
-
-    return {
-      token: row.token,
-      pubkey: row.pubkey,
-      createdAt: row.createdAt.toISOString(),
-      expiresAt: row.expiresAt.toISOString(),
-    }
-  }
-
-  async validateSession(token: string): Promise<ServerSession> {
-    const rows = await this.db
-      .select()
-      .from(serverSessions)
-      .where(eq(serverSessions.token, token))
-      .limit(1)
-    const row = rows[0]
-    if (!row) throw new AppError(401, 'Invalid session')
-    if (row.expiresAt < new Date()) {
-      await this.db.delete(serverSessions).where(eq(serverSessions.token, token))
-      throw new AppError(401, 'Session expired')
-    }
-
-    // Sliding expiry: extend if less than 7h remain (renew threshold = 1h used of 8h)
-    const SESSION_DURATION_MS = 8 * 60 * 60 * 1000
-    const RENEWAL_THRESHOLD_MS = SESSION_DURATION_MS - 1 * 60 * 60 * 1000
-    const remaining = row.expiresAt.getTime() - Date.now()
-    if (remaining < RENEWAL_THRESHOLD_MS) {
-      const newExpiry = new Date(Date.now() + SESSION_DURATION_MS)
-      await this.db
-        .update(serverSessions)
-        .set({ expiresAt: newExpiry })
-        .where(eq(serverSessions.token, token))
-      return {
-        token: row.token,
-        pubkey: row.pubkey,
-        createdAt: row.createdAt.toISOString(),
-        expiresAt: newExpiry.toISOString(),
-      }
-    }
-
-    return {
-      token: row.token,
-      pubkey: row.pubkey,
-      createdAt: row.createdAt.toISOString(),
-      expiresAt: row.expiresAt.toISOString(),
-    }
-  }
-
-  async revokeSession(token: string): Promise<void> {
-    await this.db.delete(serverSessions).where(eq(serverSessions.token, token))
-  }
-
-  async revokeAllSessions(pubkey: string): Promise<number> {
-    const rows = await this.db
-      .select({ token: serverSessions.token })
-      .from(serverSessions)
-      .where(eq(serverSessions.pubkey, pubkey))
-    if (rows.length === 0) return 0
-    await this.db.delete(serverSessions).where(eq(serverSessions.pubkey, pubkey))
-    return rows.length
-  }
-
   // ------------------------------------------------------------------ Provision Rooms
 
   async createProvisionRoom(
@@ -736,7 +653,7 @@ export class IdentityService {
   // ------------------------------------------------------------------ Test Reset
 
   async resetForTest(): Promise<void> {
-    await this.db.delete(serverSessions)
+    await this.db.delete(jwtRevocations)
     await this.db.delete(webauthnCredentials)
     await this.db.delete(webauthnChallenges)
     await this.db.delete(provisionRooms)

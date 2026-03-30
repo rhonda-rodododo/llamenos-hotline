@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test'
-import { nip19 } from 'nostr-tools'
-import { createAuthToken } from '../../src/client/lib/crypto'
+import { getPublicKey, nip19 } from 'nostr-tools'
+import { signAccessToken } from '../../src/server/lib/jwt'
 import { ADMIN_NSEC } from '../helpers'
 import { createAuthedRequestFromNsec } from '../helpers/authed-request'
 import type { AuthedRequest } from '../helpers/authed-request'
@@ -18,7 +18,9 @@ async function putChunk(
 ) {
   const decoded = nip19.decode(nsec)
   if (decoded.type !== 'nsec') throw new Error('Expected nsec')
-  const token = createAuthToken(decoded.data, Date.now(), 'PUT', path)
+  const pubkey = getPublicKey(decoded.data)
+  const jwtSecret = process.env.JWT_SECRET || 'test-jwt-secret'
+  const token = await signAccessToken({ pubkey, permissions: ['admin'] }, jwtSecret)
   return request.put(path, {
     headers: {
       Authorization: `Bearer ${token}`,

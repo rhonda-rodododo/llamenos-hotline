@@ -7,9 +7,9 @@ import { VoicemailPlayer } from '@/components/voicemail-player'
 import { type CallRecord, type Volunteer, getCallHistory, listVolunteers } from '@/lib/api'
 import { useAuth } from '@/lib/auth'
 import { decryptCallRecord } from '@/lib/crypto'
-import { tryDecryptField } from '@/lib/envelope-field-crypto'
 import * as keyManager from '@/lib/key-manager'
 import { useToast } from '@/lib/toast'
+import { useDecryptedArray } from '@/lib/use-decrypted'
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
 import { Link } from '@tanstack/react-router'
 import {
@@ -88,26 +88,31 @@ function CallHistoryPage() {
   // Decrypt encrypted call records client-side (Epic 77)
   useEffect(() => {
     if (!hasNsec || !publicKey || calls.length === 0) return
-    const secretKey = keyManager.isUnlocked() ? keyManager.getSecretKey() : null
-    if (!secretKey) return
+    void (async () => {
+      const unlocked = await keyManager.isUnlocked()
+      if (!unlocked) return
 
-    let changed = false
-    const decrypted = calls.map((call) => {
-      if (call.answeredBy !== undefined) return call // already decrypted
-      if (!call.encryptedContent || !call.adminEnvelopes?.length) return call
-      const meta = decryptCallRecord(
-        call.encryptedContent,
-        call.adminEnvelopes,
-        secretKey,
-        publicKey
-      )
-      if (meta) {
-        changed = true
-        return { ...call, answeredBy: meta.answeredBy, callerNumber: meta.callerNumber }
+      let changed = false
+      const decrypted: CallRecord[] = []
+      for (const call of calls) {
+        if (call.answeredBy !== undefined) {
+          decrypted.push(call)
+          continue
+        }
+        if (!call.encryptedContent || !call.adminEnvelopes?.length) {
+          decrypted.push(call)
+          continue
+        }
+        const meta = await decryptCallRecord(call.encryptedContent, call.adminEnvelopes, publicKey)
+        if (meta) {
+          changed = true
+          decrypted.push({ ...call, answeredBy: meta.answeredBy, callerNumber: meta.callerNumber })
+        } else {
+          decrypted.push(call)
+        }
       }
-      return call
-    })
-    if (changed) setCalls(decrypted)
+      if (changed) setCalls(decrypted)
+    })()
   }, [calls, hasNsec, publicKey])
 
   useEffect(() => {
@@ -116,12 +121,14 @@ function CallHistoryPage() {
       .catch(() => {})
   }, [])
 
+  const decryptedVolunteers = useDecryptedArray(volunteers)
+  const decryptedCalls = useDecryptedArray(calls)
+
   const nameMap = useMemo(() => {
     const map = new Map<string, string>()
-    for (const v of volunteers)
-      map.set(v.pubkey, tryDecryptField(v.encryptedName, v.nameEnvelopes, v.name))
+    for (const v of decryptedVolunteers) map.set(v.pubkey, v.name)
     return map
-  }, [volunteers])
+  }, [decryptedVolunteers])
 
   function handleSearch(e: React.FormEvent) {
     e.preventDefault()
@@ -263,14 +270,14 @@ function CallHistoryPage() {
                 </div>
               ))}
             </div>
-          ) : calls.length === 0 ? (
+          ) : decryptedCalls.length === 0 ? (
             <div className="py-8 text-center text-muted-foreground">
               <PhoneIncoming className="mx-auto mb-2 h-8 w-8 opacity-40" />
               {hasFilters ? t('callHistory.noResults') : t('callHistory.noCalls')}
             </div>
           ) : (
             <div className="divide-y divide-border">
-              {calls.map((call) => (
+              {decryptedCalls.map((call) => (
                 <div
                   key={call.id}
                   className="flex flex-wrap items-center gap-3 px-4 py-3 sm:px-6 hover:bg-muted/30 transition-colors"
@@ -301,11 +308,7 @@ function CallHistoryPage() {
                       </div>
                     )}
                     {(() => {
-                      const cl4 = tryDecryptField(
-                        call.encryptedCallerLast4,
-                        call.callerLast4Envelopes,
-                        call.callerLast4 ?? ''
-                      )
+                      const cl4 = call.callerLast4 ?? ''
                       return cl4 && cl4 !== '[encrypted]' ? (
                         <code className="text-[10px] text-muted-foreground font-mono">
                           ***{cl4}

@@ -4,13 +4,15 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { redeemInvite, validateInvite } from '@/lib/api'
 import { useAuth } from '@/lib/auth'
+import { authFacadeClient } from '@/lib/auth-facade-client'
 import { createBackup, downloadBackupFile, generateRecoveryKey } from '@/lib/backup'
 import { useConfig } from '@/lib/config'
-import { generateKeyPair } from '@/lib/crypto'
+import { generateKeyPair, keyPairFromNsec } from '@/lib/crypto'
 import { setLanguage } from '@/lib/i18n'
 import * as keyManager from '@/lib/key-manager'
-import { isValidPin } from '@/lib/key-store'
+import { isValidPin } from '@/lib/key-manager'
 import { useToast } from '@/lib/toast'
+import { bytesToHex, hexToBytes } from '@noble/hashes/utils.js'
 import { LANGUAGES } from '@shared/languages'
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
 import {
@@ -58,6 +60,10 @@ function OnboardingPage() {
   // Keypair state (nsec never displayed to user)
   const [nsec, setNsec] = useState('')
   const [pubkey, setPubkey] = useState('')
+  const [idpNsecSecret, setIdpNsecSecret] = useState<Uint8Array | null>(null)
+
+  // Access token from invite redemption (needed before signIn)
+  const [redeemAccessToken, setRedeemAccessToken] = useState('')
 
   // Recovery key & backup
   const [recoveryKeyStr, setRecoveryKeyStr] = useState('')
@@ -151,8 +157,14 @@ function OnboardingPage() {
       setPubkey(kp.publicKey)
       setConfirmedPin(pin)
 
-      // Redeem invite on server (with Schnorr signature proving key ownership)
-      await redeemInvite(inviteCode, kp.publicKey, kp.secretKey)
+      // Redeem invite on server — also enrolls in IdP and returns nsecSecret + accessToken
+      const redeemResult = await redeemInvite(inviteCode, kp.publicKey)
+      if (redeemResult.nsecSecret) {
+        setIdpNsecSecret(hexToBytes(redeemResult.nsecSecret))
+      }
+      if (redeemResult.accessToken) {
+        setRedeemAccessToken(redeemResult.accessToken)
+      }
 
       // Generate recovery key (shown to user instead of nsec)
       const rk = generateRecoveryKey()
@@ -174,8 +186,21 @@ function OnboardingPage() {
 
   async function handleComplete() {
     try {
-      // Import key via key manager (encrypts with PIN and loads into memory)
-      await keyManager.importKey(nsec, confirmedPin)
+      // Decode bech32 nsec to hex for importKey
+      const kp = keyPairFromNsec(nsec)
+      if (!kp) throw new Error('Invalid nsec')
+      const nsecHex = bytesToHex(kp.secretKey)
+
+      // Import key via key manager (encrypts with PIN and real IdP nsecSecret)
+      // Falls back to synthetic device-link value if IdP enrollment failed during redeem
+      const { syntheticIdpValue } = await import('@/lib/key-store-v2')
+      const idpValue = idpNsecSecret ?? syntheticIdpValue('device-link')
+      const issuer = idpNsecSecret ? window.location.origin : 'device-link'
+      await keyManager.importKey(nsecHex, confirmedPin, pubkey, idpValue, undefined, issuer)
+      // Set the JWT from invite redemption so signIn's getMe() call succeeds
+      if (redeemAccessToken) {
+        authFacadeClient.setAccessToken(redeemAccessToken)
+      }
       await signIn(nsec)
       navigate({ to: '/profile-setup' })
     } catch {

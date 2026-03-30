@@ -174,13 +174,10 @@ test.describe('GDPR Compliance', () => {
     test('GET /api/settings/retention returns retention config', async ({ page, request }) => {
       await loginAsAdmin(page)
 
-      // Use the page's session to make an authenticated API request
-      const cookies = await page.context().cookies()
-      const sessionToken = await page.evaluate(() =>
-        sessionStorage.getItem('llamenos-session-token')
-      )
+      // Use the page's JWT token to make an authenticated API request
+      const accessToken = await page.evaluate(() => sessionStorage.getItem('__TEST_JWT'))
       const headers: Record<string, string> = {}
-      if (sessionToken) headers.Authorization = `Session ${sessionToken}`
+      if (accessToken) headers.Authorization = `Bearer ${accessToken}`
 
       const res = await request.get('/api/settings/retention', { headers })
       // Even if we can't authenticate via playwright request, just check it's not 404

@@ -20,6 +20,7 @@ import { bytesToHex } from '@noble/hashes/utils.js'
 import { expect, test } from '@playwright/test'
 import type { Page } from '@playwright/test'
 import { getPublicKey, nip19 } from 'nostr-tools'
+import { navigateAfterLogin, loginAsAdmin as sharedLoginAsAdmin } from '../helpers'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -79,7 +80,7 @@ async function preloadEncryptedKey(page: Page, nsec: string, pin: string): Promi
   }
 
   await page.evaluate(({ key, value }) => localStorage.setItem(key, value), {
-    key: 'llamenos-encrypted-key',
+    key: 'llamenos-encrypted-key-v2',
     value: JSON.stringify(data),
   })
 }
@@ -101,14 +102,7 @@ async function enterPin(page: Page, pin: string): Promise<void> {
  * Login as admin.
  */
 async function loginAsAdmin(page: Page): Promise<void> {
-  await page.goto('/login')
-  await page.evaluate(() => sessionStorage.clear())
-  await preloadEncryptedKey(page, ADMIN_NSEC, TEST_PIN)
-  await page.reload()
-  await enterPin(page, TEST_PIN)
-  await expect(page.getByRole('heading', { name: 'Dashboard', exact: true })).toBeVisible({
-    timeout: 30000,
-  })
+  await sharedLoginAsAdmin(page)
 }
 
 /**
@@ -293,7 +287,7 @@ test.describe('Screenshot Capture', () => {
     // Clear session to show login
     await page.evaluate(() => {
       sessionStorage.clear()
-      localStorage.removeItem('llamenos-encrypted-key')
+      localStorage.removeItem('llamenos-encrypted-key-v2')
     })
     await page.goto('/login')
     await page.waitForTimeout(500)

@@ -1,7 +1,7 @@
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import type { ContactRelationshipRecord } from '@/lib/api'
-import { tryDecryptField } from '@/lib/envelope-field-crypto'
+import { useDecryptedArray } from '@/lib/use-decrypted'
 import { LABEL_CONTACT_RELATIONSHIP } from '@shared/crypto-labels'
 import type { RelationshipPayload } from '@shared/types'
 import { AlertTriangle, Users } from 'lucide-react'
@@ -38,14 +38,13 @@ export function ContactRelationshipSection({
 }: ContactRelationshipSectionProps) {
   const { t } = useTranslation()
 
+  // Decrypt-on-fetch: useDecryptedArray decrypts encryptedPayload -> payload field
+  const decryptedRelationships = useDecryptedArray(relationships, LABEL_CONTACT_RELATIONSHIP)
+
   const resolved = useMemo<ResolvedRelationship[]>(() => {
-    return relationships.flatMap((rel) => {
-      const raw = tryDecryptField(
-        rel.encryptedPayload,
-        rel.payloadEnvelopes,
-        '',
-        LABEL_CONTACT_RELATIONSHIP
-      )
+    return decryptedRelationships.flatMap((rel) => {
+      // After decryption, the payload field contains the decrypted plaintext string
+      const raw = (rel as ContactRelationshipRecord & { payload?: string }).payload
       if (!raw) return []
       const payload = parseRelationshipPayload(raw)
       if (!payload) return []
@@ -63,7 +62,7 @@ export function ContactRelationshipSection({
         } satisfies ResolvedRelationship,
       ]
     })
-  }, [relationships, contactId])
+  }, [decryptedRelationships, contactId])
 
   const forward = resolved.filter((r) => r.direction === 'forward')
   const reverse = resolved.filter((r) => r.direction === 'reverse')

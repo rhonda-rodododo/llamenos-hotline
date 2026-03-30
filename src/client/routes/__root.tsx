@@ -12,6 +12,7 @@ import { PanicWipeIndicator } from '@/components/panic-wipe-indicator'
 import { PwaInstallBanner } from '@/components/pwa-install-banner'
 import { useAuth } from '@/lib/auth'
 import { useConfig, useHasMessaging } from '@/lib/config'
+import { cryptoWorker } from '@/lib/crypto-worker-client'
 import { useCalls, useShiftStatus } from '@/lib/hooks'
 import { getHubKeyForId } from '@/lib/hub-key-cache'
 import * as keyManager from '@/lib/key-manager'
@@ -197,13 +198,13 @@ const DAY_NAMES = [
 function NostrWrappedLayout() {
   const { serverNostrPubkey, nostrRelayUrl } = useConfig()
 
-  // Callbacks for NostrProvider — get secret key and hub key from key manager
-  const getSecretKey = useCallback((): Uint8Array | null => {
-    try {
-      return keyManager.isUnlocked() ? keyManager.getSecretKey() : null
-    } catch {
-      return null
-    }
+  // Callbacks for NostrProvider — delegate all key operations to the crypto worker
+  const getPubkey = useCallback((): Promise<string | null> => {
+    return cryptoWorker.getPublicKey()
+  }, [])
+
+  const signEvent = useCallback((messageHex: string): Promise<string> => {
+    return cryptoWorker.sign(messageHex)
   }, [])
 
   // Hub key cache is populated by auth.tsx after login/unlock.
@@ -218,7 +219,8 @@ function NostrWrappedLayout() {
       relayUrl={nostrRelayUrl}
       serverPubkey={serverNostrPubkey}
       isAuthenticated={true}
-      getSecretKey={getSecretKey}
+      getPubkey={getPubkey}
+      signEvent={signEvent}
       getHubKey={getHubKey}
     >
       <AuthenticatedLayout />

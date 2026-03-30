@@ -15,7 +15,7 @@ import {
   listContacts,
 } from '@/lib/api'
 import { useAuth } from '@/lib/auth'
-import { tryDecryptField } from '@/lib/envelope-field-crypto'
+import { useDecryptedArray, useDecryptedObject } from '@/lib/use-decrypted'
 import { LABEL_CONTACT_PII, LABEL_CONTACT_SUMMARY } from '@shared/crypto-labels'
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
 import { ArrowLeft, BookUser, Lock } from 'lucide-react'
@@ -74,57 +74,31 @@ function ContactProfilePage() {
       .finally(() => setLoading(false))
   }, [contactId, t])
 
-  const displayName = useMemo(() => {
-    if (!contact) return ''
-    return tryDecryptField(
-      contact.encryptedDisplayName,
-      contact.displayNameEnvelopes,
-      '[encrypted]',
-      LABEL_CONTACT_SUMMARY
-    )
-  }, [contact])
+  // Decrypt contact summary-tier and PII-tier fields via Web Worker
+  const decSummary = useDecryptedObject(contact, LABEL_CONTACT_SUMMARY)
+  const decPii = useDecryptedObject(contact, LABEL_CONTACT_PII)
+  const decAllContacts = useDecryptedArray(allContacts, LABEL_CONTACT_SUMMARY)
 
-  const decryptedNotes = useMemo(() => {
-    if (!contact) return null
-    return (
-      tryDecryptField(contact.encryptedNotes, contact.notesEnvelopes, '', LABEL_CONTACT_SUMMARY) ||
-      null
-    )
-  }, [contact])
-
-  const decryptedFullName = useMemo(() => {
-    if (!contact || !canReadPii) return null
-    return (
-      tryDecryptField(
-        contact.encryptedFullName,
-        contact.fullNameEnvelopes,
-        '',
-        LABEL_CONTACT_PII
-      ) || null
-    )
-  }, [contact, canReadPii])
-
-  const decryptedPhone = useMemo(() => {
-    if (!contact || !canReadPii) return null
-    return (
-      tryDecryptField(contact.encryptedPhone, contact.phoneEnvelopes, '', LABEL_CONTACT_PII) || null
-    )
-  }, [contact, canReadPii])
+  const displayName =
+    ((decSummary as Record<string, unknown> | null)?.displayName as string) ?? '[encrypted]'
+  const decryptedNotes = ((decSummary as Record<string, unknown> | null)?.notes as string) || null
+  const decryptedFullName = canReadPii
+    ? ((decPii as Record<string, unknown> | null)?.fullName as string) || null
+    : null
+  const decryptedPhone = canReadPii
+    ? ((decPii as Record<string, unknown> | null)?.phone as string) || null
+    : null
 
   // Build a map of contactId → display name for relationships
   const contactNames = useMemo(() => {
     const map = new Map<string, string>()
-    for (const c of allContacts) {
-      const name = tryDecryptField(
-        c.encryptedDisplayName,
-        c.displayNameEnvelopes,
-        '[encrypted]',
-        LABEL_CONTACT_SUMMARY
-      )
+    for (const c of decAllContacts) {
+      const name =
+        ((c as unknown as Record<string, unknown>).displayName as string) ?? '[encrypted]'
       map.set(c.id, name)
     }
     return map
-  }, [allContacts])
+  }, [decAllContacts])
 
   function getContactTypeLabel(type: string): string {
     if (type === 'partner-org') return t('contacts.partnerOrg')

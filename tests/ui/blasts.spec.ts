@@ -59,15 +59,12 @@ test.describe('Blasts — UI', () => {
     // Inject authed fetch helper that uses keyManager for auth headers
     await page.evaluate(() => {
       ;(window as any).__authedFetch = async (url: string, options: RequestInit = {}) => {
-        const km = (window as any).__TEST_KEY_MANAGER
         const headers: Record<string, string> = {
           'Content-Type': 'application/json',
           ...((options.headers as Record<string, string>) || {}),
         }
-        if (km?.isUnlocked()) {
-          const reqMethod = (options.method || 'GET').toUpperCase()
-          const reqPath = new URL(url, location.origin).pathname
-          const token = km.createAuthToken(Date.now(), reqMethod, reqPath)
+        const token = sessionStorage.getItem('__TEST_JWT')
+        if (token) {
           headers.Authorization = `Bearer ${token}`
         }
         return fetch(url, { ...options, headers })

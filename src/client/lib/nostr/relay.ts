@@ -11,7 +11,7 @@
 
 import type { Ciphertext } from '@shared/crypto-types'
 import type { Event as NostrEvent } from 'nostr-tools/core'
-import { finalizeEvent, verifyEvent } from 'nostr-tools/pure'
+import { getEventHash, verifyEvent } from 'nostr-tools/pure'
 import { decryptFromHub } from '../hub-key-manager'
 import { EventDeduplicator, parseLlamenosContent, validateLlamenosEvent } from './events'
 import type { LlamenosEvent, NostrEventHandler, RelayState } from './types'
@@ -19,7 +19,10 @@ import type { LlamenosEvent, NostrEventHandler, RelayState } from './types'
 export interface RelayManagerOptions {
   relayUrl: string
   serverPubkey: string
-  getSecretKey: () => Uint8Array | null
+  /** Returns the user's Nostr x-only pubkey hex, or null if the worker is locked */
+  getPubkey: () => Promise<string | null>
+  /** Signs a message hash (hex) via the crypto worker. Returns signature hex. */
+  signEvent: (messageHex: string) => Promise<string>
   getHubKey: (hubId: string) => Uint8Array | null
   onStateChange?: (state: RelayState) => void
 }
@@ -40,7 +43,8 @@ export class RelayManager {
   private state: RelayState = 'disconnected'
   private serverPubkey: string
   private relayUrl: string
-  private getSecretKey: () => Uint8Array | null
+  private getPubkey: () => Promise<string | null>
+  private signEvent: (messageHex: string) => Promise<string>
   private getHubKey: (hubId: string) => Uint8Array | null
   private onStateChange?: (state: RelayState) => void
   private subscriptions = new Map<string, Subscription>()
@@ -54,7 +58,8 @@ export class RelayManager {
   constructor(options: RelayManagerOptions) {
     this.relayUrl = options.relayUrl
     this.serverPubkey = options.serverPubkey
-    this.getSecretKey = options.getSecretKey
+    this.getPubkey = options.getPubkey
+    this.signEvent = options.signEvent
     this.getHubKey = options.getHubKey
     this.onStateChange = options.onStateChange
   }
@@ -240,26 +245,34 @@ export class RelayManager {
     }, 2000)
   }
 
-  private handleAuth(challenge: string): void {
+  private async handleAuth(challenge: string): Promise<void> {
     this.setState('authenticating')
-    const sk = this.getSecretKey()
-    if (!sk) {
-      console.error('[nostr] Cannot authenticate: key manager locked')
+    const pubkey = await this.getPubkey()
+    if (!pubkey) {
+      console.error('[nostr] Cannot authenticate: key worker locked')
       return
     }
 
-    const authEvent = finalizeEvent(
-      {
-        kind: 22242,
-        created_at: Math.floor(Date.now() / 1000),
-        tags: [
-          ['relay', this.relayUrl],
-          ['challenge', challenge],
-        ],
-        content: '',
-      },
-      sk
-    )
+    const template = {
+      kind: 22242,
+      created_at: Math.floor(Date.now() / 1000),
+      tags: [
+        ['relay', this.relayUrl],
+        ['challenge', challenge],
+      ] as string[][],
+      content: '',
+      pubkey,
+    }
+
+    let authEvent: NostrEvent
+    try {
+      const id = getEventHash(template)
+      const sig = await this.signEvent(id)
+      authEvent = { ...template, id, sig }
+    } catch (err) {
+      console.error('[nostr] Failed to sign auth event:', err)
+      return
+    }
 
     if (this.ws?.readyState === WebSocket.OPEN) {
       this.ws.send(JSON.stringify(['AUTH', authEvent]))

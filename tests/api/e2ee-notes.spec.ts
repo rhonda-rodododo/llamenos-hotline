@@ -14,7 +14,7 @@
 
 import { expect, test } from '@playwright/test'
 import { generateSecretKey, getPublicKey, nip19 } from 'nostr-tools'
-import { decryptNoteV2, encryptNoteV2 } from '../../src/client/lib/crypto'
+import { decryptNoteV2WithKey, encryptNoteV2 } from '../../src/client/lib/crypto'
 import { ADMIN_NSEC } from '../helpers'
 import { createAuthedRequestFromNsec } from '../helpers/authed-request'
 
@@ -118,7 +118,11 @@ test.describe('E2EE note encryption', () => {
     expect(note).toBeTruthy()
 
     // Decrypt using admin's secret key directly
-    const payload = decryptNoteV2(note!.encryptedContent!, note!.authorEnvelope!, adminSkBytes)
+    const payload = decryptNoteV2WithKey(
+      note!.encryptedContent!,
+      note!.authorEnvelope!,
+      adminSkBytes
+    )
 
     expect(payload).not.toBeNull()
     expect(payload!.text).toBe(NOTE_PLAINTEXT)
@@ -171,7 +175,11 @@ test.describe('E2EE note encryption', () => {
     expect(note).toBeTruthy()
 
     // Attempt decryption using the volunteer's secret key — should fail
-    const payload = decryptNoteV2(note!.encryptedContent!, note!.authorEnvelope!, volSecretKey)
+    const payload = decryptNoteV2WithKey(
+      note!.encryptedContent!,
+      note!.authorEnvelope!,
+      volSecretKey
+    )
 
     // The volunteer's key is not in this note's envelopes — decryption must fail
     expect(payload).toBeNull()
