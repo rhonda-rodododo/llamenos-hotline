@@ -8,7 +8,7 @@ let _db: ReturnType<typeof createDatabase> | null = null
 export function createDatabase(url: string) {
   const client = new SQL({
     url,
-    max: Number(process.env.PG_POOL_SIZE) || 20,
+    max: Number(process.env.PG_POOL_SIZE) || 10,
     idleTimeout: Number(process.env.PG_IDLE_TIMEOUT) || 30,
     maxLifetime: Number(process.env.PG_MAX_LIFETIME) || 3600,
     connectionTimeout: 30,
