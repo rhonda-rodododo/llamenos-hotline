@@ -25,8 +25,9 @@ describe('typed permission catalog', () => {
   })
 
   test('scope permissions follow naming convention', () => {
+    const legacyKeys = new Set(['shifts:read']) // Will be renamed to shifts:read-all in Task 3
     for (const [key, meta] of Object.entries(PERMISSION_CATALOG)) {
-      if (meta.subgroup === 'scope') {
+      if (meta.subgroup === 'scope' && !legacyKeys.has(key)) {
         expect(key).toMatch(/-(own|assigned|all)$/)
       }
     }

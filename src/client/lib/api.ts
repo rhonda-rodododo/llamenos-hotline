@@ -1,4 +1,5 @@
 import type { Ciphertext } from '@shared/crypto-types'
+import type { Permission, PermissionMeta } from '@shared/permissions'
 import type { EncryptedMetaItem, KeyEnvelope, RecipientEnvelope } from '@shared/types'
 import { authFacadeClient } from './auth-facade-client'
 import * as keyManager from './key-manager'
@@ -709,8 +710,8 @@ export async function deleteRole(id: string) {
 
 export async function getPermissionsCatalog() {
   return request<{
-    permissions: Record<string, string>
-    byDomain: Record<string, { key: string; label: string }[]>
+    permissions: Record<Permission, PermissionMeta>
+    byDomain: Record<string, { key: Permission; meta: PermissionMeta }[]>
   }>('/settings/permissions')
 }
 

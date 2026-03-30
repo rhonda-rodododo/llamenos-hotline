@@ -37,6 +37,18 @@ export const PERMISSION_GROUP_LABELS: Record<string, string> = {
 }
 
 export const PERMISSION_CATALOG = {
+  // --- Contacts ---
+  //
+  // Contact permissions compose three orthogonal dimensions:
+  //   1. Scope (whose contacts):   read-own / read-assigned / read-all
+  //                                update-own / update-assigned / update-all
+  //   2. Tier (what fields):       envelope-summary (display name, tags, notes)
+  //                                envelope-full (legal name, phone, address, channels)
+  //   3. Actions (what ops):       create, update-summary, update-pii, delete, link
+  //
+  // A full auth check composes all three. Example: "can this user edit this contact's PII?"
+  // requires scope (update-own/assigned/all) + tier (envelope-full) + action (update-pii).
+
   // --- Contacts: Scope ---
   'contacts:read-own': {
     label: 'View contacts they created or handled',
@@ -256,7 +268,7 @@ export const PERMISSION_CATALOG = {
   },
   'shifts:read-all': { label: 'View all shifts', group: 'shifts', subgroup: 'scope' },
   // NOTE: 'shifts:read' kept for backward compatibility — will be renamed to shifts:read-all in Task 3
-  'shifts:read': { label: 'View all shifts', group: 'shifts', subgroup: 'actions' },
+  'shifts:read': { label: 'View all shifts', group: 'shifts', subgroup: 'scope' },
 
   // --- Shifts: Actions ---
   'shifts:create': { label: 'Create shifts', group: 'shifts', subgroup: 'actions' },

@@ -116,7 +116,7 @@ export function RolesSection({ expanded, onToggle, statusSummary }: Props) {
     if (!catalog) return
     const domainPerms = catalog.byDomain[domain]
     if (!domainPerms) return
-    const domainKeys = domainPerms.map((p) => p.key)
+    const domainKeys: string[] = domainPerms.map((p) => p.key)
     const allSelected = domainKeys.every((k) => form.permissions.includes(k))
 
     setForm((prev) => {
@@ -210,7 +210,7 @@ export function RolesSection({ expanded, onToggle, statusSummary }: Props) {
     if (!catalog) return 'none'
     const domainPerms = catalog.byDomain[domain]
     if (!domainPerms?.length) return 'none'
-    const domainKeys = domainPerms.map((p) => p.key)
+    const domainKeys: string[] = domainPerms.map((p) => p.key)
     const selectedCount = domainKeys.filter((k) => form.permissions.includes(k)).length
     if (selectedCount === 0) return 'none'
     if (selectedCount === domainKeys.length) return 'all'
@@ -421,7 +421,7 @@ export function RolesSection({ expanded, onToggle, statusSummary }: Props) {
                             onChange={() => togglePermission(perm.key)}
                             className="h-4 w-4 rounded border-input accent-primary shrink-0"
                           />
-                          <span className="text-sm">{perm.label}</span>
+                          <span className="text-sm">{perm.meta.label}</span>
                         </label>
                       ))}
                     </div>
