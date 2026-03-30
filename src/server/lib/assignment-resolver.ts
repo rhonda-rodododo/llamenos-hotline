@@ -49,6 +49,15 @@ export class ContactsAssignmentResolver implements AssignmentResolver {
     `)
     if (callLink.length > 0) return true
 
+    // Team-based assignment
+    const teamLink = await this.db.execute<{ found: number }>(sql`
+      SELECT 1 AS found FROM contact_team_assignments cta
+      JOIN team_members tm ON tm.team_id = cta.team_id
+      WHERE cta.contact_id = ${contactId} AND tm.user_pubkey = ${userPubkey} AND cta.hub_id = ${hubId}
+      LIMIT 1
+    `)
+    if (teamLink.length > 0) return true
+
     return false
   }
 
@@ -63,6 +72,11 @@ export class ContactsAssignmentResolver implements AssignmentResolver {
           SELECT ccl.contact_id FROM contact_call_links ccl
           JOIN call_legs cl ON cl.call_sid = ccl.call_id
           WHERE cl.user_pubkey = ${userPubkey} AND ccl.hub_id = ${hubId}
+        )
+        OR c.id IN (
+          SELECT cta.contact_id FROM contact_team_assignments cta
+          JOIN team_members tm ON tm.team_id = cta.team_id
+          WHERE tm.user_pubkey = ${userPubkey} AND cta.hub_id = ${hubId}
         )
       )
     `)
