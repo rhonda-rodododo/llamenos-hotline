@@ -201,10 +201,17 @@ test.describe('User Lifecycle', () => {
     const res = await adminApi.get(`/api/users/${userPubkey}?unmask=true`)
     expect(res.status()).toBe(200)
     const body = await res.json()
+    expect(body.view).toBe('admin')
+    // Phone is E2EE envelope-encrypted — server returns encrypted fields for client-side decryption.
+    // Admin decrypts encryptedPhone using their private key + phoneEnvelopes.
+    expect(body).toHaveProperty('encryptedPhone')
+    expect(body.encryptedPhone).toBeTruthy()
+    expect(Array.isArray(body.phoneEnvelopes)).toBe(true)
+    expect(body.phoneEnvelopes.length).toBeGreaterThan(0)
+    // Full plaintext phone must NOT be returned by server (E2EE — server cannot decrypt)
     const phone = body.user?.phone ?? body.phone
     if (phone) {
-      // Unmasked phone should be full E.164 format
-      expect(phone).toMatch(/^\+\d+$/)
+      expect(phone).not.toMatch(/^\+\d{10,}$/)
     }
   })
 

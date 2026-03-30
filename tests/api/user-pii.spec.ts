@@ -120,13 +120,13 @@ test.describe('User PII enforcement', () => {
     expect(me.encryptedName).toBeTruthy()
     expect(Array.isArray(me.nameEnvelopes)).toBe(true)
     expect(me.nameEnvelopes.length).toBeGreaterThan(0)
-    // Own phone is present but masked (not plaintext)
+    // Phone is E2EE envelope-encrypted — server returns a masked sentinel (cannot read plaintext)
+    // The masked sentinel contains bullets and does NOT expose the real phone digits
     expect(me).toHaveProperty('phone')
     expect(me.phone).not.toBe(myPhone)
-    // Masked phone should not contain the full digits
     expect(me.phone).toContain('•')
-    // Last 2 digits should still be visible
-    expect(me.phone).toContain(myPhone.slice(-2))
+    // Full plaintext phone must NOT be exposed
+    expect(me.phone).not.toBe(myPhone)
   })
 
   // ─── Test 4: Admin sees all volunteer names (phones masked) ───────────────
@@ -167,8 +167,16 @@ test.describe('User PII enforcement', () => {
     const unmaskedRes = await adminApi.get(`/api/users/${vol.pubkey}?unmask=true`)
     const unmasked = await unmaskedRes.json()
 
-    expect(unmasked.phone).toBe(userPhone)
     expect(unmasked.view).toBe('admin')
+    // Phone is E2EE envelope-encrypted — server returns encrypted fields for client-side decryption.
+    // The admin decrypts encryptedPhone using their private key + phoneEnvelopes.
+    // Server cannot return plaintext phone when envelope-encrypted.
+    expect(unmasked).toHaveProperty('encryptedPhone')
+    expect(unmasked.encryptedPhone).toBeTruthy()
+    expect(Array.isArray(unmasked.phoneEnvelopes)).toBe(true)
+    expect(unmasked.phoneEnvelopes.length).toBeGreaterThan(0)
+    // Full plaintext phone must NOT be returned by server
+    expect(unmasked.phone).not.toBe(userPhone)
   })
 
   // ─── Test 6: Non-admin cannot unmask phone ────────────────────────────────

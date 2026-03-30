@@ -1,3 +1,4 @@
+import type { Ciphertext } from '@shared/crypto-types'
 import { Hono } from 'hono'
 import { requirePermission } from '../middleware/permission-guard'
 import type { AppEnv } from '../types'
@@ -21,17 +22,21 @@ reportTypesRoutes.post('/', requirePermission('settings:manage-fields'), async (
 
   const body = await c.req.json<{
     name?: string
+    encryptedName?: string
     description?: string
+    encryptedDescription?: string
     isDefault?: boolean
   }>()
 
-  if (!body.name?.trim()) {
+  if (!body.name?.trim() && !body.encryptedName?.trim()) {
     return c.json({ error: 'Name is required' }, 400)
   }
 
   const reportType = await services.reportTypes.createReportType(hubId, {
-    name: body.name.trim(),
+    name: body.name?.trim() ?? '',
+    encryptedName: body.encryptedName?.trim() as Ciphertext | undefined,
     description: body.description?.trim() || undefined,
+    encryptedDescription: body.encryptedDescription?.trim() as Ciphertext | undefined,
     isDefault: body.isDefault ?? false,
   })
 
@@ -52,12 +57,22 @@ reportTypesRoutes.patch('/:id', requirePermission('settings:manage-fields'), asy
 
   const body = await c.req.json<{
     name?: string
+    encryptedName?: string
     description?: string
+    encryptedDescription?: string
   }>()
 
   const reportType = await services.reportTypes.updateReportType(hubId, id, {
-    ...(body.name !== undefined ? { name: body.name.trim() } : {}),
-    ...(body.description !== undefined
+    ...(body.encryptedName !== undefined
+      ? { encryptedName: body.encryptedName as Ciphertext }
+      : {}),
+    ...(body.name !== undefined && body.encryptedName === undefined
+      ? { name: body.name.trim() }
+      : {}),
+    ...(body.encryptedDescription !== undefined
+      ? { encryptedDescription: body.encryptedDescription as Ciphertext }
+      : {}),
+    ...(body.description !== undefined && body.encryptedDescription === undefined
       ? { description: body.description.trim() || undefined }
       : {}),
   })

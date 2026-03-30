@@ -78,12 +78,13 @@ test.describe('Role Management API', () => {
         'calls:read-presence',
         'calls:answer',
       ],
-      description: 'Can now also answer calls',
+      encryptedDescription: 'encrypted-can-now-also-answer-calls',
     })
     expect(res.status()).toBe(200)
     const body = await res.json()
     expect(body.permissions).toContain('calls:answer')
-    expect(body.description).toBe('Can now also answer calls')
+    // Description is E2EE — server returns encryptedDescription, not plaintext
+    expect(body.encryptedDescription).toBe('encrypted-can-now-also-answer-calls')
   })
 
   test('cannot modify system role (Super Admin)', async () => {

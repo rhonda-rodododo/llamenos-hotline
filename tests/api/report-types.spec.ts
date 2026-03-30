@@ -39,14 +39,14 @@ test.describe('Report Type Management', () => {
 
   test('create report type', async () => {
     const res = await adminApi.post(ctx.hubPath('/report-types'), {
-      name: 'Incident Report',
-      description: 'For logging incidents during calls',
+      encryptedName: 'encrypted-incident-report',
+      encryptedDescription: 'encrypted-for-logging-incidents',
     })
     expect(res.status()).toBe(201)
     const data = await res.json()
     const body = data.reportType ?? data
     expect(body.id).toBeTruthy()
-    expect(body.name).toBe('Incident Report')
+    expect(body.encryptedName).toBeTruthy()
     reportTypeId = body.id
   })
 
@@ -62,13 +62,13 @@ test.describe('Report Type Management', () => {
   test('update report type', async () => {
     expect(reportTypeId).toBeDefined()
     const res = await adminApi.patch(ctx.hubPath(`/report-types/${reportTypeId}`), {
-      name: 'Updated Incident Report',
-      description: 'Updated description',
+      encryptedName: 'encrypted-updated-incident-report',
+      encryptedDescription: 'encrypted-updated-description',
     })
     expect(res.status()).toBe(200)
     const data = await res.json()
     const body = data.reportType ?? data
-    expect(body.name).toBe('Updated Incident Report')
+    expect(body.encryptedName).toBe('encrypted-updated-incident-report')
   })
 
   test('set report type as default', async () => {
@@ -98,14 +98,14 @@ test.describe('Report Type Management', () => {
 
   test('user cannot create report types', async () => {
     const res = await ctx.api('volunteer').post(ctx.hubPath('/report-types'), {
-      name: 'Unauthorized Type',
+      encryptedName: 'encrypted-unauthorized-type',
     })
     expect(res.status()).toBe(403)
   })
 
   test('reviewer cannot manage report types', async () => {
     const res = await ctx.api('reviewer').post(ctx.hubPath('/report-types'), {
-      name: 'Unauthorized Type',
+      encryptedName: 'encrypted-unauthorized-type',
     })
     expect(res.status()).toBe(403)
   })
@@ -120,14 +120,14 @@ test.describe('Report Type Management', () => {
 
   test('create multiple report types', async () => {
     const type1 = await adminApi.post(ctx.hubPath('/report-types'), {
-      name: 'Feedback Report',
-      description: 'General feedback',
+      encryptedName: 'encrypted-feedback-report',
+      encryptedDescription: 'encrypted-general-feedback',
     })
     expect(type1.status()).toBe(201)
 
     const type2 = await adminApi.post(ctx.hubPath('/report-types'), {
-      name: 'Emergency Report',
-      description: 'Emergency situations',
+      encryptedName: 'encrypted-emergency-report',
+      encryptedDescription: 'encrypted-emergency-situations',
     })
     expect(type2.status()).toBe(201)
 
@@ -140,7 +140,7 @@ test.describe('Report Type Management', () => {
 
   test('update nonexistent report type returns 404', async () => {
     const res = await adminApi.patch(ctx.hubPath('/report-types/nonexistent-id'), {
-      name: 'Ghost Type',
+      encryptedName: 'encrypted-ghost-type',
     })
     expect(res.status()).toBe(404)
   })

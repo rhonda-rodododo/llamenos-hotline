@@ -19,7 +19,8 @@ async function putChunk(
   const decoded = nip19.decode(nsec)
   if (decoded.type !== 'nsec') throw new Error('Expected nsec')
   const pubkey = getPublicKey(decoded.data)
-  const jwtSecret = process.env.JWT_SECRET || 'test-jwt-secret'
+  const jwtSecret =
+    process.env.JWT_SECRET || '0000000000000000000000000000000000000000000000000000000000000003'
   const token = await signAccessToken({ pubkey, permissions: ['admin'] }, jwtSecret)
   return request.put(path, {
     headers: {

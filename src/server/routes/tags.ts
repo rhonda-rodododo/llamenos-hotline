@@ -57,8 +57,17 @@ tags.post('/', async (c) => {
     })
     return c.json({ tag }, 201)
   } catch (err: unknown) {
-    // Unique constraint violation
-    if (err instanceof Error && err.message.includes('unique')) {
+    // Unique constraint violation — Drizzle wraps the Postgres error;
+    // check the cause's errno (23505 = unique_violation) or message
+    const cause = (err as { cause?: unknown }).cause
+    const isUniqueViolation =
+      (typeof (cause as { errno?: unknown })?.errno === 'string' &&
+        (cause as { errno: string }).errno === '23505') ||
+      (err instanceof Error &&
+        (err.message.includes('unique') || err.message.includes('duplicate key'))) ||
+      (cause instanceof Error &&
+        (cause.message.includes('unique') || cause.message.includes('duplicate key')))
+    if (isUniqueViolation) {
       return c.json({ error: 'Tag already exists' }, 409)
     }
     throw err

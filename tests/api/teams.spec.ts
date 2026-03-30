@@ -60,11 +60,11 @@ test.describe('Teams API', () => {
 
   test('add member', async ({ request }) => {
     const api = adminApi(request)
-    const meRes = await api.get('/api/users/me')
+    const meRes = await api.get('/api/auth/me')
     const me = await meRes.json()
 
     const res = await api.post(`/api/teams/${teamId}/members`, {
-      pubkeys: [me.user.pubkey],
+      pubkeys: [me.pubkey],
     })
     expect(res.status()).toBe(200)
     const data = await res.json()

@@ -52,6 +52,7 @@ dev.post('/test-reset', async (c) => {
   }
   const services = c.get('services')
   await services.tags.resetForTest('default-hub')
+  await services.tags.resetForTest('global')
   await services.teams.resetForTest('default-hub')
   await services.intakes.resetForTest('default-hub')
   await services.blasts.resetForTest()
@@ -125,6 +126,7 @@ dev.post('/test-reset-no-admin', async (c) => {
   }
   const services = c.get('services')
   await services.tags.resetForTest('default-hub')
+  await services.tags.resetForTest('global')
   await services.teams.resetForTest('default-hub')
   await services.intakes.resetForTest('default-hub')
   await services.blasts.resetForTest()

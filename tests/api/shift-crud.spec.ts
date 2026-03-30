@@ -38,7 +38,7 @@ test.describe('Shift CRUD and Scheduling', () => {
 
   test('create shift via hub-scoped route', async () => {
     const res = await adminApi.post(ctx.hubPath('/shifts'), {
-      name: 'Morning Shift',
+      encryptedName: 'encrypted-morning-shift',
       startTime: '08:00',
       endTime: '14:00',
       days: [1, 2, 3, 4, 5],
@@ -47,7 +47,7 @@ test.describe('Shift CRUD and Scheduling', () => {
     expect([200, 201]).toContain(res.status())
     const body = await res.json()
     expect(body.shift).toBeDefined()
-    expect(body.shift.name).toBe('Morning Shift')
+    expect(body.shift.encryptedName).toBeTruthy()
     expect(body.shift.id).toBeTruthy()
     shiftId = body.shift.id
   })
@@ -82,12 +82,12 @@ test.describe('Shift CRUD and Scheduling', () => {
   test('update shift name and schedule', async () => {
     expect(shiftId).toBeDefined()
     const res = await adminApi.patch(ctx.hubPath(`/shifts/${shiftId}`), {
-      name: 'Updated Morning Shift',
+      encryptedName: 'encrypted-updated-morning-shift',
       endTime: '15:00',
     })
     expect(res.status()).toBe(200)
     const body = await res.json()
-    expect(body.shift.name).toBe('Updated Morning Shift')
+    expect(body.shift.encryptedName).toBe('encrypted-updated-morning-shift')
   })
 
   test('update shift users', async () => {
@@ -99,7 +99,7 @@ test.describe('Shift CRUD and Scheduling', () => {
 
   test('update nonexistent shift returns 404', async () => {
     const res = await adminApi.patch(ctx.hubPath('/shifts/nonexistent-id'), {
-      name: 'Ghost Shift',
+      encryptedName: 'encrypted-ghost-shift',
     })
     expect(res.status()).toBe(404)
   })
@@ -151,7 +151,7 @@ test.describe('Shift CRUD and Scheduling', () => {
 
   test('user cannot create shifts', async () => {
     const res = await ctx.api('volunteer').post(ctx.hubPath('/shifts'), {
-      name: 'Unauthorized Shift',
+      encryptedName: 'encrypted-unauthorized-shift',
       startTime: '09:00',
       endTime: '17:00',
       days: [1],
@@ -163,7 +163,7 @@ test.describe('Shift CRUD and Scheduling', () => {
   test('user cannot delete shifts', async () => {
     // Create a shift first
     const createRes = await adminApi.post(ctx.hubPath('/shifts'), {
-      name: 'Temp Shift',
+      encryptedName: 'encrypted-temp-shift',
       startTime: '09:00',
       endTime: '17:00',
       days: [1],
