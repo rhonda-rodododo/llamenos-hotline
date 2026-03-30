@@ -2,32 +2,17 @@ import type { Ciphertext } from '@shared/crypto-types'
 import { and, eq, isNull } from 'drizzle-orm'
 import type { CreateReportTypeInput, ReportType, UpdateReportTypeInput } from '../../shared/types'
 import type { Database } from '../db'
-import { hubKeys, reportTypes } from '../db/schema'
+import { reportTypes } from '../db/schema'
 import type { CryptoService } from '../lib/crypto-service'
 import { AppError } from '../lib/errors'
+import type { SettingsService } from './settings'
 
 export class ReportTypeService {
   constructor(
     private readonly db: Database,
-    private readonly crypto: CryptoService
+    private readonly crypto: CryptoService,
+    private readonly settings: SettingsService
   ) {}
-
-  async #getHubKey(hubId: string): Promise<Uint8Array | null> {
-    if (!hubId || hubId === 'global') return null
-    const envelopes = await this.db.select().from(hubKeys).where(eq(hubKeys.hubId, hubId))
-    if (envelopes.length === 0) return null
-    try {
-      return this.crypto.unwrapHubKey(
-        envelopes.map((r) => ({
-          pubkey: r.pubkey,
-          wrappedKey: r.encryptedKey,
-          ephemeralPubkey: r.ephemeralPubkey ?? '',
-        }))
-      )
-    } catch {
-      return null
-    }
-  }
 
   async listReportTypes(hubId: string): Promise<ReportType[]> {
     const rows = await this.db
@@ -35,7 +20,7 @@ export class ReportTypeService {
       .from(reportTypes)
       .where(eq(reportTypes.hubId, hubId))
       .orderBy(reportTypes.createdAt)
-    const hubKey = await this.#getHubKey(hubId)
+    const hubKey = await this.settings.getHubKey(hubId)
     return rows.map((r) => {
       const name = this.crypto.decryptField(
         r.encryptedName as Ciphertext,
@@ -61,7 +46,7 @@ export class ReportTypeService {
       .limit(1)
     if (!rows[0]) return null
     const r = rows[0]
-    const hubKey = await this.#getHubKey(hubId)
+    const hubKey = await this.settings.getHubKey(hubId)
     const name = this.crypto.decryptField(
       r.encryptedName as Ciphertext,
       hubKey,
@@ -96,7 +81,7 @@ export class ReportTypeService {
     }
 
     // Encrypt name/description — hub key for hub-scoped, server key as fallback
-    const hubKey = await this.#getHubKey(hubId)
+    const hubKey = await this.settings.getHubKey(hubId)
     const encryptedName = hubKey
       ? this.crypto.hubEncrypt(data.name, hubKey)
       : this.crypto.serverEncrypt(data.name, 'llamenos:report-type-name')
@@ -147,7 +132,7 @@ export class ReportTypeService {
     }
 
     // Encrypt updated name/description — hub key for hub-scoped, server key as fallback
-    const hubKey = await this.#getHubKey(hubId)
+    const hubKey = await this.settings.getHubKey(hubId)
     const encFields: Record<string, unknown> = {}
     if (data.name !== undefined) {
       encFields.encryptedName = hubKey
@@ -214,7 +199,7 @@ export class ReportTypeService {
       .where(and(eq(reportTypes.id, id), eq(reportTypes.hubId, hubId)))
       .returning()
 
-    const hubKey = await this.#getHubKey(hubId)
+    const hubKey = await this.settings.getHubKey(hubId)
     const name = this.crypto.decryptField(
       row.encryptedName as Ciphertext,
       hubKey,
@@ -251,7 +236,7 @@ export class ReportTypeService {
       .where(and(eq(reportTypes.id, id), eq(reportTypes.hubId, hubId)))
       .returning()
 
-    const hubKey = await this.#getHubKey(hubId)
+    const hubKey = await this.settings.getHubKey(hubId)
     const name = this.crypto.decryptField(
       row.encryptedName as Ciphertext,
       hubKey,

@@ -65,6 +65,7 @@ import {
   transcriptionSettings,
   volunteers,
 } from '../db/schema'
+import { TtlCache } from '../lib/cache'
 import type { CryptoService } from '../lib/crypto-service'
 import { AppError } from '../lib/errors'
 import type {
@@ -80,6 +81,8 @@ import type {
 } from '../types'
 
 export class SettingsService {
+  private hubKeyCache = new TtlCache<Uint8Array | null>(30_000)
+
   constructor(
     protected readonly db: Database,
     private readonly crypto: CryptoService
@@ -89,19 +92,31 @@ export class SettingsService {
 
   async #getHubKey(hubId: string): Promise<Uint8Array | null> {
     if (!hubId || hubId === 'global') return null
-    const envelopes = await this.db.select().from(hubKeys).where(eq(hubKeys.hubId, hubId))
-    if (envelopes.length === 0) return null
-    try {
-      return this.crypto.unwrapHubKey(
-        envelopes.map((r) => ({
-          pubkey: r.pubkey,
-          wrappedKey: r.encryptedKey,
-          ephemeralPubkey: r.ephemeralPubkey ?? '',
-        }))
-      )
-    } catch {
-      return null // Server not in hub key envelope list
-    }
+    return this.hubKeyCache.getOrSet(hubId, async () => {
+      const envelopes = await this.db.select().from(hubKeys).where(eq(hubKeys.hubId, hubId))
+      if (envelopes.length === 0) return null
+      try {
+        return this.crypto.unwrapHubKey(
+          envelopes.map((r) => ({
+            pubkey: r.pubkey,
+            wrappedKey: r.encryptedKey,
+            ephemeralPubkey: r.ephemeralPubkey ?? '',
+          }))
+        )
+      } catch {
+        return null // Server not in hub key envelope list
+      }
+    })
+  }
+
+  /** Expose hub key lookup for other services (uses same cache). */
+  getHubKey(hubId: string): Promise<Uint8Array | null> {
+    return this.#getHubKey(hubId)
+  }
+
+  /** Invalidate cached hub key (call after key rotation). */
+  invalidateHubKey(hubId: string): void {
+    this.hubKeyCache.delete(hubId)
   }
 
   // ------------------------------------------------------------------ Spam Settings
