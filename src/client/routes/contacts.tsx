@@ -244,10 +244,22 @@ function ContactDirectoryPage() {
           <BookUser className="h-6 w-6 text-primary" />
           <h1 className="text-xl font-bold sm:text-2xl">{t('contacts.title')}</h1>
         </div>
-        <Button data-testid="new-contact-btn" size="sm" onClick={() => setCreateOpen(true)}>
-          <Plus className="mr-1.5 h-4 w-4" />
-          {t('contacts.newContact')}
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            data-testid="export-csv-btn"
+            variant="outline"
+            size="sm"
+            onClick={handleExportCsv}
+            disabled={filtered.length === 0}
+          >
+            <Download className="mr-1.5 h-4 w-4" />
+            {t('contacts.exportCsv', { defaultValue: 'Export CSV' })}
+          </Button>
+          <Button data-testid="new-contact-btn" size="sm" onClick={() => setCreateOpen(true)}>
+            <Plus className="mr-1.5 h-4 w-4" />
+            {t('contacts.newContact')}
+          </Button>
+        </div>
       </div>
 
       {/* Search and filter bar */}
