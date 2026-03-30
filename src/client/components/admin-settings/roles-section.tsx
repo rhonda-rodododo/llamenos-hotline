@@ -5,16 +5,16 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
-import {
-  type RoleDefinition,
-  createRole,
-  deleteRole,
-  getPermissionsCatalog,
-  listRoles,
-  updateRole,
-} from '@/lib/api'
+import type { RoleDefinition } from '@/lib/api'
 import { useConfig } from '@/lib/config'
 import { decryptHubField, encryptHubField } from '@/lib/hub-field-crypto'
+import {
+  useCreateRole,
+  useDeleteRole,
+  usePermissionsCatalog,
+  useRoles,
+  useUpdateRole,
+} from '@/lib/queries/roles'
 import { useToast } from '@/lib/toast'
 import { cn } from '@/lib/utils'
 import {
@@ -28,18 +28,13 @@ import {
   Trash2,
   X,
 } from 'lucide-react'
-import { useCallback, useEffect, useState } from 'react'
+import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 interface Props {
   expanded: boolean
   onToggle: (open: boolean) => void
   statusSummary?: string
-}
-
-interface PermissionCatalog {
-  permissions: Record<string, string>
-  byDomain: Record<string, { key: string; label: string }[]>
 }
 
 interface RoleFormData {
@@ -55,9 +50,11 @@ export function RolesSection({ expanded, onToggle, statusSummary }: Props) {
   const { currentHubId } = useConfig()
   const hubId = currentHubId ?? 'global'
 
-  const [roles, setRoles] = useState<RoleDefinition[]>([])
-  const [catalog, setCatalog] = useState<PermissionCatalog | null>(null)
-  const [loading, setLoading] = useState(true)
+  const { data: roles = [], isLoading: rolesLoading } = useRoles()
+  const { data: catalog } = usePermissionsCatalog()
+  const createRole = useCreateRole()
+  const updateRole = useUpdateRole()
+  const deleteRole = useDeleteRole()
 
   // Editing state: role ID being edited, or 'new' for create mode
   const [editingId, setEditingId] = useState<string | null>(null)
@@ -67,29 +64,12 @@ export function RolesSection({ expanded, onToggle, statusSummary }: Props) {
     description: '',
     permissions: [],
   })
-  const [saving, setSaving] = useState(false)
 
   // Delete confirmation
   const [deleteTarget, setDeleteTarget] = useState<RoleDefinition | null>(null)
 
   // Expanded permission domains in the editor
   const [expandedDomains, setExpandedDomains] = useState<Set<string>>(new Set())
-
-  const loadData = useCallback(async () => {
-    try {
-      const [rolesRes, catalogRes] = await Promise.all([listRoles(), getPermissionsCatalog()])
-      setRoles(rolesRes.roles)
-      setCatalog(catalogRes)
-    } catch {
-      toast(t('common.error', { defaultValue: 'Error' }), 'error')
-    } finally {
-      setLoading(false)
-    }
-  }, [t, toast])
-
-  useEffect(() => {
-    loadData()
-  }, [loadData])
 
   function startCreate() {
     setEditingId('new')
@@ -166,55 +146,64 @@ export function RolesSection({ expanded, onToggle, statusSummary }: Props) {
       .slice(0, 50)
   }
 
-  async function handleSave() {
+  function handleSave() {
     if (!form.name.trim()) return
-    setSaving(true)
-    try {
-      if (editingId === 'new') {
-        const slug = form.slug.trim() || autoSlug(form.name)
-        const trimmedName = form.name.trim()
-        const trimmedDesc = form.description.trim()
-        const res = await createRole({
+    if (editingId === 'new') {
+      const slug = form.slug.trim() || autoSlug(form.name)
+      const trimmedName = form.name.trim()
+      const trimmedDesc = form.description.trim()
+      createRole.mutate(
+        {
           name: trimmedName,
           slug,
           description: trimmedDesc,
           permissions: form.permissions,
           encryptedName: encryptHubField(trimmedName, hubId),
           encryptedDescription: trimmedDesc ? encryptHubField(trimmedDesc, hubId) : undefined,
-        })
-        setRoles((prev) => [...prev, res.role])
-        toast(t('roles.created', { defaultValue: 'Role created' }), 'success')
-      } else if (editingId) {
-        const trimmedName = form.name.trim()
-        const trimmedDesc = form.description.trim()
-        const res = await updateRole(editingId, {
-          name: trimmedName,
-          description: trimmedDesc,
-          permissions: form.permissions,
-          encryptedName: encryptHubField(trimmedName, hubId),
-          encryptedDescription: trimmedDesc ? encryptHubField(trimmedDesc, hubId) : undefined,
-        })
-        setRoles((prev) => prev.map((r) => (r.id === editingId ? res.role : r)))
-        toast(t('roles.updated', { defaultValue: 'Role updated' }), 'success')
-      }
-      cancelEdit()
-    } catch {
-      toast(t('common.error', { defaultValue: 'Error' }), 'error')
-    } finally {
-      setSaving(false)
+        },
+        {
+          onSuccess: () => {
+            cancelEdit()
+            toast(t('roles.created', { defaultValue: 'Role created' }), 'success')
+          },
+          onError: () => toast(t('common.error', { defaultValue: 'Error' }), 'error'),
+        }
+      )
+    } else if (editingId) {
+      const trimmedName = form.name.trim()
+      const trimmedDesc = form.description.trim()
+      updateRole.mutate(
+        {
+          id: editingId,
+          data: {
+            name: trimmedName,
+            description: trimmedDesc,
+            permissions: form.permissions,
+            encryptedName: encryptHubField(trimmedName, hubId),
+            encryptedDescription: trimmedDesc ? encryptHubField(trimmedDesc, hubId) : undefined,
+          },
+        },
+        {
+          onSuccess: () => {
+            cancelEdit()
+            toast(t('roles.updated', { defaultValue: 'Role updated' }), 'success')
+          },
+          onError: () => toast(t('common.error', { defaultValue: 'Error' }), 'error'),
+        }
+      )
     }
   }
 
-  async function handleDelete() {
+  function handleDelete() {
     if (!deleteTarget) return
-    try {
-      await deleteRole(deleteTarget.id)
-      setRoles((prev) => prev.filter((r) => r.id !== deleteTarget.id))
-      toast(t('roles.deleted', { defaultValue: 'Role deleted' }), 'success')
-      if (editingId === deleteTarget.id) cancelEdit()
-    } catch {
-      toast(t('common.error', { defaultValue: 'Error' }), 'error')
-    }
+    deleteRole.mutate(deleteTarget.id, {
+      onSuccess: () => {
+        toast(t('roles.deleted', { defaultValue: 'Role deleted' }), 'success')
+        if (editingId === deleteTarget.id) cancelEdit()
+        setDeleteTarget(null)
+      },
+      onError: () => toast(t('common.error', { defaultValue: 'Error' }), 'error'),
+    })
   }
 
   function getDomainSelectionState(domain: string): 'all' | 'some' | 'none' {
@@ -235,7 +224,9 @@ export function RolesSection({ expanded, onToggle, statusSummary }: Props) {
   const canEdit = (role: RoleDefinition) => !role.isSystem
   const canDelete = (role: RoleDefinition) => !role.isSystem && !role.isDefault
 
-  if (loading) return null
+  const isSaving = createRole.isPending || updateRole.isPending
+
+  if (rolesLoading) return null
 
   return (
     <SettingsSection
@@ -441,9 +432,9 @@ export function RolesSection({ expanded, onToggle, statusSummary }: Props) {
           </div>
 
           <div className="flex gap-2">
-            <Button disabled={saving || !form.name.trim()} onClick={handleSave}>
+            <Button disabled={isSaving || !form.name.trim()} onClick={handleSave}>
               <Save className="h-4 w-4" />
-              {saving
+              {isSaving
                 ? t('common.loading', { defaultValue: 'Loading...' })
                 : t('common.save', { defaultValue: 'Save' })}
             </Button>

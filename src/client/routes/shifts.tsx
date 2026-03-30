@@ -4,24 +4,23 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { VolunteerMultiSelect } from '@/components/volunteer-multi-select'
-import {
-  type Shift,
-  type Volunteer,
-  createShift,
-  deleteShift,
-  getFallbackGroup,
-  listShifts,
-  listVolunteers,
-  setFallbackGroup,
-  updateShift,
-} from '@/lib/api'
+import type { Shift, Volunteer } from '@/lib/api'
 import { useAuth } from '@/lib/auth'
 import { useConfig } from '@/lib/config'
 import { decryptHubField, encryptHubField } from '@/lib/hub-field-crypto'
+import {
+  useCreateShift,
+  useDeleteShift,
+  useFallbackGroup,
+  useSetFallbackGroup,
+  useShifts,
+  useUpdateShift,
+} from '@/lib/queries/shifts'
+import { useVolunteers } from '@/lib/queries/volunteers'
 import { useToast } from '@/lib/toast'
 import { createFileRoute } from '@tanstack/react-router'
 import { CalendarPlus, Clock, LifeBuoy, Pencil, Trash2, Users } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 export const Route = createFileRoute('/shifts')({
@@ -44,34 +43,27 @@ function ShiftsPage() {
   const { currentHubId } = useConfig()
   const hubId = currentHubId ?? 'global'
   const { toast } = useToast()
-  const [shifts, setShifts] = useState<Shift[]>([])
-  const [volunteers, setVolunteers] = useState<Volunteer[]>([])
-  const [fallback, setFallback] = useState<string[]>([])
   const [showForm, setShowForm] = useState(false)
   const [editingShift, setEditingShift] = useState<Shift | null>(null)
-  const [loading, setLoading] = useState(true)
 
-  useEffect(() => {
-    Promise.all([
-      listShifts().then((r) => setShifts(r.shifts)),
-      listVolunteers().then((r) => setVolunteers(r.volunteers)),
-      getFallbackGroup().then((r) => setFallback(r.volunteers)),
-    ])
-      .catch(() => toast(t('common.error'), 'error'))
-      .finally(() => setLoading(false))
-  }, [])
+  const { data: shifts = [], isLoading: shiftsLoading } = useShifts()
+  const { data: volunteers = [] } = useVolunteers()
+  const { data: fallback = [] } = useFallbackGroup()
+  const createShift = useCreateShift()
+  const updateShift = useUpdateShift()
+  const deleteShift = useDeleteShift()
+  const setFallbackGroup = useSetFallbackGroup()
+
+  const loading = shiftsLoading
 
   if (!isAdmin) {
     return <div className="text-muted-foreground">Access denied</div>
   }
 
-  async function handleSaveFallback(selected: string[]) {
-    try {
-      await setFallbackGroup(selected)
-      setFallback(selected)
-    } catch {
-      toast(t('common.error'), 'error')
-    }
+  function handleSaveFallback(selected: string[]) {
+    setFallbackGroup.mutate(selected, {
+      onError: () => toast(t('common.error'), 'error'),
+    })
   }
 
   return (
@@ -99,19 +91,27 @@ function ShiftsPage() {
           volunteers={volunteers}
           hubId={hubId}
           onSave={async (data) => {
-            try {
-              if (editingShift) {
-                const res = await updateShift(editingShift.id, data)
-                setShifts((prev) => prev.map((s) => (s.id === editingShift.id ? res.shift : s)))
-              } else {
-                const res = await createShift(data as Omit<Shift, 'id'>)
-                setShifts((prev) => [...prev, res.shift])
-              }
-              setShowForm(false)
-              setEditingShift(null)
-              toast(t('common.success'), 'success')
-            } catch {
-              toast(t('common.error'), 'error')
+            if (editingShift) {
+              updateShift.mutate(
+                { id: editingShift.id, data },
+                {
+                  onSuccess: () => {
+                    setShowForm(false)
+                    setEditingShift(null)
+                    toast(t('common.success'), 'success')
+                  },
+                  onError: () => toast(t('common.error'), 'error'),
+                }
+              )
+            } else {
+              createShift.mutate(data as Omit<Shift, 'id'>, {
+                onSuccess: () => {
+                  setShowForm(false)
+                  setEditingShift(null)
+                  toast(t('common.success'), 'success')
+                },
+                onError: () => toast(t('common.error'), 'error'),
+              })
             }
           }}
           onCancel={() => {
@@ -192,13 +192,10 @@ function ShiftsPage() {
                       size="icon-xs"
                       className="text-destructive hover:text-destructive"
                       aria-label={t('a11y.deleteItem')}
-                      onClick={async () => {
-                        try {
-                          await deleteShift(shift.id)
-                          setShifts((prev) => prev.filter((s) => s.id !== shift.id))
-                        } catch {
-                          toast(t('common.error'), 'error')
-                        }
+                      onClick={() => {
+                        deleteShift.mutate(shift.id, {
+                          onError: () => toast(t('common.error'), 'error'),
+                        })
                       }}
                     >
                       <Trash2 className="h-3 w-3" />
@@ -242,7 +239,7 @@ function ShiftForm({
   shift: Shift | null
   volunteers: Volunteer[]
   hubId: string
-  onSave: (data: Partial<Shift>) => Promise<void>
+  onSave: (data: Partial<Shift>) => void
   onCancel: () => void
 }) {
   const { t } = useTranslation()
@@ -255,23 +252,17 @@ function ShiftForm({
   const [selectedVolunteers, setSelectedVolunteers] = useState<string[]>(
     shift?.volunteerPubkeys || []
   )
-  const [saving, setSaving] = useState(false)
 
-  async function handleSubmit(e: React.FormEvent) {
+  function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    setSaving(true)
-    try {
-      await onSave({
-        name,
-        encryptedName: encryptHubField(name, hubId),
-        startTime,
-        endTime,
-        days,
-        volunteerPubkeys: selectedVolunteers,
-      })
-    } finally {
-      setSaving(false)
-    }
+    onSave({
+      name,
+      encryptedName: encryptHubField(name, hubId),
+      startTime,
+      endTime,
+      days,
+      volunteerPubkeys: selectedVolunteers,
+    })
   }
 
   return (
@@ -347,8 +338,8 @@ function ShiftForm({
             />
           </div>
           <div className="flex gap-2">
-            <Button data-testid="form-save-btn" type="submit" disabled={saving}>
-              {saving ? t('common.loading') : t('common.save')}
+            <Button data-testid="form-save-btn" type="submit">
+              {t('common.save')}
             </Button>
             <Button
               data-testid="form-cancel-btn"

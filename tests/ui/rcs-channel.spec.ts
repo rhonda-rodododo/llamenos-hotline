@@ -111,16 +111,19 @@ test.describe('RCS Channel Configuration', () => {
     const initialState = await fallbackSwitch.getAttribute('data-state')
 
     // Toggle it
+    const expectedAfterToggle = initialState === 'checked' ? 'unchecked' : 'checked'
     await fallbackSwitch.click()
 
-    // State should have changed
-    const newState = await fallbackSwitch.getAttribute('data-state')
-    expect(newState).not.toBe(initialState)
+    // State should have changed (wait for React re-render)
+    await expect(fallbackSwitch).toHaveAttribute('data-state', expectedAfterToggle, {
+      timeout: 3000,
+    })
 
     // Toggle it back
     await fallbackSwitch.click()
-    const restoredState = await fallbackSwitch.getAttribute('data-state')
-    expect(restoredState).toBe(initialState)
+    await expect(fallbackSwitch).toHaveAttribute('data-state', initialState!, {
+      timeout: 3000,
+    })
   })
 
   test('saved RCS config persists after page navigation', async ({ page }) => {

@@ -11,18 +11,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import {
-  type ConversationMessage,
-  type Report,
-  assignReport,
-  getReportMessages,
-  listReports,
-  sendReportMessage,
-  updateReport,
-} from '@/lib/api'
+import type { Report } from '@/lib/api'
 import { useAuth } from '@/lib/auth'
-import { decryptMessage, encryptMessage } from '@/lib/crypto'
-import * as keyManager from '@/lib/key-manager'
+import { encryptMessage } from '@/lib/crypto'
+import {
+  useAssignReport,
+  useReportMessages,
+  useReports,
+  useSendReportMessage,
+  useUpdateReport,
+} from '@/lib/queries/reports'
 import { useToast } from '@/lib/toast'
 import { createFileRoute } from '@tanstack/react-router'
 import {
@@ -38,7 +36,7 @@ import {
   UserCheck,
   X,
 } from 'lucide-react'
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 export const Route = createFileRoute('/reports')({
@@ -47,178 +45,24 @@ export const Route = createFileRoute('/reports')({
 
 function ReportsPage() {
   const { t } = useTranslation()
-  const { hasNsec, publicKey, isAdmin, hasPermission, adminDecryptionPubkey } = useAuth()
-  const { toast } = useToast()
+  const { isAdmin } = useAuth()
 
-  const [reports, setReports] = useState<Report[]>([])
-  const [loading, setLoading] = useState(true)
   const [selectedId, setSelectedId] = useState<string | null>(null)
-  const [messages, setMessages] = useState<ConversationMessage[]>([])
-  const [messagesLoading, setMessagesLoading] = useState(false)
   const [showForm, setShowForm] = useState(false)
   const [statusFilter, setStatusFilter] = useState<string>('all')
   const [categoryFilter, setCategoryFilter] = useState<string>('all')
-  const [replyText, setReplyText] = useState('')
-  const [sending, setSending] = useState(false)
-  const [showFileUpload, setShowFileUpload] = useState(false)
+
+  const reportsQuery = useReports({ status: statusFilter, category: categoryFilter })
+  const reports = reportsQuery.data ?? []
+  const loading = reportsQuery.isLoading
 
   const selectedReport = reports.find((r) => r.id === selectedId)
 
-  // Fetch reports
-  useEffect(() => {
-    setLoading(true)
-    const params: { status?: string; category?: string } = {}
-    if (statusFilter !== 'all') params.status = statusFilter
-    if (categoryFilter !== 'all') params.category = categoryFilter
-
-    listReports(params)
-      .then(({ conversations }) => setReports(conversations))
-      .catch(() =>
-        toast(t('reports.loadError', { defaultValue: 'Failed to load reports' }), 'error')
-      )
-      .finally(() => setLoading(false))
-  }, [statusFilter, categoryFilter, t, toast])
-
-  // Poll reports periodically
-  useEffect(() => {
-    const interval = setInterval(() => {
-      const params: { status?: string; category?: string } = {}
-      if (statusFilter !== 'all') params.status = statusFilter
-      if (categoryFilter !== 'all') params.category = categoryFilter
-      listReports(params)
-        .then(({ conversations }) => setReports(conversations))
-        .catch(() => {})
-    }, 30_000)
-    return () => clearInterval(interval)
-  }, [statusFilter, categoryFilter])
-
-  // Load messages when report is selected
-  useEffect(() => {
-    if (!selectedId) {
-      setMessages([])
-      return
-    }
-    setMessagesLoading(true)
-    getReportMessages(selectedId, { limit: 100 })
-      .then(({ messages: msgs }) => setMessages(msgs))
-      .catch(() =>
-        toast(t('reports.messagesError', { defaultValue: 'Failed to load messages' }), 'error')
-      )
-      .finally(() => setMessagesLoading(false))
-  }, [selectedId, t, toast])
-
-  // Poll messages for selected report
-  useEffect(() => {
-    if (!selectedId) return
-    const interval = setInterval(() => {
-      getReportMessages(selectedId, { limit: 100 })
-        .then(({ messages: msgs }) => setMessages(msgs))
-        .catch(() => {})
-    }, 10_000)
-    return () => clearInterval(interval)
-  }, [selectedId])
-
-  const handleAssign = useCallback(
-    async (reportId: string) => {
-      if (!publicKey) return
-      try {
-        await assignReport(reportId, publicKey)
-        setReports((prev) =>
-          prev.map((r) =>
-            r.id === reportId ? { ...r, assignedTo: publicKey, status: 'active' } : r
-          )
-        )
-        toast(t('reports.assigned', { defaultValue: 'Report assigned to you' }))
-      } catch {
-        toast(t('reports.assignError', { defaultValue: 'Failed to assign report' }), 'error')
-      }
-    },
-    [publicKey, toast, t]
-  )
-
-  const handleClose = useCallback(
-    async (reportId: string) => {
-      try {
-        await updateReport(reportId, { status: 'closed' })
-        setReports((prev) => prev.filter((r) => r.id !== reportId))
-        if (selectedId === reportId) setSelectedId(null)
-        toast(t('reports.closed', { defaultValue: 'Report closed' }))
-      } catch {
-        toast(t('reports.closeError', { defaultValue: 'Failed to close report' }), 'error')
-      }
-    },
-    [selectedId, toast, t]
-  )
-
-  const handleSendReply = useCallback(async () => {
-    if (!selectedId || !replyText.trim() || !hasNsec || !publicKey) return
-    setSending(true)
-    try {
-      // Build reader list: current user + admin decryption pubkey
-      const readerPubkeys = [publicKey]
-      if (adminDecryptionPubkey && adminDecryptionPubkey !== publicKey) {
-        readerPubkeys.push(adminDecryptionPubkey)
-      }
-
-      const encrypted = encryptMessage(replyText.trim(), readerPubkeys)
-
-      const msg = await sendReportMessage(selectedId, {
-        encryptedContent: encrypted.encryptedContent,
-        readerEnvelopes: encrypted.readerEnvelopes,
-      })
-      setMessages((prev) => [msg, ...prev])
-      setReplyText('')
-    } catch {
-      toast(t('reports.sendError', { defaultValue: 'Failed to send message' }), 'error')
-    } finally {
-      setSending(false)
-    }
-  }, [selectedId, replyText, hasNsec, publicKey, adminDecryptionPubkey, toast, t])
-
-  const handleFileUploadComplete = useCallback(
-    async (fileIds: string[]) => {
-      if (!selectedId || !hasNsec || !publicKey) return
-      try {
-        // Build reader list: current user + admin decryption pubkey
-        const readerPubkeys = [publicKey]
-        if (adminDecryptionPubkey && adminDecryptionPubkey !== publicKey) {
-          readerPubkeys.push(adminDecryptionPubkey)
-        }
-
-        const placeholder = t('reports.filesAttached', {
-          defaultValue: '[Files attached]',
-          count: fileIds.length,
-        })
-        const encrypted = encryptMessage(placeholder, readerPubkeys)
-
-        const msg = await sendReportMessage(selectedId, {
-          encryptedContent: encrypted.encryptedContent,
-          readerEnvelopes: encrypted.readerEnvelopes,
-          attachmentIds: fileIds,
-        })
-        setMessages((prev) => [msg, ...prev])
-        setShowFileUpload(false)
-      } catch {
-        toast(t('reports.sendError', { defaultValue: 'Failed to send message' }), 'error')
-      }
-    },
-    [selectedId, hasNsec, publicKey, adminDecryptionPubkey, toast, t]
-  )
-
   const handleReportCreated = useCallback(
     (reportId: string) => {
-      // Refresh reports list with current filters and select the new one
-      const params: { status?: string; category?: string } = {}
-      if (statusFilter !== 'all') params.status = statusFilter
-      if (categoryFilter !== 'all') params.category = categoryFilter
-      listReports(params)
-        .then(({ conversations }) => {
-          setReports(conversations)
-          setSelectedId(reportId)
-        })
-        .catch(() => {})
+      void reportsQuery.refetch().then(() => setSelectedId(reportId))
     },
-    [statusFilter, categoryFilter]
+    [reportsQuery]
   )
 
   const showEmptyState = !loading && reports.length === 0
@@ -320,22 +164,7 @@ function ReportsPage() {
           {/* Report detail */}
           <div className="flex flex-1 flex-col rounded-lg border border-border bg-card overflow-hidden">
             {selectedReport ? (
-              <ReportDetail
-                report={selectedReport}
-                messages={messages}
-                messagesLoading={messagesLoading}
-                replyText={replyText}
-                onReplyChange={setReplyText}
-                onSend={handleSendReply}
-                sending={sending}
-                onAssign={handleAssign}
-                onClose={handleClose}
-                isAdmin={isAdmin}
-                hasPermission={hasPermission}
-                showFileUpload={showFileUpload}
-                onToggleFileUpload={() => setShowFileUpload((prev) => !prev)}
-                onFileUploadComplete={handleFileUploadComplete}
-              />
+              <ReportDetail report={selectedReport} isAdmin={isAdmin} />
             ) : (
               <div className="flex flex-1 flex-col items-center justify-center text-muted-foreground">
                 <FileText className="h-10 w-10 mb-3" />
@@ -412,72 +241,102 @@ function ReportCard({
 
 function ReportDetail({
   report,
-  messages,
-  messagesLoading,
-  replyText,
-  onReplyChange,
-  onSend,
-  sending,
-  onAssign,
-  onClose,
   isAdmin,
-  hasPermission,
-  showFileUpload,
-  onToggleFileUpload,
-  onFileUploadComplete,
 }: {
   report: Report
-  messages: ConversationMessage[]
-  messagesLoading: boolean
-  replyText: string
-  onReplyChange: (text: string) => void
-  onSend: () => void
-  sending: boolean
-  onAssign: (id: string) => void
-  onClose: (id: string) => void
   isAdmin: boolean
-  hasPermission: (permission: string) => boolean
-  showFileUpload: boolean
-  onToggleFileUpload: () => void
-  onFileUploadComplete: (fileIds: string[]) => void
 }) {
   const { t } = useTranslation()
-  const { hasNsec, publicKey } = useAuth()
-  const [decryptedContent, setDecryptedContent] = useState<Map<string, string>>(new Map())
+  const { hasNsec, publicKey, hasPermission, adminDecryptionPubkey } = useAuth()
+  const { toast } = useToast()
+
+  const [replyText, setReplyText] = useState('')
+  const [showFileUpload, setShowFileUpload] = useState(false)
+
+  const messagesQuery = useReportMessages(report.id)
+  const { messages = [], decryptedContent = new Map() } = messagesQuery.data ?? {}
+  const messagesLoading = messagesQuery.isLoading
+
+  const sendMutation = useSendReportMessage(report.id)
+  const assignMutation = useAssignReport()
+  const closeMutation = useUpdateReport()
+
   const scrollRef = useCallback((node: HTMLDivElement | null) => {
     if (node) node.scrollTop = node.scrollHeight
   }, [])
 
-  // Decrypt messages using envelope pattern
-  useEffect(() => {
-    if (messages.length === 0 || !publicKey) return
-    if (!hasNsec) return
+  const handleAssign = useCallback(async () => {
+    if (!publicKey) return
+    try {
+      await assignMutation.mutateAsync({ reportId: report.id, pubkey: publicKey })
+      toast(t('reports.assigned', { defaultValue: 'Report assigned to you' }))
+    } catch {
+      toast(t('reports.assignError', { defaultValue: 'Failed to assign report' }), 'error')
+    }
+  }, [publicKey, report.id, assignMutation, toast, t])
 
-    void (async () => {
-      const unlocked = await keyManager.isUnlocked()
-      if (!unlocked) return
+  const handleClose = useCallback(async () => {
+    try {
+      await closeMutation.mutateAsync({ reportId: report.id, data: { status: 'closed' } })
+      toast(t('reports.closed', { defaultValue: 'Report closed' }))
+    } catch {
+      toast(t('reports.closeError', { defaultValue: 'Failed to close report' }), 'error')
+    }
+  }, [report.id, closeMutation, toast, t])
 
-      const decrypted = new Map<string, string>()
+  const handleSendReply = useCallback(async () => {
+    if (!replyText.trim() || !hasNsec || !publicKey) return
 
-      for (const msg of messages) {
-        if (msg.encryptedContent && msg.readerEnvelopes?.length) {
-          const plaintext = await decryptMessage(
-            msg.encryptedContent,
-            msg.readerEnvelopes,
-            publicKey
-          )
-          if (plaintext !== null) {
-            decrypted.set(msg.id, plaintext)
-          }
-        }
+    const readerPubkeys = [publicKey]
+    if (adminDecryptionPubkey && adminDecryptionPubkey !== publicKey) {
+      readerPubkeys.push(adminDecryptionPubkey)
+    }
+
+    const encrypted = encryptMessage(replyText.trim(), readerPubkeys)
+
+    try {
+      await sendMutation.mutateAsync({
+        encryptedContent: encrypted.encryptedContent,
+        readerEnvelopes: encrypted.readerEnvelopes,
+      })
+      setReplyText('')
+    } catch {
+      toast(t('reports.sendError', { defaultValue: 'Failed to send message' }), 'error')
+    }
+  }, [replyText, hasNsec, publicKey, adminDecryptionPubkey, sendMutation, toast, t])
+
+  const handleFileUploadComplete = useCallback(
+    async (fileIds: string[]) => {
+      if (!hasNsec || !publicKey) return
+
+      const readerPubkeys = [publicKey]
+      if (adminDecryptionPubkey && adminDecryptionPubkey !== publicKey) {
+        readerPubkeys.push(adminDecryptionPubkey)
       }
 
-      setDecryptedContent(decrypted)
-    })()
-  }, [messages, hasNsec, publicKey])
+      const placeholder = t('reports.filesAttached', {
+        defaultValue: '[Files attached]',
+        count: fileIds.length,
+      })
+      const encrypted = encryptMessage(placeholder, readerPubkeys)
+
+      try {
+        await sendMutation.mutateAsync({
+          encryptedContent: encrypted.encryptedContent,
+          readerEnvelopes: encrypted.readerEnvelopes,
+          attachmentIds: fileIds,
+        })
+        setShowFileUpload(false)
+      } catch {
+        toast(t('reports.sendError', { defaultValue: 'Failed to send message' }), 'error')
+      }
+    },
+    [hasNsec, publicKey, adminDecryptionPubkey, sendMutation, toast, t]
+  )
 
   const isReporter = hasPermission('reports:create') && !hasPermission('calls:answer')
   const canReply = report.status === 'active' || isReporter
+  const sending = sendMutation.isPending
 
   return (
     <>
@@ -503,18 +362,13 @@ function ReportDetail({
         </div>
         <div className="flex items-center gap-2 shrink-0 ml-3">
           {report.status === 'waiting' && (isAdmin || hasPermission('calls:answer')) && (
-            <Button size="sm" onClick={() => onAssign(report.id)}>
+            <Button size="sm" onClick={handleAssign}>
               <UserCheck className="h-3.5 w-3.5" />
               {t('reports.claim', { defaultValue: 'Claim' })}
             </Button>
           )}
           {report.status === 'active' && isAdmin && (
-            <Button
-              size="sm"
-              variant="outline"
-              data-testid="close-report"
-              onClick={() => onClose(report.id)}
-            >
+            <Button size="sm" variant="outline" data-testid="close-report" onClick={handleClose}>
               <X className="h-3.5 w-3.5" />
               {t('reports.closeReport', { defaultValue: 'Close' })}
             </Button>
@@ -587,7 +441,7 @@ function ReportDetail({
           <FileUpload
             conversationId={report.id}
             recipientPubkeys={[publicKey]}
-            onUploadComplete={onFileUploadComplete}
+            onUploadComplete={handleFileUploadComplete}
           />
         </div>
       )}
@@ -605,7 +459,7 @@ function ReportDetail({
             <Button
               variant="ghost"
               size="icon-sm"
-              onClick={onToggleFileUpload}
+              onClick={() => setShowFileUpload((prev) => !prev)}
               aria-label={t('reports.attachFile', { defaultValue: 'Attach file' })}
               className="shrink-0 text-muted-foreground"
             >
@@ -613,11 +467,11 @@ function ReportDetail({
             </Button>
             <textarea
               value={replyText}
-              onChange={(e) => onReplyChange(e.target.value)}
+              onChange={(e) => setReplyText(e.target.value)}
               onKeyDown={(e) => {
                 if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
                   e.preventDefault()
-                  onSend()
+                  void handleSendReply()
                 }
               }}
               placeholder={t('reports.replyPlaceholder', { defaultValue: 'Type your reply...' })}
@@ -627,7 +481,7 @@ function ReportDetail({
             <Button
               size="icon-sm"
               disabled={!replyText.trim() || sending}
-              onClick={onSend}
+              onClick={() => void handleSendReply()}
               aria-label={t('common.submit')}
               className="shrink-0"
             >

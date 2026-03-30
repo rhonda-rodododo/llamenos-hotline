@@ -38,7 +38,11 @@ export function createAuthedRequest(
   permissions: string[] = ['*']
 ): AuthedRequest {
   const pubkey = getPublicKey(secretKey)
-  const jwtSecret = process.env.JWT_SECRET || 'test-jwt-secret'
+  // Use the same fallback as tests/helpers/index.ts — must match the server's JWT_SECRET.
+  // Playwright worker processes do not inherit .env from Bun's startup, so we cannot
+  // rely on process.env.JWT_SECRET being set in workers; use the dev fallback directly.
+  const jwtSecret =
+    process.env.JWT_SECRET || '0000000000000000000000000000000000000000000000000000000000000003'
 
   async function authHeaders(extra?: Record<string, string>): Promise<Record<string, string>> {
     const token = await signAccessToken({ pubkey, permissions }, jwtSecret, { expiresIn: '15m' })

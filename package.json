@@ -47,6 +47,8 @@
     "@scure/base": "^2.0.0",
     "@simplewebauthn/browser": "^13.3.0",
     "@simplewebauthn/server": "^13.3.0",
+    "@tanstack/react-query": "^5.95.2",
+    "@tanstack/react-query-devtools": "^5.95.2",
     "@tanstack/react-router": "^1.168.7",
     "@tanstack/router-plugin": "^1.167.8",
     "@vonage/client-sdk": "^2.3.0",

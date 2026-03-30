@@ -11,19 +11,23 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Skeleton } from '@/components/ui/skeleton'
-import { type ContactRecord, listContacts } from '@/lib/api'
-import { useDecryptedArray } from '@/lib/use-decrypted'
-import { LABEL_CONTACT_SUMMARY } from '@shared/crypto-labels'
+import { useContacts } from '@/lib/queries/contacts'
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
 import { BookUser, Plus, Search } from 'lucide-react'
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { toast } from 'sonner'
 
 /** ContactRecord augmented with fields populated by decryptObjectFields */
-type DecryptedContact = ContactRecord & {
+type DecryptedContact = {
+  id: string
+  contactType: string
+  riskLevel?: string
+  tags: string[]
+  lastInteractionAt?: string
+  createdAt: string
   displayName?: string
   notes?: string
+  [key: string]: unknown
 }
 
 type ContactsSearch = {
@@ -52,28 +56,15 @@ function ContactDirectoryPage() {
   const { t } = useTranslation()
   const navigate = useNavigate({ from: '/contacts' })
   const { contactType, riskLevel, q } = Route.useSearch()
-  const [contacts, setContacts] = useState<ContactRecord[]>([])
-  const [loading, setLoading] = useState(true)
   const [searchInput, setSearchInput] = useState(q)
   const [createOpen, setCreateOpen] = useState(false)
 
-  const fetchContacts = useCallback(() => {
-    setLoading(true)
-    listContacts({
-      contactType: contactType || undefined,
-      riskLevel: riskLevel || undefined,
-    })
-      .then((r) => setContacts(r.contacts))
-      .catch(() => toast.error(t('common.error')))
-      .finally(() => setLoading(false))
-  }, [contactType, riskLevel])
+  const { data: contacts = [], isLoading: loading } = useContacts({
+    contactType: contactType || undefined,
+    riskLevel: riskLevel || undefined,
+  })
 
-  useEffect(() => {
-    fetchContacts()
-  }, [fetchContacts])
-
-  // Decrypt display names client-side, then filter by query
-  const decryptedContacts = useDecryptedArray(contacts, LABEL_CONTACT_SUMMARY) as DecryptedContact[]
+  const decryptedContacts = contacts as unknown as DecryptedContact[]
 
   const filtered = useMemo(() => {
     if (!q) return decryptedContacts
@@ -251,7 +242,6 @@ function ContactDirectoryPage() {
         onOpenChange={setCreateOpen}
         onCreated={() => {
           setCreateOpen(false)
-          fetchContacts()
         }}
       />
     </div>

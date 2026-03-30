@@ -4,18 +4,15 @@ import { SubscriberManager } from '@/components/SubscriberManager'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { cancelBlast, deleteBlast, listBlasts, sendBlast } from '@/lib/api'
-import type { Blast } from '@/lib/api'
 import { useAuth } from '@/lib/auth'
 import { useConfig } from '@/lib/config'
-import { decryptBlastContent } from '@/lib/crypto'
 import { decryptHubField } from '@/lib/hub-field-crypto'
-import * as keyManager from '@/lib/key-manager'
+import { useBlasts, useCancelBlast, useDeleteBlast, useSendBlast } from '@/lib/queries/blasts'
 import { useToast } from '@/lib/toast'
-import type { BlastContent } from '@shared/types'
+import type { Blast } from '@shared/types'
 import { createFileRoute } from '@tanstack/react-router'
 import { Megaphone, Plus, Send, Settings2, Trash2, Users, XCircle } from 'lucide-react'
-import { useCallback, useEffect, useState } from 'react'
+import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 export const Route = createFileRoute('/blasts')({
@@ -28,52 +25,25 @@ function BlastsPage() {
   const { currentHubId } = useConfig()
   const hubId = currentHubId ?? 'global'
   const { toast } = useToast()
-  const [blasts, setBlasts] = useState<Blast[]>([])
-  const [loading, setLoading] = useState(true)
+
+  // React Query
+  const { data, isLoading } = useBlasts()
+  const blasts = data?.blasts ?? []
+  const decryptedContent = data?.decryptedContent ?? {}
+
+  // UI-only state
   const [selectedBlast, setSelectedBlast] = useState<Blast | null>(null)
   const [showComposer, setShowComposer] = useState(false)
   const [showSubscribers, setShowSubscribers] = useState(false)
   const [showSettings, setShowSettings] = useState(false)
-  const [decryptedContent, setDecryptedContent] = useState<Record<string, BlastContent | null>>({})
 
-  const decryptBlasts = useCallback(async (blastList: Blast[]) => {
-    const unlocked = await keyManager.isUnlocked()
-    if (!unlocked) return
-    const pk = await keyManager.getPublicKeyHex()
-    if (!pk) return
-    const map: Record<string, BlastContent | null> = {}
-    for (const blast of blastList) {
-      if (blast.encryptedContent && blast.contentEnvelopes?.length) {
-        map[blast.id] = await decryptBlastContent(
-          blast.encryptedContent,
-          blast.contentEnvelopes,
-          pk
-        )
-      }
-    }
-    setDecryptedContent((prev) => ({ ...prev, ...map }))
-  }, [])
-
-  useEffect(() => {
-    loadBlasts()
-  }, [])
-
-  async function loadBlasts() {
-    try {
-      const res = await listBlasts()
-      setBlasts(res.blasts)
-      await decryptBlasts(res.blasts)
-    } catch {
-      toast(t('common.error'), 'error')
-    } finally {
-      setLoading(false)
-    }
-  }
+  const sendMutation = useSendBlast()
+  const deleteMutation = useDeleteBlast()
+  const cancelMutation = useCancelBlast()
 
   async function handleDelete(id: string) {
     try {
-      await deleteBlast(id)
-      setBlasts((prev) => prev.filter((b) => b.id !== id))
+      await deleteMutation.mutateAsync(id)
       if (selectedBlast?.id === id) setSelectedBlast(null)
       toast(t('common.success'), 'success')
     } catch {
@@ -83,8 +53,7 @@ function BlastsPage() {
 
   async function handleSend(id: string) {
     try {
-      const res = await sendBlast(id)
-      setBlasts((prev) => prev.map((b) => (b.id === id ? res.blast : b)))
+      const res = await sendMutation.mutateAsync(id)
       setSelectedBlast(res.blast)
       toast(t('blasts.sent'), 'success')
     } catch {
@@ -94,8 +63,7 @@ function BlastsPage() {
 
   async function handleCancel(id: string) {
     try {
-      const res = await cancelBlast(id)
-      setBlasts((prev) => prev.map((b) => (b.id === id ? res.blast : b)))
+      const res = await cancelMutation.mutateAsync(id)
       setSelectedBlast(res.blast)
       toast(t('common.success'), 'success')
     } catch {
@@ -177,7 +145,7 @@ function BlastsPage() {
               <CardTitle className="text-base">{t('blasts.allBlasts')}</CardTitle>
             </CardHeader>
             <CardContent className="p-0">
-              {loading ? (
+              {isLoading ? (
                 <div className="p-4 text-center text-muted-foreground">{t('common.loading')}</div>
               ) : blasts.length === 0 ? (
                 <div className="p-6 text-center text-muted-foreground" data-testid="no-blasts">
@@ -234,8 +202,6 @@ function BlastsPage() {
           {showComposer ? (
             <BlastComposer
               onCreated={(blast) => {
-                setBlasts((prev) => [blast, ...prev])
-                void decryptBlasts([blast])
                 setShowComposer(false)
                 setSelectedBlast(blast)
               }}

@@ -307,7 +307,7 @@ class AuthFacadeClient {
    * Delete a registered WebAuthn credential by its ID.
    */
   async deleteDevice(id: string): Promise<void> {
-    const res = await this.authedFetch(`/auth/devices/${encodeURIComponent(id)}`, {
+    const res = await this.authedFetch(`/api/auth/devices/${encodeURIComponent(id)}`, {
       method: 'DELETE',
     })
     await AuthFacadeClient.assertOk(res, 'Failed to delete device')

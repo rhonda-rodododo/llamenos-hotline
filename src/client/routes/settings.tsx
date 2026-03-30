@@ -26,6 +26,7 @@ import {
   subscribeToPush,
   unsubscribeFromPush,
 } from '@/lib/push-subscription'
+import { useWebAuthnCreds } from '@/lib/queries/settings'
 import { useToast } from '@/lib/toast'
 import {
   TranscriptionManager,
@@ -33,15 +34,8 @@ import {
   getClientTranscriptionSettings,
   setClientTranscriptionSettings,
 } from '@/lib/transcription'
-import { useDecryptedArray } from '@/lib/use-decrypted'
 import { useNotificationPermission } from '@/lib/use-notification-permission'
-import {
-  type WebAuthnCredentialInfo,
-  deleteCredential,
-  isWebAuthnAvailable,
-  listCredentials,
-  registerCredential,
-} from '@/lib/webauthn'
+import { deleteCredential, isWebAuthnAvailable, registerCredential } from '@/lib/webauthn'
 import { LANGUAGES } from '@shared/languages'
 import { createFileRoute, useSearch } from '@tanstack/react-router'
 import {
@@ -89,8 +83,7 @@ function SettingsPage() {
   const [notifPrefs, setNotifPrefs] = useState(getNotificationPrefs)
   const [loading, setLoading] = useState(true)
   const [canOptOut, setCanOptOut] = useState(true)
-  const [webauthnCreds, setWebauthnCreds] = useState<WebAuthnCredentialInfo[]>([])
-  const decryptedWebauthnCreds = useDecryptedArray(webauthnCreds)
+  const { data: webAuthnCreds = [], refetch: refetchWebAuthnCreds } = useWebAuthnCreds()
   const [webauthnLabel, setWebauthnLabel] = useState('')
   const [webauthnRegistering, setWebauthnRegistering] = useState(false)
   const webauthnAvailable = isWebAuthnAvailable()
@@ -135,14 +128,6 @@ function SettingsPage() {
         .then((subscribed) => setPushSubscribed(subscribed))
         .catch(() => {}),
     ]
-    // Load WebAuthn credentials for all users
-    if (webauthnAvailable) {
-      promises.push(
-        listCredentials()
-          .then(setWebauthnCreds)
-          .catch(() => {})
-      )
-    }
     Promise.all(promises)
       .catch(() => toast(t('common.error'), 'error'))
       .finally(() => setLoading(false))
@@ -312,11 +297,11 @@ function SettingsPage() {
           expanded={expanded.has('passkeys')}
           onToggle={(open) => toggleSection('passkeys', open)}
         >
-          {decryptedWebauthnCreds.length === 0 ? (
+          {webAuthnCreds.length === 0 ? (
             <p className="text-sm text-muted-foreground">{t('webauthn.noKeys')}</p>
           ) : (
             <div className="space-y-2">
-              {decryptedWebauthnCreds.map((cred) => (
+              {webAuthnCreds.map((cred) => (
                 <div
                   key={cred.id}
                   data-testid="passkey-credential-row"
@@ -340,7 +325,7 @@ function SettingsPage() {
                     onClick={async () => {
                       try {
                         await deleteCredential(cred.id)
-                        setWebauthnCreds((prev) => prev.filter((c) => c.id !== cred.id))
+                        void refetchWebAuthnCreds()
                         toast(t('common.success'), 'success')
                       } catch {
                         toast(t('common.error'), 'error')
@@ -369,8 +354,7 @@ function SettingsPage() {
                 setWebauthnRegistering(true)
                 try {
                   await registerCredential(webauthnLabel.trim())
-                  const updated = await listCredentials()
-                  setWebauthnCreds(updated)
+                  void refetchWebAuthnCreds()
                   setWebauthnLabel('')
                   toast(t('webauthn.registerSuccess'), 'success')
                 } catch (err) {

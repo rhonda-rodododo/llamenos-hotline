@@ -9,12 +9,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { type AuditLogEntry, type Volunteer, listAuditLog, listVolunteers } from '@/lib/api'
+import type { AuditLogEntry } from '@/lib/api'
 import { useAuth } from '@/lib/auth'
-import { useDecryptedArray } from '@/lib/use-decrypted'
+import { useAuditLog } from '@/lib/queries/audit'
+import { useVolunteers } from '@/lib/queries/volunteers'
 import { Link, createFileRoute } from '@tanstack/react-router'
 import { ChevronLeft, ChevronRight, ScrollText, Search } from 'lucide-react'
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 export const Route = createFileRoute('/audit')({
@@ -82,65 +83,70 @@ function getEventCategoryColor(event: string): string {
   return 'bg-secondary text-secondary-foreground'
 }
 
+const LIMIT = 50
+
 function AuditPage() {
   const { t } = useTranslation()
   const { isAdmin } = useAuth()
-  const [entries, setEntries] = useState<AuditLogEntry[]>([])
-  const [total, setTotal] = useState(0)
   const [page, setPage] = useState(1)
-  const [loading, setLoading] = useState(true)
-  const [volunteers, setVolunteers] = useState<Volunteer[]>([])
   const [searchText, setSearchText] = useState('')
   const [eventType, setEventType] = useState('all')
   const [dateFrom, setDateFrom] = useState('')
   const [dateTo, setDateTo] = useState('')
-  const limit = 50
 
-  useEffect(() => {
-    listVolunteers()
-      .then((r) => setVolunteers(r.volunteers))
-      .catch(() => {})
-  }, [])
+  const filters = {
+    page,
+    limit: LIMIT,
+    eventType: eventType !== 'all' ? eventType : undefined,
+    dateFrom: dateFrom || undefined,
+    dateTo: dateTo || undefined,
+    search: searchText || undefined,
+  }
 
-  const fetchEntries = useCallback(() => {
-    setLoading(true)
-    listAuditLog({
-      page,
-      limit,
-      eventType: eventType !== 'all' ? eventType : undefined,
-      dateFrom: dateFrom || undefined,
-      dateTo: dateTo || undefined,
-      search: searchText || undefined,
-    })
-      .then((r) => {
-        setEntries(r.entries)
-        setTotal(r.total)
-      })
-      .finally(() => setLoading(false))
-  }, [page, eventType, dateFrom, dateTo, searchText])
+  const { data, isLoading: loading } = useAuditLog(filters)
+  const { data: volunteers = [] } = useVolunteers()
 
-  useEffect(() => {
-    fetchEntries()
-  }, [fetchEntries])
-
-  // Reset to page 1 when filters change
-  useEffect(() => {
-    setPage(1)
-  }, [eventType, dateFrom, dateTo, searchText])
-
-  const decryptedVolunteers = useDecryptedArray(volunteers)
+  const entries = data?.entries ?? []
+  const total = data?.total ?? 0
+  const totalPages = Math.ceil(total / LIMIT)
 
   const nameMap = useMemo(() => {
     const map = new Map<string, string>()
-    for (const v of decryptedVolunteers) map.set(v.pubkey, v.name)
+    for (const v of volunteers) map.set(v.pubkey, v.name)
     return map
-  }, [decryptedVolunteers])
+  }, [volunteers])
+
+  function clearFilters() {
+    setSearchText('')
+    setEventType('all')
+    setDateFrom('')
+    setDateTo('')
+    setPage(1)
+  }
+
+  function handleEventTypeChange(value: string) {
+    setEventType(value)
+    setPage(1)
+  }
+
+  function handleSearchChange(value: string) {
+    setSearchText(value)
+    setPage(1)
+  }
+
+  function handleDateFromChange(value: string) {
+    setDateFrom(value)
+    setPage(1)
+  }
+
+  function handleDateToChange(value: string) {
+    setDateTo(value)
+    setPage(1)
+  }
 
   if (!isAdmin) {
     return <div className="text-muted-foreground">Access denied</div>
   }
-
-  const totalPages = Math.ceil(total / limit)
 
   return (
     <div className="space-y-6">
@@ -160,7 +166,7 @@ function AuditPage() {
               <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
               <Input
                 value={searchText}
-                onChange={(e) => setSearchText(e.target.value)}
+                onChange={(e) => handleSearchChange(e.target.value)}
                 placeholder={t('auditLog.searchPlaceholder', {
                   defaultValue: 'Search actor or event...',
                 })}
@@ -172,7 +178,7 @@ function AuditPage() {
             <label className="mb-1 block text-xs font-medium text-muted-foreground">
               {t('auditLog.eventType', { defaultValue: 'Event Type' })}
             </label>
-            <Select value={eventType} onValueChange={setEventType}>
+            <Select value={eventType} onValueChange={handleEventTypeChange}>
               <SelectTrigger className="h-8 text-sm">
                 <SelectValue />
               </SelectTrigger>
@@ -197,7 +203,7 @@ function AuditPage() {
             <Input
               type="date"
               value={dateFrom}
-              onChange={(e) => setDateFrom(e.target.value)}
+              onChange={(e) => handleDateFromChange(e.target.value)}
               className="h-8 text-sm"
             />
           </div>
@@ -208,22 +214,12 @@ function AuditPage() {
             <Input
               type="date"
               value={dateTo}
-              onChange={(e) => setDateTo(e.target.value)}
+              onChange={(e) => handleDateToChange(e.target.value)}
               className="h-8 text-sm"
             />
           </div>
           {(searchText || eventType !== 'all' || dateFrom || dateTo) && (
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-8"
-              onClick={() => {
-                setSearchText('')
-                setEventType('all')
-                setDateFrom('')
-                setDateTo('')
-              }}
-            >
+            <Button variant="ghost" size="sm" className="h-8" onClick={clearFilters}>
               {t('common.clear', { defaultValue: 'Clear' })}
             </Button>
           )}
