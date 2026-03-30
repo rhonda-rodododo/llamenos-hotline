@@ -14,6 +14,7 @@ import { RecordsService } from './records'
 import { ReportTypeService } from './report-types'
 import { SettingsService } from './settings'
 import { ShiftService } from './shifts'
+import { TeamsService } from './teams'
 
 export type {
   BlastService,
@@ -28,6 +29,7 @@ export type {
   ReportTypeService,
   SettingsService,
   ShiftService,
+  TeamsService,
   ProviderHealthService,
 }
 
@@ -44,6 +46,7 @@ export interface Services {
   reportTypes: ReportTypeService
   push: PushService
   contacts: ContactService
+  teams: TeamsService
   providerHealth?: ProviderHealthService
   storage: StorageManager | null
   crypto: CryptoService
@@ -67,6 +70,7 @@ export function createServices(
     reportTypes: new ReportTypeService(db, crypto),
     push: new PushService(db, crypto),
     contacts: new ContactService(db, crypto),
+    teams: new TeamsService(db, crypto),
     storage,
     crypto,
   }
