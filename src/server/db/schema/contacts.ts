@@ -36,6 +36,9 @@ export const contacts = pgTable(
     // Case manager assignment
     assignedTo: text('assigned_to'),
 
+    // Merge tracking
+    mergedInto: text('merged_into'), // ID of contact this was merged into
+
     // Metadata
     createdBy: text('created_by').notNull(),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
@@ -46,6 +49,7 @@ export const contacts = pgTable(
   (table) => [
     index('contacts_hub_idx').on(table.hubId),
     index('contacts_identifier_hash_idx').on(table.hubId, table.identifierHash),
+    index('contacts_merged_into_idx').on(table.mergedInto),
   ]
 )
 

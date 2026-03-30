@@ -17,6 +17,7 @@ import blastsRoutes from './routes/blasts'
 import callsRoutes from './routes/calls'
 import configRoutes from './routes/config'
 import contactsRoutes from './routes/contacts'
+import contactImportRoutes from './routes/contacts-import'
 import conversationsRoutes from './routes/conversations'
 import devRoutes from './routes/dev'
 import filesRoutes from './routes/files'
@@ -239,6 +240,7 @@ authenticated.route('/setup/provider', providerSetupRoutes)
 authenticated.route('/hubs', hubRoutes)
 authenticated.route('/blasts', blastsRoutes)
 authenticated.route('/contacts', contactsRoutes)
+authenticated.route('/contacts', contactImportRoutes)
 authenticated.route('/tags', tagsRoutes)
 authenticated.route('/teams', teamsRoutes)
 authenticated.route('/intakes', intakesRoutes)
@@ -260,6 +262,7 @@ hubScoped.route('/reports', reportsRoutes)
 hubScoped.route('/report-types', reportTypesRoutes)
 hubScoped.route('/blasts', blastsRoutes)
 hubScoped.route('/contacts', contactsRoutes)
+hubScoped.route('/contacts', contactImportRoutes)
 hubScoped.route('/tags', tagsRoutes)
 hubScoped.route('/teams', teamsRoutes)
 hubScoped.route('/intakes', intakesRoutes)

@@ -306,6 +306,15 @@ export class ContactService {
     return !!row
   }
 
+  async mergeContact(id: string, hubId: string, mergedIntoId: string): Promise<boolean> {
+    const [row] = await this.db
+      .update(contacts)
+      .set({ deletedAt: new Date(), mergedInto: mergedIntoId })
+      .where(and(eq(contacts.id, id), eq(contacts.hubId, hubId), isNull(contacts.deletedAt)))
+      .returning({ id: contacts.id })
+    return !!row
+  }
+
   // ------------------------------------------------------------------ Dedup
 
   async checkDuplicate(identifierHash: HmacHash, hubId: string): Promise<ContactRow | null> {

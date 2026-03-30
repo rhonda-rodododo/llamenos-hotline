@@ -2277,3 +2277,35 @@ export async function notifyContacts(
     body: JSON.stringify({ notifications }),
   })
 }
+
+export async function importContacts(data: {
+  contacts: Array<{
+    contactType: string
+    riskLevel: string
+    tags?: string[]
+    encryptedDisplayName: string
+    displayNameEnvelopes: RecipientEnvelope[]
+    encryptedFullName?: string
+    fullNameEnvelopes?: RecipientEnvelope[]
+    encryptedPhone?: string
+    phoneEnvelopes?: RecipientEnvelope[]
+    identifierHash?: string
+    encryptedPII?: string
+    piiEnvelopes?: RecipientEnvelope[]
+  }>
+}): Promise<{ created: number; errors: Array<{ index: number; error: string }> }> {
+  return request(hp('/contacts/import'), {
+    method: 'POST',
+    body: JSON.stringify(data),
+  })
+}
+
+export async function mergeContacts(
+  primaryId: string,
+  secondaryId: string
+): Promise<{ ok: true; primaryId: string; mergedTags: string[] }> {
+  return request(hp(`/contacts/${primaryId}/merge`), {
+    method: 'POST',
+    body: JSON.stringify({ secondaryId }),
+  })
+}

@@ -6,6 +6,7 @@ import {
 } from '@/components/contacts/contact-channels-card'
 import { ContactRelationshipSection } from '@/components/contacts/contact-relationship-section'
 import { ContactTimeline } from '@/components/contacts/contact-timeline'
+import { MergeDialog } from '@/components/contacts/merge-dialog'
 import { TagBadge, useTagLookup } from '@/components/tag-input'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -35,7 +36,7 @@ import {
   useUnassignTeamContact,
 } from '@/lib/queries/teams'
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
-import { ArrowLeft, BookUser, FileText, Lock, Users, X } from 'lucide-react'
+import { ArrowLeft, BookUser, FileText, GitMerge, Lock, Users, X } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
@@ -59,10 +60,15 @@ function ContactProfilePage() {
 
   const [deleteOpen, setDeleteOpen] = useState(false)
   const [reportOpen, setReportOpen] = useState(false)
+  const [mergeOpen, setMergeOpen] = useState(false)
 
   const canReadPii = hasPermission('contacts:envelope-full')
   const canDelete = hasPermission('contacts:delete')
   const canCreateReport = hasPermission('reports:create')
+  const canMerge =
+    hasPermission('contacts:update-all') &&
+    hasPermission('contacts:envelope-full') &&
+    hasPermission('contacts:delete')
 
   // React Query: contact detail (decrypts summary+PII tiers in query fn),
   // timeline, relationships, and all contacts list (for relationship names)
@@ -225,6 +231,17 @@ function ContactProfilePage() {
             >
               <FileText className="mr-1 h-4 w-4" />
               {t('contacts.addReport', { defaultValue: 'Add Report' })}
+            </Button>
+          )}
+          {canMerge && (
+            <Button
+              data-testid="contact-merge-btn"
+              variant="outline"
+              size="sm"
+              onClick={() => setMergeOpen(true)}
+            >
+              <GitMerge className="mr-1 h-4 w-4" />
+              {t('contacts.merge', { defaultValue: 'Merge' })}
             </Button>
           )}
           {canDelete && (
@@ -417,6 +434,22 @@ function ContactProfilePage() {
               t('contacts.reportCreated', { defaultValue: 'Report created successfully' })
             )
             navigate({ to: '/reports', search: {} })
+          }}
+        />
+      )}
+
+      {canMerge && (
+        <MergeDialog
+          secondaryId={contactId}
+          secondaryName={displayName}
+          open={mergeOpen}
+          onOpenChange={setMergeOpen}
+          onMerged={(primaryId) => {
+            navigate({
+              to: '/contacts/$contactId',
+              params: { contactId: primaryId },
+              search: { contactType: '', riskLevel: '', q: '', teamId: '', tag: '' },
+            })
           }}
         />
       )}

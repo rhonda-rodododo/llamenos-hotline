@@ -17,6 +17,7 @@ import {
   getContactTimeline,
   listContactRelationships,
   listContacts,
+  mergeContacts,
   updateContact,
 } from '@/lib/api'
 import { decryptArrayFields, decryptObjectFields } from '@/lib/decrypt-fields'
@@ -222,6 +223,21 @@ export function useBulkDeleteContacts() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: bulkDeleteContacts,
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.contacts.all })
+    },
+  })
+}
+
+// ---------------------------------------------------------------------------
+// useMergeContacts
+// ---------------------------------------------------------------------------
+
+export function useMergeContacts() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ primaryId, secondaryId }: { primaryId: string; secondaryId: string }) =>
+      mergeContacts(primaryId, secondaryId),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.contacts.all })
     },

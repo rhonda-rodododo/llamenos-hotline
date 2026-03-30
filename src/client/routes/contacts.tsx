@@ -30,7 +30,7 @@ import { decryptHubField } from '@/lib/hub-field-crypto'
 import { useBulkDeleteContacts, useBulkUpdateContacts, useContacts } from '@/lib/queries/contacts'
 import { useAssignTeamContacts, useTeamContacts, useTeams } from '@/lib/queries/teams'
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
-import { BookUser, Plus, Search, Tag, Trash2, Users, X } from 'lucide-react'
+import { BookUser, Download, Plus, Search, Tag, Trash2, Users, X } from 'lucide-react'
 import { useCallback, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
@@ -204,6 +204,37 @@ function ContactDirectoryPage() {
   async function handleBulkDelete() {
     await bulkDelete.mutateAsync([...selectedIds])
     clearSelection()
+  }
+
+  function handleExportCsv() {
+    const rows = filtered.map((c) => ({
+      type: c.contactType,
+      riskLevel: c.riskLevel ?? '',
+      tags: c.tags.join('; '),
+      displayName: c.displayName ?? '[encrypted]',
+      createdAt: c.createdAt,
+      lastInteraction: c.lastInteractionAt ?? '',
+    }))
+
+    const header = 'Type,Risk Level,Tags,Display Name,Created At,Last Interaction'
+    const csvLines = rows.map((r) =>
+      [
+        r.type,
+        r.riskLevel,
+        `"${r.tags}"`,
+        `"${r.displayName}"`,
+        r.createdAt,
+        r.lastInteraction,
+      ].join(',')
+    )
+    const csv = [header, ...csvLines].join('\n')
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `contacts-${new Date().toISOString().slice(0, 10)}.csv`
+    link.click()
+    URL.revokeObjectURL(url)
   }
 
   return (

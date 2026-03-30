@@ -1,0 +1,139 @@
+import type { Ciphertext, HmacHash } from '@shared/crypto-types'
+import type { RecipientEnvelope } from '@shared/types'
+import { Hono } from 'hono'
+import { requirePermission } from '../middleware/permission-guard'
+import type { AppEnv } from '../types'
+
+const contactImport = new Hono<AppEnv>()
+
+// POST /contacts/import — batch import contacts
+contactImport.post(
+  '/import',
+  requirePermission('contacts:create', 'contacts:envelope-full'),
+  async (c) => {
+    const services = c.get('services')
+    const hubId = c.get('hubId') ?? 'global'
+    const pubkey = c.get('pubkey')
+
+    const body = await c.req.json<{
+      contacts: Array<{
+        contactType: string
+        riskLevel: string
+        tags?: string[]
+        encryptedDisplayName: Ciphertext
+        displayNameEnvelopes: RecipientEnvelope[]
+        encryptedFullName?: Ciphertext
+        fullNameEnvelopes?: RecipientEnvelope[]
+        encryptedPhone?: Ciphertext
+        phoneEnvelopes?: RecipientEnvelope[]
+        identifierHash?: HmacHash
+        encryptedPII?: Ciphertext
+        piiEnvelopes?: RecipientEnvelope[]
+      }>
+    }>()
+
+    if (!body.contacts?.length) {
+      return c.json({ error: 'contacts array is required' }, 400)
+    }
+
+    if (body.contacts.length > 500) {
+      return c.json({ error: 'Maximum 500 contacts per batch' }, 400)
+    }
+
+    let created = 0
+    const errors: Array<{ index: number; error: string }> = []
+
+    for (let i = 0; i < body.contacts.length; i++) {
+      const contact = body.contacts[i]
+      try {
+        // Check for duplicates via identifierHash
+        if (contact.identifierHash) {
+          const existing = await services.contacts.checkDuplicate(contact.identifierHash, hubId)
+          if (existing) {
+            errors.push({ index: i, error: 'Duplicate contact (identifierHash match)' })
+            continue
+          }
+        }
+
+        await services.contacts.createContact({
+          hubId,
+          contactType: contact.contactType || 'caller',
+          riskLevel: contact.riskLevel || 'low',
+          tags: contact.tags ?? [],
+          identifierHash: contact.identifierHash,
+          encryptedDisplayName: contact.encryptedDisplayName,
+          displayNameEnvelopes: contact.displayNameEnvelopes ?? [],
+          encryptedFullName: contact.encryptedFullName,
+          fullNameEnvelopes: contact.fullNameEnvelopes ?? [],
+          encryptedPhone: contact.encryptedPhone,
+          phoneEnvelopes: contact.phoneEnvelopes ?? [],
+          encryptedPII: contact.encryptedPII,
+          piiEnvelopes: contact.piiEnvelopes ?? [],
+          createdBy: pubkey ?? '',
+        })
+        created++
+      } catch (err) {
+        errors.push({ index: i, error: err instanceof Error ? err.message : 'Unknown error' })
+      }
+    }
+
+    return c.json({ created, errors })
+  }
+)
+
+// POST /contacts/:primaryId/merge — merge secondary into primary
+contactImport.post(
+  '/:primaryId/merge',
+  requirePermission('contacts:update-all', 'contacts:envelope-full', 'contacts:delete'),
+  async (c) => {
+    const services = c.get('services')
+    const hubId = c.get('hubId') ?? 'global'
+    const primaryId = c.req.param('primaryId')
+
+    const body = await c.req.json<{ secondaryId: string }>()
+    if (!body.secondaryId) {
+      return c.json({ error: 'secondaryId is required' }, 400)
+    }
+
+    const primary = await services.contacts.getContact(primaryId, hubId)
+    if (!primary) return c.json({ error: 'Primary contact not found' }, 404)
+
+    const secondary = await services.contacts.getContact(body.secondaryId, hubId)
+    if (!secondary) return c.json({ error: 'Secondary contact not found' }, 404)
+
+    // Re-link calls from secondary to primary
+    const callIds = await services.contacts.getLinkedCallIds(body.secondaryId)
+    for (const callId of callIds) {
+      await services.contacts.unlinkCall(body.secondaryId, callId)
+      try {
+        await services.contacts.linkCall(primaryId, callId, hubId, 'merge')
+      } catch {
+        /* already linked */
+      }
+    }
+
+    // Re-link conversations
+    const convIds = await services.contacts.getLinkedConversationIds(body.secondaryId)
+    for (const convId of convIds) {
+      await services.contacts.unlinkConversation(body.secondaryId, convId)
+      try {
+        await services.contacts.linkConversation(primaryId, convId, hubId, 'merge')
+      } catch {
+        /* already linked */
+      }
+    }
+
+    // Merge tags
+    const mergedTags = [
+      ...new Set([...(primary.tags as string[]), ...(secondary.tags as string[])]),
+    ]
+    await services.contacts.updateContact(primaryId, hubId, { tags: mergedTags })
+
+    // Soft-delete secondary with mergedInto reference
+    await services.contacts.mergeContact(body.secondaryId, hubId, primaryId)
+
+    return c.json({ ok: true, primaryId, mergedTags })
+  }
+)
+
+export default contactImport

@@ -253,6 +253,13 @@
       "when": 1743552000000,
       "tag": "0034_contact_intakes",
       "breakpoints": true
+    },
+    {
+      "idx": 35,
+      "version": "7",
+      "when": 1743638400000,
+      "tag": "0035_contact_merge",
+      "breakpoints": true
     }
   ]
 }
