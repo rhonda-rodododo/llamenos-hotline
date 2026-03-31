@@ -1,5 +1,6 @@
 import { HMAC_IP_PREFIX } from '@shared/crypto-labels'
 import { Hono } from 'hono'
+import { setCookie } from 'hono/cookie'
 import { getPrimaryRole } from '../../shared/permissions'
 import { getIdPAdapter } from '../app'
 import { hashIP } from '../lib/crypto-service'
@@ -55,11 +56,20 @@ auth.post('/bootstrap', async (c) => {
   const nsecSecret = await idpAdapter.getNsecSecret(body.pubkey)
   const nsecSecretHex = Buffer.from(nsecSecret).toString('hex')
 
-  // Sign a JWT so the client can immediately call /api/auth/me after importKey
+  // Sign access + refresh tokens so the client has a full session after bootstrap
   const accessToken = await signAccessToken(
     { pubkey: body.pubkey, permissions: ['*'] },
     c.env.JWT_SECRET
   )
+  const { signRefreshToken } = await import('./auth-facade')
+  const refreshToken = await signRefreshToken(body.pubkey, c.env.JWT_SECRET)
+  setCookie(c, 'llamenos-refresh', refreshToken, {
+    httpOnly: true,
+    secure: c.env.ENVIRONMENT !== 'development',
+    sameSite: 'Strict',
+    path: '/api/auth/token',
+    maxAge: 30 * 24 * 60 * 60,
+  })
 
   return c.json({
     ok: true,

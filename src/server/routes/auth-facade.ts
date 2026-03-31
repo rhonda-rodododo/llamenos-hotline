@@ -217,7 +217,7 @@ authFacade.post('/webauthn/login-verify', async (c) => {
       httpOnly: true,
       secure: true,
       sameSite: 'Strict',
-      path: '/auth/token',
+      path: '/api/auth/token',
       maxAge: 30 * 24 * 60 * 60, // 30 days in seconds
     })
 

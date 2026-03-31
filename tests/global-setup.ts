@@ -21,6 +21,47 @@ async function enterSetupPin(page: import('@playwright/test').Page, pin: string)
 }
 
 /**
+ * After loading storage state and navigating to /, handle PIN entry and profile setup.
+ * The page may show: PIN screen → Dashboard, or PIN screen → profile-setup → Dashboard.
+ */
+async function unlockAndNavigateToDashboard(page: import('@playwright/test').Page) {
+  const pinInput = page.locator('input[aria-label="PIN digit 1"]')
+  const dashboard = page.getByRole('heading', { name: 'Dashboard', exact: true })
+  const profileSetup = page.getByRole('heading', { name: 'Welcome!' })
+
+  // Wait for one of: PIN screen, dashboard, or profile-setup
+  const firstVisible = await Promise.race([
+    pinInput.waitFor({ state: 'visible', timeout: 30000 }).then(() => 'pin' as const),
+    dashboard.waitFor({ state: 'visible', timeout: 30000 }).then(() => 'dashboard' as const),
+    profileSetup.waitFor({ state: 'visible', timeout: 30000 }).then(() => 'profile' as const),
+  ])
+
+  if (firstVisible === 'pin') {
+    // Use focus+type for login PIN (lighter component than bootstrap)
+    const firstPinInput = page.locator('input[aria-label="PIN digit 1"]')
+    await firstPinInput.focus()
+    await page.keyboard.type(TEST_PIN, { delay: 80 })
+    await page.keyboard.press('Enter')
+    // After PIN entry: PBKDF2 600K runs synchronously (~30s), then navigates
+    const wrongPin = page.getByText('Wrong PIN')
+    const afterPin = await Promise.race([
+      dashboard.waitFor({ state: 'visible', timeout: 90000 }).then(() => 'dashboard' as const),
+      profileSetup.waitFor({ state: 'visible', timeout: 90000 }).then(() => 'profile' as const),
+      wrongPin.waitFor({ state: 'visible', timeout: 90000 }).then(() => 'wrong-pin' as const),
+    ])
+    if (afterPin === 'wrong-pin') throw new Error('Wrong PIN entered during admin unlock')
+    if (afterPin === 'profile') {
+      await page.getByRole('button', { name: /complete setup/i }).click()
+      await expect(dashboard).toBeVisible({ timeout: 15000 })
+    }
+  } else if (firstVisible === 'profile') {
+    await page.getByRole('button', { name: /complete setup/i }).click()
+    await expect(dashboard).toBeVisible({ timeout: 15000 })
+  }
+  // If 'dashboard', we're already there
+}
+
+/**
  * Complete the admin bootstrap flow:
  * 1. Navigate to /setup
  * 2. Click "Get Started", create PIN, confirm PIN
@@ -97,27 +138,36 @@ async function bootstrapAdmin(page: import('@playwright/test').Page) {
   await page.getByRole('button', { name: /next/i }).click()
   await page.waitForTimeout(1000)
 
-  // Skip remaining wizard steps
+  // Skip remaining wizard steps (providers, settings, invite users)
   for (let i = 0; i < 3; i++) {
     const skipBtn = page.getByRole('button', { name: /skip/i })
-    const skipVisible = await skipBtn.isVisible({ timeout: 5000 }).catch(() => false)
-    if (skipVisible) {
+    await skipBtn.waitFor({ state: 'visible', timeout: 10000 }).catch(() => {})
+    if (await skipBtn.isVisible().catch(() => false)) {
       await skipBtn.click()
-      await page.waitForTimeout(500)
+      await page.waitForTimeout(1000)
     }
   }
 
-  // Launch
-  const launchBtn = page.getByRole('button', { name: /launch/i })
-  const launchVisible = await launchBtn.isVisible({ timeout: 10000 }).catch(() => false)
-  if (launchVisible) {
-    await launchBtn.click()
-  }
+  // Summary step — click "Go to Dashboard"
+  await expect(page.getByText('Review & Launch')).toBeVisible({ timeout: 10000 })
+  await page.getByRole('button', { name: /go to dashboard/i }).click()
 
-  // Wait for dashboard
-  await expect(page.getByRole('heading', { name: 'Dashboard', exact: true })).toBeVisible({
-    timeout: 15000,
-  })
+  // Wait for either dashboard or profile-setup
+  const dashboardHeading = page.getByRole('heading', { name: 'Dashboard', exact: true })
+  const profileSetupHeading = page.getByRole('heading', { name: 'Welcome!' })
+
+  const destination = await Promise.race([
+    dashboardHeading.waitFor({ state: 'visible', timeout: 30000 }).then(() => 'dashboard' as const),
+    profileSetupHeading
+      .waitFor({ state: 'visible', timeout: 30000 })
+      .then(() => 'profile-setup' as const),
+  ])
+
+  if (destination === 'profile-setup') {
+    // Complete profile setup
+    await page.getByRole('button', { name: /complete setup/i }).click()
+    await expect(dashboardHeading).toBeVisible({ timeout: 15000 })
+  }
 }
 
 /**
@@ -287,10 +337,7 @@ test.describe('Global Setup: Provision Test Accounts', () => {
 
     try {
       await adminPage.goto('/', { waitUntil: 'domcontentloaded' })
-      await enterSetupPin(adminPage, TEST_PIN)
-      await expect(adminPage.getByRole('heading', { name: 'Dashboard', exact: true })).toBeVisible({
-        timeout: 60000,
-      })
+      await unlockAndNavigateToDashboard(adminPage)
 
       await createRoleAccount(adminPage, browser, {
         name: 'Test Hub Admin',
@@ -311,10 +358,7 @@ test.describe('Global Setup: Provision Test Accounts', () => {
 
     try {
       await adminPage.goto('/', { waitUntil: 'domcontentloaded' })
-      await enterSetupPin(adminPage, TEST_PIN)
-      await expect(adminPage.getByRole('heading', { name: 'Dashboard', exact: true })).toBeVisible({
-        timeout: 60000,
-      })
+      await unlockAndNavigateToDashboard(adminPage)
 
       await createRoleAccount(adminPage, browser, {
         name: 'Test Volunteer',
@@ -335,10 +379,7 @@ test.describe('Global Setup: Provision Test Accounts', () => {
 
     try {
       await adminPage.goto('/', { waitUntil: 'domcontentloaded' })
-      await enterSetupPin(adminPage, TEST_PIN)
-      await expect(adminPage.getByRole('heading', { name: 'Dashboard', exact: true })).toBeVisible({
-        timeout: 60000,
-      })
+      await unlockAndNavigateToDashboard(adminPage)
 
       await createRoleAccount(adminPage, browser, {
         name: 'Test Reviewer',
@@ -359,10 +400,7 @@ test.describe('Global Setup: Provision Test Accounts', () => {
 
     try {
       await adminPage.goto('/', { waitUntil: 'domcontentloaded' })
-      await enterSetupPin(adminPage, TEST_PIN)
-      await expect(adminPage.getByRole('heading', { name: 'Dashboard', exact: true })).toBeVisible({
-        timeout: 60000,
-      })
+      await unlockAndNavigateToDashboard(adminPage)
 
       await createRoleAccount(adminPage, browser, {
         name: 'Test Reporter',

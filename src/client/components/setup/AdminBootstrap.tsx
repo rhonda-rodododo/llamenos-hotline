@@ -149,7 +149,8 @@ export function AdminBootstrap({ onComplete }: AdminBootstrapProps) {
       // Call bootstrap endpoint — returns nsecSecret + accessToken from IdP enrollment
       const bootstrapResult = await bootstrapAdmin(kp.publicKey, ts, token)
       setIdpNsecSecret(hexToBytes(bootstrapResult.nsecSecret))
-      // Set the access token so signIn() can call /api/auth/me
+      // Set the access token so signIn() can call /api/auth/me.
+      // The refresh cookie (httpOnly, set by the server) enables token renewal on page reload.
       authFacadeClient.setAccessToken(bootstrapResult.accessToken)
 
       // Generate recovery key

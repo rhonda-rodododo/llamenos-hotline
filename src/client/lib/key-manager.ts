@@ -187,8 +187,17 @@ export async function unlock(pin: string): Promise<string | null> {
     // Use the deterministic synthetic value that was used during importKey
     idpValue = syntheticIdpValue(blob.idpIssuer)
   } else {
-    // Fetch real IdP value from facade (requires valid session)
+    // Fetch real IdP value from facade (requires valid session).
+    // If no access token is available, try refreshing from the httpOnly cookie first.
     userInfo = await authFacadeClient.getUserInfo()
+    if (!userInfo) {
+      try {
+        await authFacadeClient.refreshToken()
+        userInfo = await authFacadeClient.getUserInfo()
+      } catch {
+        // Refresh failed — no valid session
+      }
+    }
     if (!userInfo) return null
     idpValue = userInfo.nsecSecret
   }
