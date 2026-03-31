@@ -16,6 +16,7 @@ import {
 } from '@/components/ui/select'
 import { type InviteDeliveryChannel, getUserUnmasked, type updateUser } from '@/lib/api'
 import { useAuth } from '@/lib/auth'
+import { useConfig } from '@/lib/config'
 import { generateKeyPair } from '@/lib/crypto'
 import {
   useCreateInvite,
@@ -73,6 +74,8 @@ function channelLabel(channel: string): string {
 function UsersPage() {
   const { t } = useTranslation()
   const { isAdmin } = useAuth()
+  const { currentHubId } = useConfig()
+  const hubId = currentHubId ?? 'global'
   const { toast } = useToast()
 
   // --- React Query: users ---
@@ -83,7 +86,7 @@ function UsersPage() {
 
   // --- React Query: invites, roles, channels ---
   const { data: invites = [], isLoading: invitesLoading } = useInvites()
-  const { data: roles = [] } = useRoles()
+  const { data: roles = [] } = useRoles(hubId)
   const { data: availableChannels } = useInviteChannels()
   const revokeInviteMutation = useRevokeInvite()
 

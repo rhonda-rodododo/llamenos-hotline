@@ -191,14 +191,20 @@ export async function unlock(pin: string): Promise<string | null> {
     // If no access token is available, try refreshing from the httpOnly cookie first.
     userInfo = await authFacadeClient.getUserInfo()
     if (!userInfo) {
+      console.log('[key-manager] getUserInfo failed, attempting token refresh...')
       try {
-        await authFacadeClient.refreshToken()
+        const refreshResult = await authFacadeClient.refreshToken()
+        console.log('[key-manager] refresh succeeded:', !!refreshResult)
         userInfo = await authFacadeClient.getUserInfo()
-      } catch {
-        // Refresh failed — no valid session
+        console.log('[key-manager] getUserInfo after refresh:', !!userInfo)
+      } catch (err) {
+        console.error('[key-manager] refresh failed:', (err as Error)?.message)
       }
     }
-    if (!userInfo) return null
+    if (!userInfo) {
+      console.error('[key-manager] no userInfo available — cannot derive KEK')
+      return null
+    }
     idpValue = userInfo.nsecSecret
   }
 

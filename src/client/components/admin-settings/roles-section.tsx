@@ -205,7 +205,7 @@ export function RolesSection({ expanded, onToggle, statusSummary }: Props) {
   const { currentHubId } = useConfig()
   const hubId = currentHubId ?? 'global'
 
-  const { data: roles = [], isLoading: rolesLoading } = useRoles()
+  const { data: roles = [], isLoading: rolesLoading } = useRoles(hubId)
   const { data: catalog } = usePermissionsCatalog()
   const createRole = useCreateRole()
   const updateRole = useUpdateRole()

@@ -14,6 +14,7 @@ import {
   listRoles,
   updateRole,
 } from '@/lib/api'
+import { decryptHubField } from '@/lib/hub-field-crypto'
 import type { Ciphertext } from '@shared/crypto-types'
 import { queryOptions, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { queryKeys } from './keys'
@@ -24,14 +25,20 @@ import { queryKeys } from './keys'
 
 /**
  * Fetch the list of role definitions.
+ * Hub-key encrypted fields (encryptedName, encryptedDescription) are decrypted
+ * in the queryFn so consumers get `name` and `description` populated.
  * Stale for 5 minutes since roles change infrequently.
  */
-export const rolesListOptions = () =>
+export const rolesListOptions = (hubId = 'global') =>
   queryOptions({
     queryKey: queryKeys.roles.list(),
     queryFn: async () => {
       const { roles } = await listRoles()
-      return roles
+      return roles.map((role) => ({
+        ...role,
+        name: decryptHubField(role.encryptedName, hubId, role.name),
+        description: decryptHubField(role.encryptedDescription, hubId, role.description),
+      }))
     },
     staleTime: 5 * 60 * 1000,
   })
@@ -40,8 +47,8 @@ export const rolesListOptions = () =>
 // useRoles
 // ---------------------------------------------------------------------------
 
-export function useRoles() {
-  return useQuery(rolesListOptions())
+export function useRoles(hubId = 'global') {
+  return useQuery(rolesListOptions(hubId))
 }
 
 // ---------------------------------------------------------------------------

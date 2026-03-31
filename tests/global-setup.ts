@@ -86,6 +86,9 @@ async function bootstrapAdmin(page: import('@playwright/test').Page) {
   // Create PIN
   await enterSetupPin(page, TEST_PIN)
 
+  // Wait for confirm step to render (prevent Enter bleed from create step)
+  await page.getByText('Confirm your PIN').waitFor({ state: 'visible', timeout: 5000 })
+
   // Confirm PIN
   await enterSetupPin(page, TEST_PIN)
 
@@ -198,19 +201,24 @@ async function createRoleAccount(
   await adminPage.waitForTimeout(500)
 
   // Select role from dropdown (shadcn Select with id="invite-role")
+  const roleDisplayNames: Record<string, string> = {
+    'hub-admin': 'Hub Admin',
+    volunteer: 'Volunteer',
+    reviewer: 'Reviewer',
+    reporter: 'Reporter',
+  }
   const roleTrigger = adminPage.locator('#invite-role')
-  const roleTriggerVisible = await roleTrigger.isVisible({ timeout: 2000 }).catch(() => false)
-  if (roleTriggerVisible) {
+  if (await roleTrigger.isVisible({ timeout: 2000 }).catch(() => false)) {
     await roleTrigger.click()
-    const roleDisplayNames: Record<string, string> = {
-      'hub-admin': 'Hub Admin',
-      volunteer: 'Volunteer',
-      reviewer: 'Reviewer',
-      reporter: 'Reporter',
-    }
+    await adminPage.waitForTimeout(500)
+    // Debug: log all role options visible in the dropdown
+    const allOptions = await adminPage.locator('[role="option"]').allTextContents()
+    console.log(`[SETUP] Role options: ${JSON.stringify(allOptions)}`)
     const displayName = roleDisplayNames[opts.roleName]
     if (displayName) {
-      await adminPage.getByRole('option', { name: displayName }).click()
+      const option = adminPage.locator('[role="option"]').filter({ hasText: displayName })
+      await option.waitFor({ state: 'visible', timeout: 5000 })
+      await option.click()
     }
   }
 
