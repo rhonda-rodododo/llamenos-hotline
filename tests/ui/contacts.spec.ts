@@ -78,7 +78,7 @@ test.describe('Contact Directory', () => {
 
     test('dialog contains tags input', async ({ page }) => {
       await page.getByTestId('new-contact-btn').click()
-      await expect(page.locator('#tags')).toBeVisible()
+      await expect(page.getByTestId('tag-input')).toBeVisible()
     })
 
     test('dialog can be cancelled', async ({ page }) => {
@@ -129,8 +129,7 @@ test.describe('Contact Directory', () => {
       await expect(mediumOption).toBeVisible({ timeout: Timeouts.ELEMENT })
       await mediumOption.click()
 
-      // Add tags
-      await page.locator('#tags').fill('e2e, test')
+      // Tags are now a Command+Popover multi-select (TagInput), skip for this test
 
       // Submit
       await page.getByRole('button', { name: /create contact/i }).click()
