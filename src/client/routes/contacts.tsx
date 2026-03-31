@@ -87,7 +87,7 @@ function ContactDirectoryPage() {
     contactType: contactType || undefined,
     riskLevel: riskLevel || undefined,
   })
-  const { data: teams = [] } = useTeams()
+  const { data: teams = [] } = useTeams(hubId)
   const { data: teamContacts = [] } = useTeamContacts(teamId || '')
   const tagDefs = useTagLookup()
 

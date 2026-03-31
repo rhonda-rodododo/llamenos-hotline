@@ -18,6 +18,7 @@ import {
 import { Textarea } from '@/components/ui/textarea'
 import { createReport } from '@/lib/api'
 import { useAuth } from '@/lib/auth'
+import { useConfig } from '@/lib/config'
 import { encryptMessage } from '@/lib/crypto'
 import { useReportCategories, useReportTypes } from '@/lib/queries/reports'
 import { useToast } from '@/lib/toast'
@@ -34,6 +35,8 @@ interface ReportFormProps {
 export function ReportForm({ open, onOpenChange, onCreated }: ReportFormProps) {
   const { t } = useTranslation()
   const { hasNsec, publicKey, adminDecryptionPubkey } = useAuth()
+  const { currentHubId } = useConfig()
+  const hubId = currentHubId ?? 'global'
   const { toast } = useToast()
 
   const [title, setTitle] = useState('')
@@ -44,7 +47,7 @@ export function ReportForm({ open, onOpenChange, onCreated }: ReportFormProps) {
 
   // Only fetch when open — enabled flag prevents unnecessary fetches
   const categoriesQuery = useReportCategories()
-  const reportTypesQuery = useReportTypes()
+  const reportTypesQuery = useReportTypes(hubId)
 
   const categories = categoriesQuery.data ?? []
   const reportTypes = reportTypesQuery.data ?? []

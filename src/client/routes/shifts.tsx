@@ -46,7 +46,7 @@ function ShiftsPage() {
   const [showForm, setShowForm] = useState(false)
   const [editingShift, setEditingShift] = useState<Shift | null>(null)
 
-  const { data: shifts = [], isLoading: shiftsLoading } = useShifts()
+  const { data: shifts = [], isLoading: shiftsLoading } = useShifts(hubId)
   const { data: users = [] } = useUsers()
   const { data: fallback = [] } = useFallbackGroup()
   const createShift = useCreateShift()

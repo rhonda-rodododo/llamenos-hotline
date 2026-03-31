@@ -36,6 +36,7 @@ import {
   updateWebAuthnSettings,
 } from '@/lib/api'
 import { decryptArrayFields } from '@/lib/decrypt-fields'
+import { decryptHubField } from '@/lib/hub-field-crypto'
 import * as keyManager from '@/lib/key-manager'
 import { type WebAuthnCredentialInfo, listCredentials } from '@/lib/webauthn'
 import { LABEL_USER_PII } from '@shared/crypto-labels'
@@ -201,18 +202,34 @@ export function useUpdateWebAuthnSettings() {
 // customFieldsOptions / useCustomFields
 // ---------------------------------------------------------------------------
 
-export const customFieldsOptions = () =>
+export const customFieldsOptions = (hubId = 'global') =>
   queryOptions({
     queryKey: queryKeys.settings.customFields(),
     queryFn: async (): Promise<CustomFieldDefinition[]> => {
       const res = await getCustomFields()
-      return res.fields
+      return res.fields.map((field) => {
+        const decryptedOptions = decryptHubField(field.encryptedOptions, hubId, '')
+        return {
+          ...field,
+          name: decryptHubField(field.encryptedFieldName, hubId, field.name),
+          label: decryptHubField(field.encryptedLabel, hubId, field.label),
+          options: decryptedOptions
+            ? (() => {
+                try {
+                  return JSON.parse(decryptedOptions) as string[]
+                } catch {
+                  return field.options
+                }
+              })()
+            : field.options,
+        }
+      })
     },
     staleTime: STALE_10_MIN,
   })
 
-export function useCustomFields() {
-  return useQuery(customFieldsOptions())
+export function useCustomFields(hubId = 'global') {
+  return useQuery(customFieldsOptions(hubId))
 }
 
 export function useUpdateCustomFields() {

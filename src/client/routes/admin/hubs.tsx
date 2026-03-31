@@ -17,6 +17,7 @@ import { Switch } from '@/components/ui/switch'
 import { Textarea } from '@/components/ui/textarea'
 import { type Hub, type HubExportCategory, exportHubData } from '@/lib/api'
 import { useAuth } from '@/lib/auth'
+import { useConfig } from '@/lib/config'
 import { decryptHubField, encryptHubField } from '@/lib/hub-field-crypto'
 import {
   useArchiveHub,
@@ -49,6 +50,8 @@ function HubsPage() {
   const { t } = useTranslation()
   const auth = useAuth()
   const { hasPermission } = auth
+  const { currentHubId } = useConfig()
+  const hubId = currentHubId ?? 'global'
   const { toast } = useToast()
   const isSuperAdmin = auth.roles.includes('role-super-admin')
   const [showCreateDialog, setShowCreateDialog] = useState(false)
@@ -56,7 +59,7 @@ function HubsPage() {
   const [archivingHub, setArchivingHub] = useState<Hub | null>(null)
   const [deletingHub, setDeletingHub] = useState<Hub | null>(null)
 
-  const { data: hubs = [], isLoading: loading } = useHubs()
+  const { data: hubs = [], isLoading: loading } = useHubs(hubId)
   const createHub = useCreateHub()
   const updateHub = useUpdateHub()
   const deleteHub = useDeleteHub()

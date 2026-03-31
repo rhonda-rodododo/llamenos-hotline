@@ -27,7 +27,7 @@ function BlastsPage() {
   const { toast } = useToast()
 
   // React Query
-  const { data, isLoading } = useBlasts()
+  const { data, isLoading } = useBlasts(hubId)
   const blasts = data?.blasts ?? []
   const decryptedContent = data?.decryptedContent ?? {}
 

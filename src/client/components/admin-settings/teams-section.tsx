@@ -42,7 +42,7 @@ export function TeamsSection({ expanded, onToggle, statusSummary }: Props) {
   const { currentHubId } = useConfig()
   const hubId = currentHubId ?? 'global'
 
-  const { data: teams = [], isLoading: teamsLoading } = useTeams()
+  const { data: teams = [], isLoading: teamsLoading } = useTeams(hubId)
   const { data: users = [] } = useUsers()
   const createTeam = useCreateTeam()
   const updateTeam = useUpdateTeam()

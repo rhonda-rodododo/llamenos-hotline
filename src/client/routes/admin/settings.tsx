@@ -28,6 +28,7 @@ import {
   updateTranscriptionSettings,
 } from '@/lib/api'
 import { useAuth } from '@/lib/auth'
+import { useConfig } from '@/lib/config'
 import { queryKeys } from '@/lib/queries/keys'
 import { useReportTypes } from '@/lib/queries/reports'
 import {
@@ -67,6 +68,8 @@ function AdminSettingsPage() {
   const { t } = useTranslation()
   const { section } = useSearch({ from: '/admin/settings' })
   const { isAdmin } = useAuth()
+  const { currentHubId } = useConfig()
+  const hubId = currentHubId ?? 'global'
   const { toast } = useToast()
   const queryClient = useQueryClient()
 
@@ -84,11 +87,11 @@ function AdminSettingsPage() {
   const { data: ivrEnabledData } = useIvrLanguages()
   const { data: ivrAudio = [] } = useIvrAudio()
   const { data: webauthnSettings } = useWebAuthnSettings()
-  const { data: customFieldDefs = [] } = useCustomFields()
+  const { data: customFieldDefs = [] } = useCustomFields(hubId)
   const { data: providerConfig } = useProviderConfig()
   const { data: messagingConfig } = useMessagingConfig()
   const { data: geocodingConfig } = useGeocodingConfig()
-  const { data: reportTypesData } = useReportTypes()
+  const { data: reportTypesData } = useReportTypes(hubId)
 
   const ivrEnabled = ivrEnabledData ?? [...IVR_LANGUAGES]
   const globalTranscription = transcriptionSettings?.globalEnabled ?? false

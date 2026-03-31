@@ -79,11 +79,11 @@ function ContactProfilePage() {
   const { data: allContacts = [] } = useContacts()
   const deleteContactMutation = useDeleteContact()
   const tagDefs = useTagLookup()
-  const { data: teams = [] } = useTeams()
-  const assignTeamContacts = useAssignTeamContacts()
-  const unassignTeamContact = useUnassignTeamContact()
   const { currentHubId } = useConfig()
   const hubId = currentHubId ?? 'global'
+  const { data: teams = [] } = useTeams(hubId)
+  const assignTeamContacts = useAssignTeamContacts()
+  const unassignTeamContact = useUnassignTeamContact()
 
   // useContact already decrypts summary+PII tiers — access fields directly
   const contactAny = contact as (typeof contact & Record<string, unknown>) | undefined

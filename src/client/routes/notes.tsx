@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import type { CallRecord } from '@/lib/api'
 import { useAuth } from '@/lib/auth'
+import { useConfig } from '@/lib/config'
 import { encryptNoteV2 } from '@/lib/crypto'
 import { useCallHistory } from '@/lib/queries/calls'
 import { useCreateNote, useCustomFields, useNotes, useUpdateNote } from '@/lib/queries/notes'
@@ -44,6 +45,8 @@ export const Route = createFileRoute('/notes')({
 function NotesPage() {
   const { t } = useTranslation()
   const { hasNsec, publicKey, isAdmin, adminDecryptionPubkey } = useAuth()
+  const { currentHubId } = useConfig()
+  const hubId = currentHubId ?? 'global'
   const { toast } = useToast()
   const navigate = useNavigate({ from: '/notes' })
   const { page, callId, search } = Route.useSearch()
@@ -59,7 +62,7 @@ function NotesPage() {
     page,
     limit,
   })
-  const { data: customFieldsData } = useCustomFields()
+  const { data: customFieldsData } = useCustomFields(hubId)
   const { data: usersData } = useUsers()
   const { data: callHistoryData } = useCallHistory(isAdmin ? { limit: 100 } : undefined)
 

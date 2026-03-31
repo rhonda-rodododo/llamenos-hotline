@@ -1,4 +1,5 @@
 import { useAuth } from '@/lib/auth'
+import { useConfig } from '@/lib/config'
 import { encryptNoteV2 } from '@/lib/crypto'
 import { useNoteSheet } from '@/lib/note-sheet-context'
 import { useDraft } from '@/lib/use-draft'
@@ -35,13 +36,15 @@ import { Clock, Lock, Save } from 'lucide-react'
 export function NoteSheet() {
   const { t } = useTranslation()
   const { hasNsec, publicKey, isAdmin, adminDecryptionPubkey } = useAuth()
+  const { currentHubId } = useConfig()
+  const hubId = currentHubId ?? 'global'
   const { isOpen, mode, editNoteId, initialCallId, initialText, initialFields, close, onSaved } =
     useNoteSheet()
   const { toast } = useToast()
   const [saving, setSaving] = useState(false)
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({})
 
-  const { data: customFieldsData } = useCustomFields()
+  const { data: customFieldsData } = useCustomFields(hubId)
   const { data: callHistoryData } = useCallHistory(isAdmin && isOpen ? { limit: 20 } : undefined)
   const customFields = customFieldsData ?? []
   const recentCalls = callHistoryData?.calls ?? []

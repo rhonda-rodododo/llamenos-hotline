@@ -16,6 +16,7 @@ import {
   setFallbackGroup,
   updateShift,
 } from '@/lib/api'
+import { decryptHubField } from '@/lib/hub-field-crypto'
 import { queryOptions, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { queryKeys } from './keys'
 
@@ -23,12 +24,15 @@ import { queryKeys } from './keys'
 // shiftsListOptions
 // ---------------------------------------------------------------------------
 
-export const shiftsListOptions = () =>
+export const shiftsListOptions = (hubId = 'global') =>
   queryOptions({
     queryKey: queryKeys.shifts.list(),
     queryFn: async () => {
       const { shifts } = await listShifts()
-      return shifts
+      return shifts.map((shift) => ({
+        ...shift,
+        name: decryptHubField(shift.encryptedName, hubId, shift.name),
+      }))
     },
   })
 
@@ -36,8 +40,8 @@ export const shiftsListOptions = () =>
 // useShifts
 // ---------------------------------------------------------------------------
 
-export function useShifts() {
-  return useQuery(shiftsListOptions())
+export function useShifts(hubId = 'global') {
+  return useQuery(shiftsListOptions(hubId))
 }
 
 // ---------------------------------------------------------------------------

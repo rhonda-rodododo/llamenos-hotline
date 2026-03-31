@@ -21,6 +21,7 @@ import {
   unassignTeamContact,
   updateTeam,
 } from '@/lib/api'
+import { decryptHubField } from '@/lib/hub-field-crypto'
 import type { Ciphertext } from '@shared/crypto-types'
 import { queryOptions, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { queryKeys } from './keys'
@@ -29,12 +30,16 @@ import { queryKeys } from './keys'
 // teamsListOptions
 // ---------------------------------------------------------------------------
 
-export const teamsListOptions = () =>
+export const teamsListOptions = (hubId = 'global') =>
   queryOptions({
     queryKey: queryKeys.teams.list(),
     queryFn: async () => {
       const { teams } = await listTeams()
-      return teams
+      return teams.map((team) => ({
+        ...team,
+        name: decryptHubField(team.encryptedName, hubId, ''),
+        description: decryptHubField(team.encryptedDescription, hubId, ''),
+      }))
     },
     staleTime: 5 * 60 * 1000,
   })
@@ -43,8 +48,8 @@ export const teamsListOptions = () =>
 // useTeams
 // ---------------------------------------------------------------------------
 
-export function useTeams() {
-  return useQuery(teamsListOptions())
+export function useTeams(hubId = 'global') {
+  return useQuery(teamsListOptions(hubId))
 }
 
 // ---------------------------------------------------------------------------

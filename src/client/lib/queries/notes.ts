@@ -21,6 +21,7 @@ import {
 } from '@/lib/api'
 import { useAuth } from '@/lib/auth'
 import { decryptNoteV2, decryptTranscription } from '@/lib/crypto'
+import { decryptHubField } from '@/lib/hub-field-crypto'
 import * as keyManager from '@/lib/key-manager'
 import type { NotePayload } from '@shared/types'
 import { queryOptions, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
@@ -130,12 +131,28 @@ export function useNotes(filters?: NoteFilters) {
 // customFieldsOptions
 // ---------------------------------------------------------------------------
 
-export const customFieldsOptions = () =>
+export const customFieldsOptions = (hubId = 'global') =>
   queryOptions({
     queryKey: queryKeys.settings.customFields(),
     queryFn: async (): Promise<CustomFieldDefinition[]> => {
       const res = await getCustomFields()
-      return res.fields ?? []
+      return (res.fields ?? []).map((field) => {
+        const decryptedOptions = decryptHubField(field.encryptedOptions, hubId, '')
+        return {
+          ...field,
+          name: decryptHubField(field.encryptedFieldName, hubId, field.name),
+          label: decryptHubField(field.encryptedLabel, hubId, field.label),
+          options: decryptedOptions
+            ? (() => {
+                try {
+                  return JSON.parse(decryptedOptions) as string[]
+                } catch {
+                  return field.options
+                }
+              })()
+            : field.options,
+        }
+      })
     },
     staleTime: 10 * 60 * 1000, // 10 minutes
   })
@@ -147,8 +164,8 @@ export const customFieldsOptions = () =>
 /**
  * Fetch custom field definitions from settings.
  */
-export function useCustomFields() {
-  return useQuery(customFieldsOptions())
+export function useCustomFields(hubId = 'global') {
+  return useQuery(customFieldsOptions(hubId))
 }
 
 // ---------------------------------------------------------------------------

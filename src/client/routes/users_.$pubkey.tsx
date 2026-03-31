@@ -6,6 +6,7 @@ import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
 import { type User, getUserUnmasked } from '@/lib/api'
 import { useAuth } from '@/lib/auth'
+import { useConfig } from '@/lib/config'
 import { useAuditLog } from '@/lib/queries/audit'
 import { useShifts } from '@/lib/queries/shifts'
 import { useUpdateUser, useUser } from '@/lib/queries/users'
@@ -49,6 +50,8 @@ const DAY_KEYS = [
 function UserProfilePage() {
   const { t } = useTranslation()
   const { isAdmin } = useAuth()
+  const { currentHubId } = useConfig()
+  const hubId = currentHubId ?? 'global'
   const { pubkey } = Route.useParams()
   const { toast } = useToast()
   const [auditPage, setAuditPage] = useState(1)
@@ -58,7 +61,7 @@ function UserProfilePage() {
 
   // React Query: user (already decrypted by query fn), shifts, audit log
   const { data: user, isLoading: loading } = useUser(pubkey)
-  const { data: allShifts = [] } = useShifts()
+  const { data: allShifts = [] } = useShifts(hubId)
   const { data: auditData, isLoading: auditLoading } = useAuditLog({
     page: auditPage,
     limit: auditLimit,
