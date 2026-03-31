@@ -1,6 +1,5 @@
 import { expect, test } from '../fixtures/auth'
-import { ADMIN_NSEC } from '../helpers'
-import { createAuthedRequestFromNsec } from '../helpers/authed-request'
+import { createAdminApiFromStorageState } from '../helpers/authed-request'
 
 /**
  * Voice CAPTCHA E2E tests.
@@ -13,7 +12,7 @@ test.describe('Voice CAPTCHA', () => {
 
   // --- Test 5.1: CAPTCHA disabled — call routes directly ---
   test('CAPTCHA disabled — language-selected returns enqueue (no CAPTCHA)', async ({ request }) => {
-    const adminApi = createAuthedRequestFromNsec(request, ADMIN_NSEC)
+    const adminApi = createAdminApiFromStorageState(request)
     // Ensure CAPTCHA is disabled (default after reset)
     const spamRes = await adminApi.get('/api/settings/spam')
     expect(spamRes.ok()).toBeTruthy()
@@ -35,7 +34,7 @@ test.describe('Voice CAPTCHA', () => {
 
   // --- Test 5.2: CAPTCHA enabled — challenge presented ---
   test('CAPTCHA enabled — language-selected returns CAPTCHA Gather', async ({ request }) => {
-    const adminApi = createAuthedRequestFromNsec(request, ADMIN_NSEC)
+    const adminApi = createAdminApiFromStorageState(request)
     // Enable CAPTCHA via API
     const enableRes = await adminApi.patch('/api/settings/spam', { voiceCaptchaEnabled: true })
     expect(enableRes.ok()).toBeTruthy()
@@ -95,7 +94,7 @@ test.describe('Voice CAPTCHA', () => {
 
   // --- Test 5.4: Incorrect DTMF triggers retry, then rejection ---
   test('incorrect DTMF triggers retry then rejection after max attempts', async ({ request }) => {
-    const adminApi = createAuthedRequestFromNsec(request, ADMIN_NSEC)
+    const adminApi = createAdminApiFromStorageState(request)
     // Enable CAPTCHA with max attempts of 2
     const settingsRes = await adminApi.patch('/api/settings/spam', {
       voiceCaptchaEnabled: true,
@@ -203,7 +202,7 @@ test.describe('Voice CAPTCHA', () => {
     await maxAttemptsInput.press('Tab') // trigger onChange
 
     // Verify it was saved via API
-    const adminApi = createAuthedRequestFromNsec(request, ADMIN_NSEC)
+    const adminApi = createAdminApiFromStorageState(request)
     const spamRes = await adminApi.get('/api/settings/spam')
     const spam = await spamRes.json()
     expect(spam.captchaMaxAttempts).toBe(3)
