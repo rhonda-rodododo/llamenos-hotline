@@ -1,171 +1,190 @@
-import { expect, test } from '@playwright/test'
-import { createUserAndGetNsec, dismissNsecCard, loginAsAdmin, uniquePhone } from '../helpers'
+import { expect, test } from '../fixtures/auth'
+import { createUserAndGetNsec, dismissNsecCard, uniquePhone } from '../helpers'
 
 test.describe('Shift management', () => {
-  test.beforeEach(async ({ page, request }) => {
-    await loginAsAdmin(page)
-    await page.getByRole('link', { name: 'Shifts' }).click()
-    await expect(page.getByRole('heading', { name: /shift schedule/i })).toBeVisible()
+  test.beforeEach(async ({ adminPage }) => {
+    await adminPage.getByRole('link', { name: 'Shifts' }).click()
+    await expect(adminPage.getByRole('heading', { name: /shift schedule/i })).toBeVisible()
   })
 
-  test('page loads with heading and create button', async ({ page }) => {
-    await expect(page.getByRole('button', { name: /create shift/i })).toBeVisible()
+  test('page loads with heading and create button', async ({ adminPage }) => {
+    await expect(adminPage.getByRole('button', { name: /create shift/i })).toBeVisible()
     // Fallback group section should be visible
-    await expect(page.getByText(/fallback group/i)).toBeVisible()
+    await expect(adminPage.getByText(/fallback group/i)).toBeVisible()
   })
 
-  test('page renders shift schedule content', async ({ page }) => {
+  test('page renders shift schedule content', async ({ adminPage }) => {
     // Verify the schedule page renders with either shifts or the empty state
-    const hasShifts = await page
+    const hasShifts = await adminPage
       .locator('h3')
       .first()
       .isVisible({ timeout: 5000 })
       .catch(() => false)
-    const hasEmptyState = await page
+    const hasEmptyState = await adminPage
       .getByText(/no shifts scheduled/i)
       .isVisible()
       .catch(() => false)
     expect(hasShifts || hasEmptyState).toBeTruthy()
   })
 
-  test('create shift with name and times', async ({ page }) => {
+  test('create shift with name and times', async ({ adminPage }) => {
     const shiftName = `Morning ${Date.now()}`
-    await page.getByRole('button', { name: /create shift/i }).click()
+    await adminPage.getByRole('button', { name: /create shift/i }).click()
 
     // Fill in shift form
-    await page.getByLabel(/shift name/i).fill(shiftName)
-    await page.getByLabel(/start time/i).fill('08:00')
-    await page.getByLabel(/end time/i).fill('16:00')
+    await adminPage.getByLabel(/shift name/i).fill(shiftName)
+    await adminPage.getByLabel(/start time/i).fill('08:00')
+    await adminPage.getByLabel(/end time/i).fill('16:00')
 
-    await page.getByRole('button', { name: /save/i }).click()
+    await adminPage.getByRole('button', { name: /save/i }).click()
 
     // Shift should appear in the list
-    await expect(page.getByText(shiftName)).toBeVisible({ timeout: 10000 })
-    const shiftCard = page.locator('h3').filter({ hasText: shiftName }).locator('..').locator('..')
+    await expect(adminPage.getByText(shiftName)).toBeVisible({ timeout: 10000 })
+    const shiftCard = adminPage
+      .locator('h3')
+      .filter({ hasText: shiftName })
+      .locator('..')
+      .locator('..')
     await expect(shiftCard.getByText('08:00 - 16:00')).toBeVisible()
   })
 
-  test('edit shift name and time', async ({ page }) => {
+  test('edit shift name and time', async ({ adminPage }) => {
     const shiftName = `EditMe ${Date.now()}`
     const updatedName = `Edited ${Date.now()}`
 
     // Create a shift first
-    await page.getByRole('button', { name: /create shift/i }).click()
-    await page.getByLabel(/shift name/i).fill(shiftName)
-    await page.getByRole('button', { name: /save/i }).click()
-    await expect(page.getByText(shiftName)).toBeVisible({ timeout: 10000 })
+    await adminPage.getByRole('button', { name: /create shift/i }).click()
+    await adminPage.getByLabel(/shift name/i).fill(shiftName)
+    await adminPage.getByRole('button', { name: /save/i }).click()
+    await expect(adminPage.getByText(shiftName)).toBeVisible({ timeout: 10000 })
 
     // Edit it
-    const shiftRow = page.locator('h3').filter({ hasText: shiftName }).locator('..').locator('..')
+    const shiftRow = adminPage
+      .locator('h3')
+      .filter({ hasText: shiftName })
+      .locator('..')
+      .locator('..')
     await shiftRow.getByRole('button', { name: 'Edit' }).click()
 
-    const editForm = page.locator('form')
+    const editForm = adminPage.locator('form')
     await editForm.getByLabel(/shift name/i).fill(updatedName)
     await editForm.getByLabel(/start time/i).fill('10:00')
     await editForm.getByLabel(/end time/i).fill('18:00')
-    await page.getByRole('button', { name: /save/i }).click()
+    await adminPage.getByRole('button', { name: /save/i }).click()
 
-    await expect(page.getByText(updatedName)).toBeVisible({ timeout: 10000 })
-    const updatedCard = page
+    await expect(adminPage.getByText(updatedName)).toBeVisible({ timeout: 10000 })
+    const updatedCard = adminPage
       .locator('h3')
       .filter({ hasText: updatedName })
       .locator('..')
       .locator('..')
     await expect(updatedCard.getByText('10:00 - 18:00')).toBeVisible()
-    await expect(page.getByText(shiftName)).not.toBeVisible()
+    await expect(adminPage.getByText(shiftName)).not.toBeVisible()
   })
 
-  test('delete shift', async ({ page }) => {
+  test('delete shift', async ({ adminPage }) => {
     const shiftName = `DeleteMe ${Date.now()}`
 
     // Create a shift
-    await page.getByRole('button', { name: /create shift/i }).click()
-    await page.getByLabel(/shift name/i).fill(shiftName)
-    await page.getByRole('button', { name: /save/i }).click()
-    await expect(page.getByText(shiftName)).toBeVisible({ timeout: 10000 })
+    await adminPage.getByRole('button', { name: /create shift/i }).click()
+    await adminPage.getByLabel(/shift name/i).fill(shiftName)
+    await adminPage.getByRole('button', { name: /save/i }).click()
+    await expect(adminPage.getByText(shiftName)).toBeVisible({ timeout: 10000 })
 
     // Delete it
-    const shiftRow = page.locator('h3').filter({ hasText: shiftName }).locator('..').locator('..')
+    const shiftRow = adminPage
+      .locator('h3')
+      .filter({ hasText: shiftName })
+      .locator('..')
+      .locator('..')
     await shiftRow.getByRole('button', { name: 'Delete' }).click()
 
     // Shift should disappear
-    await expect(page.getByText(shiftName)).not.toBeVisible()
+    await expect(adminPage.getByText(shiftName)).not.toBeVisible()
   })
 
-  test('cancel shift creation', async ({ page }) => {
-    await page.getByRole('button', { name: /create shift/i }).click()
-    await expect(page.getByLabel(/shift name/i)).toBeVisible()
+  test('cancel shift creation', async ({ adminPage }) => {
+    await adminPage.getByRole('button', { name: /create shift/i }).click()
+    await expect(adminPage.getByLabel(/shift name/i)).toBeVisible()
 
-    await page.getByRole('button', { name: /cancel/i }).click()
-    await expect(page.getByLabel(/shift name/i)).not.toBeVisible()
+    await adminPage.getByRole('button', { name: /cancel/i }).click()
+    await expect(adminPage.getByLabel(/shift name/i)).not.toBeVisible()
   })
 
-  test('cancel shift edit', async ({ page }) => {
+  test('cancel shift edit', async ({ adminPage }) => {
     const shiftName = `CancelEdit ${Date.now()}`
 
     // Create a shift
-    await page.getByRole('button', { name: /create shift/i }).click()
-    await page.getByLabel(/shift name/i).fill(shiftName)
-    await page.getByRole('button', { name: /save/i }).click()
-    await expect(page.getByText(shiftName)).toBeVisible({ timeout: 10000 })
+    await adminPage.getByRole('button', { name: /create shift/i }).click()
+    await adminPage.getByLabel(/shift name/i).fill(shiftName)
+    await adminPage.getByRole('button', { name: /save/i }).click()
+    await expect(adminPage.getByText(shiftName)).toBeVisible({ timeout: 10000 })
 
     // Start editing
-    const shiftRow = page.locator('h3').filter({ hasText: shiftName }).locator('..').locator('..')
+    const shiftRow = adminPage
+      .locator('h3')
+      .filter({ hasText: shiftName })
+      .locator('..')
+      .locator('..')
     await shiftRow.getByRole('button', { name: 'Edit' }).click()
-    await expect(page.locator('form').getByLabel(/shift name/i)).toBeVisible()
+    await expect(adminPage.locator('form').getByLabel(/shift name/i)).toBeVisible()
 
     // Cancel
-    await page.getByRole('button', { name: /cancel/i }).click()
+    await adminPage.getByRole('button', { name: /cancel/i }).click()
     // Original name still visible
-    await expect(page.getByText(shiftName)).toBeVisible()
+    await expect(adminPage.getByText(shiftName)).toBeVisible()
   })
 
-  test('assign users to shift', async ({ page }) => {
+  test('assign users to shift', async ({ adminPage }) => {
     // Create a user first
     const phone = uniquePhone()
     const userName = `ShiftVol ${Date.now()}`
-    await page.getByRole('link', { name: 'Users' }).click()
-    await createUserAndGetNsec(page, userName, phone)
-    await dismissNsecCard(page)
+    await adminPage.getByRole('link', { name: 'Users' }).click()
+    await createUserAndGetNsec(adminPage, userName, phone)
+    await dismissNsecCard(adminPage)
 
     // Go to shifts
-    await page.getByRole('link', { name: 'Shifts' }).click()
-    await expect(page.getByRole('heading', { name: /shift schedule/i })).toBeVisible()
+    await adminPage.getByRole('link', { name: 'Shifts' }).click()
+    await expect(adminPage.getByRole('heading', { name: /shift schedule/i })).toBeVisible()
 
     const shiftName = `WithVol ${Date.now()}`
-    await page.getByRole('button', { name: /create shift/i }).click()
-    await page.getByLabel(/shift name/i).fill(shiftName)
+    await adminPage.getByRole('button', { name: /create shift/i }).click()
+    await adminPage.getByLabel(/shift name/i).fill(shiftName)
 
     // Open user multi-select — scope to the form
-    const volSelect = page.locator('form').getByRole('combobox')
+    const volSelect = adminPage.locator('form').getByRole('combobox')
     await volSelect.click()
     // Select the user from the dropdown
-    await page.getByRole('option', { name: new RegExp(userName) }).click()
+    await adminPage.getByRole('option', { name: new RegExp(userName) }).click()
     // Close the popover by pressing Escape
-    await page.keyboard.press('Escape')
+    await adminPage.keyboard.press('Escape')
 
-    await page.getByRole('button', { name: /save/i }).click()
-    await expect(page.getByText(shiftName)).toBeVisible({ timeout: 10000 })
+    await adminPage.getByRole('button', { name: /save/i }).click()
+    await expect(adminPage.getByText(shiftName)).toBeVisible({ timeout: 10000 })
 
     // Should show 1 user count (scoped to this shift's card)
-    const shiftCard = page.locator('h3').filter({ hasText: shiftName }).locator('..').locator('..')
+    const shiftCard = adminPage
+      .locator('h3')
+      .filter({ hasText: shiftName })
+      .locator('..')
+      .locator('..')
     await expect(shiftCard.getByText(/1 user/i)).toBeVisible()
   })
 
-  test('fallback group selection', async ({ page }) => {
+  test('fallback group selection', async ({ adminPage }) => {
     // Create a user first
     const phone = uniquePhone()
     const userName = `FallbackVol ${Date.now()}`
-    await page.getByRole('link', { name: 'Users' }).click()
-    await createUserAndGetNsec(page, userName, phone)
-    await dismissNsecCard(page)
+    await adminPage.getByRole('link', { name: 'Users' }).click()
+    await createUserAndGetNsec(adminPage, userName, phone)
+    await dismissNsecCard(adminPage)
 
     // Go to shifts
-    await page.getByRole('link', { name: 'Shifts' }).click()
-    await expect(page.getByText(/fallback group/i)).toBeVisible()
+    await adminPage.getByRole('link', { name: 'Shifts' }).click()
+    await expect(adminPage.getByText(/fallback group/i)).toBeVisible()
 
     // Open the fallback user multi-select (in the Fallback Group card)
-    const fallbackCard = page
+    const fallbackCard = adminPage
       .locator('main')
       .filter({ hasText: /fallback group/i })
       .last()
@@ -173,22 +192,26 @@ test.describe('Shift management', () => {
     await fallbackSelect.click()
 
     // Select the user
-    await page.getByRole('option', { name: new RegExp(userName) }).click()
-    await page.keyboard.press('Escape')
+    await adminPage.getByRole('option', { name: new RegExp(userName) }).click()
+    await adminPage.keyboard.press('Escape')
 
     // User badge should appear
     await expect(fallbackCard.getByText(userName)).toBeVisible({ timeout: 5000 })
   })
 
-  test('shift shows user count', async ({ page }) => {
+  test('shift shows user count', async ({ adminPage }) => {
     const shiftName = `CountShift ${Date.now()}`
-    await page.getByRole('button', { name: /create shift/i }).click()
-    await page.getByLabel(/shift name/i).fill(shiftName)
-    await page.getByRole('button', { name: /save/i }).click()
-    await expect(page.getByText(shiftName)).toBeVisible({ timeout: 10000 })
+    await adminPage.getByRole('button', { name: /create shift/i }).click()
+    await adminPage.getByLabel(/shift name/i).fill(shiftName)
+    await adminPage.getByRole('button', { name: /save/i }).click()
+    await expect(adminPage.getByText(shiftName)).toBeVisible({ timeout: 10000 })
 
     // Should show 0 users
-    const shiftCard = page.locator('h3').filter({ hasText: shiftName }).locator('..').locator('..')
+    const shiftCard = adminPage
+      .locator('h3')
+      .filter({ hasText: shiftName })
+      .locator('..')
+      .locator('..')
     await expect(shiftCard.getByText(/0 user/i)).toBeVisible()
   })
 })

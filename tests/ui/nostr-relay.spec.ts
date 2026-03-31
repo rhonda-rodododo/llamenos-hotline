@@ -14,9 +14,9 @@
  *   - Telephony is not configured (USE_TEST_ADAPTER=true expected)
  */
 
-import { expect, test } from '@playwright/test'
 import WebSocket from 'ws'
-import { ADMIN_NSEC, loginAsAdmin, navigateAfterLogin } from '../helpers'
+import { expect, test } from '../fixtures/auth'
+import { ADMIN_NSEC, navigateAfterLogin } from '../helpers'
 import { createAuthedRequestFromNsec } from '../helpers/authed-request'
 
 const RELAY_URL = process.env.NOSTR_RELAY_URL || 'ws://localhost:7778'
@@ -115,13 +115,12 @@ test.describe('Call ring Nostr events', () => {
     }
   })
 
-  test.beforeEach(async ({ page }) => {
+  test.beforeEach(async ({ adminPage }) => {
     if (!relayAvailable) return
-    await loginAsAdmin(page)
-    await navigateAfterLogin(page, '/')
+    await navigateAfterLogin(adminPage, '/')
 
     // Inject authedFetch for API calls
-    await page.evaluate(() => {
+    await adminPage.evaluate(() => {
       window.__authedFetch = async (url: string, options: RequestInit = {}) => {
         const headers: Record<string, string> = {
           'Content-Type': 'application/json',
@@ -136,12 +135,12 @@ test.describe('Call ring Nostr events', () => {
     })
 
     // Set up fallback group so calls proceed
-    const adminPubkey = await page.evaluate(() => {
+    const adminPubkey = await adminPage.evaluate(() => {
       const km = (window as any).__TEST_KEY_MANAGER
       return km?.getPublicKeyHex?.() ?? null
     })
     if (adminPubkey) {
-      await page.evaluate(async (pubkey: string) => {
+      await adminPage.evaluate(async (pubkey: string) => {
         await window.__authedFetch?.('/api/settings/fallback-group', {
           method: 'PUT',
           body: JSON.stringify({ pubkeys: [pubkey] }),
@@ -486,10 +485,9 @@ test.describe('Call ring Nostr events', () => {
 test.describe('REST polling fallback when relay unreachable', () => {
   test.describe.configure({ mode: 'serial' })
 
-  test.beforeEach(async ({ page }) => {
-    await loginAsAdmin(page)
-    await navigateAfterLogin(page, '/')
-    await page.evaluate(() => {
+  test.beforeEach(async ({ adminPage }) => {
+    await navigateAfterLogin(adminPage, '/')
+    await adminPage.evaluate(() => {
       window.__authedFetch = async (url: string, options: RequestInit = {}) => {
         const headers: Record<string, string> = {
           'Content-Type': 'application/json',
@@ -505,19 +503,19 @@ test.describe('REST polling fallback when relay unreachable', () => {
   })
 
   test('active call appears via REST polling when Nostr relay is blocked', async ({
-    page,
+    adminPage,
     request,
   }) => {
     // Block WebSocket connections to the relay — forces REST polling path
-    await page.route(/ws:\/\/.*:77[0-9]{2}/, (route) => route.abort())
+    await adminPage.route(/ws:\/\/.*:77[0-9]{2}/, (route) => route.abort())
 
     // Set up fallback group
-    const adminPubkey = await page.evaluate(() => {
+    const adminPubkey = await adminPage.evaluate(() => {
       const km = (window as any).__TEST_KEY_MANAGER
       return km?.getPublicKeyHex?.() ?? null
     })
     if (adminPubkey) {
-      await page.evaluate(async (pubkey: string) => {
+      await adminPage.evaluate(async (pubkey: string) => {
         await window.__authedFetch?.('/api/settings/fallback-group', {
           method: 'PUT',
           body: JSON.stringify({ pubkeys: [pubkey] }),
@@ -554,7 +552,7 @@ test.describe('REST polling fallback when relay unreachable', () => {
     const deadline = Date.now() + 15_000
     while (!callFound && Date.now() < deadline) {
       await new Promise((r) => setTimeout(r, 1000))
-      callFound = await page.evaluate(async (sid: string) => {
+      callFound = await adminPage.evaluate(async (sid: string) => {
         const res = await window.__authedFetch?.('/api/calls/active')
         const data = (await res.json()) as { calls?: Array<{ id: string }> }
         return (data.calls ?? []).some((c) => c.id === sid)

@@ -11,8 +11,8 @@
  * Tests load expected strings dynamically from locale JSON files.
  */
 
-import { expect, test } from '@playwright/test'
-import { loginAsAdmin, navigateAfterLogin } from '../helpers'
+import { expect, test } from '../fixtures/auth'
+import { navigateAfterLogin } from '../helpers'
 
 // All 13 supported locales
 const ALL_LOCALES = [
@@ -54,37 +54,38 @@ const LOCALE_NATIVE_NAMES: Record<Locale, string> = {
 // ─────────────────────────────────────────────────────────────────────────────
 
 test.describe('Language selector', () => {
-  test('shows all 13 languages in native names', async ({ page }) => {
-    await loginAsAdmin(page)
-    await navigateAfterLogin(page, '/')
+  test('shows all 13 languages in native names', async ({ adminPage }) => {
+    await navigateAfterLogin(adminPage, '/')
 
     // Open the language selector
-    const selector = page.getByRole('combobox', { name: /switch to|language|language selector/i })
+    const selector = adminPage.getByRole('combobox', {
+      name: /switch to|language|language selector/i,
+    })
     await expect(selector).toBeVisible({ timeout: 10_000 })
     await selector.click()
 
     // All 13 locale names should appear
     for (const [locale, nativeName] of Object.entries(LOCALE_NATIVE_NAMES)) {
-      const option = page.getByRole('option', { name: new RegExp(nativeName, 'i') })
+      const option = adminPage.getByRole('option', { name: new RegExp(nativeName, 'i') })
       const count = await option.count()
       expect(count, `Locale ${locale} (${nativeName}) not found in selector`).toBeGreaterThan(0)
     }
 
     // Close the selector
-    await page.keyboard.press('Escape')
+    await adminPage.keyboard.press('Escape')
   })
 
-  test('language selector available on login page without auth', async ({ page }) => {
-    await page.goto('/login')
-    const selector = page.getByRole('combobox', { name: /switch to|language/i })
+  test('language selector available on login page without auth', async ({ adminPage }) => {
+    await adminPage.goto('/login')
+    const selector = adminPage.getByRole('combobox', { name: /switch to|language/i })
     // Selector may or may not exist on login page — just verify it doesn't crash
     const count = await selector.count()
     if (count > 0) {
       await selector.click()
-      await page.keyboard.press('Escape')
+      await adminPage.keyboard.press('Escape')
     }
     // Login page should always render without errors
-    await expect(page.getByRole('heading', { name: /sign in/i })).toBeVisible()
+    await expect(adminPage.getByRole('heading', { name: /sign in/i })).toBeVisible()
   })
 })
 
@@ -99,34 +100,33 @@ test.describe('Locale rendering', () => {
 
   for (const locale of PRIORITY_LOCALES) {
     test(`locale ${locale} (${LOCALE_NATIVE_NAMES[locale]}) renders dashboard in correct language`, async ({
-      page,
+      adminPage,
     }) => {
       const i18nErrors: string[] = []
-      page.on('console', (msg) => {
+      adminPage.on('console', (msg) => {
         const text = msg.text()
         if (text.includes('i18next') && msg.type() === 'warn') {
           i18nErrors.push(text)
         }
       })
 
-      await loginAsAdmin(page)
-      await navigateAfterLogin(page, '/')
+      await navigateAfterLogin(adminPage, '/')
 
       // Switch to target locale
-      const selector = page.getByRole('combobox', { name: /switch to|language/i })
+      const selector = adminPage.getByRole('combobox', { name: /switch to|language/i })
       await expect(selector).toBeVisible({ timeout: 10_000 })
       await selector.click()
-      await page
+      await adminPage
         .getByRole('option', {
           name: new RegExp(LOCALE_NATIVE_NAMES[locale], 'i'),
         })
         .click()
 
       // Wait for re-render
-      await page.waitForTimeout(500)
+      await adminPage.waitForTimeout(500)
 
       // No raw i18n keys should be visible on page (e.g., "common.dashboard")
-      const pageText = await page.evaluate(() => document.body.innerText)
+      const pageText = await adminPage.evaluate(() => document.body.innerText)
       const rawKeyPattern = /\b(common|auth|notes|calls|admin|dashboard|nav|settings)\.[a-zA-Z.]+\b/
       const rawKeyMatch = pageText.match(rawKeyPattern)
       expect(
@@ -138,10 +138,10 @@ test.describe('Locale rendering', () => {
       expect(i18nErrors, `i18next errors for locale ${locale}`).toHaveLength(0)
 
       // Switch back to English for cleanup
-      const switchBackSelector = page.getByRole('combobox', { name: /switch to|language/i })
+      const switchBackSelector = adminPage.getByRole('combobox', { name: /switch to|language/i })
       if (await switchBackSelector.isVisible()) {
         await switchBackSelector.click()
-        await page.getByRole('option', { name: /english/i }).click()
+        await adminPage.getByRole('option', { name: /english/i }).click()
       }
     })
   }
@@ -152,39 +152,37 @@ test.describe('Locale rendering', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 test.describe('RTL layout (Arabic)', () => {
-  test('Arabic sets dir=rtl on <html> element', async ({ page }) => {
-    await loginAsAdmin(page)
-    await navigateAfterLogin(page, '/')
+  test('Arabic sets dir=rtl on <html> element', async ({ adminPage }) => {
+    await navigateAfterLogin(adminPage, '/')
 
     // Switch to Arabic
-    const selector = page.getByRole('combobox', { name: /switch to|language/i })
+    const selector = adminPage.getByRole('combobox', { name: /switch to|language/i })
     await expect(selector).toBeVisible({ timeout: 10_000 })
     await selector.click()
-    await page.getByRole('option', { name: /العربية/i }).click()
-    await page.waitForTimeout(500)
+    await adminPage.getByRole('option', { name: /العربية/i }).click()
+    await adminPage.waitForTimeout(500)
 
     // Check HTML dir attribute
-    const dir = await page.evaluate(() => document.documentElement.dir)
-    const lang = await page.evaluate(() => document.documentElement.lang)
+    const dir = await adminPage.evaluate(() => document.documentElement.dir)
+    const lang = await adminPage.evaluate(() => document.documentElement.lang)
     expect(
       dir === 'rtl' || lang === 'ar',
       `Expected RTL layout for Arabic: dir=${dir}, lang=${lang}`
     ).toBe(true)
   })
 
-  test('Arabic layout has no horizontal overflow', async ({ page }) => {
-    await loginAsAdmin(page)
-    await navigateAfterLogin(page, '/')
+  test('Arabic layout has no horizontal overflow', async ({ adminPage }) => {
+    await navigateAfterLogin(adminPage, '/')
 
     // Switch to Arabic
-    const selector = page.getByRole('combobox', { name: /switch to|language/i })
+    const selector = adminPage.getByRole('combobox', { name: /switch to|language/i })
     await expect(selector).toBeVisible({ timeout: 10_000 })
     await selector.click()
-    await page.getByRole('option', { name: /العربية/i }).click()
-    await page.waitForTimeout(500)
+    await adminPage.getByRole('option', { name: /العربية/i }).click()
+    await adminPage.waitForTimeout(500)
 
     // Check for horizontal overflow
-    const hasOverflow = await page.evaluate(
+    const hasOverflow = await adminPage.evaluate(
       () => document.body.scrollWidth > document.body.clientWidth
     )
     expect(hasOverflow, 'Arabic layout has horizontal overflow').toBe(false)
@@ -196,30 +194,29 @@ test.describe('RTL layout (Arabic)', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 test.describe('Locale persistence', () => {
-  test('selected locale persists after page reload', async ({ page }) => {
-    await loginAsAdmin(page)
-    await navigateAfterLogin(page, '/')
+  test('selected locale persists after page reload', async ({ adminPage }) => {
+    await navigateAfterLogin(adminPage, '/')
 
     // Switch to German
-    const selector = page.getByRole('combobox', { name: /switch to|language/i })
+    const selector = adminPage.getByRole('combobox', { name: /switch to|language/i })
     await expect(selector).toBeVisible({ timeout: 10_000 })
     await selector.click()
-    await page.getByRole('option', { name: /deutsch/i }).click()
-    await page.waitForTimeout(500)
+    await adminPage.getByRole('option', { name: /deutsch/i }).click()
+    await adminPage.waitForTimeout(500)
 
     // Verify German UI
-    const headingDe = page.getByRole('heading', { name: /dashboard|übersicht/i })
+    const headingDe = adminPage.getByRole('heading', { name: /dashboard|übersicht/i })
     await expect(headingDe).toBeVisible({ timeout: 5_000 })
 
     // Reload
-    await page.reload()
-    await page.waitForTimeout(1000)
+    await adminPage.reload()
+    await adminPage.waitForTimeout(1000)
 
     // German should still be active
-    const pageText = await page.evaluate(() => document.body.innerText)
+    const pageText = await adminPage.evaluate(() => document.body.innerText)
     // The page should NOT be displaying raw English "Dashboard" if German persisted
     // Check that the locale selector shows German
-    const langSelector = page.getByRole('combobox', { name: /wechseln|language|switch to/i })
+    const langSelector = adminPage.getByRole('combobox', { name: /wechseln|language|switch to/i })
     const langSelectorCount = await langSelector.count()
     if (langSelectorCount > 0) {
       const selectedText = await langSelector.textContent()

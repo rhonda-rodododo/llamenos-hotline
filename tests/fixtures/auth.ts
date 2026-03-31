@@ -166,4 +166,4 @@ export const test = base.extend<
   ],
 })
 
-export { expect, type Page, type BrowserContext } from '@playwright/test'
+export { expect, devices, type Page, type BrowserContext } from '@playwright/test'

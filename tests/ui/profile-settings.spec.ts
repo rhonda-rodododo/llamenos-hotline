@@ -1,10 +1,9 @@
-import { expect, test } from '@playwright/test'
+import { expect, test } from '../fixtures/auth'
 import {
   TEST_PIN,
   completeProfileSetup,
   createUserAndGetNsec,
   enterPin,
-  loginAsAdmin,
   loginAsUser,
   navigateAfterLogin,
   uniquePhone,
@@ -15,71 +14,78 @@ test.describe('Profile self-service', () => {
 
   test.beforeAll(async ({ browser }) => {
     const page = await browser.newPage()
+    // Use the raw page for beforeAll setup — import loginAsAdmin from helpers for this
+    const { loginAsAdmin } = await import('../helpers')
     await loginAsAdmin(page)
     userNsec = await createUserAndGetNsec(page, 'Profile Vol', uniquePhone())
     await page.close()
   })
 
-  test('admin can edit profile name and it persists', async ({ page }) => {
-    await loginAsAdmin(page)
-    await page.getByRole('link', { name: 'Settings', exact: true }).click()
-    await expect(page.getByRole('heading', { name: 'Account Settings', exact: true })).toBeVisible()
+  test('admin can edit profile name and it persists', async ({ adminPage }) => {
+    await adminPage.getByRole('link', { name: 'Settings', exact: true }).click()
+    await expect(
+      adminPage.getByRole('heading', { name: 'Account Settings', exact: true })
+    ).toBeVisible()
 
     // Profile card should be visible
-    await expect(page.getByRole('heading', { name: 'Profile' })).toBeVisible()
+    await expect(adminPage.getByRole('heading', { name: 'Profile' })).toBeVisible()
 
     // Change display name
-    const nameInput = page.locator('#profile-name')
+    const nameInput = adminPage.locator('#profile-name')
     const oldName = await nameInput.inputValue()
     const newName = `Admin ${Date.now()}`
     await nameInput.fill(newName)
 
     // Save — name is sent to API
-    await page.getByRole('button', { name: /update profile/i }).click()
-    await expect(page.getByText(/profile updated/i)).toBeVisible({ timeout: 5000 })
+    await adminPage.getByRole('button', { name: /update profile/i }).click()
+    await expect(adminPage.getByText(/profile updated/i)).toBeVisible({ timeout: 5000 })
 
     // Reload and verify name persisted via /auth/me
-    await page.reload()
-    await enterPin(page, TEST_PIN)
+    await adminPage.reload()
+    await enterPin(adminPage, TEST_PIN)
     // PIN unlock redirects to dashboard — navigate back to Settings
-    await page.getByRole('link', { name: 'Settings', exact: true }).click()
-    await expect(page.getByRole('heading', { name: 'Account Settings', exact: true })).toBeVisible()
-    await expect(page.locator('#profile-name')).toHaveValue(newName)
+    await adminPage.getByRole('link', { name: 'Settings', exact: true }).click()
+    await expect(
+      adminPage.getByRole('heading', { name: 'Account Settings', exact: true })
+    ).toBeVisible()
+    await expect(adminPage.locator('#profile-name')).toHaveValue(newName)
 
     // Restore original name
-    await page.locator('#profile-name').fill(oldName || 'Admin')
-    await page.getByRole('button', { name: /update profile/i }).click()
-    await expect(page.getByText(/profile updated/i)).toBeVisible({ timeout: 5000 })
+    await adminPage.locator('#profile-name').fill(oldName || 'Admin')
+    await adminPage.getByRole('button', { name: /update profile/i }).click()
+    await expect(adminPage.getByText(/profile updated/i)).toBeVisible({ timeout: 5000 })
   })
 
-  test('admin can save a valid phone number', async ({ page }) => {
-    await loginAsAdmin(page)
-    await page.getByRole('link', { name: 'Settings', exact: true }).click()
-    await expect(page.getByRole('heading', { name: 'Account Settings', exact: true })).toBeVisible()
+  test('admin can save a valid phone number', async ({ adminPage }) => {
+    await adminPage.getByRole('link', { name: 'Settings', exact: true }).click()
+    await expect(
+      adminPage.getByRole('heading', { name: 'Account Settings', exact: true })
+    ).toBeVisible()
 
     // Enter a valid E.164 phone number
-    const phoneInput = page.locator('#profile-phone')
+    const phoneInput = adminPage.locator('#profile-phone')
     await phoneInput.fill('+12125559999')
     await phoneInput.blur()
-    await page.getByRole('button', { name: /update profile/i }).click()
+    await adminPage.getByRole('button', { name: /update profile/i }).click()
 
     // Should succeed
-    await expect(page.getByText(/profile updated/i)).toBeVisible({ timeout: 5000 })
+    await expect(adminPage.getByText(/profile updated/i)).toBeVisible({ timeout: 5000 })
   })
 
-  test('profile rejects invalid phone', async ({ page }) => {
-    await loginAsAdmin(page)
-    await page.getByRole('link', { name: 'Settings', exact: true }).click()
-    await expect(page.getByRole('heading', { name: 'Account Settings', exact: true })).toBeVisible()
+  test('profile rejects invalid phone', async ({ adminPage }) => {
+    await adminPage.getByRole('link', { name: 'Settings', exact: true }).click()
+    await expect(
+      adminPage.getByRole('heading', { name: 'Account Settings', exact: true })
+    ).toBeVisible()
 
     // Enter a too-short phone (PhoneInput strips non-digits)
-    const phoneInput = page.locator('#profile-phone')
+    const phoneInput = adminPage.locator('#profile-phone')
     await phoneInput.fill('+123')
     await phoneInput.blur()
-    await page.getByRole('button', { name: /update profile/i }).click()
+    await adminPage.getByRole('button', { name: /update profile/i }).click()
 
     // Should show error
-    await expect(page.getByText(/invalid phone/i)).toBeVisible({ timeout: 5000 })
+    await expect(adminPage.getByText(/invalid phone/i)).toBeVisible({ timeout: 5000 })
   })
 
   test('user sees profile card in settings', async ({ page }) => {
@@ -98,27 +104,32 @@ test.describe('Profile self-service', () => {
     await expect(page.getByText(/npub1/).first()).toBeVisible()
   })
 
-  test('admin sees key backup in user settings and spam in admin settings', async ({ page }) => {
-    await loginAsAdmin(page)
-
+  test('admin sees key backup in user settings and spam in admin settings', async ({
+    adminPage,
+  }) => {
     // Key Backup is in user settings
-    await page.getByRole('link', { name: 'Settings', exact: true }).click()
-    await expect(page.getByRole('heading', { name: 'Account Settings', exact: true })).toBeVisible()
-    await expect(page.getByRole('heading', { name: /key backup/i })).toBeVisible()
+    await adminPage.getByRole('link', { name: 'Settings', exact: true }).click()
+    await expect(
+      adminPage.getByRole('heading', { name: 'Account Settings', exact: true })
+    ).toBeVisible()
+    await expect(adminPage.getByRole('heading', { name: /key backup/i })).toBeVisible()
 
     // Spam Mitigation is in admin settings
-    await page.getByRole('link', { name: 'Hub Settings' }).click()
-    await expect(page.getByRole('heading', { name: 'Hub Settings', exact: true })).toBeVisible()
-    await expect(page.getByRole('heading', { name: /spam mitigation/i })).toBeVisible()
+    await adminPage.getByRole('link', { name: 'Hub Settings' }).click()
+    await expect(
+      adminPage.getByRole('heading', { name: 'Hub Settings', exact: true })
+    ).toBeVisible()
+    await expect(adminPage.getByRole('heading', { name: /spam mitigation/i })).toBeVisible()
   })
 
-  test('admin sees passkeys in user settings', async ({ page }) => {
-    await loginAsAdmin(page)
-    await page.getByRole('link', { name: 'Settings', exact: true }).click()
-    await expect(page.getByRole('heading', { name: 'Account Settings', exact: true })).toBeVisible()
+  test('admin sees passkeys in user settings', async ({ adminPage }) => {
+    await adminPage.getByRole('link', { name: 'Settings', exact: true }).click()
+    await expect(
+      adminPage.getByRole('heading', { name: 'Account Settings', exact: true })
+    ).toBeVisible()
 
     // Passkeys (WebAuthn) card
-    await expect(page.getByRole('heading', { name: /passkeys/i })).toBeVisible()
+    await expect(adminPage.getByRole('heading', { name: /passkeys/i })).toBeVisible()
   })
 
   test('user does not see admin settings link', async ({ page }) => {
@@ -163,76 +174,81 @@ test.describe('Profile self-service', () => {
     await expect(page.locator('#profile-name')).toHaveValue(newName)
   })
 
-  test('spoken language selection works', async ({ page }) => {
-    await loginAsAdmin(page)
-    await page.getByRole('link', { name: 'Settings', exact: true }).click()
-    await expect(page.getByRole('heading', { name: 'Account Settings', exact: true })).toBeVisible()
+  test('spoken language selection works', async ({ adminPage }) => {
+    await adminPage.getByRole('link', { name: 'Settings', exact: true }).click()
+    await expect(
+      adminPage.getByRole('heading', { name: 'Account Settings', exact: true })
+    ).toBeVisible()
 
     // Find the spoken languages section
-    await expect(page.getByText(/languages you can take calls in/i)).toBeVisible()
+    await expect(adminPage.getByText(/languages you can take calls in/i)).toBeVisible()
 
     // Click a language to toggle it (e.g., Español)
-    const esButton = page.locator('button').filter({ hasText: 'Español' }).last()
+    const esButton = adminPage.locator('button').filter({ hasText: 'Español' }).last()
     await esButton.click()
 
     // Save button should appear
-    const saveBtn = page.getByRole('button', { name: /update profile/i })
+    const saveBtn = adminPage.getByRole('button', { name: /update profile/i })
     if (await saveBtn.isVisible()) {
       await saveBtn.click()
-      await expect(page.getByText(/profile updated/i)).toBeVisible({ timeout: 5000 })
+      await expect(adminPage.getByText(/profile updated/i)).toBeVisible({ timeout: 5000 })
     }
   })
 
-  test('deep link expands and scrolls to section', async ({ page }) => {
-    await loginAsAdmin(page)
-    await navigateAfterLogin(page, '/settings?section=transcription')
-    await expect(page.getByRole('heading', { name: 'Account Settings', exact: true })).toBeVisible()
+  test('deep link expands and scrolls to section', async ({ adminPage }) => {
+    await navigateAfterLogin(adminPage, '/settings?section=transcription')
+    await expect(
+      adminPage.getByRole('heading', { name: 'Account Settings', exact: true })
+    ).toBeVisible()
 
     // Transcription section should be expanded — content should be visible
     // When allowUserOptOut is false (default), shows "managed by admin" instead of toggle
-    await expect(page.getByText(/transcription is managed by your admin/i)).toBeVisible()
+    await expect(adminPage.getByText(/transcription is managed by your admin/i)).toBeVisible()
   })
 
-  test('sections collapse and expand on click', async ({ page }) => {
-    await loginAsAdmin(page)
-    await page.getByRole('link', { name: 'Settings', exact: true }).click()
-    await expect(page.getByRole('heading', { name: 'Account Settings', exact: true })).toBeVisible()
+  test('sections collapse and expand on click', async ({ adminPage }) => {
+    await adminPage.getByRole('link', { name: 'Settings', exact: true }).click()
+    await expect(
+      adminPage.getByRole('heading', { name: 'Account Settings', exact: true })
+    ).toBeVisible()
 
     // Profile is expanded by default — its content should be visible
-    await expect(page.locator('#profile-name')).toBeVisible()
+    await expect(adminPage.locator('#profile-name')).toBeVisible()
 
     // Collapse profile by clicking its header
-    await page.getByRole('heading', { name: 'Profile' }).click()
-    await expect(page.locator('#profile-name')).not.toBeVisible()
+    await adminPage.getByRole('heading', { name: 'Profile' }).click()
+    await expect(adminPage.locator('#profile-name')).not.toBeVisible()
 
     // Expand again
-    await page.getByRole('heading', { name: 'Profile' }).click()
-    await expect(page.locator('#profile-name')).toBeVisible()
+    await adminPage.getByRole('heading', { name: 'Profile' }).click()
+    await expect(adminPage.locator('#profile-name')).toBeVisible()
   })
 
-  test('multiple sections can be open simultaneously', async ({ page }) => {
-    await loginAsAdmin(page)
-    await page.getByRole('link', { name: 'Settings', exact: true }).click()
-    await expect(page.getByRole('heading', { name: 'Account Settings', exact: true })).toBeVisible()
+  test('multiple sections can be open simultaneously', async ({ adminPage }) => {
+    await adminPage.getByRole('link', { name: 'Settings', exact: true }).click()
+    await expect(
+      adminPage.getByRole('heading', { name: 'Account Settings', exact: true })
+    ).toBeVisible()
 
     // Profile is already expanded
-    await expect(page.locator('#profile-name')).toBeVisible()
+    await expect(adminPage.locator('#profile-name')).toBeVisible()
 
     // Expand Transcription too
-    await page.getByRole('heading', { name: 'Transcription' }).click()
-    await expect(page.getByText(/transcription is managed by your admin/i)).toBeVisible()
+    await adminPage.getByRole('heading', { name: 'Transcription' }).click()
+    await expect(adminPage.getByText(/transcription is managed by your admin/i)).toBeVisible()
 
     // Profile should still be expanded
-    await expect(page.locator('#profile-name')).toBeVisible()
+    await expect(adminPage.locator('#profile-name')).toBeVisible()
   })
 
-  test('copy link button is present on each section', async ({ page }) => {
-    await loginAsAdmin(page)
-    await page.getByRole('link', { name: 'Settings', exact: true }).click()
-    await expect(page.getByRole('heading', { name: 'Account Settings', exact: true })).toBeVisible()
+  test('copy link button is present on each section', async ({ adminPage }) => {
+    await adminPage.getByRole('link', { name: 'Settings', exact: true }).click()
+    await expect(
+      adminPage.getByRole('heading', { name: 'Account Settings', exact: true })
+    ).toBeVisible()
 
     // Each section header should have a copy link button (profile, passkeys, transcription, notifications)
-    const copyButtons = page.getByRole('button', { name: /copy link/i })
+    const copyButtons = adminPage.getByRole('button', { name: /copy link/i })
     const count = await copyButtons.count()
     expect(count).toBeGreaterThanOrEqual(4)
   })
