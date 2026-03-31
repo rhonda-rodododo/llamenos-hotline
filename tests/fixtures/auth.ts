@@ -45,13 +45,11 @@ async function createAuthenticatedPage(
 
   // Wait for one of: PIN screen, dashboard, or profile-setup
   const firstState = await Promise.race([
-    pinInput.waitFor({ state: 'visible', timeout: Timeouts.AUTH }).then(() => 'pin' as const),
+    pinInput.waitFor({ state: 'visible', timeout: 120000 }).then(() => 'pin' as const),
     dashboardHeading
-      .waitFor({ state: 'visible', timeout: Timeouts.AUTH })
+      .waitFor({ state: 'visible', timeout: 120000 })
       .then(() => 'dashboard' as const),
-    profileSetup
-      .waitFor({ state: 'visible', timeout: Timeouts.AUTH })
-      .then(() => 'profile' as const),
+    profileSetup.waitFor({ state: 'visible', timeout: 120000 }).then(() => 'profile' as const),
   ])
 
   if (firstState === 'pin') {
@@ -59,11 +57,9 @@ async function createAuthenticatedPage(
     // After PIN: PBKDF2 runs (~30s), then navigates to dashboard or profile-setup
     const afterPin = await Promise.race([
       dashboardHeading
-        .waitFor({ state: 'visible', timeout: Timeouts.AUTH })
+        .waitFor({ state: 'visible', timeout: 120000 })
         .then(() => 'dashboard' as const),
-      profileSetup
-        .waitFor({ state: 'visible', timeout: Timeouts.AUTH })
-        .then(() => 'profile' as const),
+      profileSetup.waitFor({ state: 'visible', timeout: 120000 }).then(() => 'profile' as const),
     ])
     if (afterPin === 'profile') {
       await completeProfileSetup(page)
