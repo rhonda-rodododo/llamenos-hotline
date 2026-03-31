@@ -251,10 +251,27 @@ async function createRoleAccount(
   const userPage = await userContext.newPage()
 
   try {
-    await userPage.goto(inviteLink, { waitUntil: 'domcontentloaded' })
+    await userPage.goto(inviteLink, { waitUntil: 'networkidle' })
+    console.log(`[SETUP] ${opts.name}: landed on ${userPage.url()}`)
 
-    // Wait for welcome page
-    await expect(userPage.getByText(/welcome/i)).toBeVisible({ timeout: 15000 })
+    // Wait for welcome page — may show error if invite is invalid
+    const welcomeOrError = await Promise.race([
+      userPage
+        .getByText(/welcome/i)
+        .waitFor({ state: 'visible', timeout: 20000 })
+        .then(() => 'welcome' as const),
+      userPage
+        .getByText(/invalid invite/i)
+        .waitFor({ state: 'visible', timeout: 20000 })
+        .then(() => 'invalid' as const),
+      userPage
+        .getByText(/no invite code/i)
+        .waitFor({ state: 'visible', timeout: 20000 })
+        .then(() => 'no-code' as const),
+    ])
+    if (welcomeOrError !== 'welcome') {
+      throw new Error(`Invite for ${opts.name} failed: ${welcomeOrError} (link: ${inviteLink})`)
+    }
 
     // Click "Get Started"
     await userPage.getByRole('button', { name: /get started/i }).click()
@@ -294,15 +311,17 @@ async function createRoleAccount(
 
     // Complete profile setup if redirected there
     if (userPage.url().includes('profile-setup')) {
-      await userPage.getByRole('button', { name: /complete setup/i }).click()
+      const completeBtn = userPage.getByRole('button', { name: /complete setup/i })
+      await completeBtn.waitFor({ state: 'visible', timeout: 15000 })
+      await completeBtn.click()
       await userPage.waitForURL((u) => !u.toString().includes('profile-setup'), {
         timeout: 15000,
       })
     }
 
-    // Wait for authenticated state
+    // Wait for authenticated state — dashboard or may need a moment to redirect
     await expect(userPage.getByRole('heading', { name: 'Dashboard', exact: true })).toBeVisible({
-      timeout: 15000,
+      timeout: 30000,
     })
 
     // Save storage state
