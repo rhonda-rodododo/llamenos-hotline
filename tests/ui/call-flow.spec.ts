@@ -20,8 +20,8 @@ import {
   getAdminPubkeyFromStorageState,
 } from '../helpers/authed-request'
 
-// Build admin pubkey from the stored admin storage state
-const ADMIN_PUBKEY = getAdminPubkeyFromStorageState()
+// Lazy — resolved in beforeAll after global setup creates admin.json
+let ADMIN_PUBKEY: string
 
 function formEncode(params: Record<string, string>): string {
   return new URLSearchParams(params).toString()
@@ -67,6 +67,10 @@ async function waitForActiveCall(
 
 test.describe('Call flow', () => {
   test.describe.configure({ mode: 'serial' })
+
+  test.beforeAll(() => {
+    ADMIN_PUBKEY = getAdminPubkeyFromStorageState()
+  })
 
   const CALL_SID = `CA_flow_${Date.now()}`
   const CALLER_FROM = '+15550001111'

@@ -13,7 +13,8 @@ import {
   getAdminPubkeyFromStorageState,
 } from '../helpers/authed-request'
 
-const ADMIN_PUBKEY = getAdminPubkeyFromStorageState()
+// Lazy — resolved after global setup creates admin.json
+let ADMIN_PUBKEY: string
 
 /** Create an encrypted note via the API and return its ID */
 async function createNoteViaApi(
@@ -40,6 +41,10 @@ async function createNoteViaApi(
 
 test.describe('Call Detail Page', () => {
   test.describe.configure({ mode: 'serial' })
+
+  test.beforeAll(() => {
+    ADMIN_PUBKEY = getAdminPubkeyFromStorageState()
+  })
 
   test('call history page loads and shows empty state or rows', async ({ adminPage }) => {
     await navigateAfterLogin(adminPage, '/calls?page=1&q=&dateFrom=&dateTo=')
