@@ -1474,6 +1474,7 @@
     "active": "Active",
     "inactive": "Inactive",
     "invalidPhone": "Invalid phone number. Use E.164 format (e.g. +12125551234)",
+    "inviteUser": "Invite User",
     "inviteVolunteer": "Invite User",
     "createInvite": "Create Invite",
     "inviteCreated": "Invite created",

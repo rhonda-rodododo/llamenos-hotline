@@ -211,14 +211,11 @@ async function createRoleAccount(
   if (await roleTrigger.isVisible({ timeout: 2000 }).catch(() => false)) {
     await roleTrigger.click()
     await adminPage.waitForTimeout(500)
-    // Debug: log all role options visible in the dropdown
-    const allOptions = await adminPage.locator('[role="option"]').allTextContents()
-    console.log(`[SETUP] Role options: ${JSON.stringify(allOptions)}`)
     const displayName = roleDisplayNames[opts.roleName]
     if (displayName) {
-      const option = adminPage.locator('[role="option"]').filter({ hasText: displayName })
-      await option.waitFor({ state: 'visible', timeout: 5000 })
-      await option.click()
+      // Radix Select options have role="option" — filter by exact text within options only
+      const option = adminPage.locator('[role="option"]').getByText(displayName, { exact: true })
+      await option.click({ timeout: 5000 })
     }
   }
 

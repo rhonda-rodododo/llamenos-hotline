@@ -325,4 +325,5 @@ admin-flow (18), blast-sending (8), notes-crud (7), smoke (4), theme (7), health
 
 ## Data Layer — Future Work
 
-- [ ] **React Query for fetch + decrypt** — Replace manual `useState`/`useEffect` fetch patterns with `@tanstack/react-query`. Query hooks (`useVolunteers()`, `useBans()`, etc.) handle fetch + worker-based decryption + caching. Invalidate on `keyManager.onUnlock`/`onLock`. Eliminates custom `DecryptCache` and `useDecryptedArray`/`useDecryptedObject` hooks. Gives stale-while-revalidate, deduplication, and loading/error states for free.
+- [x] **React Query for fetch + decrypt** — Completed in react-query refactor PR #28.
+- [ ] **Eliminate remaining decryptHubField calls** — 53 usages of `decryptHubField` still in 10+ component files (shifts, blasts, hubs, contacts, etc.). Each should be moved to the respective React Query `queryFn` following the decrypt-in-queryFn pattern established in roles.ts. Also remove `hub-field-crypto.ts` once all callsites are migrated.
