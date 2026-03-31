@@ -178,4 +178,20 @@ dev.post('/test-reset-records', async (c) => {
   return c.json({ ok: true })
 })
 
+// Light reset: only clears setup completion state
+// Used by setup wizard E2E tests that need setupCompleted=false
+dev.post('/test-reset-setup', async (c) => {
+  if (c.env.ENVIRONMENT !== 'development' && c.env.ENVIRONMENT !== 'demo') {
+    return c.json({ error: 'Not Found' }, 404)
+  }
+  const secret = c.env.DEV_RESET_SECRET || c.env.E2E_TEST_SECRET
+  if (!secret) return c.json({ error: 'Not Found' }, 404)
+  if (c.req.header('X-Test-Secret') !== secret) {
+    return c.json({ error: 'Forbidden' }, 403)
+  }
+  const services = c.get('services')
+  await services.settings.updateSetupState({ setupCompleted: false })
+  return c.json({ ok: true })
+})
+
 export default dev

@@ -1,11 +1,31 @@
 import { expect, test } from '../fixtures/auth'
 import { navigateAfterLogin } from '../helpers'
 
+const BASE_URL = process.env.PLAYWRIGHT_BASE_URL || 'http://localhost:3000'
+const TEST_SECRET =
+  process.env.DEV_RESET_SECRET || process.env.E2E_TEST_SECRET || 'test-reset-secret'
+
 test.describe('Setup Wizard - Provider Module', () => {
+  test.beforeAll(async () => {
+    const res = await fetch(`${BASE_URL}/api/test-reset-setup`, {
+      method: 'POST',
+      headers: { 'X-Test-Secret': TEST_SECRET },
+    })
+    if (!res.ok) throw new Error(`Failed to reset setup state: ${res.status}`)
+  })
   // Helper: navigate to /setup and wait for the wizard
   async function goToSetup(page: import('@playwright/test').Page) {
     await navigateAfterLogin(page, '/setup')
     await expect(page.getByText('Setup Wizard')).toBeVisible({ timeout: 10000 })
+    // The setup wizard has its own PIN gate when the key-manager is locked
+    const pinInput = page.locator('input[aria-label="PIN digit 1"]')
+    const hasPinGate = await pinInput.isVisible({ timeout: 1000 }).catch(() => false)
+    if (hasPinGate) {
+      await pinInput.focus()
+      await page.keyboard.type('123456', { delay: 80 })
+      await page.keyboard.press('Enter')
+      await expect(page.locator('#hotline-name')).toBeVisible({ timeout: 30000 })
+    }
   }
 
   // Helper: fill identity step with defaults
