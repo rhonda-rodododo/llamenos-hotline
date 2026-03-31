@@ -4,6 +4,7 @@ import { getPrimaryRole } from '../../shared/permissions'
 import { getIdPAdapter } from '../app'
 import { hashIP } from '../lib/crypto-service'
 import { isValidE164 } from '../lib/helpers'
+import { signAccessToken } from '../lib/jwt'
 import { maskPhone } from '../lib/user-projector'
 import { auth as authMiddleware } from '../middleware/auth'
 import { checkPermission } from '../middleware/permission-guard'
@@ -54,7 +55,18 @@ auth.post('/bootstrap', async (c) => {
   const nsecSecret = await idpAdapter.getNsecSecret(body.pubkey)
   const nsecSecretHex = Buffer.from(nsecSecret).toString('hex')
 
-  return c.json({ ok: true, roles: ['role-super-admin'], nsecSecret: nsecSecretHex })
+  // Sign a JWT so the client can immediately call /api/auth/me after importKey
+  const accessToken = await signAccessToken(
+    { pubkey: body.pubkey, permissions: ['*'] },
+    c.env.JWT_SECRET
+  )
+
+  return c.json({
+    ok: true,
+    roles: ['role-super-admin'],
+    nsecSecret: nsecSecretHex,
+    accessToken,
+  })
 })
 
 // --- Authenticated routes ---

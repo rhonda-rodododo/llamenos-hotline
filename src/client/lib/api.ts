@@ -115,7 +115,12 @@ export async function bootstrapAdmin(pubkey: string, timestamp: number, token: s
     const body = await res.text()
     throw new ApiError(res.status, body)
   }
-  return res.json() as Promise<{ ok: true; roles: string[]; nsecSecret: string }>
+  return res.json() as Promise<{
+    ok: true
+    roles: string[]
+    nsecSecret: string
+    accessToken: string
+  }>
 }
 
 export async function logout() {

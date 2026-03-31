@@ -3,6 +3,7 @@ import { PinInput } from '@/components/pin-input'
 import { Button } from '@/components/ui/button'
 import { bootstrapAdmin } from '@/lib/api'
 import { useAuth } from '@/lib/auth'
+import { authFacadeClient } from '@/lib/auth-facade-client'
 import { createBackup, downloadBackupFile, generateRecoveryKey } from '@/lib/backup'
 import { generateKeyPair } from '@/lib/crypto'
 import { setLanguage } from '@/lib/i18n'
@@ -145,9 +146,11 @@ export function AdminBootstrap({ onComplete }: AdminBootstrapProps) {
       const signature = schnorr.sign(messageHash, kp.secretKey)
       const token = bytesToHex(signature)
 
-      // Call bootstrap endpoint — returns nsecSecret from IdP enrollment
+      // Call bootstrap endpoint — returns nsecSecret + accessToken from IdP enrollment
       const bootstrapResult = await bootstrapAdmin(kp.publicKey, ts, token)
       setIdpNsecSecret(hexToBytes(bootstrapResult.nsecSecret))
+      // Set the access token so signIn() can call /api/auth/me
+      authFacadeClient.setAccessToken(bootstrapResult.accessToken)
 
       // Generate recovery key
       const rk = generateRecoveryKey()
@@ -173,9 +176,12 @@ export function AdminBootstrap({ onComplete }: AdminBootstrapProps) {
   async function handleComplete() {
     try {
       if (!idpNsecSecret) throw new Error('Missing IdP nsecSecret')
-      // Import key via key manager (encrypts with PIN and real IdP nsecSecret)
+      // importKey expects nsec as hex — decode bech32 nsec to get raw bytes, then hex-encode
+      const decoded = await import('nostr-tools').then((m) => m.nip19.decode(nsec))
+      if (decoded.type !== 'nsec') throw new Error('Invalid nsec type')
+      const nsecHex = bytesToHex(decoded.data)
       await keyManager.importKey(
-        nsec,
+        nsecHex,
         confirmedPin,
         pubkey,
         idpNsecSecret,
@@ -188,7 +194,8 @@ export function AdminBootstrap({ onComplete }: AdminBootstrapProps) {
       setStep('complete')
       // Brief delay for the success message, then advance to wizard
       setTimeout(onComplete, 1000)
-    } catch {
+    } catch (err: unknown) {
+      console.error('[bootstrap] handleComplete failed:', (err as Error)?.message || err)
       toast(t('common.error'), 'error')
     }
   }
