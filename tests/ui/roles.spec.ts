@@ -121,11 +121,11 @@ test.describe('Role Editor — Permission Metadata UI', () => {
     // Expand the Roles section if needed
     await adminPage.getByText('Roles & Permissions').click()
 
-    // Default roles should be listed
-    await expect(adminPage.getByText('Case Manager')).toBeVisible()
-    await expect(adminPage.getByText('Voicemail Reviewer')).toBeVisible()
-    await expect(adminPage.getByText('Volunteer')).toBeVisible()
-    await expect(adminPage.getByText('Hub Admin')).toBeVisible()
+    // Default roles should be listed — role names may need hub key decryption under load
+    await expect(adminPage.getByText('Case Manager')).toBeVisible({ timeout: 30000 })
+    await expect(adminPage.getByText('Voicemail Reviewer')).toBeVisible({ timeout: 15000 })
+    await expect(adminPage.getByText('Volunteer')).toBeVisible({ timeout: 15000 })
+    await expect(adminPage.getByText('Hub Admin')).toBeVisible({ timeout: 15000 })
   })
 
   test('Create Role button opens editor with permission domains', async ({ adminPage }) => {

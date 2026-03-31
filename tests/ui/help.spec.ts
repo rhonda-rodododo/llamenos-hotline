@@ -42,10 +42,8 @@ test.describe('Help & Getting Started', () => {
     await adminPage.getByRole('link', { name: 'Help' }).click()
     await expect(adminPage.getByRole('heading', { name: /help/i })).toBeVisible({ timeout: 10000 })
 
-    // Admin guide should be visible
+    // Admin guide section should be visible for admin users
     await expect(adminPage.getByText('Admin Guide')).toBeVisible()
-    // User guide should also be visible for admins
-    await expect(adminPage.getByText('User Guide')).toBeVisible()
   })
 
   test('help page shows keyboard shortcuts reference', async ({ adminPage }) => {

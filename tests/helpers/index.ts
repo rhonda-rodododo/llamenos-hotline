@@ -137,11 +137,34 @@ export async function reenterPinAfterReload(page: Page): Promise<void> {
   }
 
   const pinInput = page.locator('input[aria-label="PIN digit 1"]')
-  const pinVisible = await pinInput.isVisible({ timeout: 5000 }).catch(() => false)
+  let pinVisible = await pinInput.isVisible({ timeout: 5000 }).catch(() => false)
+
+  // After reload, the refresh cookie may restore the API session without
+  // showing a PIN prompt (user stays on dashboard with locked keys).
+  // Block the refresh endpoint and reload again to force the login/PIN screen,
+  // matching the same technique used in the auth fixture.
+  if (!pinVisible) {
+    await page.route('**/api/auth/token/refresh', async (route) => {
+      await route.fulfill({
+        status: 401,
+        contentType: 'application/json',
+        body: '{"error":"blocked"}',
+      })
+    })
+    await page.reload({ waitUntil: 'domcontentloaded' })
+    // Unblock refresh so the PIN unlock flow can complete
+    await page.unroute('**/api/auth/token/refresh')
+    pinVisible = await pinInput.isVisible({ timeout: 10000 }).catch(() => false)
+  }
 
   if (pinVisible) {
     await enterPin(page, TEST_PIN)
     await page.waitForURL((u) => !u.toString().includes('/login'), { timeout: 15000 })
+    // Wait for the authenticated layout to render (sidebar, dashboard heading)
+    const dashHeading = page.getByRole('heading', { name: 'Dashboard', exact: true })
+    await dashHeading.waitFor({ state: 'visible', timeout: 30000 }).catch(() => {
+      // May have gone to profile-setup instead — that's OK
+    })
   }
 }
 

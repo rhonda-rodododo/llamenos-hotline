@@ -151,10 +151,14 @@ test.describe('Shift management', () => {
     await adminPage.getByRole('button', { name: /create shift/i }).click()
     await adminPage.getByLabel(/shift name/i).fill(shiftName)
 
-    // Open user multi-select — scope to the form
+    // Open user multi-select — scope to the form.
+    // User names in the dropdown are decrypted; wait for decryption under load.
     const volSelect = adminPage.locator('form').getByRole('combobox')
     await volSelect.click()
-    // Select the user from the dropdown
+    // Wait for options to be populated (user names need hub key decryption)
+    await expect(adminPage.getByRole('option', { name: new RegExp(userName) })).toBeVisible({
+      timeout: 30000,
+    })
     await adminPage.getByRole('option', { name: new RegExp(userName) }).click()
     // Close the popover by pressing Escape
     await adminPage.keyboard.press('Escape')
@@ -168,7 +172,7 @@ test.describe('Shift management', () => {
       .filter({ hasText: shiftName })
       .locator('..')
       .locator('..')
-    await expect(shiftCard.getByText(/1 user/i)).toBeVisible()
+    await expect(shiftCard.getByText(/1 user/i)).toBeVisible({ timeout: 15000 })
   })
 
   test('fallback group selection', async ({ adminPage }) => {
@@ -191,12 +195,15 @@ test.describe('Shift management', () => {
     const fallbackSelect = fallbackCard.getByRole('combobox')
     await fallbackSelect.click()
 
-    // Select the user
+    // Select the user — names need decryption, wait for option to appear
+    await expect(adminPage.getByRole('option', { name: new RegExp(userName) })).toBeVisible({
+      timeout: 30000,
+    })
     await adminPage.getByRole('option', { name: new RegExp(userName) }).click()
     await adminPage.keyboard.press('Escape')
 
     // User badge should appear
-    await expect(fallbackCard.getByText(userName)).toBeVisible({ timeout: 5000 })
+    await expect(fallbackCard.getByText(userName)).toBeVisible({ timeout: 15000 })
   })
 
   test('shift shows user count', async ({ adminPage }) => {
@@ -212,6 +219,6 @@ test.describe('Shift management', () => {
       .filter({ hasText: shiftName })
       .locator('..')
       .locator('..')
-    await expect(shiftCard.getByText(/0 user/i)).toBeVisible()
+    await expect(shiftCard.getByText(/0 user/i)).toBeVisible({ timeout: 15000 })
   })
 })

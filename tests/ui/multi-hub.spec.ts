@@ -49,8 +49,8 @@ test.describe('Multi-hub architecture — UI', () => {
     // Navigate to the hub management page
     await navigateAfterLogin(adminPage, '/admin/hubs')
 
-    // Confirm the hub appears in the active list
-    await expect(adminPage.getByText(hubName)).toBeVisible({ timeout: 10000 })
+    // Confirm the hub appears in the active list (hub names are encrypted — need decryption time)
+    await expect(adminPage.getByText(hubName)).toBeVisible({ timeout: 30000 })
 
     // Click the Archive button for this hub's row
     const hubRow = adminPage.locator('[data-testid="hub-row"]').filter({ hasText: hubName })

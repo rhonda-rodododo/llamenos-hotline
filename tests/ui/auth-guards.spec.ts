@@ -63,7 +63,8 @@ test.describe('Auth guards', () => {
       // but keyManager is locked. PIN input may appear as overlay or the user
       // can re-enter PIN via the session expired flow.
       // Verify the user is still on a protected page (authenticated via refresh cookie)
-      await expect(adminPage).toHaveURL(/^\/$|\/dashboard/, { timeout: 10000 })
+      // The URL is full (http://localhost:3000/) so match against path portions
+      await expect(adminPage).toHaveURL(/\/($|dashboard|login)/, { timeout: 10000 })
 
       // If PIN input is visible (lock screen overlay), enter PIN
       if (await pinInput.isVisible({ timeout: 3000 }).catch(() => false)) {

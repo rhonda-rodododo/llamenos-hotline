@@ -20,12 +20,12 @@ test.describe('PIN Challenge (Re-auth Step-up)', () => {
   test('phone unmask on users page requires PIN', async ({ adminPage }) => {
     await navigateAfterLogin(adminPage, '/users')
 
-    // Wait for users list to load
+    // Wait for users list to load and decrypt (phone field is encrypted)
     await expect(adminPage.getByRole('heading', { name: 'Users' })).toBeVisible()
 
-    // Find a user row with a phone toggle button
+    // Find a user row with a phone toggle button — needs time for API response + field decryption
     const toggleBtn = adminPage.getByTestId('toggle-phone-visibility').first()
-    await expect(toggleBtn).toBeVisible({ timeout: 5000 })
+    await expect(toggleBtn).toBeVisible({ timeout: 30000 })
 
     // Click to unmask phone — should trigger PIN challenge
     await toggleBtn.click()
@@ -51,7 +51,7 @@ test.describe('PIN Challenge (Re-auth Step-up)', () => {
     await expect(adminPage.getByRole('heading', { name: 'Users' })).toBeVisible()
 
     const toggleBtn = adminPage.getByTestId('toggle-phone-visibility').first()
-    await expect(toggleBtn).toBeVisible({ timeout: 5000 })
+    await expect(toggleBtn).toBeVisible({ timeout: 30000 })
 
     // Click to unmask phone
     await toggleBtn.click()
@@ -86,7 +86,7 @@ test.describe('PIN Challenge (Re-auth Step-up)', () => {
     await expect(adminPage.getByRole('heading', { name: 'Users' })).toBeVisible()
 
     const toggleBtn = adminPage.getByTestId('toggle-phone-visibility').first()
-    await expect(toggleBtn).toBeVisible({ timeout: 5000 })
+    await expect(toggleBtn).toBeVisible({ timeout: 30000 })
 
     // Click to unmask phone
     await toggleBtn.click()

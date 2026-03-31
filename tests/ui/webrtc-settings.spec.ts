@@ -167,7 +167,12 @@ test.describe('WebRTC & Call Preference Settings', () => {
     // Reload the page — clears keyManager, PIN re-entry needed
     await adminPage.reload()
     await reenterPinAfterReload(adminPage)
-    // PIN unlock redirects to dashboard — navigate back to Hub Settings
+    // PIN unlock may redirect to profile-setup — handle it
+    if (adminPage.url().includes('profile-setup')) {
+      await adminPage.getByRole('button', { name: /complete setup/i }).click()
+      await adminPage.waitForURL((u) => !u.toString().includes('profile-setup'), { timeout: 15000 })
+    }
+    // Navigate back to Hub Settings
     await adminPage.getByRole('link', { name: 'Hub Settings' }).click()
     await expect(
       adminPage.getByRole('heading', { name: 'Hub Settings', exact: true })

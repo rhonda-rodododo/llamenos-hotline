@@ -227,16 +227,16 @@ test.describe('Passkey authentication', () => {
       localStorage.clear()
     })
     await adminPage.goto('/login')
-    await adminPage.waitForLoadState('networkidle')
+    await adminPage.waitForLoadState('domcontentloaded')
 
     const passkeyBtn = adminPage.getByTestId('passkey-login-btn')
-    await expect(passkeyBtn).toBeVisible({ timeout: 10_000 })
+    await expect(passkeyBtn).toBeVisible({ timeout: 15_000 })
 
     await passkeyBtn.click()
 
     // Virtual authenticator auto-selects the registered credential
     // Login should succeed → dashboard visible (or PIN prompt for key unlock)
-    await adminPage.waitForURL((url) => !url.toString().includes('/login'), { timeout: 15_000 })
+    await adminPage.waitForURL((url) => !url.toString().includes('/login'), { timeout: 30_000 })
 
     await teardownVirtualAuthenticator(auth.cdp, auth.authenticatorId)
   })

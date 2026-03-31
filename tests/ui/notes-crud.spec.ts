@@ -25,9 +25,12 @@ test.describe('Notes CRUD', () => {
     await adminPage.locator('textarea').fill('Test note from E2E')
     await adminPage.getByRole('button', { name: /save/i }).click()
 
+    // Wait for the form to close (indicates mutation succeeded)
+    await expect(adminPage.locator('#call-id')).not.toBeVisible({ timeout: 15000 })
+
     // Note should appear as decrypted paragraph text after list refetch + decryption
     await expect(adminPage.locator('p').filter({ hasText: 'Test note from E2E' })).toBeVisible({
-      timeout: 15000,
+      timeout: 30000,
     })
   })
 
@@ -46,13 +49,19 @@ test.describe('Notes CRUD', () => {
     await adminPage.locator('#call-id').fill(callId)
     await adminPage.locator('textarea').fill('First note')
     await adminPage.getByRole('button', { name: /save/i }).click()
-    await expect(adminPage.locator('p').filter({ hasText: 'First note' })).toBeVisible()
+    await expect(adminPage.locator('#call-id')).not.toBeVisible({ timeout: 15000 })
+    await expect(adminPage.locator('p').filter({ hasText: 'First note' })).toBeVisible({
+      timeout: 30000,
+    })
 
     await adminPage.getByTestId('note-new-btn').click()
     await adminPage.locator('#call-id').fill(callId)
     await adminPage.locator('textarea').fill('Second note')
     await adminPage.getByRole('button', { name: /save/i }).click()
-    await expect(adminPage.locator('p').filter({ hasText: 'Second note' })).toBeVisible()
+    await expect(adminPage.locator('#call-id')).not.toBeVisible({ timeout: 15000 })
+    await expect(adminPage.locator('p').filter({ hasText: 'Second note' })).toBeVisible({
+      timeout: 30000,
+    })
 
     // Both notes should be visible on the same page (grouped by call)
     await expect(adminPage.locator('p').filter({ hasText: 'First note' })).toBeVisible()
@@ -65,7 +74,10 @@ test.describe('Notes CRUD', () => {
     await adminPage.locator('#call-id').fill(`edit-test-${Date.now()}`)
     await adminPage.locator('textarea').fill('Original text')
     await adminPage.getByRole('button', { name: /save/i }).click()
-    await expect(adminPage.locator('p').filter({ hasText: 'Original text' })).toBeVisible()
+    await expect(adminPage.locator('#call-id')).not.toBeVisible({ timeout: 15000 })
+    await expect(adminPage.locator('p').filter({ hasText: 'Original text' })).toBeVisible({
+      timeout: 30000,
+    })
 
     // Click edit on the note
     const editBtn = adminPage.getByTestId('note-edit-btn').first()

@@ -24,15 +24,21 @@ test.describe('Profile self-service', () => {
     // Reload and verify name persisted via /auth/me
     await adminPage.reload()
     await reenterPinAfterReload(adminPage)
-    // PIN unlock redirects to dashboard — navigate back to Settings
-    await adminPage.getByRole('link', { name: 'Settings', exact: true }).click()
+    // PIN unlock may redirect to profile-setup — handle it
+    if (adminPage.url().includes('profile-setup')) {
+      await adminPage.getByRole('button', { name: /complete setup/i }).click()
+      await adminPage.waitForURL((u) => !u.toString().includes('profile-setup'), { timeout: 15000 })
+    }
+    // Navigate back to Settings
+    await adminPage.getByRole('link', { name: 'Settings', exact: true }).click({ timeout: 15000 })
     await expect(
       adminPage.getByRole('heading', { name: 'Account Settings', exact: true })
     ).toBeVisible()
     // After PIN unlock, the crypto worker needs time to decrypt envelope-encrypted fields.
+    // The hub key must be fetched and decrypted before profile fields can be decrypted.
     // Wait for the profile name input to show the decrypted value (not [encrypted]).
     await expect(adminPage.locator('#profile-name')).not.toHaveValue('[encrypted]', {
-      timeout: 15000,
+      timeout: 30000,
     })
     await expect(adminPage.locator('#profile-name')).toHaveValue(newName, { timeout: 10000 })
 
@@ -151,14 +157,22 @@ test.describe('Profile self-service', () => {
     // Verify name persists after reload
     await volunteerPage.reload()
     await reenterPinAfterReload(volunteerPage)
-    // PIN unlock redirects to dashboard — navigate back to Settings
-    await volunteerPage.getByRole('link', { name: 'Settings' }).click()
+    // PIN unlock may redirect to profile-setup — handle it
+    if (volunteerPage.url().includes('profile-setup')) {
+      await volunteerPage.getByRole('button', { name: /complete setup/i }).click()
+      await volunteerPage.waitForURL((u) => !u.toString().includes('profile-setup'), {
+        timeout: 15000,
+      })
+    }
+    // Navigate back to Settings
+    await volunteerPage.getByRole('link', { name: 'Settings' }).click({ timeout: 15000 })
     await expect(
       volunteerPage.getByRole('heading', { name: 'Account Settings', exact: true })
     ).toBeVisible()
     // After PIN unlock, the crypto worker needs time to decrypt envelope-encrypted fields.
+    // The hub key must be fetched and decrypted before profile fields can be decrypted.
     await expect(volunteerPage.locator('#profile-name')).not.toHaveValue('[encrypted]', {
-      timeout: 15000,
+      timeout: 30000,
     })
     await expect(volunteerPage.locator('#profile-name')).toHaveValue(newName, { timeout: 10000 })
   })

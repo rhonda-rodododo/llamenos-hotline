@@ -39,7 +39,9 @@ test.describe('Conversations — no channels configured', () => {
       config.channels?.reports
     test.skip(!!hasMessaging, 'Messaging channels already enabled — cannot test hidden nav')
 
-    await expect(adminPage.getByRole('heading', { name: 'Dashboard', exact: true })).toBeVisible()
+    await expect(adminPage.getByRole('heading', { name: 'Dashboard', exact: true })).toBeVisible({
+      timeout: 15000,
+    })
     await expect(adminPage.getByRole('link', { name: /conversations/i })).not.toBeVisible()
   })
 })

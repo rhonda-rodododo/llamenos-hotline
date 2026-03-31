@@ -22,16 +22,21 @@ test.describe('Hub access control UI', () => {
     // Pre-create the hub via API so UI tests can reference it
     const authedApi = createAuthedRequestFromNsec(request, ADMIN_NSEC)
     const createRes = await authedApi.post('/api/hubs', { name: testHubName })
+    if (!createRes.ok()) {
+      const body = await createRes.text()
+      throw new Error(`Failed to create hub: ${createRes.status()} ${body}`)
+    }
     const created = await createRes.json()
     testHubId = created.hub.id
   })
 
   test('newly created hub shows restricted access badge in UI', async ({ adminPage }) => {
     await navigateAfterLogin(adminPage, '/admin/hubs')
+    // Hub names are encrypted — wait for decryption under parallel load
     const hubRow = adminPage.locator('[data-testid="hub-row"]').filter({ hasText: testHubName })
-    await expect(hubRow).toBeVisible({ timeout: Timeouts.ELEMENT })
+    await expect(hubRow).toBeVisible({ timeout: 30000 })
     const accessBadge = hubRow.getByTestId('hub-access-badge')
-    await expect(accessBadge).toBeVisible()
+    await expect(accessBadge).toBeVisible({ timeout: 10000 })
   })
 
   test('super admin sees read-only access badge in edit dialog', async ({ adminPage, request }) => {

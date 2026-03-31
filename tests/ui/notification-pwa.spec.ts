@@ -147,6 +147,8 @@ test.describe('Settings notification permission status', () => {
 })
 
 test.describe('PWA install banner', () => {
+  // Under parallel execution, PBKDF2 contention can slow fixture setup.
+  test.setTimeout(180_000)
   test('does not show PWA banner when beforeinstallprompt has not fired', async ({ adminPage }) => {
     // PWA banner should not be visible (no beforeinstallprompt event)
     await expect(adminPage.getByText('Install this app for quick access')).not.toBeVisible()

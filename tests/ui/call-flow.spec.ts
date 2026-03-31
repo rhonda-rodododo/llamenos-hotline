@@ -136,15 +136,15 @@ test.describe('Call flow', () => {
 
     expect(langRes.status()).toBe(200)
 
-    // Step 3: Wait for the call to appear in the active calls API
-    await waitForActiveCall(adminApi, CALL_SID, 'ringing')
+    // Step 3: Wait for the call to appear in the active calls API (under load, may take longer)
+    await waitForActiveCall(adminApi, CALL_SID, 'ringing', 20_000)
 
     // Step 4: The dashboard receives call events via Nostr relay subscription (real-time)
     await expect(adminPage.getByTestId(TestIds.INCOMING_CALLS_CARD)).toBeVisible({
-      timeout: 15_000,
+      timeout: 30_000,
     })
-    await expect(adminPage.getByTestId(TestIds.INCOMING_CALL_ITEM)).toBeVisible()
-    await expect(adminPage.getByTestId(TestIds.ANSWER_CALL_BTN)).toBeVisible()
+    await expect(adminPage.getByTestId(TestIds.INCOMING_CALL_ITEM)).toBeVisible({ timeout: 15_000 })
+    await expect(adminPage.getByTestId(TestIds.ANSWER_CALL_BTN)).toBeVisible({ timeout: 15_000 })
   })
 
   // ── 2.2: User answers the call ──────────────────────────────────────

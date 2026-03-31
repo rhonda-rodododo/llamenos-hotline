@@ -78,8 +78,8 @@ test.describe('Report Types System', () => {
     await createReportType(adminPage, typeName, 'Badge visibility test', true)
 
     const typeRow = adminPage.getByTestId('report-type-row').filter({ hasText: typeName })
-    await expect(typeRow).toBeVisible()
-    await expect(typeRow.getByText('Default', { exact: true })).toBeVisible()
+    await expect(typeRow).toBeVisible({ timeout: 15000 })
+    await expect(typeRow.getByText('Default', { exact: true })).toBeVisible({ timeout: 10000 })
   })
 
   test('admin can create a second report type without default', async ({ adminPage }) => {
@@ -193,10 +193,12 @@ test.describe('Report Types System', () => {
 
     await navigateToReports(adminPage)
     await adminPage.getByRole('button', { name: /new/i }).click()
-    await expect(adminPage.getByTestId('report-type-select')).toBeVisible({ timeout: 5000 })
+    await expect(adminPage.getByTestId('report-type-select')).toBeVisible({ timeout: 15000 })
 
-    // The select should show the default type
-    await expect(adminPage.getByTestId('report-type-select')).toContainText(typeName)
+    // The select should show the default type (may need time to fetch + decrypt report types)
+    await expect(adminPage.getByTestId('report-type-select')).toContainText(typeName, {
+      timeout: 15000,
+    })
   })
 
   test('can change report type in form', async ({ adminPage }) => {
@@ -209,12 +211,15 @@ test.describe('Report Types System', () => {
 
     await navigateToReports(adminPage)
     await adminPage.getByRole('button', { name: /new/i }).click()
-    await expect(adminPage.getByTestId('report-type-select')).toBeVisible({ timeout: 5000 })
+    await expect(adminPage.getByTestId('report-type-select')).toBeVisible({ timeout: 15000 })
 
     // Change to the other type
     await adminPage.getByTestId('report-type-select').click()
+    await expect(adminPage.getByText(otherName)).toBeVisible({ timeout: 10000 })
     await adminPage.getByText(otherName).click()
-    await expect(adminPage.getByTestId('report-type-select')).toContainText(otherName)
+    await expect(adminPage.getByTestId('report-type-select')).toContainText(otherName, {
+      timeout: 10000,
+    })
   })
 
   test('archived type not shown in report form dropdown', async ({ adminPage }) => {

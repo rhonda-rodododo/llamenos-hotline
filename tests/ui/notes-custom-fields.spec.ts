@@ -49,15 +49,16 @@ async function createNoteWithCustomField(
   await expect(page.getByRole('heading', { name: /call notes/i })).toBeVisible()
 
   await page.getByRole('button', { name: /new note/i }).click()
-  await expect(page.getByLabel(fieldLabel)).toBeVisible()
+  await expect(page.getByLabel(fieldLabel)).toBeVisible({ timeout: 30000 })
 
   await page.locator('#call-id').fill(`cf-test-${Date.now()}`)
   await page.locator('textarea').first().fill(noteText)
   await page.getByLabel(fieldLabel).fill(fieldValue)
   await page.getByRole('button', { name: /save/i }).click()
 
-  // Wait for note to appear
-  await expect(page.locator('p').filter({ hasText: noteText })).toBeVisible()
+  // Wait for form to close (mutation succeeded), then for decrypted text to appear
+  await expect(page.locator('#call-id')).not.toBeVisible({ timeout: 15000 })
+  await expect(page.locator('p').filter({ hasText: noteText })).toBeVisible({ timeout: 30000 })
 }
 
 test.describe('Custom Fields in Notes', () => {
@@ -76,8 +77,8 @@ test.describe('Custom Fields in Notes', () => {
     // Open new note form
     await adminPage.getByRole('button', { name: /new note/i }).click()
 
-    // Custom field label should appear in the form
-    await expect(adminPage.getByLabel(fieldLabel)).toBeVisible()
+    // Custom field label should appear in the form (may need time for hub key decryption + query refetch)
+    await expect(adminPage.getByLabel(fieldLabel)).toBeVisible({ timeout: 30000 })
   })
 
   test('create note with custom field value shows badge', async ({ adminPage }) => {
@@ -170,7 +171,10 @@ test.describe('Notes Call Headers', () => {
     await adminPage.locator('#call-id').fill(callId)
     await adminPage.locator('textarea').first().fill('Header test note')
     await adminPage.getByRole('button', { name: /save/i }).click()
-    await expect(adminPage.locator('p').filter({ hasText: 'Header test note' })).toBeVisible()
+    await expect(adminPage.locator('#call-id')).not.toBeVisible({ timeout: 15000 })
+    await expect(adminPage.locator('p').filter({ hasText: 'Header test note' })).toBeVisible({
+      timeout: 30000,
+    })
 
     // Card header should show truncated call ID (fallback when call not in history)
     // The format is "Call with <first 12 chars>..."
@@ -188,14 +192,20 @@ test.describe('Notes Call Headers', () => {
     await adminPage.locator('#call-id').fill(callId)
     await adminPage.locator('textarea').first().fill('First grouped note')
     await adminPage.getByRole('button', { name: /save/i }).click()
-    await expect(adminPage.locator('p').filter({ hasText: 'First grouped note' })).toBeVisible()
+    await expect(adminPage.locator('#call-id')).not.toBeVisible({ timeout: 15000 })
+    await expect(adminPage.locator('p').filter({ hasText: 'First grouped note' })).toBeVisible({
+      timeout: 30000,
+    })
 
     // Create second note for same call
     await adminPage.getByRole('button', { name: /new note/i }).click()
     await adminPage.locator('#call-id').fill(callId)
     await adminPage.locator('textarea').first().fill('Second grouped note')
     await adminPage.getByRole('button', { name: /save/i }).click()
-    await expect(adminPage.locator('p').filter({ hasText: 'Second grouped note' })).toBeVisible()
+    await expect(adminPage.locator('#call-id')).not.toBeVisible({ timeout: 15000 })
+    await expect(adminPage.locator('p').filter({ hasText: 'Second grouped note' })).toBeVisible({
+      timeout: 30000,
+    })
 
     // Both notes should be visible under one card
     const headerText = `Call with ${callId.slice(0, 12)}...`
@@ -212,7 +222,10 @@ test.describe('Notes Call Headers', () => {
     await adminPage.locator('#call-id').fill(`edit-save-${Date.now()}`)
     await adminPage.locator('textarea').first().fill('Original content')
     await adminPage.getByRole('button', { name: /save/i }).click()
-    await expect(adminPage.locator('p').filter({ hasText: 'Original content' })).toBeVisible()
+    await expect(adminPage.locator('#call-id')).not.toBeVisible({ timeout: 15000 })
+    await expect(adminPage.locator('p').filter({ hasText: 'Original content' })).toBeVisible({
+      timeout: 30000,
+    })
 
     // Edit the note
     await adminPage.locator('button[aria-label="Edit"]').first().click()
@@ -222,7 +235,9 @@ test.describe('Notes Call Headers', () => {
     await adminPage.getByRole('button', { name: /save/i }).click()
 
     // Original text gone, updated text visible
-    await expect(adminPage.locator('p').filter({ hasText: 'Updated content' })).toBeVisible()
+    await expect(adminPage.locator('p').filter({ hasText: 'Updated content' })).toBeVisible({
+      timeout: 30000,
+    })
     await expect(adminPage.locator('p').filter({ hasText: 'Original content' })).not.toBeVisible()
   })
 })

@@ -2,7 +2,9 @@ import { expect, test } from '../fixtures/auth'
 import { Timeouts, navigateAfterLogin } from '../helpers'
 
 test.describe('Blasts — UI', () => {
-  // Global setup handles initial reset; tests use unique data for isolation
+  // Under parallel execution (3 workers), concurrent browser sessions with PBKDF2
+  // key derivation create significant CPU load. Allow 180s per test.
+  test.setTimeout(180_000)
 
   test.describe('Volunteer access restrictions', () => {
     test('user cannot access the blasts page (redirected or denied)', async ({ volunteerPage }) => {

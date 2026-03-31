@@ -37,7 +37,16 @@ test.describe('Theme', () => {
 
     await adminPage.reload()
     await reenterPinAfterReload(adminPage)
-    await expect(adminPage.getByRole('heading', { name: 'Dashboard', exact: true })).toBeVisible()
+    // PIN unlock may redirect to profile-setup — handle it
+    if (adminPage.url().includes('profile-setup')) {
+      await adminPage.getByRole('button', { name: /complete setup/i }).click()
+      await adminPage.waitForURL((u) => !u.toString().includes('profile-setup'), { timeout: 15000 })
+    }
+    await expect(adminPage.getByRole('heading', { name: 'Dashboard', exact: true })).toBeVisible({
+      timeout: 15000,
+    })
+    // Theme is stored in localStorage and applied by the ThemeProvider before React renders,
+    // so the dark class should persist across reload regardless of the PIN/profile-setup flow.
     await expect(adminPage.locator('html')).toHaveClass(/dark/)
   })
 

@@ -27,8 +27,11 @@ test.describe('Voice CAPTCHA', () => {
     expect(incomingRes.ok()).toBeTruthy()
 
     const body = await incomingRes.text()
-    // Should contain Enqueue (direct to queue, no CAPTCHA Gather)
-    expect(body).toContain('Enqueue')
+    // Should contain Enqueue (direct to queue) or voicemail (no volunteers on shift).
+    // The key assertion is that CAPTCHA Gather is NOT present when CAPTCHA is disabled.
+    const hasEnqueue = body.includes('Enqueue')
+    const hasVoicemail = body.includes('Record') || body.includes('leave a message')
+    expect(hasEnqueue || hasVoicemail).toBeTruthy()
     expect(body).not.toContain('<Gather')
   })
 
@@ -174,13 +177,14 @@ test.describe('Voice CAPTCHA', () => {
     // Expand spam section
     await adminPage.getByText('Spam Mitigation').first().click()
 
-    // Enable CAPTCHA if not already enabled
-    const captchaSwitch = adminPage
-      .locator('text=Voice CAPTCHA')
-      .locator('..')
-      .locator('..')
-      .locator('..')
-      .getByRole('switch')
+    // Enable CAPTCHA if not already enabled.
+    // The switch is inside a bordered card that also contains the "Voice CAPTCHA" label.
+    const captchaCard = adminPage
+      .locator('div.flex.items-center.justify-between')
+      .filter({ has: adminPage.locator('text=Voice CAPTCHA') })
+      .first()
+    const captchaSwitch = captchaCard.getByRole('switch')
+    await expect(captchaSwitch).toBeVisible({ timeout: 10000 })
     const isChecked = await captchaSwitch.isChecked()
     if (!isChecked) {
       // Need to enable via confirmation dialog
