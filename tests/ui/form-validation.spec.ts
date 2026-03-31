@@ -1,102 +1,98 @@
-import { expect, test } from '@playwright/test'
-import { loginAsAdmin, uniquePhone } from '../helpers'
+import { expect, test } from '../fixtures/auth'
+import { uniquePhone } from '../helpers'
 
 test.describe('Form validation', () => {
-  test.beforeEach(async ({ page, request }) => {
-    await loginAsAdmin(page)
-  })
+  test('user form rejects invalid phone', async ({ adminPage }) => {
+    await adminPage.getByRole('link', { name: 'Users' }).click()
+    await adminPage.getByRole('button', { name: /add user/i }).click()
 
-  test('user form rejects invalid phone', async ({ page }) => {
-    await page.getByRole('link', { name: 'Users' }).click()
-    await page.getByRole('button', { name: /add user/i }).click()
-
-    await page.getByLabel('Name').fill('Test')
+    await adminPage.getByLabel('Name').fill('Test')
     // PhoneInput strips non-digits; use a too-short number that fails E.164 validation
-    await page.getByLabel('Phone Number').fill('+123')
-    await page.getByLabel('Phone Number').blur()
-    await page.getByRole('button', { name: /save/i }).click()
+    await adminPage.getByLabel('Phone Number').fill('+123')
+    await adminPage.getByLabel('Phone Number').blur()
+    await adminPage.getByRole('button', { name: /save/i }).click()
 
-    await expect(page.getByText(/invalid phone/i)).toBeVisible()
+    await expect(adminPage.getByText(/invalid phone/i)).toBeVisible()
   })
 
-  test('user form rejects phone without plus prefix', async ({ page }) => {
-    await page.getByRole('link', { name: 'Users' }).click()
-    await page.getByRole('button', { name: /add user/i }).click()
+  test('user form rejects phone without plus prefix', async ({ adminPage }) => {
+    await adminPage.getByRole('link', { name: 'Users' }).click()
+    await adminPage.getByRole('button', { name: /add user/i }).click()
 
-    await page.getByLabel('Name').fill('Test')
+    await adminPage.getByLabel('Name').fill('Test')
     // PhoneInput auto-prepends +, so '1234' becomes '+1234' which is too short for E.164
-    await page.getByLabel('Phone Number').fill('1234')
-    await page.getByLabel('Phone Number').blur()
-    await page.getByRole('button', { name: /save/i }).click()
+    await adminPage.getByLabel('Phone Number').fill('1234')
+    await adminPage.getByLabel('Phone Number').blur()
+    await adminPage.getByRole('button', { name: /save/i }).click()
 
-    await expect(page.getByText(/invalid phone/i)).toBeVisible()
+    await expect(adminPage.getByText(/invalid phone/i)).toBeVisible()
   })
 
-  test('user form accepts valid E.164 phone', async ({ page }) => {
+  test('user form accepts valid E.164 phone', async ({ adminPage }) => {
     const phone = uniquePhone()
-    await page.getByRole('link', { name: 'Users' }).click()
-    await page.getByRole('button', { name: /add user/i }).click()
+    await adminPage.getByRole('link', { name: 'Users' }).click()
+    await adminPage.getByRole('button', { name: /add user/i }).click()
 
-    await page.getByLabel('Name').fill('Valid Phone Test')
-    await page.getByLabel('Phone Number').fill(phone)
-    await page.getByLabel('Phone Number').blur()
-    await page.getByRole('button', { name: /save/i }).click()
+    await adminPage.getByLabel('Name').fill('Valid Phone Test')
+    await adminPage.getByLabel('Phone Number').fill(phone)
+    await adminPage.getByLabel('Phone Number').blur()
+    await adminPage.getByRole('button', { name: /save/i }).click()
 
     // Should show nsec (success)
-    await expect(page.getByText(/nsec1/)).toBeVisible({ timeout: 15000 })
+    await expect(adminPage.getByText(/nsec1/)).toBeVisible({ timeout: 15000 })
   })
 
-  test('ban form rejects invalid phone', async ({ page }) => {
-    await page.getByRole('link', { name: 'Ban List' }).click()
-    await page.getByRole('button', { name: /ban number/i }).click()
+  test('ban form rejects invalid phone', async ({ adminPage }) => {
+    await adminPage.getByRole('link', { name: 'Ban List' }).click()
+    await adminPage.getByRole('button', { name: /ban number/i }).click()
 
     // PhoneInput strips non-digits; use a too-short number
-    await page.getByLabel('Phone Number').fill('+123')
-    await page.getByLabel('Phone Number').blur()
-    await page.getByLabel('Reason').fill('Test reason')
-    await page.getByRole('button', { name: /save/i }).click()
+    await adminPage.getByLabel('Phone Number').fill('+123')
+    await adminPage.getByLabel('Phone Number').blur()
+    await adminPage.getByLabel('Reason').fill('Test reason')
+    await adminPage.getByRole('button', { name: /save/i }).click()
 
-    await expect(page.getByText(/invalid phone/i)).toBeVisible()
+    await expect(adminPage.getByText(/invalid phone/i)).toBeVisible()
   })
 
-  test('ban form rejects short phone numbers', async ({ page }) => {
-    await page.getByRole('link', { name: 'Ban List' }).click()
-    await page.getByRole('button', { name: /ban number/i }).click()
+  test('ban form rejects short phone numbers', async ({ adminPage }) => {
+    await adminPage.getByRole('link', { name: 'Ban List' }).click()
+    await adminPage.getByRole('button', { name: /ban number/i }).click()
 
-    await page.getByLabel('Phone Number').fill('+123')
-    await page.getByLabel('Phone Number').blur()
-    await page.getByLabel('Reason').fill('Test reason')
-    await page.getByRole('button', { name: /save/i }).click()
+    await adminPage.getByLabel('Phone Number').fill('+123')
+    await adminPage.getByLabel('Phone Number').blur()
+    await adminPage.getByLabel('Reason').fill('Test reason')
+    await adminPage.getByRole('button', { name: /save/i }).click()
 
-    await expect(page.getByText(/invalid phone/i)).toBeVisible()
+    await expect(adminPage.getByText(/invalid phone/i)).toBeVisible()
   })
 
-  test('login rejects nsec without nsec prefix', async ({ page }) => {
-    await page.getByRole('button', { name: /log out/i }).click()
+  test('login rejects nsec without nsec prefix', async ({ adminPage }) => {
+    await adminPage.getByRole('button', { name: /log out/i }).click()
     // After logout, encrypted key is still in localStorage so PIN view shows.
     // Click "Recovery options" to access the nsec input.
-    await page.getByRole('button', { name: /recovery options/i }).click()
-    await page.locator('#nsec').fill('npub1abc123')
-    await page.getByRole('button', { name: /log in/i }).click()
-    await expect(page.getByText(/invalid/i)).toBeVisible()
+    await adminPage.getByRole('button', { name: /recovery options/i }).click()
+    await adminPage.locator('#nsec').fill('npub1abc123')
+    await adminPage.getByRole('button', { name: /log in/i }).click()
+    await expect(adminPage.getByText(/invalid/i)).toBeVisible()
   })
 
-  test('login rejects very short nsec', async ({ page }) => {
-    await page.getByRole('button', { name: /log out/i }).click()
-    await page.getByRole('button', { name: /recovery options/i }).click()
-    await page.locator('#nsec').fill('nsec1short')
-    await page.getByRole('button', { name: /log in/i }).click()
-    await expect(page.getByText(/invalid/i)).toBeVisible()
+  test('login rejects very short nsec', async ({ adminPage }) => {
+    await adminPage.getByRole('button', { name: /log out/i }).click()
+    await adminPage.getByRole('button', { name: /recovery options/i }).click()
+    await adminPage.locator('#nsec').fill('nsec1short')
+    await adminPage.getByRole('button', { name: /log in/i }).click()
+    await expect(adminPage.getByText(/invalid/i)).toBeVisible()
   })
 
-  test('bulk ban import validates phone format', async ({ page }) => {
-    await page.getByRole('link', { name: 'Ban List' }).click()
-    await page.getByRole('button', { name: /import/i }).click()
+  test('bulk ban import validates phone format', async ({ adminPage }) => {
+    await adminPage.getByRole('link', { name: 'Ban List' }).click()
+    await adminPage.getByRole('button', { name: /import/i }).click()
 
-    await page.locator('textarea').fill('not-a-phone\n+invalid')
-    await page.getByLabel('Reason').fill('Test reason')
-    await page.getByRole('button', { name: /submit/i }).click()
+    await adminPage.locator('textarea').fill('not-a-phone\n+invalid')
+    await adminPage.getByLabel('Reason').fill('Test reason')
+    await adminPage.getByRole('button', { name: /submit/i }).click()
 
-    await expect(page.getByText(/invalid phone/i)).toBeVisible()
+    await expect(adminPage.getByText(/invalid phone/i)).toBeVisible()
   })
 })

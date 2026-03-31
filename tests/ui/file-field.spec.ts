@@ -1,5 +1,4 @@
-import { type Page, expect, test } from '@playwright/test'
-import { loginAsAdmin } from '../helpers'
+import { type Page, expect, test } from '../fixtures/auth'
 
 declare global {
   interface Window {
@@ -13,11 +12,9 @@ declare global {
  * file size/type validation errors, and note round-trip.
  */
 test.describe('File Custom Field', () => {
-  test.beforeEach(async ({ page }) => {
-    await loginAsAdmin(page)
-
+  test.beforeEach(async ({ adminPage }) => {
     // Inject authed fetch helper for direct API calls
-    await page.evaluate(() => {
+    await adminPage.evaluate(() => {
       window.__authedFetch = async (url: string, options: RequestInit = {}) => {
         const headers: Record<string, string> = {
           'Content-Type': 'application/json',
@@ -66,50 +63,56 @@ test.describe('File Custom Field', () => {
     await expect(page.locator('.rounded-lg.border').filter({ hasText: label })).toBeVisible()
   }
 
-  test('file type appears in field type dropdown', async ({ page }) => {
-    await page.getByRole('link', { name: 'Hub Settings' }).click()
-    await expect(page.getByRole('heading', { name: 'Hub Settings', exact: true })).toBeVisible()
+  test('file type appears in field type dropdown', async ({ adminPage }) => {
+    await adminPage.getByRole('link', { name: 'Hub Settings' }).click()
+    await expect(
+      adminPage.getByRole('heading', { name: 'Hub Settings', exact: true })
+    ).toBeVisible()
 
-    const addFieldBtn = page.getByRole('button', { name: /add field/i })
+    const addFieldBtn = adminPage.getByRole('button', { name: /add field/i })
     if (!(await addFieldBtn.isVisible({ timeout: 1000 }).catch(() => false))) {
-      await page.getByRole('heading', { name: /custom note fields/i }).click()
+      await adminPage.getByRole('heading', { name: /custom note fields/i }).click()
     }
     await expect(addFieldBtn).toBeVisible({ timeout: 10000 })
     await addFieldBtn.click()
 
     // File option should be in the type dropdown
-    const typeSelect = page.locator('select[data-testid="custom-field-type-select"]')
+    const typeSelect = adminPage.locator('select[data-testid="custom-field-type-select"]')
     await expect(typeSelect.locator('option[value="file"]')).toHaveCount(1)
 
     // Cancel without saving
-    await page.getByRole('button', { name: /cancel/i }).click()
+    await adminPage.getByRole('button', { name: /cancel/i }).click()
   })
 
-  test('admin can create a file custom field', async ({ page }) => {
+  test('admin can create a file custom field', async ({ adminPage }) => {
     const label = `Attachment ${Date.now()}`
-    await createFileCustomField(page, label)
+    await createFileCustomField(adminPage, label)
     // Field type badge should show "File"
-    const fieldRow = page.locator('[data-testid="custom-field-row"]').filter({ hasText: label })
+    const fieldRow = adminPage
+      .locator('[data-testid="custom-field-row"]')
+      .filter({ hasText: label })
     await expect(fieldRow).toBeVisible()
   })
 
-  test('file custom field shows in note form', async ({ page }) => {
+  test('file custom field shows in note form', async ({ adminPage }) => {
     // Create the file field first
-    await createFileCustomField(page, `FileField ${Date.now()}`)
+    await createFileCustomField(adminPage, `FileField ${Date.now()}`)
 
-    await page.getByRole('link', { name: 'Notes' }).click()
-    await expect(page.getByRole('heading', { name: /call notes/i })).toBeVisible()
+    await adminPage.getByRole('link', { name: 'Notes' }).click()
+    await expect(adminPage.getByRole('heading', { name: /call notes/i })).toBeVisible()
 
-    await page.getByRole('button', { name: /new note/i }).click()
+    await adminPage.getByRole('button', { name: /new note/i }).click()
 
     // File field dropzone should appear — use .first() since parallel tests may create
     // multiple file fields, each rendering its own dropzone in the note form
-    await expect(page.getByTestId('file-field-dropzone').first()).toBeVisible({ timeout: 15000 })
+    await expect(adminPage.getByTestId('file-field-dropzone').first()).toBeVisible({
+      timeout: 15000,
+    })
   })
 
-  test('PATCH /api/uploads/:id/context endpoint binds context', async ({ page }) => {
+  test('PATCH /api/uploads/:id/context endpoint binds context', async ({ adminPage }) => {
     // Create a completed upload via the API, then bind it
-    const adminPubkey = await page.evaluate(() => {
+    const adminPubkey = await adminPage.evaluate(() => {
       // biome-ignore lint/suspicious/noExplicitAny: test helper
       return (window as any).__TEST_KEY_MANAGER?.getPublicKeyHex() as string
     })
@@ -119,7 +122,7 @@ test.describe('File Custom Field', () => {
     const conversationId = `test-conv-file-field-${Date.now()}`
 
     // Init and complete a minimal upload
-    const uploadId = await page.evaluate(
+    const uploadId = await adminPage.evaluate(
       async ([conversationId, adminPubkey]: [string, string]) => {
         const initRes = await window.__authedFetch('/api/uploads/init', {
           method: 'POST',
@@ -162,7 +165,7 @@ test.describe('File Custom Field', () => {
     expect(typeof uploadId).toBe('string')
 
     // Now bind the context
-    const bindResult = await page.evaluate(async (uploadId: string) => {
+    const bindResult = await adminPage.evaluate(async (uploadId: string) => {
       const res = await window.__authedFetch(`/api/uploads/${uploadId}/context`, {
         method: 'PATCH',
         body: JSON.stringify({ contextType: 'custom_field', contextId: 'note-abc-123' }),
@@ -174,8 +177,8 @@ test.describe('File Custom Field', () => {
     expect(bindResult.body.ok).toBe(true)
   })
 
-  test('PATCH /context fails if upload not complete', async ({ page }) => {
-    const adminPubkey = await page.evaluate(() => {
+  test('PATCH /context fails if upload not complete', async ({ adminPage }) => {
+    const adminPubkey = await adminPage.evaluate(() => {
       // biome-ignore lint/suspicious/noExplicitAny: test helper
       return (window as any).__TEST_KEY_MANAGER?.getPublicKeyHex() as string
     })
@@ -183,7 +186,7 @@ test.describe('File Custom Field', () => {
     // Use a dummy conversationId — file upload init does not validate it
     const conversationId = `test-conv-incomplete-${Date.now()}`
 
-    const uploadId = await page.evaluate(
+    const uploadId = await adminPage.evaluate(
       async ([conversationId, adminPubkey]: [string, string]) => {
         const res = await window.__authedFetch('/api/uploads/init', {
           method: 'POST',
@@ -205,7 +208,7 @@ test.describe('File Custom Field', () => {
       [conversationId, adminPubkey] as [string, string]
     )
 
-    const result = await page.evaluate(async (uploadId: string) => {
+    const result = await adminPage.evaluate(async (uploadId: string) => {
       const res = await window.__authedFetch(`/api/uploads/${uploadId}/context`, {
         method: 'PATCH',
         body: JSON.stringify({ contextType: 'custom_field', contextId: 'note-xyz' }),
@@ -217,18 +220,18 @@ test.describe('File Custom Field', () => {
     expect(result.body.error).toContain('complete')
   })
 
-  test('file field validation: exceeding maxFileSize shows error', async ({ page }) => {
+  test('file field validation: exceeding maxFileSize shows error', async ({ adminPage }) => {
     // Create the file field first
-    await createFileCustomField(page, `Attachment ${Date.now()}`)
+    await createFileCustomField(adminPage, `Attachment ${Date.now()}`)
 
     // Navigate to notes to see the file field
-    await page.getByRole('link', { name: 'Notes' }).click()
-    await expect(page.getByRole('heading', { name: /call notes/i })).toBeVisible()
-    await page.getByRole('button', { name: /new note/i }).click()
+    await adminPage.getByRole('link', { name: 'Notes' }).click()
+    await expect(adminPage.getByRole('heading', { name: /call notes/i })).toBeVisible()
+    await adminPage.getByRole('button', { name: /new note/i }).click()
 
     // The file field dropzone should be visible — use .first() since parallel tests
     // may create multiple file fields, each rendering its own dropzone
-    const dropzone = page.getByTestId('file-field-dropzone').first()
+    const dropzone = adminPage.getByTestId('file-field-dropzone').first()
     await expect(dropzone).toBeVisible({ timeout: 15000 })
 
     // Verify the dropzone is interactive and the field renders correctly
@@ -236,15 +239,15 @@ test.describe('File Custom Field', () => {
   })
 
   test('custom field upload init accepts custom_field contextType without conversationId', async ({
-    page,
+    adminPage,
   }) => {
-    const adminPubkey = await page.evaluate(() => {
+    const adminPubkey = await adminPage.evaluate(() => {
       // biome-ignore lint/suspicious/noExplicitAny: test helper
       return (window as any).__TEST_KEY_MANAGER?.getPublicKeyHex() as string
     })
 
     // Init without conversationId but with contextType: custom_field
-    const result = await page.evaluate(async (adminPubkey: string) => {
+    const result = await adminPage.evaluate(async (adminPubkey: string) => {
       const res = await window.__authedFetch('/api/uploads/init', {
         method: 'POST',
         body: JSON.stringify({

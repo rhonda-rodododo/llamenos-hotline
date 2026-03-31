@@ -5,11 +5,11 @@
  * Note permalink navigation requires parameterized route support.
  */
 
-import { expect, test } from '@playwright/test'
 import { nip19 } from 'nostr-tools'
 import { getPublicKey } from 'nostr-tools/pure'
 import { encryptNoteV2 } from '../../src/client/lib/crypto'
-import { ADMIN_NSEC, loginAsAdmin, navigateAfterLogin } from '../helpers'
+import { expect, test } from '../fixtures/auth'
+import { ADMIN_NSEC, navigateAfterLogin } from '../helpers'
 import { createAuthedRequestFromNsec } from '../helpers/authed-request'
 
 const { data: adminSkBytes } = nip19.decode(ADMIN_NSEC) as { type: 'nsec'; data: Uint8Array }
@@ -41,13 +41,12 @@ async function createNoteViaApi(
 test.describe('Call Detail Page', () => {
   test.describe.configure({ mode: 'serial' })
 
-  test('call history page loads and shows empty state or rows', async ({ page }) => {
-    await loginAsAdmin(page)
-    await navigateAfterLogin(page, '/calls?page=1&q=&dateFrom=&dateTo=')
+  test('call history page loads and shows empty state or rows', async ({ adminPage }) => {
+    await navigateAfterLogin(adminPage, '/calls?page=1&q=&dateFrom=&dateTo=')
 
     // The call history page should load — either with rows or "No call history"
-    const callRows = page.getByTestId('call-history-row')
-    const emptyState = page.getByText('No call history')
+    const callRows = adminPage.getByTestId('call-history-row')
+    const emptyState = adminPage.getByText('No call history')
 
     await expect(callRows.first().or(emptyState)).toBeVisible({ timeout: 10000 })
   })
@@ -96,17 +95,18 @@ test.describe('Call Detail Page', () => {
 
 test.describe('Settings Profile Section', () => {
   test('settings page has profile section with name, phone, and language fields', async ({
-    page,
+    adminPage,
   }) => {
-    await loginAsAdmin(page)
-    await page.getByRole('link', { name: 'Settings', exact: true }).click()
-    await expect(page.getByRole('heading', { name: 'Account Settings', exact: true })).toBeVisible()
+    await adminPage.getByRole('link', { name: 'Settings', exact: true }).click()
+    await expect(
+      adminPage.getByRole('heading', { name: 'Account Settings', exact: true })
+    ).toBeVisible()
 
     // Profile section should be visible and expanded by default
-    await expect(page.getByRole('heading', { name: 'Profile' })).toBeVisible()
-    await expect(page.locator('#profile-name')).toBeVisible()
-    await expect(page.locator('#profile-phone')).toBeVisible()
+    await expect(adminPage.getByRole('heading', { name: 'Profile' })).toBeVisible()
+    await expect(adminPage.locator('#profile-name')).toBeVisible()
+    await expect(adminPage.locator('#profile-phone')).toBeVisible()
     // Spoken languages should be visible
-    await expect(page.getByText(/languages you can take calls in/i)).toBeVisible()
+    await expect(adminPage.getByText(/languages you can take calls in/i)).toBeVisible()
   })
 })
