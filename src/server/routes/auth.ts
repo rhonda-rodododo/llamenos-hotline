@@ -100,6 +100,12 @@ auth.get('/me', async (c) => {
 
   const primaryRole = getPrimaryRole(user.roles, allRoles)
 
+  // Resolve admin decryption pubkey from DB (actual super-admin) instead of stale env var.
+  // The env var ADMIN_PUBKEY may not match the dynamically-generated bootstrap admin pubkey.
+  const superAdminPubkeys = await services.identity.getSuperAdminPubkeys()
+  const adminDecryptionPubkey =
+    c.env.ADMIN_DECRYPTION_PUBKEY || superAdminPubkeys[0] || c.env.ADMIN_PUBKEY
+
   return c.json({
     pubkey: user.pubkey,
     roles: user.roles,
@@ -121,7 +127,7 @@ auth.get('/me', async (c) => {
     webauthnRequired,
     webauthnRegistered: webauthnCreds.length > 0,
     // H17: Removed adminPubkey (signing key identity) — only decryption pubkey needed
-    adminDecryptionPubkey: c.env.ADMIN_DECRYPTION_PUBKEY || c.env.ADMIN_PUBKEY,
+    adminDecryptionPubkey,
     // HIGH-W1: Global server event key removed — hub keys delivered via per-hub ECIES
     // envelopes (GET /api/hubs/:hubId/key). Clients use hub-key-cache.ts for decryption.
   })
