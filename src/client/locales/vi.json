@@ -256,7 +256,6 @@
     "startTime": "Giờ bắt đầu",
     "endTime": "Giờ kết thúc",
     "recurring": "Lặp lại",
-    "volunteers": "Người dùng",
     "assignVolunteers": "Phân công tình nguyện viên",
     "noShifts": "Không có ca trực nào",
     "fallbackGroup": "Nhóm dự phòng",
@@ -313,7 +312,8 @@
     "today": "Today",
     "weeklySchedule": "Weekly Schedule",
     "searchUsers": "Tìm tình nguyện viên...",
-    "noUsersFound": "Không tìm thấy người dùng"
+    "noUsersFound": "Không tìm thấy người dùng",
+    "users": "Người dùng"
   },
   "webauthn": {
     "title": "Khóa truy cập",

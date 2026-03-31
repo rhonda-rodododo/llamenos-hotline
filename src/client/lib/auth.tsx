@@ -20,6 +20,7 @@ import {
 import { authFacadeClient } from './auth-facade-client'
 import { clearHubKeyCache, loadHubKeysForUser } from './hub-key-cache'
 import * as keyManager from './key-manager'
+import { queryClient } from './query-client'
 import { loginWithPasskey as webauthnLogin } from './webauthn'
 
 interface AuthState {
@@ -260,6 +261,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       await decryptObjectFields(me as unknown as Record<string, unknown>, pubkey)
       const hubIds = (me.hubRoles ?? []).map((hr) => hr.hubId)
       await loadHubKeysForUser(hubIds)
+      // Invalidate all queries so hub-key-dependent data re-fetches with decryption
+      await queryClient.invalidateQueries()
       setState(
         stateFromMe(me, {
           isKeyUnlocked: true,
@@ -288,6 +291,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // Load hub keys after unlocking (crypto worker handles decryption internally)
       const hubIds = (me.hubRoles ?? []).map((hr) => hr.hubId)
       await loadHubKeysForUser(hubIds)
+      // Invalidate all queries so hub-key-dependent data re-fetches with decryption
+      await queryClient.invalidateQueries()
       setState(
         stateFromMe(me, {
           isKeyUnlocked: true,

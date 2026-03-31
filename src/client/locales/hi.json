@@ -256,7 +256,6 @@
     "startTime": "शुरू का समय",
     "endTime": "समाप्ति का समय",
     "recurring": "आवर्ती",
-    "volunteers": "उपयोगकर्ता",
     "assignVolunteers": "उपयोगकर्ता नियुक्त करें",
     "noShifts": "कोई शिफ्ट निर्धारित नहीं",
     "fallbackGroup": "बैकअप ग्रुप",
@@ -313,7 +312,8 @@
     "today": "Today",
     "weeklySchedule": "Weekly Schedule",
     "searchUsers": "उपयोगकर्ताों को खोजें...",
-    "noUsersFound": "कोई उपयोगकर्ता नहीं मिला"
+    "noUsersFound": "कोई उपयोगकर्ता नहीं मिला",
+    "users": "उपयोगकर्ता"
   },
   "webauthn": {
     "title": "पासकी",

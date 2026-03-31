@@ -256,7 +256,6 @@
     "startTime": "Oras ng Simula",
     "endTime": "Oras ng Pagtapos",
     "recurring": "Paulit-ulit",
-    "volunteers": "Mga Boluntaryo",
     "assignVolunteers": "Mag-assign ng mga Boluntaryo",
     "noShifts": "Walang naka-schedule na shift",
     "fallbackGroup": "Fallback Group",
@@ -313,7 +312,8 @@
     "today": "Today",
     "weeklySchedule": "Weekly Schedule",
     "searchUsers": "Maghanap ng mga boluntaryo...",
-    "noUsersFound": "Walang nahanap na boluntaryo"
+    "noUsersFound": "Walang nahanap na boluntaryo",
+    "users": "Mga Boluntaryo"
   },
   "webauthn": {
     "title": "Mga Passkey",

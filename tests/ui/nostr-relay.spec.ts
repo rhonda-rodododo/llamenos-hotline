@@ -16,8 +16,8 @@
 
 import WebSocket from 'ws'
 import { expect, test } from '../fixtures/auth'
-import { ADMIN_NSEC, navigateAfterLogin } from '../helpers'
-import { createAuthedRequestFromNsec } from '../helpers/authed-request'
+import { navigateAfterLogin } from '../helpers'
+import { createAdminApiFromStorageState } from '../helpers/authed-request'
 
 const RELAY_URL = process.env.NOSTR_RELAY_URL || 'ws://localhost:7778'
 const SERVER_NOSTR_SECRET = process.env.SERVER_NOSTR_SECRET
@@ -110,7 +110,7 @@ test.describe('Call ring Nostr events', () => {
     relayAvailable = await isNostrRelayAvailable()
     if (relayAvailable) {
       // Set admin as fallback ring group so calls trigger ringing + events
-      const adminApi = createAuthedRequestFromNsec(request, ADMIN_NSEC)
+      const adminApi = createAdminApiFromStorageState(request)
       await adminApi.put('/api/settings/fallback-group', { pubkeys: [adminApi.pubkey] })
     }
   })

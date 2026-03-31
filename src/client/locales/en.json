@@ -271,7 +271,7 @@
     "startTime": "Start Time",
     "endTime": "End Time",
     "recurring": "Recurring",
-    "volunteers": "Users",
+    "users": "Users",
     "assignVolunteers": "Assign Users",
     "noShifts": "No shifts scheduled. Create a shift to start routing calls.",
     "fallbackGroup": "Fallback Group",

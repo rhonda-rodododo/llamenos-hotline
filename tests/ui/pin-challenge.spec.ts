@@ -1,12 +1,12 @@
 import { generateSecretKey, getPublicKey } from 'nostr-tools/pure'
 import { expect, test } from '../fixtures/auth'
-import { ADMIN_NSEC, TEST_PIN, enterPin, navigateAfterLogin, uniquePhone } from '../helpers'
-import { createAuthedRequestFromNsec } from '../helpers/authed-request'
+import { TEST_PIN, enterPin, navigateAfterLogin, uniquePhone } from '../helpers'
+import { createAdminApiFromStorageState } from '../helpers/authed-request'
 
 test.describe('PIN Challenge (Re-auth Step-up)', () => {
   test.beforeEach(async ({ request }) => {
     // Ensure at least one user with a phone exists for the toggle button
-    const adminApi = createAuthedRequestFromNsec(request, ADMIN_NSEC)
+    const adminApi = createAdminApiFromStorageState(request)
     const sk = generateSecretKey()
     const pk = getPublicKey(sk)
     await adminApi.post('/api/users', {

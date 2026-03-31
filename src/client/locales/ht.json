@@ -256,7 +256,6 @@
     "startTime": "Lè Kòmansman",
     "endTime": "Lè Fen",
     "recurring": "Repete",
-    "volunteers": "Itilizatè",
     "assignVolunteers": "Asiyen Itilizatè",
     "noShifts": "Pa gen ouvèti planifye",
     "fallbackGroup": "Gwoup Sekou",
@@ -313,7 +312,8 @@
     "today": "Today",
     "weeklySchedule": "Weekly Schedule",
     "searchUsers": "Chèche volontè...",
-    "noUsersFound": "Pa jwenn volontè"
+    "noUsersFound": "Pa jwenn volontè",
+    "users": "Itilizatè"
   },
   "webauthn": {
     "title": "Kle aksè",

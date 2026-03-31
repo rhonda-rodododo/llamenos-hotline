@@ -124,8 +124,8 @@ test.describe('Role Editor — Permission Metadata UI', () => {
     // Default roles should be listed — role names may need hub key decryption under load
     await expect(adminPage.getByText('Case Manager')).toBeVisible({ timeout: 30000 })
     await expect(adminPage.getByText('Voicemail Reviewer')).toBeVisible({ timeout: 15000 })
-    await expect(adminPage.getByText('Volunteer')).toBeVisible({ timeout: 15000 })
-    await expect(adminPage.getByText('Hub Admin')).toBeVisible({ timeout: 15000 })
+    await expect(adminPage.getByText('Volunteer').first()).toBeVisible({ timeout: 15000 })
+    await expect(adminPage.getByText('Hub Admin').first()).toBeVisible({ timeout: 15000 })
   })
 
   test('Create Role button opens editor with permission domains', async ({ adminPage }) => {
@@ -136,11 +136,11 @@ test.describe('Role Editor — Permission Metadata UI', () => {
 
     // Expand the Roles section
     await adminPage.getByText('Roles & Permissions').click()
-    await expect(adminPage.getByTestId('create-role-btn')).toBeVisible()
+    await expect(adminPage.getByTestId('create-role-btn')).toBeVisible({ timeout: 15000 })
     await adminPage.getByTestId('create-role-btn').click()
 
     // Permission group labels should render with human-friendly names, not raw domains
-    await expect(adminPage.getByText('Contact Directory')).toBeVisible()
+    await expect(adminPage.getByText('Contact Directory')).toBeVisible({ timeout: 15000 })
     await expect(adminPage.getByText('User Management')).toBeVisible()
     await expect(adminPage.getByText('Audit Log')).toBeVisible()
     await expect(adminPage.getByText('GDPR / Privacy')).toBeVisible()

@@ -256,7 +256,6 @@
     "startTime": "Hora de Início",
     "endTime": "Hora de Término",
     "recurring": "Recorrente",
-    "volunteers": "Usuários",
     "assignVolunteers": "Atribuir Usuários",
     "noShifts": "Nenhum turno programado",
     "fallbackGroup": "Grupo de Reserva",
@@ -313,7 +312,8 @@
     "today": "Today",
     "weeklySchedule": "Weekly Schedule",
     "searchUsers": "Pesquisar usuários...",
-    "noUsersFound": "Nenhum usuário encontrado"
+    "noUsersFound": "Nenhum usuário encontrado",
+    "users": "Usuários"
   },
   "webauthn": {
     "title": "Chaves de acesso",

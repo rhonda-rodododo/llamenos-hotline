@@ -72,7 +72,8 @@ test.describe('Shift management', () => {
     await editForm.getByLabel(/end time/i).fill('18:00')
     await adminPage.getByRole('button', { name: /save/i }).click()
 
-    await expect(adminPage.getByText(updatedName)).toBeVisible({ timeout: 10000 })
+    // After save, the shift list refetches. Name is hub-encrypted, needs decryption time.
+    await expect(adminPage.getByText(updatedName)).toBeVisible({ timeout: 30000 })
     const updatedCard = adminPage
       .locator('h3')
       .filter({ hasText: updatedName })

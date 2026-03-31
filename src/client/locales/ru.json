@@ -256,7 +256,6 @@
     "startTime": "Время начала",
     "endTime": "Время окончания",
     "recurring": "Повторяющаяся",
-    "volunteers": "Волонтёры",
     "assignVolunteers": "Назначить волонтёров",
     "noShifts": "Нет запланированных смен",
     "fallbackGroup": "Резервная группа",
@@ -313,7 +312,8 @@
     "today": "Today",
     "weeklySchedule": "Weekly Schedule",
     "searchUsers": "Поиск волонтёров...",
-    "noUsersFound": "Волонтёры не найдены"
+    "noUsersFound": "Волонтёры не найдены",
+    "users": "Волонтёры"
   },
   "webauthn": {
     "title": "Ключи доступа",

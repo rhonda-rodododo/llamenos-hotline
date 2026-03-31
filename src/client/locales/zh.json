@@ -256,7 +256,6 @@
     "startTime": "开始时间",
     "endTime": "结束时间",
     "recurring": "重复",
-    "volunteers": "用户",
     "assignVolunteers": "分配用户",
     "noShifts": "暂无排班",
     "fallbackGroup": "备用组",
@@ -313,7 +312,8 @@
     "today": "Today",
     "weeklySchedule": "Weekly Schedule",
     "searchUsers": "搜索用户...",
-    "noUsersFound": "未找到用户"
+    "noUsersFound": "未找到用户",
+    "users": "用户"
   },
   "webauthn": {
     "title": "通行密钥",

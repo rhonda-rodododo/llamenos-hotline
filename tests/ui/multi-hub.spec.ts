@@ -1,6 +1,6 @@
 import { expect, test } from '../fixtures/auth'
-import { ADMIN_NSEC, navigateAfterLogin } from '../helpers'
-import { createAuthedRequestFromNsec } from '../helpers/authed-request'
+import { navigateAfterLogin } from '../helpers'
+import { createAdminApiFromStorageState } from '../helpers/authed-request'
 
 test.describe('Multi-hub architecture — UI', () => {
   test.describe.configure({ mode: 'serial' })
@@ -37,7 +37,7 @@ test.describe('Multi-hub architecture — UI', () => {
   })
 
   test('admin can archive a hub via the UI', async ({ adminPage, request }) => {
-    const authedApi = createAuthedRequestFromNsec(request, ADMIN_NSEC)
+    const authedApi = createAdminApiFromStorageState(request)
 
     // Create a hub via the API so the test doesn't depend on prior state
     const hubName = `archive-test-${Date.now()}`
@@ -72,7 +72,7 @@ test.describe('Multi-hub architecture — UI', () => {
   })
 
   test('hub delete requires typing hub name to confirm', async ({ adminPage, request }) => {
-    const authedApi = createAuthedRequestFromNsec(request, ADMIN_NSEC)
+    const authedApi = createAdminApiFromStorageState(request)
     const hubName = `delete-confirm-test-${Date.now()}`
 
     // Create + archive a hub via API
@@ -112,7 +112,7 @@ test.describe('Multi-hub architecture — UI', () => {
   })
 
   test('admin can permanently delete an archived hub', async ({ adminPage, request }) => {
-    const authedApi = createAuthedRequestFromNsec(request, ADMIN_NSEC)
+    const authedApi = createAdminApiFromStorageState(request)
     const hubName = `perm-delete-test-${Date.now()}`
 
     // Create + archive via API

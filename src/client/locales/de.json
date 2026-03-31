@@ -256,7 +256,6 @@
     "startTime": "Startzeit",
     "endTime": "Endzeit",
     "recurring": "Wiederkehrend",
-    "volunteers": "Benutzer",
     "assignVolunteers": "Benutzer zuweisen",
     "noShifts": "Keine Schichten geplant",
     "fallbackGroup": "Bereitschaftsgruppe",
@@ -313,7 +312,8 @@
     "today": "Today",
     "weeklySchedule": "Weekly Schedule",
     "searchUsers": "Benutzer suchen...",
-    "noUsersFound": "Keine Benutzer gefunden"
+    "noUsersFound": "Keine Benutzer gefunden",
+    "users": "Benutzer"
   },
   "webauthn": {
     "title": "Passkeys",

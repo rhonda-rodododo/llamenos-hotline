@@ -256,7 +256,6 @@
     "startTime": "Heure de début",
     "endTime": "Heure de fin",
     "recurring": "Récurrent",
-    "volunteers": "Utilisateurs",
     "assignVolunteers": "Assigner des bénévoles",
     "noShifts": "Aucun quart prévu",
     "fallbackGroup": "Groupe de secours",
@@ -313,7 +312,8 @@
     "today": "Today",
     "weeklySchedule": "Weekly Schedule",
     "searchUsers": "Rechercher des bénévoles...",
-    "noUsersFound": "Aucun utilisateur trouvé"
+    "noUsersFound": "Aucun utilisateur trouvé",
+    "users": "Utilisateurs"
   },
   "webauthn": {
     "title": "Clés d'accès",

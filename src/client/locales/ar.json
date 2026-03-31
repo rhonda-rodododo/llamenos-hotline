@@ -256,7 +256,6 @@
     "startTime": "وقت البدء",
     "endTime": "وقت الانتهاء",
     "recurring": "متكرر",
-    "volunteers": "المستخدمون",
     "assignVolunteers": "تعيين متطوعين",
     "noShifts": "لا توجد مناوبات مجدولة",
     "fallbackGroup": "المجموعة الاحتياطية",
@@ -313,7 +312,8 @@
     "today": "Today",
     "weeklySchedule": "Weekly Schedule",
     "searchUsers": "البحث عن متطوعين...",
-    "noUsersFound": "لم يتم العثور على مستخدمين"
+    "noUsersFound": "لم يتم العثور على مستخدمين",
+    "users": "المستخدمون"
   },
   "webauthn": {
     "title": "مفاتيح المرور",
