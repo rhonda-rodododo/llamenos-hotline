@@ -34,13 +34,15 @@ export default defineConfig({
       use: { trace: "off" }, // Disable trace for setup — avoids ENOENT on trace artifacts
     },
     {
-      // API integration tests — no browser, request fixture only
+      // API integration tests — no browser, request fixture only.
+      // No dependency on UI "setup" — API tests use ADMIN_NSEC with test-reset
+      // which re-creates the admin from ADMIN_PUBKEY env var. The UI setup
+      // creates a different admin via real browser bootstrap.
       name: "api",
       testDir: "./tests/api",
       use: {
         /* no device — request fixture only */
       },
-      dependencies: ["setup"],
     },
     {
       // UI E2E tests — full browser
