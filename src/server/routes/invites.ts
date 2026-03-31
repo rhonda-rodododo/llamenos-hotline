@@ -54,6 +54,32 @@ invites.post('/redeem', async (c) => {
 
   const user = await services.identity.redeemInvite({ code: body.code, pubkey: body.pubkey })
 
+  // Auto-assign new user to the default hub (single-hub deployment) and distribute hub key
+  try {
+    const allHubs = await services.settings.getHubs()
+    const activeHubs = allHubs.filter((h) => h.status === 'active')
+    if (activeHubs.length >= 1) {
+      const defaultHub = activeHubs[0]
+      // Assign user to the hub with the same roles from the invite
+      await services.identity.setHubRole({
+        pubkey: body.pubkey,
+        hubId: defaultHub.id,
+        roleIds: user.roles,
+      })
+      // Distribute hub key envelope: unwrap server's copy, re-wrap for new member
+      const existingEnvelopes = await services.settings.getHubKeyEnvelopes(defaultHub.id)
+      if (existingEnvelopes.length > 0) {
+        const newEnvelope = services.crypto.wrapHubKeyForNewMember(existingEnvelopes, body.pubkey)
+        await services.settings.setHubKeyEnvelopes(defaultHub.id, [
+          ...existingEnvelopes,
+          newEnvelope,
+        ])
+      }
+    }
+  } catch {
+    // Non-fatal — hub assignment or key distribution failure shouldn't block invite redemption
+  }
+
   // Enroll the new user in the IdP and return their nsecSecret for KEK derivation
   let nsecSecret: string | undefined
   const idpAdapter = getIdPAdapter()

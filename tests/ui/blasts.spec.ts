@@ -40,7 +40,8 @@ test.describe('Blasts — UI', () => {
             'Content-Type': 'application/json',
             ...((options.headers as Record<string, string>) || {}),
           }
-          const token = sessionStorage.getItem('__TEST_JWT')
+          const token =
+            window.__TEST_AUTH_FACADE?.getAccessToken() ?? sessionStorage.getItem('__TEST_JWT')
           if (token) {
             headers.Authorization = `Bearer ${token}`
           }

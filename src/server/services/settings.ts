@@ -1089,7 +1089,7 @@ export class SettingsService {
     return rows.map((r) => ({
       pubkey: r.pubkey,
       wrappedKey: r.encryptedKey,
-      ephemeralPubkey: '', // stored flat in DB; ephemeralPubkey is embedded in encryptedKey
+      ephemeralPubkey: r.ephemeralPubkey ?? '',
     }))
   }
 
@@ -1111,6 +1111,7 @@ export class SettingsService {
           hubId,
           pubkey: e.pubkey,
           encryptedKey: e.wrappedKey,
+          ephemeralPubkey: e.ephemeralPubkey || null,
         }))
       )
     }

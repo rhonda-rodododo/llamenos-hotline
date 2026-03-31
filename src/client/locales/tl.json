@@ -71,7 +71,8 @@
     "admin": "Admin",
     "contacts": "Contacts",
     "conversations": "Conversations",
-    "help": "Help"
+    "help": "Help",
+    "users": "Mga Boluntaryo"
   },
   "dashboard": {
     "title": "Dashboard",
@@ -1366,7 +1367,8 @@
     "inviteNotSent": "Not sent",
     "inviteSentSuccess": "Invite sent successfully",
     "inviteSentVia": "Sent via",
-    "userAdded": "Matagumpay na naidagdag ang boluntaryo"
+    "userAdded": "Matagumpay na naidagdag ang boluntaryo",
+    "addUser": "Add User"
   },
   "userProfile": {
     "joined": "Sumali noong",

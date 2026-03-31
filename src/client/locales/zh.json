@@ -71,7 +71,8 @@
     "admin": "Admin",
     "contacts": "Contacts",
     "conversations": "Conversations",
-    "help": "Help"
+    "help": "Help",
+    "users": "用户"
   },
   "dashboard": {
     "title": "仪表盘",
@@ -1366,7 +1367,8 @@
     "inviteNotSent": "Not sent",
     "inviteSentSuccess": "Invite sent successfully",
     "inviteSentVia": "Sent via",
-    "userAdded": "用户添加成功"
+    "userAdded": "用户添加成功",
+    "addUser": "Add Volunteer"
   },
   "userProfile": {
     "joined": "加入于",

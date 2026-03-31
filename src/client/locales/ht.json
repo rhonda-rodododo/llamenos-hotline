@@ -71,7 +71,8 @@
     "admin": "Admin",
     "contacts": "Contacts",
     "conversations": "Conversations",
-    "help": "Help"
+    "help": "Help",
+    "users": "Itilizatè"
   },
   "dashboard": {
     "title": "Tablo",
@@ -1366,7 +1367,8 @@
     "inviteNotSent": "Not sent",
     "inviteSentSuccess": "Invite sent successfully",
     "inviteSentVia": "Sent via",
-    "userAdded": "Itilizatè ajoute avèk siksè"
+    "userAdded": "Itilizatè ajoute avèk siksè",
+    "addUser": "Add Volunteer"
   },
   "userProfile": {
     "joined": "Te antre",

@@ -71,7 +71,8 @@
     "admin": "Admin",
     "contacts": "Contacts",
     "conversations": "Conversations",
-    "help": "Help"
+    "help": "Help",
+    "users": "Users"
   },
   "dashboard": {
     "title": "Dashboard",
@@ -1505,7 +1506,8 @@
     "inviteNotSent": "Not sent",
     "inviteSentSuccess": "Invite sent successfully",
     "inviteSentVia": "Sent via",
-    "userAdded": "User added successfully"
+    "userAdded": "User added successfully",
+    "addUser": "Add User"
   },
   "userProfile": {
     "joined": "Joined",

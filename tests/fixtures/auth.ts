@@ -50,6 +50,23 @@ async function createAuthenticatedPage(
     }
   })
 
+  // Block the token refresh endpoint initially to prevent restoreSession from getting
+  // an access token before we can enter the PIN. This ensures the app stays on the
+  // login page with the PIN form visible instead of auto-redirecting to dashboard.
+  let refreshBlocked = true
+  await page.route('**/api/auth/token/refresh', async (route) => {
+    if (refreshBlocked) {
+      // Return 401 so restoreSession fails and the app shows the login/PIN screen
+      await route.fulfill({
+        status: 401,
+        contentType: 'application/json',
+        body: '{"error":"blocked"}',
+      })
+    } else {
+      await route.continue()
+    }
+  })
+
   // Navigate to app
   await page.goto('/', { waitUntil: 'domcontentloaded' })
 
@@ -57,12 +74,15 @@ async function createAuthenticatedPage(
   const dashboardHeading = page.getByRole('heading', { name: 'Dashboard', exact: true })
   const profileSetup = page.getByRole('heading', { name: 'Welcome!' })
 
-  // Wait for one of: PIN screen, dashboard, or profile-setup
+  // With refresh blocked, the app should show the login/PIN screen
   const firstState = await Promise.race([
     pinInput.waitFor({ state: 'visible', timeout: 30000 }).then(() => 'pin' as const),
     dashboardHeading.waitFor({ state: 'visible', timeout: 30000 }).then(() => 'dashboard' as const),
     profileSetup.waitFor({ state: 'visible', timeout: 30000 }).then(() => 'profile' as const),
   ])
+
+  // Unblock refresh so the PIN unlock flow can call refreshToken and getUserInfo
+  refreshBlocked = false
 
   if (firstState === 'pin') {
     await enterPin(page, TEST_PIN)
@@ -78,7 +98,35 @@ async function createAuthenticatedPage(
     }
   } else if (firstState === 'profile') {
     await completeProfileSetup(page)
+  } else if (firstState === 'dashboard') {
+    // Dashboard appeared despite blocked refresh — may have had a cached access token.
+    // Check if key manager is unlocked.
+    const isUnlocked = await page.evaluate(async () => {
+      const km = (window as Record<string, unknown>).__TEST_KEY_MANAGER as
+        | { isUnlocked: () => Promise<boolean> }
+        | undefined
+      return (await km?.isUnlocked()) ?? false
+    })
+    if (!isUnlocked) {
+      // Reload to show PIN screen — refresh is now unblocked so unlock flow works
+      await page.reload({ waitUntil: 'domcontentloaded' })
+      const reloadPinInput = page.locator('input[aria-label="PIN digit 1"]')
+      const reloadDashboard = page.getByRole('heading', { name: 'Dashboard', exact: true })
+      const reloadFirst = await Promise.race([
+        reloadPinInput.waitFor({ state: 'visible', timeout: 30000 }).then(() => 'pin' as const),
+        reloadDashboard
+          .waitFor({ state: 'visible', timeout: 30000 })
+          .then(() => 'dashboard' as const),
+      ])
+      if (reloadFirst === 'pin') {
+        await enterPin(page, TEST_PIN)
+        await reloadDashboard.waitFor({ state: 'visible', timeout: 90000 })
+      }
+    }
   }
+
+  // Clean up the route handler
+  await page.unroute('**/api/auth/token/refresh')
 
   return { context, page }
 }

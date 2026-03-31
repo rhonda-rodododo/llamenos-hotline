@@ -5,19 +5,19 @@
  * Note permalink navigation requires parameterized route support.
  */
 
-import { nip19 } from 'nostr-tools'
-import { getPublicKey } from 'nostr-tools/pure'
 import { encryptNoteV2 } from '../../src/client/lib/crypto'
 import { expect, test } from '../fixtures/auth'
-import { ADMIN_NSEC, navigateAfterLogin } from '../helpers'
-import { createAuthedRequestFromNsec } from '../helpers/authed-request'
+import { navigateAfterLogin } from '../helpers'
+import {
+  createAdminApiFromStorageState,
+  getAdminPubkeyFromStorageState,
+} from '../helpers/authed-request'
 
-const { data: adminSkBytes } = nip19.decode(ADMIN_NSEC) as { type: 'nsec'; data: Uint8Array }
-const ADMIN_PUBKEY = getPublicKey(adminSkBytes)
+const ADMIN_PUBKEY = getAdminPubkeyFromStorageState()
 
 /** Create an encrypted note via the API and return its ID */
 async function createNoteViaApi(
-  authedApi: ReturnType<typeof createAuthedRequestFromNsec>,
+  authedApi: ReturnType<typeof createAdminApiFromStorageState>,
   noteText: string,
   callId: string
 ): Promise<string> {
@@ -52,7 +52,7 @@ test.describe('Call Detail Page', () => {
   })
 
   test('note detail API returns note by ID', async ({ request }) => {
-    const adminApi = createAuthedRequestFromNsec(request, ADMIN_NSEC)
+    const adminApi = createAdminApiFromStorageState(request)
     const callId = `permalink-test-${Date.now()}`
     const noteId = await createNoteViaApi(adminApi, 'Note for permalink test', callId)
 
@@ -66,7 +66,7 @@ test.describe('Call Detail Page', () => {
   })
 
   test('note detail API returns encrypted content with envelopes', async ({ request }) => {
-    const adminApi = createAuthedRequestFromNsec(request, ADMIN_NSEC)
+    const adminApi = createAdminApiFromStorageState(request)
     const callId = `envelope-test-${Date.now()}`
     const noteId = await createNoteViaApi(adminApi, 'Note for envelope test', callId)
 

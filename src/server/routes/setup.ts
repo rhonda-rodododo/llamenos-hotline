@@ -55,6 +55,9 @@ setup.post('/complete', requirePermission('settings:manage'), async (c) => {
         hubId: newHub.id,
         roleIds: ['role-super-admin'],
       })
+      // Generate and distribute hub key so field decryption works immediately
+      const { envelopes } = services.crypto.generateAndWrapHubKey([pubkey])
+      await services.settings.setHubKeyEnvelopes(newHub.id, envelopes)
     }
   } catch {
     // Non-fatal — hub creation failing shouldn't block setup completion

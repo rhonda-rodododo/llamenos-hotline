@@ -71,7 +71,8 @@
     "admin": "Admin",
     "contacts": "Contacts",
     "conversations": "Conversations",
-    "help": "Help"
+    "help": "Help",
+    "users": "사용자"
   },
   "dashboard": {
     "title": "대시보드",
@@ -1366,7 +1367,8 @@
     "inviteNotSent": "Not sent",
     "inviteSentSuccess": "Invite sent successfully",
     "inviteSentVia": "Sent via",
-    "userAdded": "사용자가 성공적으로 추가되었습니다"
+    "userAdded": "사용자가 성공적으로 추가되었습니다",
+    "addUser": "Add Volunteer"
   },
   "userProfile": {
     "joined": "가입일",

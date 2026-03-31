@@ -145,7 +145,9 @@ test.describe('GDPR Compliance', () => {
 
     test('GET /api/settings/retention returns retention config', async ({ adminPage, request }) => {
       // Use the page's JWT token to make an authenticated API request
-      const accessToken = await adminPage.evaluate(() => sessionStorage.getItem('__TEST_JWT'))
+      const accessToken = await adminPage.evaluate(
+        () => window.__TEST_AUTH_FACADE?.getAccessToken() ?? sessionStorage.getItem('__TEST_JWT')
+      )
       const headers: Record<string, string> = {}
       if (accessToken) headers.Authorization = `Bearer ${accessToken}`
 

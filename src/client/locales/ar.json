@@ -71,7 +71,8 @@
     "admin": "Admin",
     "contacts": "Contacts",
     "conversations": "Conversations",
-    "help": "Help"
+    "help": "Help",
+    "users": "المستخدمون"
   },
   "dashboard": {
     "title": "لوحة التحكم",
@@ -1366,7 +1367,8 @@
     "inviteNotSent": "Not sent",
     "inviteSentSuccess": "Invite sent successfully",
     "inviteSentVia": "Sent via",
-    "userAdded": "تمت إضافة المستخدم بنجاح"
+    "userAdded": "تمت إضافة المستخدم بنجاح",
+    "addUser": "Add Volunteer"
   },
   "userProfile": {
     "joined": "انضم في",

@@ -71,7 +71,8 @@
     "admin": "Admin",
     "contacts": "Contacts",
     "conversations": "Conversations",
-    "help": "Help"
+    "help": "Help",
+    "users": "उपयोगकर्ता"
   },
   "dashboard": {
     "title": "डैशबोर्ड",
@@ -1366,7 +1367,8 @@
     "inviteNotSent": "Not sent",
     "inviteSentSuccess": "Invite sent successfully",
     "inviteSentVia": "Sent via",
-    "userAdded": "उपयोगकर्ता सफलतापूर्वक जोड़ा गया"
+    "userAdded": "उपयोगकर्ता सफलतापूर्वक जोड़ा गया",
+    "addUser": "Add Volunteer"
   },
   "userProfile": {
     "joined": "शामिल हुए",

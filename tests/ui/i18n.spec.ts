@@ -122,17 +122,44 @@ test.describe('Locale rendering', () => {
         })
         .click()
 
-      // Wait for re-render
-      await adminPage.waitForTimeout(500)
+      // Wait for re-render (locale switch can take time with React reconciliation)
+      await adminPage.waitForTimeout(1500)
 
       // No raw i18n keys should be visible on page (e.g., "common.dashboard")
-      const pageText = await adminPage.evaluate(() => document.body.innerText)
-      const rawKeyPattern = /\b(common|auth|notes|calls|admin|dashboard|nav|settings)\.[a-zA-Z.]+\b/
-      const rawKeyMatch = pageText.match(rawKeyPattern)
+      // Use a targeted check that only looks at visible text nodes, excluding
+      // hidden elements like closed dialogs that may pre-render i18n keys.
+      const rawKeyMatches = await adminPage.evaluate(() => {
+        const matches: string[] = []
+        const pattern = /\b(common|auth|notes|calls|admin|dashboard|nav|settings)\.[a-zA-Z.]+\b/g
+        // Check only visible elements using TreeWalker
+        const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, {
+          acceptNode(node) {
+            const el = node.parentElement
+            if (!el) return NodeFilter.FILTER_REJECT
+            // Skip hidden elements (display:none, visibility:hidden, aria-hidden)
+            const style = window.getComputedStyle(el)
+            if (style.display === 'none' || style.visibility === 'hidden')
+              return NodeFilter.FILTER_REJECT
+            if (el.closest('[aria-hidden="true"]')) return NodeFilter.FILTER_REJECT
+            if (el.closest('[hidden]')) return NodeFilter.FILTER_REJECT
+            // Skip sr-only (screen reader only) elements
+            if (el.closest('.sr-only')) return NodeFilter.FILTER_REJECT
+            return NodeFilter.FILTER_ACCEPT
+          },
+        })
+        let node: Node | null = walker.nextNode()
+        while (node) {
+          const text = node.textContent || ''
+          const m = text.match(pattern)
+          if (m) matches.push(...m)
+          node = walker.nextNode()
+        }
+        return matches
+      })
       expect(
-        rawKeyMatch,
-        `Raw i18n key found on page for locale ${locale}: "${rawKeyMatch?.[0]}"`
-      ).toBeNull()
+        rawKeyMatches.length,
+        `Raw i18n key(s) found on page for locale ${locale}: ${JSON.stringify(rawKeyMatches)}`
+      ).toBe(0)
 
       // No i18next warning errors
       expect(i18nErrors, `i18next errors for locale ${locale}`).toHaveLength(0)

@@ -71,7 +71,8 @@
     "admin": "Admin",
     "contacts": "Contacts",
     "conversations": "Conversations",
-    "help": "Help"
+    "help": "Help",
+    "users": "Người dùng"
   },
   "dashboard": {
     "title": "Bảng điều khiển",
@@ -1366,7 +1367,8 @@
     "inviteNotSent": "Not sent",
     "inviteSentSuccess": "Invite sent successfully",
     "inviteSentVia": "Sent via",
-    "userAdded": "Đã thêm tình nguyện viên thành công"
+    "userAdded": "Đã thêm tình nguyện viên thành công",
+    "addUser": "Add Volunteer"
   },
   "userProfile": {
     "joined": "Tham gia",
