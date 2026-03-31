@@ -1,5 +1,5 @@
 import { type Page, expect, test } from '../fixtures/auth'
-import { TEST_PIN, enterPin, navigateAfterLogin } from '../helpers'
+import { navigateAfterLogin, reenterPinAfterReload } from '../helpers'
 
 /** Navigate to Hub Settings and expand the Telephony Provider section */
 async function expandTelephonySection(page: Page) {
@@ -135,7 +135,7 @@ test.describe('Telephony Provider Settings', () => {
 
     // Reload the page — clears keyManager, PIN re-entry needed
     await adminPage.reload()
-    await enterPin(adminPage, TEST_PIN)
+    await reenterPinAfterReload(adminPage)
     // PIN unlock redirects to dashboard — navigate back to Hub Settings
     await expandTelephonySection(adminPage)
 

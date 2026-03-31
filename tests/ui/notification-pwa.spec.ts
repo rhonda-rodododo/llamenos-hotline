@@ -1,4 +1,5 @@
 import { expect, test } from '../fixtures/auth'
+import { reenterPinAfterReload } from '../helpers'
 
 test.describe('Notification prompt banner', () => {
   test('shows notification banner when permission is default', async ({ adminPage }) => {
@@ -70,6 +71,10 @@ test.describe('Settings notification permission status', () => {
         configurable: true,
       })
     })
+
+    // Reload so the addInitScript takes effect
+    await adminPage.reload()
+    await reenterPinAfterReload(adminPage)
 
     await adminPage.getByRole('link', { name: 'Settings', exact: true }).click()
     await expect(

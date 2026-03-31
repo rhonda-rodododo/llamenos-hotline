@@ -1,5 +1,5 @@
 import { expect, test } from '../fixtures/auth'
-import { TEST_PIN, enterPin } from '../helpers'
+import { reenterPinAfterReload } from '../helpers'
 
 test.describe('Theme', () => {
   test('can switch to dark theme', async ({ adminPage }) => {
@@ -36,7 +36,7 @@ test.describe('Theme', () => {
     await expect(adminPage.locator('html')).toHaveClass(/dark/)
 
     await adminPage.reload()
-    await enterPin(adminPage, TEST_PIN)
+    await reenterPinAfterReload(adminPage)
     await expect(adminPage.getByRole('heading', { name: 'Dashboard', exact: true })).toBeVisible()
     await expect(adminPage.locator('html')).toHaveClass(/dark/)
   })

@@ -1,5 +1,5 @@
 import { expect, test } from '../fixtures/auth'
-import { TEST_PIN, enterPin, navigateAfterLogin } from '../helpers'
+import { navigateAfterLogin, reenterPinAfterReload } from '../helpers'
 
 test.describe('Profile self-service', () => {
   test('admin can edit profile name and it persists', async ({ adminPage }) => {
@@ -23,7 +23,7 @@ test.describe('Profile self-service', () => {
 
     // Reload and verify name persisted via /auth/me
     await adminPage.reload()
-    await enterPin(adminPage, TEST_PIN)
+    await reenterPinAfterReload(adminPage)
     // PIN unlock redirects to dashboard — navigate back to Settings
     await adminPage.getByRole('link', { name: 'Settings', exact: true }).click()
     await expect(
@@ -145,7 +145,7 @@ test.describe('Profile self-service', () => {
 
     // Verify name persists after reload
     await volunteerPage.reload()
-    await enterPin(volunteerPage, TEST_PIN)
+    await reenterPinAfterReload(volunteerPage)
     // PIN unlock redirects to dashboard — navigate back to Settings
     await volunteerPage.getByRole('link', { name: 'Settings' }).click()
     await expect(

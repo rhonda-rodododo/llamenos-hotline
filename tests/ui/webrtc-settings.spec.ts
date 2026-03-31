@@ -1,5 +1,5 @@
 import { expect, test } from '../fixtures/auth'
-import { TEST_PIN, enterPin, navigateAfterLogin } from '../helpers'
+import { navigateAfterLogin, reenterPinAfterReload } from '../helpers'
 
 test.describe('WebRTC & Call Preference Settings', () => {
   // --- User Settings: Call Preference ---
@@ -166,7 +166,7 @@ test.describe('WebRTC & Call Preference Settings', () => {
 
     // Reload the page — clears keyManager, PIN re-entry needed
     await adminPage.reload()
-    await enterPin(adminPage, TEST_PIN)
+    await reenterPinAfterReload(adminPage)
     // PIN unlock redirects to dashboard — navigate back to Hub Settings
     await adminPage.getByRole('link', { name: 'Hub Settings' }).click()
     await expect(
