@@ -1,5 +1,18 @@
+/**
+ * Per-role Playwright auth fixtures.
+ *
+ * Each role fixture provides an authenticated `page` via cached storageState
+ * (localStorage + refresh cookie from global setup). PIN entry happens per-test
+ * for full isolation — no shared state between tests.
+ *
+ * Usage:
+ *   import { test, expect } from '../fixtures/auth'
+ *   test('admin does something', async ({ adminPage }) => { ... })
+ *   test('volunteer sees limited nav', async ({ volunteerPage }) => { ... })
+ */
+
 import { type BrowserContext, type Page, test as base } from '@playwright/test'
-import { Timeouts, completeProfileSetup, enterPin } from '../helpers'
+import { completeProfileSetup, enterPin } from '../helpers'
 
 const TEST_PIN = '123456'
 const STORAGE_DIR = 'tests/storage'
@@ -16,8 +29,9 @@ export const STORAGE_PATHS = {
 export type RoleName = keyof typeof STORAGE_PATHS
 
 /**
- * Create an authenticated page for a role by loading cached storage state
- * and entering the PIN to unlock. Worker-scoped — runs once per test file.
+ * Create an authenticated page for a role.
+ * Loads cached storageState → navigates to / → enters PIN → waits for dashboard.
+ * Each call creates a NEW browser context — full test isolation.
  */
 async function createAuthenticatedPage(
   browser: import('@playwright/test').Browser,
@@ -36,7 +50,7 @@ async function createAuthenticatedPage(
     }
   })
 
-  // Navigate to app — may show PIN screen, dashboard, profile-setup, or login
+  // Navigate to app
   await page.goto('/', { waitUntil: 'domcontentloaded' })
 
   const pinInput = page.locator('input[aria-label="PIN digit 1"]')
@@ -45,21 +59,19 @@ async function createAuthenticatedPage(
 
   // Wait for one of: PIN screen, dashboard, or profile-setup
   const firstState = await Promise.race([
-    pinInput.waitFor({ state: 'visible', timeout: 120000 }).then(() => 'pin' as const),
-    dashboardHeading
-      .waitFor({ state: 'visible', timeout: 120000 })
-      .then(() => 'dashboard' as const),
-    profileSetup.waitFor({ state: 'visible', timeout: 120000 }).then(() => 'profile' as const),
+    pinInput.waitFor({ state: 'visible', timeout: 30000 }).then(() => 'pin' as const),
+    dashboardHeading.waitFor({ state: 'visible', timeout: 30000 }).then(() => 'dashboard' as const),
+    profileSetup.waitFor({ state: 'visible', timeout: 30000 }).then(() => 'profile' as const),
   ])
 
   if (firstState === 'pin') {
     await enterPin(page, TEST_PIN)
-    // After PIN: PBKDF2 runs (~30s), then navigates to dashboard or profile-setup
+    // After PIN: PBKDF2 runs, then navigates to dashboard or profile-setup
     const afterPin = await Promise.race([
       dashboardHeading
-        .waitFor({ state: 'visible', timeout: 120000 })
+        .waitFor({ state: 'visible', timeout: 90000 })
         .then(() => 'dashboard' as const),
-      profileSetup.waitFor({ state: 'visible', timeout: 120000 }).then(() => 'profile' as const),
+      profileSetup.waitFor({ state: 'visible', timeout: 90000 }).then(() => 'profile' as const),
     ])
     if (afterPin === 'profile') {
       await completeProfileSetup(page)
@@ -73,109 +85,70 @@ async function createAuthenticatedPage(
 
 /**
  * Extended Playwright test with per-role authenticated page fixtures.
- * Each fixture is worker-scoped — PIN entry happens once per test file.
+ * Each fixture creates a FRESH browser context per test — full isolation.
  */
-export const test = base.extend<
-  object,
-  {
-    adminPage: Page
-    adminContext: BrowserContext
-    hubAdminPage: Page
-    hubAdminContext: BrowserContext
-    volunteerPage: Page
-    volunteerContext: BrowserContext
-    reviewerPage: Page
-    reviewerContext: BrowserContext
-    reporterPage: Page
-    reporterContext: BrowserContext
-  }
->({
-  adminPage: [
-    async ({ browser }, use) => {
-      const { context, page } = await createAuthenticatedPage(browser, 'admin')
-      await use(page)
-      await context.close()
-    },
-    { scope: 'worker' },
-  ],
-  adminContext: [
-    async ({ browser }, use) => {
-      const { context } = await createAuthenticatedPage(browser, 'admin')
-      await use(context)
-      await context.close()
-    },
-    { scope: 'worker' },
-  ],
-  hubAdminPage: [
-    async ({ browser }, use) => {
-      const { context, page } = await createAuthenticatedPage(browser, 'hub-admin')
-      await use(page)
-      await context.close()
-    },
-    { scope: 'worker' },
-  ],
-  hubAdminContext: [
-    async ({ browser }, use) => {
-      const { context } = await createAuthenticatedPage(browser, 'hub-admin')
-      await use(context)
-      await context.close()
-    },
-    { scope: 'worker' },
-  ],
-  volunteerPage: [
-    async ({ browser }, use) => {
-      const { context, page } = await createAuthenticatedPage(browser, 'volunteer')
-      await use(page)
-      await context.close()
-    },
-    { scope: 'worker' },
-  ],
-  volunteerContext: [
-    async ({ browser }, use) => {
-      const { context } = await createAuthenticatedPage(browser, 'volunteer')
-      await use(context)
-      await context.close()
-    },
-    { scope: 'worker' },
-  ],
-  reviewerPage: [
-    async ({ browser }, use) => {
-      const { context, page } = await createAuthenticatedPage(browser, 'reviewer')
-      await use(page)
-      await context.close()
-    },
-    { scope: 'worker' },
-  ],
-  reviewerContext: [
-    async ({ browser }, use) => {
-      const { context } = await createAuthenticatedPage(browser, 'reviewer')
-      await use(context)
-      await context.close()
-    },
-    { scope: 'worker' },
-  ],
-  reporterPage: [
-    async ({ browser }, use) => {
-      const { context, page } = await createAuthenticatedPage(browser, 'reporter')
-      await use(page)
-      await context.close()
-    },
-    { scope: 'worker' },
-  ],
-  reporterContext: [
-    async ({ browser }, use) => {
-      const { context } = await createAuthenticatedPage(browser, 'reporter')
-      await use(context)
-      await context.close()
-    },
-    { scope: 'worker' },
-  ],
+export const test = base.extend<{
+  adminPage: Page
+  adminContext: BrowserContext
+  hubAdminPage: Page
+  hubAdminContext: BrowserContext
+  volunteerPage: Page
+  volunteerContext: BrowserContext
+  reviewerPage: Page
+  reviewerContext: BrowserContext
+  reporterPage: Page
+  reporterContext: BrowserContext
+}>({
+  adminPage: async ({ browser }, use) => {
+    const { context, page } = await createAuthenticatedPage(browser, 'admin')
+    await use(page)
+    await context.close()
+  },
+  adminContext: async ({ browser }, use) => {
+    const { context } = await createAuthenticatedPage(browser, 'admin')
+    await use(context)
+    await context.close()
+  },
+  hubAdminPage: async ({ browser }, use) => {
+    const { context, page } = await createAuthenticatedPage(browser, 'hub-admin')
+    await use(page)
+    await context.close()
+  },
+  hubAdminContext: async ({ browser }, use) => {
+    const { context } = await createAuthenticatedPage(browser, 'hub-admin')
+    await use(context)
+    await context.close()
+  },
+  volunteerPage: async ({ browser }, use) => {
+    const { context, page } = await createAuthenticatedPage(browser, 'volunteer')
+    await use(page)
+    await context.close()
+  },
+  volunteerContext: async ({ browser }, use) => {
+    const { context } = await createAuthenticatedPage(browser, 'volunteer')
+    await use(context)
+    await context.close()
+  },
+  reviewerPage: async ({ browser }, use) => {
+    const { context, page } = await createAuthenticatedPage(browser, 'reviewer')
+    await use(page)
+    await context.close()
+  },
+  reviewerContext: async ({ browser }, use) => {
+    const { context } = await createAuthenticatedPage(browser, 'reviewer')
+    await use(context)
+    await context.close()
+  },
+  reporterPage: async ({ browser }, use) => {
+    const { context, page } = await createAuthenticatedPage(browser, 'reporter')
+    await use(page)
+    await context.close()
+  },
+  reporterContext: async ({ browser }, use) => {
+    const { context } = await createAuthenticatedPage(browser, 'reporter')
+    await use(context)
+    await context.close()
+  },
 })
 
-export {
-  expect,
-  devices,
-  type Page,
-  type BrowserContext,
-  type CDPSession,
-} from '@playwright/test'
+export { expect, devices, type Page, type BrowserContext, type CDPSession } from '@playwright/test'
