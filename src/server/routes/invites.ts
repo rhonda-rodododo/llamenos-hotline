@@ -1,6 +1,7 @@
 import { HMAC_IP_PREFIX } from '@shared/crypto-labels'
 import { resolvePermissions } from '@shared/permissions'
 import { Hono } from 'hono'
+import { setCookie } from 'hono/cookie'
 import { getIdPAdapter } from '../app'
 import { hashIP } from '../lib/crypto-service'
 import { isValidE164 } from '../lib/helpers'
@@ -76,6 +77,17 @@ invites.post('/redeem', async (c) => {
     { pubkey: body.pubkey, permissions: [...new Set(permissions)] },
     c.env.JWT_SECRET
   )
+
+  // Set refresh cookie so PIN unlock works after page reload (matches bootstrap pattern)
+  const { signRefreshToken } = await import('./auth-facade')
+  const refreshToken = await signRefreshToken(body.pubkey, c.env.JWT_SECRET)
+  setCookie(c, 'llamenos-refresh', refreshToken, {
+    httpOnly: true,
+    secure: c.env.ENVIRONMENT !== 'development',
+    sameSite: 'Strict',
+    path: '/api/auth/token',
+    maxAge: 30 * 24 * 60 * 60,
+  })
 
   return c.json({ ...user, nsecSecret, accessToken })
 })
