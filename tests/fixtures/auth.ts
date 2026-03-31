@@ -36,29 +36,39 @@ async function createAuthenticatedPage(
     }
   })
 
-  // Navigate to app — triggers PIN screen (in-memory keyManager cleared on fresh page)
+  // Navigate to app — may show PIN screen, dashboard, profile-setup, or login
   await page.goto('/', { waitUntil: 'domcontentloaded' })
 
-  // Enter PIN to unlock
   const pinInput = page.locator('input[aria-label="PIN digit 1"]')
-  await pinInput.waitFor({ state: 'visible', timeout: Timeouts.AUTH })
-  await enterPin(page, TEST_PIN)
-
-  // Wait for authenticated state — may redirect to profile-setup first
   const dashboardHeading = page.getByRole('heading', { name: 'Dashboard', exact: true })
+  const profileSetup = page.getByRole('heading', { name: 'Welcome!' })
 
-  const destination = await Promise.race([
+  // Wait for one of: PIN screen, dashboard, or profile-setup
+  const firstState = await Promise.race([
+    pinInput.waitFor({ state: 'visible', timeout: Timeouts.AUTH }).then(() => 'pin' as const),
     dashboardHeading
       .waitFor({ state: 'visible', timeout: Timeouts.AUTH })
       .then(() => 'dashboard' as const),
-    page
-      .waitForURL((u) => new URL(u.toString()).pathname.includes('profile-setup'), {
-        timeout: Timeouts.AUTH,
-      })
-      .then(() => 'profile-setup' as const),
+    profileSetup
+      .waitFor({ state: 'visible', timeout: Timeouts.AUTH })
+      .then(() => 'profile' as const),
   ])
 
-  if (destination === 'profile-setup') {
+  if (firstState === 'pin') {
+    await enterPin(page, TEST_PIN)
+    // After PIN: PBKDF2 runs (~30s), then navigates to dashboard or profile-setup
+    const afterPin = await Promise.race([
+      dashboardHeading
+        .waitFor({ state: 'visible', timeout: Timeouts.AUTH })
+        .then(() => 'dashboard' as const),
+      profileSetup
+        .waitFor({ state: 'visible', timeout: Timeouts.AUTH })
+        .then(() => 'profile' as const),
+    ])
+    if (afterPin === 'profile') {
+      await completeProfileSetup(page)
+    }
+  } else if (firstState === 'profile') {
     await completeProfileSetup(page)
   }
 
