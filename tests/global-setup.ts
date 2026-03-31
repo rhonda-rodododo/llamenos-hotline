@@ -1,33 +1,352 @@
 import { expect, test } from '@playwright/test'
 
+const TEST_PIN = '123456'
 const TEST_RESET_SECRET = process.env.DEV_RESET_SECRET || 'test-reset-secret'
+const STORAGE_DIR = 'tests/storage'
 
-test('reset test state', async ({ request }) => {
-  const headers = { 'X-Test-Secret': TEST_RESET_SECRET }
+/** Enter a 6-digit PIN into the PinInput component. */
+async function enterSetupPin(page: import('@playwright/test').Page, pin: string) {
+  const firstDigit = page.locator('input[aria-label="PIN digit 1"]')
+  await firstDigit.waitFor({ state: 'visible', timeout: 30000 })
+  await firstDigit.focus()
+  await page.keyboard.type(pin, { delay: 80 })
+  await page.keyboard.press('Enter')
+}
 
-  // Retry in case the server is still initializing
-  for (let i = 0; i < 10; i++) {
-    try {
-      const res = await request.post('/api/test-reset', { headers })
-      if (res.ok()) return
-      // 404 means ENVIRONMENT !== 'development' — fatal, won't self-heal
-      if (res.status() === 404) {
-        throw new Error(
-          'test-reset returned 404 — ENVIRONMENT must be set to "development". ' +
-            'For Docker: use docker-compose.test.yml override. ' +
-            'For local dev: set ENVIRONMENT=development in .env'
-        )
-      }
-    } catch (err) {
-      if (err instanceof Error && err.message.includes('test-reset returned 404')) throw err
-      // Server not ready yet — retry
+/**
+ * Complete the admin bootstrap flow:
+ * 1. Navigate to /setup
+ * 2. Click "Get Started", create PIN, confirm PIN
+ * 3. Wait for keypair generation + recovery key
+ * 4. Download backup, acknowledge, continue to setup wizard
+ * 5. Complete setup wizard (identity + channels + skip remaining + launch)
+ */
+async function bootstrapAdmin(page: import('@playwright/test').Page) {
+  await page.goto('/setup', { waitUntil: 'domcontentloaded' })
+  await page.evaluate(() => {
+    localStorage.clear()
+    sessionStorage.clear()
+  })
+  await page.reload({ waitUntil: 'domcontentloaded' })
+
+  // Wait for bootstrap UI
+  await expect(page.getByText('Create Admin Account')).toBeVisible({ timeout: 30000 })
+
+  // Click "Get Started"
+  await page.getByRole('button', { name: /get started/i }).click()
+
+  // Create PIN
+  await enterSetupPin(page, TEST_PIN)
+
+  // Confirm PIN
+  await enterSetupPin(page, TEST_PIN)
+
+  // Wait for keypair generation + recovery key display (PBKDF2 600K — slow)
+  const recoveryKey = page.getByTestId('recovery-key')
+  await expect(recoveryKey).toBeVisible({ timeout: 90000 })
+
+  // Download backup (required before continuing)
+  await page.getByRole('button', { name: /download encrypted backup/i }).click()
+
+  // Acknowledge backup saved
+  await page.getByText('I have saved my recovery key').click()
+
+  // Continue to setup wizard
+  await page.getByRole('button', { name: /continue to setup/i }).click()
+
+  // Wait for setup wizard to load (importKey runs PBKDF2 again — slow)
+  await expect(page.getByText('Setup Wizard')).toBeVisible({ timeout: 90000 })
+  await expect(page.getByText('Identity', { exact: true })).toBeVisible()
+
+  // Complete identity step (minimum for functional hub)
+  await page.locator('#hotline-name').fill(`Test Hotline ${Date.now()}`)
+  await page.locator('#org-name').fill('Test Organization')
+  await page.getByRole('button', { name: /next/i }).click()
+
+  // Wait for step 2 to confirm identity was saved
+  await expect(page.getByText('Choose Communication Channels')).toBeVisible({ timeout: 10000 })
+
+  // Select Reports channel (lightweight, no provider needed)
+  const reportsChannel = page
+    .locator('[role="button"][aria-pressed]')
+    .filter({ hasText: 'Reports' })
+  await reportsChannel.click()
+  await page.getByRole('button', { name: /next/i }).click()
+  await page.waitForTimeout(1000)
+
+  // Skip remaining wizard steps
+  for (let i = 0; i < 3; i++) {
+    const skipBtn = page.getByRole('button', { name: /skip/i })
+    const skipVisible = await skipBtn.isVisible({ timeout: 5000 }).catch(() => false)
+    if (skipVisible) {
+      await skipBtn.click()
+      await page.waitForTimeout(500)
     }
-    await new Promise((r) => setTimeout(r, 2000))
   }
-  // Final attempt with assertion
-  const res = await request.post('/api/test-reset', { headers })
-  expect(
-    res.ok(),
-    `test-reset failed with status ${res.status()}: ${await res.text()}`
-  ).toBeTruthy()
+
+  // Launch
+  const launchBtn = page.getByRole('button', { name: /launch/i })
+  const launchVisible = await launchBtn.isVisible({ timeout: 10000 }).catch(() => false)
+  if (launchVisible) {
+    await launchBtn.click()
+  }
+
+  // Wait for dashboard
+  await expect(page.getByRole('heading', { name: 'Dashboard', exact: true })).toBeVisible({
+    timeout: 15000,
+  })
+}
+
+/**
+ * Create an invite for a role and complete onboarding in a new context.
+ * Returns after saving the new user's storage state.
+ */
+async function createRoleAccount(
+  adminPage: import('@playwright/test').Page,
+  browser: import('@playwright/test').Browser,
+  opts: {
+    name: string
+    phone: string
+    roleName: string
+    storageFile: string
+  }
+) {
+  // Navigate to Users page
+  await adminPage.getByRole('link', { name: 'Users' }).click()
+  await expect(adminPage.getByRole('heading', { name: 'Users' })).toBeVisible({ timeout: 10000 })
+
+  // Click "Invite User"
+  await adminPage.getByRole('button', { name: /invite user/i }).click()
+
+  // Fill invite form
+  await adminPage.getByLabel('Name').fill(opts.name)
+  await adminPage.locator('#invite-phone').fill(opts.phone)
+  await adminPage.locator('#invite-phone').blur()
+  await adminPage.waitForTimeout(500)
+
+  // Select role from dropdown (shadcn Select with id="invite-role")
+  const roleTrigger = adminPage.locator('#invite-role')
+  const roleTriggerVisible = await roleTrigger.isVisible({ timeout: 2000 }).catch(() => false)
+  if (roleTriggerVisible) {
+    await roleTrigger.click()
+    const roleDisplayNames: Record<string, string> = {
+      'hub-admin': 'Hub Admin',
+      volunteer: 'Volunteer',
+      reviewer: 'Reviewer',
+      reporter: 'Reporter',
+    }
+    const displayName = roleDisplayNames[opts.roleName]
+    if (displayName) {
+      await adminPage.getByRole('option', { name: displayName }).click()
+    }
+  }
+
+  // Create invite
+  await adminPage.getByRole('button', { name: /create invite/i }).click()
+
+  // Wait for invite link to appear
+  const inviteLinkEl = adminPage.getByTestId('invite-link-code')
+  await expect(inviteLinkEl).toBeVisible({ timeout: 15000 })
+  const inviteLink = await inviteLinkEl.textContent()
+  if (!inviteLink) throw new Error(`Failed to get invite link for ${opts.name}`)
+
+  // Dismiss the send invite dialog if it auto-opens
+  await adminPage.keyboard.press('Escape')
+  await adminPage.waitForTimeout(300)
+
+  // Dismiss the invite link card
+  const dismissBtn = adminPage.getByTestId('dismiss-invite')
+  if (await dismissBtn.isVisible({ timeout: 1000 }).catch(() => false)) {
+    await dismissBtn.click()
+  }
+
+  // Open new browser context for the invited user
+  const userContext = await browser.newContext()
+  const userPage = await userContext.newPage()
+
+  try {
+    await userPage.goto(inviteLink, { waitUntil: 'domcontentloaded' })
+
+    // Wait for welcome page
+    await expect(userPage.getByText(/welcome/i)).toBeVisible({ timeout: 15000 })
+
+    // Click "Get Started"
+    await userPage.getByRole('button', { name: /get started/i }).click()
+
+    // Create PIN
+    await enterSetupPin(userPage, TEST_PIN)
+
+    // Confirm PIN
+    await enterSetupPin(userPage, TEST_PIN)
+
+    // Wait for keypair generation + recovery key (PBKDF2 600K — slow)
+    const recoveryKey = userPage.getByTestId('recovery-key')
+    await expect(recoveryKey).toBeVisible({ timeout: 90000 })
+
+    // Download backup
+    await userPage.getByRole('button', { name: /download encrypted backup/i }).click()
+
+    // Acknowledge backup
+    await userPage.getByText('I have saved my recovery key').click()
+
+    // Continue
+    await userPage.getByRole('button', { name: /continue/i }).click()
+
+    // Wait for redirect to profile-setup or dashboard
+    await userPage.waitForURL(
+      (url) => {
+        const path = new URL(url.toString()).pathname
+        return path.includes('profile-setup') || path === '/'
+      },
+      { timeout: 60000 }
+    )
+
+    // Complete profile setup if redirected there
+    if (userPage.url().includes('profile-setup')) {
+      await userPage.getByRole('button', { name: /complete setup/i }).click()
+      await userPage.waitForURL((u) => !u.toString().includes('profile-setup'), {
+        timeout: 15000,
+      })
+    }
+
+    // Wait for authenticated state
+    await expect(userPage.getByRole('heading', { name: 'Dashboard', exact: true })).toBeVisible({
+      timeout: 15000,
+    })
+
+    // Save storage state
+    await userContext.storageState({ path: opts.storageFile })
+  } finally {
+    await userContext.close()
+  }
+}
+
+// =====================================================================
+// Global setup test suite — runs once before all other test projects
+// =====================================================================
+
+test.describe('Global Setup: Provision Test Accounts', () => {
+  test.describe.configure({ mode: 'serial', timeout: 300_000 })
+
+  test('reset database and bootstrap admin', async ({ page, request, browser }) => {
+    // Retry reset in case the server is still initializing
+    for (let i = 0; i < 10; i++) {
+      try {
+        const res = await request.post('/api/test-reset-no-admin', {
+          headers: { 'X-Test-Secret': TEST_RESET_SECRET },
+        })
+        if (res.ok()) break
+        if (res.status() === 404) {
+          throw new Error(
+            'test-reset-no-admin returned 404 — ENVIRONMENT must be set to "development".'
+          )
+        }
+      } catch (err) {
+        if (err instanceof Error && err.message.includes('returned 404')) throw err
+      }
+      await new Promise((r) => setTimeout(r, 2000))
+    }
+
+    // Run real bootstrap flow
+    await bootstrapAdmin(page)
+
+    // Save admin storage state
+    await page.context().storageState({ path: `${STORAGE_DIR}/admin.json` })
+  })
+
+  test('create hub-admin account via invite', async ({ browser }) => {
+    const adminContext = await browser.newContext({
+      storageState: `${STORAGE_DIR}/admin.json`,
+    })
+    const adminPage = await adminContext.newPage()
+
+    try {
+      await adminPage.goto('/', { waitUntil: 'domcontentloaded' })
+      await enterSetupPin(adminPage, TEST_PIN)
+      await expect(adminPage.getByRole('heading', { name: 'Dashboard', exact: true })).toBeVisible({
+        timeout: 60000,
+      })
+
+      await createRoleAccount(adminPage, browser, {
+        name: 'Test Hub Admin',
+        phone: '+15551000001',
+        roleName: 'hub-admin',
+        storageFile: `${STORAGE_DIR}/hub-admin.json`,
+      })
+    } finally {
+      await adminContext.close()
+    }
+  })
+
+  test('create volunteer account via invite', async ({ browser }) => {
+    const adminContext = await browser.newContext({
+      storageState: `${STORAGE_DIR}/admin.json`,
+    })
+    const adminPage = await adminContext.newPage()
+
+    try {
+      await adminPage.goto('/', { waitUntil: 'domcontentloaded' })
+      await enterSetupPin(adminPage, TEST_PIN)
+      await expect(adminPage.getByRole('heading', { name: 'Dashboard', exact: true })).toBeVisible({
+        timeout: 60000,
+      })
+
+      await createRoleAccount(adminPage, browser, {
+        name: 'Test Volunteer',
+        phone: '+15551000002',
+        roleName: 'volunteer',
+        storageFile: `${STORAGE_DIR}/volunteer.json`,
+      })
+    } finally {
+      await adminContext.close()
+    }
+  })
+
+  test('create reviewer account via invite', async ({ browser }) => {
+    const adminContext = await browser.newContext({
+      storageState: `${STORAGE_DIR}/admin.json`,
+    })
+    const adminPage = await adminContext.newPage()
+
+    try {
+      await adminPage.goto('/', { waitUntil: 'domcontentloaded' })
+      await enterSetupPin(adminPage, TEST_PIN)
+      await expect(adminPage.getByRole('heading', { name: 'Dashboard', exact: true })).toBeVisible({
+        timeout: 60000,
+      })
+
+      await createRoleAccount(adminPage, browser, {
+        name: 'Test Reviewer',
+        phone: '+15551000003',
+        roleName: 'reviewer',
+        storageFile: `${STORAGE_DIR}/reviewer.json`,
+      })
+    } finally {
+      await adminContext.close()
+    }
+  })
+
+  test('create reporter account via invite', async ({ browser }) => {
+    const adminContext = await browser.newContext({
+      storageState: `${STORAGE_DIR}/admin.json`,
+    })
+    const adminPage = await adminContext.newPage()
+
+    try {
+      await adminPage.goto('/', { waitUntil: 'domcontentloaded' })
+      await enterSetupPin(adminPage, TEST_PIN)
+      await expect(adminPage.getByRole('heading', { name: 'Dashboard', exact: true })).toBeVisible({
+        timeout: 60000,
+      })
+
+      await createRoleAccount(adminPage, browser, {
+        name: 'Test Reporter',
+        phone: '+15551000004',
+        roleName: 'reporter',
+        storageFile: `${STORAGE_DIR}/reporter.json`,
+      })
+    } finally {
+      await adminContext.close()
+    }
+  })
 })

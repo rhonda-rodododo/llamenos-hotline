@@ -10,6 +10,7 @@ dist/
 !.env.dev.defaults
 test-results/
 playwright-report/
+tests/storage/*.json
 .playwright-mcp/
 audit/
 site/dist/
