@@ -27,7 +27,7 @@ test.describe('Admin flow', () => {
     // React re-render instability (button detaches during async state updates)
     await page.waitForLoadState('networkidle', { timeout: 3000 }).catch(() => {})
     await page.waitForTimeout(1000)
-    await page.getByTestId('volunteer-add-btn').click({ force: true })
+    await page.getByTestId('user-add-btn').click({ force: true })
     await page.getByLabel('Name').fill(userName)
     await page.getByLabel('Phone Number').fill(phone)
     await page.getByLabel('Phone Number').blur()
@@ -45,11 +45,11 @@ test.describe('Admin flow', () => {
 
     // Delete the user — scope to the row containing the user name
     const volRow = page
-      .getByTestId('volunteer-list')
+      .getByTestId('user-list')
       .locator('div')
       .filter({ hasText: userName })
       .first()
-    await volRow.getByTestId('volunteer-delete-btn').click()
+    await volRow.getByTestId('user-delete-btn').click()
     // Confirm dialog has a "Delete" button
     await page
       .getByRole('dialog')
@@ -155,7 +155,7 @@ test.describe('Admin flow', () => {
     await page.getByRole('link', { name: 'Users' }).click()
     await page.waitForLoadState('networkidle', { timeout: 3000 }).catch(() => {})
     await page.waitForTimeout(1000)
-    await page.getByTestId('volunteer-add-btn').click({ force: true })
+    await page.getByTestId('user-add-btn').click({ force: true })
 
     await page.getByLabel('Name').fill('Bad Phone')
     // PhoneInput strips non-digits; use a too-short number that passes through handleChange

@@ -304,13 +304,13 @@ export async function createUserAndGetNsec(
   await page.getByRole('link', { name: 'Users' }).click()
   await expect(page.getByRole('heading', { name: 'Users' })).toBeVisible()
 
-  await page.getByTestId(TestIds.VOLUNTEER_ADD_BTN).click()
+  await page.getByTestId(TestIds.USER_ADD_BTN).click()
   await page.getByLabel('Name').fill(name)
   await page.getByLabel('Phone Number').fill(phone)
   await page.getByLabel('Phone Number').blur()
   await page.getByTestId(TestIds.FORM_SAVE_BTN).click()
 
-  const nsecCode = page.getByTestId(TestIds.VOLUNTEER_NSEC_CODE)
+  const nsecCode = page.getByTestId(TestIds.USER_NSEC_CODE)
   await expect(nsecCode).toBeVisible({ timeout: Timeouts.API })
   const nsec = await nsecCode.textContent()
   if (!nsec) throw new Error('Failed to get nsec')

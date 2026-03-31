@@ -108,21 +108,21 @@ export const UserPage = {
    * Get a user row by name.
    */
   getRow(page: Page, name: string): Locator {
-    return page.getByTestId(TestIds.VOLUNTEER_ROW).filter({ hasText: name })
+    return page.getByTestId(TestIds.USER_ROW).filter({ hasText: name })
   },
 
   /**
    * Get a user row by test ID with identifier.
    */
   getRowById(page: Page, pubkey: string): Locator {
-    return page.getByTestId(rowTestId(TestIds.VOLUNTEER_ROW, pubkey))
+    return page.getByTestId(rowTestId(TestIds.USER_ROW, pubkey))
   },
 
   /**
    * Open the add user form.
    */
   async openAddForm(page: Page): Promise<void> {
-    await page.getByTestId(TestIds.VOLUNTEER_ADD_BTN).click()
+    await page.getByTestId(TestIds.USER_ADD_BTN).click()
     await expect(page.getByLabel('Name')).toBeVisible()
   },
 
@@ -134,14 +134,14 @@ export const UserPage = {
     await page.getByLabel('Phone Number').fill(phone)
     await page.getByLabel('Phone Number').blur()
     await page.getByTestId(TestIds.FORM_SAVE_BTN).click()
-    await expect(page.getByTestId(TestIds.VOLUNTEER_NSEC_CODE)).toBeVisible({ timeout: 15000 })
+    await expect(page.getByTestId(TestIds.USER_NSEC_CODE)).toBeVisible({ timeout: 15000 })
   },
 
   /**
    * Get the generated nsec from the nsec card.
    */
   async getNsec(page: Page): Promise<string> {
-    const nsecCode = page.getByTestId(TestIds.VOLUNTEER_NSEC_CODE)
+    const nsecCode = page.getByTestId(TestIds.USER_NSEC_CODE)
     await expect(nsecCode).toBeVisible({ timeout: 15000 })
     const nsec = await nsecCode.textContent()
     if (!nsec) throw new Error('Failed to get nsec')
@@ -161,7 +161,7 @@ export const UserPage = {
    */
   async deleteUser(page: Page, name: string): Promise<void> {
     const row = this.getRow(page, name)
-    await row.getByTestId(TestIds.VOLUNTEER_DELETE_BTN).click()
+    await row.getByTestId(TestIds.USER_DELETE_BTN).click()
     await page
       .getByRole('dialog')
       .getByRole('button', { name: /delete/i })

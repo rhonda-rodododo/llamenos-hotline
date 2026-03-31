@@ -235,7 +235,7 @@ test.describe('Screenshot Capture', () => {
     // === Users ===
     console.log('\n📍 Users')
     await navigateTo(page, '/users')
-    await page.waitForSelector('[data-testid="volunteer-row"]', { timeout: 5000 }).catch(() => {})
+    await page.waitForSelector('[data-testid^="user-row-"]', { timeout: 5000 }).catch(() => {})
     await captureScreen(page, 'users', 'desktop')
 
     // === Shifts ===

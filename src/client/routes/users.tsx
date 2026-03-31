@@ -122,7 +122,7 @@ function UsersPage() {
             {t('users.inviteUser')}
           </Button>
           <Button
-            data-testid="volunteer-add-btn"
+            data-testid="user-add-btn"
             onClick={() => {
               setShowAddForm(true)
               setGeneratedNsec(null)
@@ -151,7 +151,7 @@ function UsersPage() {
             </div>
             <div className="flex items-center gap-2">
               <code
-                data-testid="volunteer-nsec-code"
+                data-testid="user-nsec-code"
                 className="flex-1 break-all rounded-md bg-background px-3 py-2 text-xs"
               >
                 {generatedNsec}
