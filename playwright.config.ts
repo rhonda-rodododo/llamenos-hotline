@@ -31,6 +31,7 @@ export default defineConfig({
       name: "setup",
       testMatch: /global-setup\.ts/,
       timeout: 300_000, // 5 min for real bootstrap + 4 invite onboardings
+      use: { trace: "off" }, // Disable trace for setup — avoids ENOENT on trace artifacts
     },
     {
       // API integration tests — no browser, request fixture only
