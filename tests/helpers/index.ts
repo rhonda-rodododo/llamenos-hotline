@@ -230,6 +230,19 @@ export async function loginAsAdmin(page: Page) {
     timeout: 60000,
   })
 
+  // Inject a deterministic test hub key into the browser's hub-key cache.
+  // Phase 2B moved org metadata to hub-key E2EE. Without the hub key the
+  // browser cannot decrypt role names, hub names, or custom field labels.
+  // In E2E tests the server stores plaintext as the "ciphertext" (no real
+  // encryption during seeding), so injecting any 32-byte key here ensures
+  // decryptHubField has a key available; the fallback in decryptHubField
+  // will surface the raw value when the test key doesn't match the seed.
+  await page.waitForFunction(() => !!window.__TEST_HUB_KEY_CACHE, { timeout: 10000 })
+  await page.evaluate(() => {
+    const testKey = new Uint8Array(32).fill(0x42)
+    window.__TEST_HUB_KEY_CACHE.set('global', testKey)
+  })
+
   // Auto-dismiss session expired modal if it appears during the test.
   // The modal overlays the entire page and blocks all pointer events.
   // Use noWaitAfter to prevent Playwright from waiting for navigations triggered by the click.
