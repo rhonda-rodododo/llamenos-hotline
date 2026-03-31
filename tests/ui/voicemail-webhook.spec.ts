@@ -1,5 +1,5 @@
-import { expect, test } from '@playwright/test'
-import { loginAsAdmin, navigateAfterLogin } from '../helpers'
+import { expect, test } from '../fixtures/auth'
+import { navigateAfterLogin } from '../helpers'
 
 /**
  * Build a Twilio-style application/x-www-form-urlencoded body string.
@@ -11,17 +11,13 @@ function twilioForm(params: Record<string, string>): string {
 test.describe('Voicemail UI', () => {
   test.describe.configure({ mode: 'serial' })
 
-  test.beforeEach(async ({ page }) => {
-    await loginAsAdmin(page)
-  })
-
   // TODO: Hub-scoping issue — voicemail handler resolves hubId from active call
   // context, but the API query uses the browser's active hub. Needs investigation
   // into hub resolution when webhooks arrive without hub context.
   // Tracked in: https://github.com/rhonda-rodododo/llamenos-hotline/issues/25
   test.fixme(
     'voicemail badge appears in calls list UI when hasVoicemail is true',
-    async ({ page, request }) => {
+    async ({ adminPage, request }) => {
       const callSid = `CA_test_vm_ui_${Date.now()}`
 
       // Step 1: Simulate incoming call
@@ -52,7 +48,7 @@ test.describe('Voicemail UI', () => {
       // Step 3: Wait for voicemail DB write to be fully committed, then
       // complete the call. The delay prevents a race where call-status
       // deletes the active call before the voicemail handler reads hubId.
-      await page.waitForTimeout(2000)
+      await adminPage.waitForTimeout(2000)
 
       const statusRes = await request.post('/telephony/call-status', {
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -68,8 +64,8 @@ test.describe('Voicemail UI', () => {
 
       // Step 4: Verify via authed browser fetch that hasVoicemail is set.
       // This confirms the DB state before we check the UI.
-      await page.waitForTimeout(2000)
-      const apiCheck = await page.evaluate(async (sid: string) => {
+      await adminPage.waitForTimeout(2000)
+      const apiCheck = await adminPage.evaluate(async (sid: string) => {
         const res = await fetch('/api/calls/history')
         if (!res.ok) return { ok: false, status: res.status }
         const data = await res.json()
@@ -88,17 +84,17 @@ test.describe('Voicemail UI', () => {
       expect(apiCheck.hasVoicemail, 'Call should have hasVoicemail=true').toBe(true)
 
       // Step 5: Navigate to calls page and verify UI shows voicemail badge
-      await navigateAfterLogin(page, '/calls')
-      await expect(page.getByRole('heading', { name: /call history/i })).toBeVisible({
+      await navigateAfterLogin(adminPage, '/calls')
+      await expect(adminPage.getByRole('heading', { name: /call history/i })).toBeVisible({
         timeout: 15000,
       })
-      await expect(page.locator('[data-testid="call-history-row"]').first()).toBeVisible({
+      await expect(adminPage.locator('[data-testid="call-history-row"]').first()).toBeVisible({
         timeout: 15000,
       })
 
       // Use voicemail-badge (always rendered when hasVoicemail=true) rather
       // than voicemail-player (may be empty without audio fileId)
-      await expect(page.locator('[data-testid="voicemail-badge"]').first()).toBeVisible({
+      await expect(adminPage.locator('[data-testid="voicemail-badge"]').first()).toBeVisible({
         timeout: 10000,
       })
     }

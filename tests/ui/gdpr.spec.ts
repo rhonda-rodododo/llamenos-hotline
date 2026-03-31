@@ -1,15 +1,5 @@
-import { expect, test } from '@playwright/test'
-import {
-  ADMIN_NSEC,
-  TEST_PIN,
-  Timeouts,
-  createUserAndGetNsec,
-  enterPin,
-  loginAsAdmin,
-  loginAsUser,
-  navigateAfterLogin,
-  uniquePhone,
-} from '../helpers'
+import { expect, test } from '../fixtures/auth'
+import { Timeouts, navigateAfterLogin } from '../helpers'
 
 test.describe('GDPR Compliance', () => {
   test.describe('Consent gate', () => {
@@ -18,40 +8,30 @@ test.describe('GDPR Compliance', () => {
      * Since test users start without consent, it should appear.
      * After agreeing it should disappear and not appear again.
      */
-    test('consent gate hidden for admin (already consented or skipped)', async ({ page }) => {
-      await loginAsAdmin(page)
+    test('consent gate hidden for admin (already consented or skipped)', async ({ adminPage }) => {
       // After login, dashboard should be visible — no consent gate blocking it
-      await expect(page.getByRole('heading', { name: 'Dashboard', exact: true })).toBeVisible({
+      await expect(adminPage.getByRole('heading', { name: 'Dashboard', exact: true })).toBeVisible({
         timeout: Timeouts.AUTH,
       })
       // Consent gate should not be visible
-      const gate = page.getByTestId('consent-gate')
+      const gate = adminPage.getByTestId('consent-gate')
       await expect(gate).not.toBeVisible()
     })
 
-    test('consent gate shown and dismissed after agreement', async ({ page, request }) => {
-      // Create a fresh user
-      const adminPage = await page.context().newPage()
-      await loginAsAdmin(adminPage)
-      const nsec = await createUserAndGetNsec(adminPage, 'ConsentVol', uniquePhone())
-      await adminPage.close()
-
-      // Login as user — consent gate should appear
-      await loginAsUser(page, nsec)
-
+    test('consent gate shown and dismissed after agreement', async ({ volunteerPage }) => {
       // Consent gate may or may not appear depending on whether user has consented before
       // If it appears, scroll to bottom and agree
-      const gate = page.getByTestId('consent-gate')
+      const gate = volunteerPage.getByTestId('consent-gate')
       const gateVisible = await gate.isVisible({ timeout: 3000 }).catch(() => false)
       if (gateVisible) {
         // Scroll the consent area to the bottom
-        const scrollArea = page.getByTestId('consent-scroll-area')
+        const scrollArea = volunteerPage.getByTestId('consent-scroll-area')
         await scrollArea.evaluate((el: HTMLElement) => {
           el.scrollTop = el.scrollHeight
         })
 
         // Wait for agree button to become enabled
-        const agreeBtn = page.getByTestId('consent-agree-button')
+        const agreeBtn = volunteerPage.getByTestId('consent-agree-button')
         await expect(agreeBtn).toBeEnabled({ timeout: 5000 })
 
         // Click agree
@@ -61,7 +41,9 @@ test.describe('GDPR Compliance', () => {
         await expect(gate).not.toBeVisible({ timeout: 5000 })
 
         // Dashboard should now be accessible
-        await expect(page.getByRole('heading', { name: 'Dashboard', exact: true })).toBeVisible({
+        await expect(
+          volunteerPage.getByRole('heading', { name: 'Dashboard', exact: true })
+        ).toBeVisible({
           timeout: Timeouts.AUTH,
         })
       }
@@ -69,20 +51,19 @@ test.describe('GDPR Compliance', () => {
   })
 
   test.describe('Data export', () => {
-    test('admin can navigate to settings and trigger data export', async ({ page }) => {
-      await loginAsAdmin(page)
-      await navigateAfterLogin(page, '/settings')
-      await page.waitForTimeout(Timeouts.ASYNC_SETTLE)
+    test('admin can navigate to settings and trigger data export', async ({ adminPage }) => {
+      await navigateAfterLogin(adminPage, '/settings')
+      await adminPage.waitForTimeout(Timeouts.ASYNC_SETTLE)
 
       // Expand the Privacy & Data section by clicking the collapsible card header
-      const privacyCard = page.getByTestId('privacy')
+      const privacyCard = adminPage.getByTestId('privacy')
       await expect(privacyCard).toBeVisible({ timeout: 5000 })
       // Click the CardHeader (CollapsibleTrigger) to expand the section
-      await page.getByTestId('privacy-trigger').click()
-      await page.waitForTimeout(500)
+      await adminPage.getByTestId('privacy-trigger').click()
+      await adminPage.waitForTimeout(500)
 
       // Export button should be visible
-      const exportBtn = page.getByTestId('gdpr-export-button')
+      const exportBtn = adminPage.getByTestId('gdpr-export-button')
       await expect(exportBtn).toBeVisible({ timeout: 5000 })
 
       // We can't easily intercept file downloads in a headless test,
@@ -106,36 +87,26 @@ test.describe('GDPR Compliance', () => {
   })
 
   test.describe('Right to erasure', () => {
-    let userNsec: string
-
-    test.beforeAll(async ({ browser }) => {
-      const page = await browser.newPage()
-      await loginAsAdmin(page)
-      userNsec = await createUserAndGetNsec(page, 'ErasureVol', uniquePhone())
-      await page.close()
-    })
-
-    test('user can request account erasure and cancel it', async ({ page }) => {
-      test.slow() // full flow: create user + login + navigate + request + cancel
-      await loginAsUser(page, userNsec)
+    test('user can request account erasure and cancel it', async ({ volunteerPage }) => {
+      test.slow() // full flow: navigate + request + cancel
 
       // Navigate to settings
-      await navigateAfterLogin(page, '/settings')
-      await page.waitForTimeout(Timeouts.ASYNC_SETTLE)
+      await navigateAfterLogin(volunteerPage, '/settings')
+      await volunteerPage.waitForTimeout(Timeouts.ASYNC_SETTLE)
 
       // Expand privacy section by clicking the collapsible card header
-      const privacyCard = page.getByTestId('privacy')
+      const privacyCard = volunteerPage.getByTestId('privacy')
       await expect(privacyCard).toBeVisible({ timeout: 5000 })
-      await page.getByTestId('privacy-trigger').click()
-      await page.waitForTimeout(500)
+      await volunteerPage.getByTestId('privacy-trigger').click()
+      await volunteerPage.waitForTimeout(500)
 
       // Request erasure button should be present
-      const requestBtn = page.getByTestId('gdpr-request-erasure-button')
+      const requestBtn = volunteerPage.getByTestId('gdpr-request-erasure-button')
       await expect(requestBtn).toBeVisible({ timeout: 5000 })
       await requestBtn.click()
 
       // Should now show cancel button (erasure requested)
-      const cancelBtn = page.getByTestId('gdpr-cancel-erasure-button')
+      const cancelBtn = volunteerPage.getByTestId('gdpr-cancel-erasure-button')
       await expect(cancelBtn).toBeVisible({ timeout: 5000 })
 
       // Cancel the erasure
@@ -147,13 +118,12 @@ test.describe('GDPR Compliance', () => {
   })
 
   test.describe('Retention settings', () => {
-    test('admin can view and save retention settings', async ({ page }) => {
-      await loginAsAdmin(page)
-      await navigateAfterLogin(page, '/admin/settings')
-      await page.waitForTimeout(Timeouts.ASYNC_SETTLE)
+    test('admin can view and save retention settings', async ({ adminPage }) => {
+      await navigateAfterLogin(adminPage, '/admin/settings')
+      await adminPage.waitForTimeout(Timeouts.ASYNC_SETTLE)
 
       // Find retention section
-      const retentionSection = page.getByRole('button', { name: /data retention/i })
+      const retentionSection = adminPage.getByRole('button', { name: /data retention/i })
       const sectionVisible = await retentionSection.isVisible({ timeout: 3000 }).catch(() => false)
       if (sectionVisible) {
         const expanded = await retentionSection.getAttribute('aria-expanded')
@@ -161,21 +131,21 @@ test.describe('GDPR Compliance', () => {
       }
 
       // Call records input should be visible
-      const callRecordsInput = page.getByTestId('retention-callRecordsDays')
+      const callRecordsInput = adminPage.getByTestId('retention-callRecordsDays')
       const inputVisible = await callRecordsInput.isVisible({ timeout: 3000 }).catch(() => false)
       if (inputVisible) {
         await callRecordsInput.fill('400')
-        await page.getByTestId('retention-save-button').click()
+        await adminPage.getByTestId('retention-save-button').click()
         // Should show success toast
-        await expect(page.getByText(/retention settings saved/i)).toBeVisible({ timeout: 5000 })
+        await expect(adminPage.getByText(/retention settings saved/i)).toBeVisible({
+          timeout: 5000,
+        })
       }
     })
 
-    test('GET /api/settings/retention returns retention config', async ({ page, request }) => {
-      await loginAsAdmin(page)
-
+    test('GET /api/settings/retention returns retention config', async ({ adminPage, request }) => {
       // Use the page's JWT token to make an authenticated API request
-      const accessToken = await page.evaluate(() => sessionStorage.getItem('__TEST_JWT'))
+      const accessToken = await adminPage.evaluate(() => sessionStorage.getItem('__TEST_JWT'))
       const headers: Record<string, string> = {}
       if (accessToken) headers.Authorization = `Bearer ${accessToken}`
 

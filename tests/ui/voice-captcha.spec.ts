@@ -1,5 +1,5 @@
-import { expect, test } from '@playwright/test'
-import { ADMIN_NSEC, loginAsAdmin } from '../helpers'
+import { expect, test } from '../fixtures/auth'
+import { ADMIN_NSEC } from '../helpers'
 import { createAuthedRequestFromNsec } from '../helpers/authed-request'
 
 /**
@@ -166,16 +166,17 @@ test.describe('Voice CAPTCHA', () => {
   })
 
   // --- Admin UI: captchaMaxAttempts setting ---
-  test('admin can set captchaMaxAttempts in spam settings UI', async ({ page, request }) => {
-    await loginAsAdmin(page)
-    await page.getByRole('link', { name: 'Hub Settings' }).click()
-    await expect(page.getByRole('heading', { name: 'Hub Settings', exact: true })).toBeVisible()
+  test('admin can set captchaMaxAttempts in spam settings UI', async ({ adminPage, request }) => {
+    await adminPage.getByRole('link', { name: 'Hub Settings' }).click()
+    await expect(
+      adminPage.getByRole('heading', { name: 'Hub Settings', exact: true })
+    ).toBeVisible()
 
     // Expand spam section
-    await page.getByText('Spam Mitigation').first().click()
+    await adminPage.getByText('Spam Mitigation').first().click()
 
     // Enable CAPTCHA if not already enabled
-    const captchaSwitch = page
+    const captchaSwitch = adminPage
       .locator('text=Voice CAPTCHA')
       .locator('..')
       .locator('..')
@@ -186,14 +187,14 @@ test.describe('Voice CAPTCHA', () => {
       // Need to enable via confirmation dialog
       await captchaSwitch.click()
       // Handle potential confirmation dialog
-      const confirmBtn = page.getByRole('button', { name: /confirm|enable/i })
+      const confirmBtn = adminPage.getByRole('button', { name: /confirm|enable/i })
       if (await confirmBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
         await confirmBtn.click()
       }
     }
 
     // Max attempts input should now be visible
-    const maxAttemptsInput = page.locator('#captcha-max-attempts')
+    const maxAttemptsInput = adminPage.locator('#captcha-max-attempts')
     await expect(maxAttemptsInput).toBeVisible({ timeout: 5000 })
 
     // Change value to 3

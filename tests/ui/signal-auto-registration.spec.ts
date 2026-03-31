@@ -1,5 +1,5 @@
-import { expect, test } from '@playwright/test'
-import { ADMIN_NSEC, loginAsAdmin, navigateAfterLogin } from '../helpers'
+import { expect, test } from '../fixtures/auth'
+import { ADMIN_NSEC } from '../helpers'
 import { createAuthedRequestFromNsec } from '../helpers/authed-request'
 
 test.describe('Signal Automated Registration', () => {
@@ -88,13 +88,14 @@ test.describe('Signal Automated Registration', () => {
     expect(body.error).toContain('required')
   })
 
-  test('Signal settings show registration flow when not configured', async ({ page }) => {
-    await loginAsAdmin(page)
-    await navigateAfterLogin(page, '/admin/settings')
+  test('Signal settings show registration flow when not configured', async ({ adminPage }) => {
+    await adminPage.getByRole('link', { name: 'Hub Settings' }).click()
 
     // The settings page should load — verify the heading
-    await expect(page.getByRole('heading', { name: 'Hub Settings', exact: true })).toBeVisible({
-      timeout: 10000,
-    })
+    await expect(adminPage.getByRole('heading', { name: 'Hub Settings', exact: true })).toBeVisible(
+      {
+        timeout: 10000,
+      }
+    )
   })
 })

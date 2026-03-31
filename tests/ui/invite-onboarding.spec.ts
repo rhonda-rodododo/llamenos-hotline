@@ -1,48 +1,46 @@
-import { expect, test } from '@playwright/test'
-import { loginAsAdmin, uniquePhone } from '../helpers'
+import { expect, test } from '../fixtures/auth'
+import { uniquePhone } from '../helpers'
 
 test.describe('Invite-based onboarding', () => {
   let inviteLink: string
 
-  test('admin creates invite and user completes onboarding', async ({ page }) => {
+  test('admin creates invite and user completes onboarding', async ({ adminPage, browser }) => {
     // --- Step 1: Admin creates invite ---
-    await loginAsAdmin(page)
-    await page.getByRole('link', { name: 'Users' }).click()
-    await expect(page.getByRole('heading', { name: 'Users' })).toBeVisible()
+    await adminPage.getByRole('link', { name: 'Users' }).click()
+    await expect(adminPage.getByRole('heading', { name: 'Users' })).toBeVisible()
 
     const userName = `Onboard ${Date.now()}`
     const userPhone = uniquePhone()
 
-    await page.getByRole('button', { name: /invite user/i }).click()
+    await adminPage.getByRole('button', { name: /invite user/i }).click()
 
     // Wait for the invite form to render
-    const nameInput = page.getByLabel('Name')
+    const nameInput = adminPage.getByLabel('Name')
     await expect(nameInput).toBeVisible({ timeout: 10000 })
     await nameInput.fill(userName)
 
     // PhoneInput is a complex component — use the input with the invite-phone id
-    const phoneInput = page.locator('#invite-phone')
+    const phoneInput = adminPage.locator('#invite-phone')
     await expect(phoneInput).toBeVisible({ timeout: 5000 })
     await phoneInput.fill(userPhone)
     await phoneInput.blur()
 
-    await page.getByRole('button', { name: /create invite/i }).click()
+    await adminPage.getByRole('button', { name: /create invite/i }).click()
 
     // Invite link should appear
-    const linkEl = page.getByTestId('invite-link-code')
+    const linkEl = adminPage.getByTestId('invite-link-code')
     await expect(linkEl).toBeVisible({ timeout: 15000 })
     inviteLink = (await linkEl.textContent())!
     expect(inviteLink).toContain('/onboarding?code=')
 
     // Close the send invite dialog that auto-opens after creation
-    await page.keyboard.press('Escape')
-    await page.waitForTimeout(300)
+    await adminPage.keyboard.press('Escape')
+    await adminPage.waitForTimeout(300)
 
-    // --- Step 2: Log out admin ---
-    await page.getByRole('button', { name: /log out/i }).click()
-    await expect(page.getByRole('heading', { name: /sign in/i })).toBeVisible()
+    // --- Step 2: User opens invite link in a fresh browser context ---
+    const userContext = await browser.newContext()
+    const page = await userContext.newPage()
 
-    // --- Step 3: User opens invite link ---
     await page.goto(inviteLink)
     await expect(page.getByText(/welcome/i)).toBeVisible({ timeout: 15000 })
     await expect(page.getByText(userName)).toBeVisible()
@@ -52,10 +50,10 @@ test.describe('Invite-based onboarding', () => {
     await expect(langGroup).toBeVisible()
     await expect(langGroup.locator('[role="radio"][aria-checked="true"]')).toBeVisible()
 
-    // --- Step 4: Click Get Started ---
+    // --- Step 3: Click Get Started ---
     await page.getByRole('button', { name: /get started/i }).click()
 
-    // --- Step 5: Create PIN (6 digits via PIN input, then Enter for 8-box input) ---
+    // --- Step 4: Create PIN (6 digits via PIN input, then Enter for 8-box input) ---
     await expect(page.getByText(/create a pin/i)).toBeVisible({ timeout: 5000 })
     for (let i = 0; i < 6; i++) {
       const input = page.locator(`input[aria-label="PIN digit ${i + 1}"]`)
@@ -64,7 +62,7 @@ test.describe('Invite-based onboarding', () => {
     }
     await page.keyboard.press('Enter')
 
-    // --- Step 6: Confirm PIN ---
+    // --- Step 5: Confirm PIN ---
     await expect(page.getByText(/confirm your pin/i)).toBeVisible({ timeout: 5000 })
     for (let i = 0; i < 6; i++) {
       const input = page.locator(`input[aria-label="PIN digit ${i + 1}"]`)
@@ -73,7 +71,7 @@ test.describe('Invite-based onboarding', () => {
     }
     await page.keyboard.press('Enter')
 
-    // --- Step 7: Recovery key page (nsec is NOT shown) ---
+    // --- Step 6: Recovery key page (nsec is NOT shown) ---
     await expect(page.getByText(/save your recovery key/i)).toBeVisible({ timeout: 15000 })
     const recoveryKeyEl = page.getByTestId('recovery-key')
     await expect(recoveryKeyEl).toBeVisible()
@@ -83,10 +81,10 @@ test.describe('Invite-based onboarding', () => {
     // Download backup (mandatory before continue)
     await page.getByRole('button', { name: /download encrypted backup/i }).click()
 
-    // --- Step 8: Acknowledge backup saved ---
+    // --- Step 7: Acknowledge backup saved ---
     await page.getByText('I have saved my recovery key').click()
 
-    // --- Step 9: Continue to profile setup ---
+    // --- Step 8: Continue to profile setup ---
     await page.getByRole('button', { name: /continue/i }).click()
 
     // Should land on profile-setup or dashboard
@@ -97,59 +95,70 @@ test.describe('Invite-based onboarding', () => {
       },
       { timeout: 15000 }
     )
+
+    await userContext.close()
   })
 
-  test('invalid invite code shows error', async ({ page }) => {
+  test('invalid invite code shows error', async ({ browser }) => {
+    const ctx = await browser.newContext()
+    const page = await ctx.newPage()
     await page.goto('/onboarding?code=invalidcode123')
     await expect(page.getByText(/invalid invite/i)).toBeVisible({ timeout: 10000 })
     await expect(page.getByRole('button', { name: /go to login/i })).toBeVisible()
+    await ctx.close()
   })
 
-  test('missing invite code shows error', async ({ page }) => {
+  test('missing invite code shows error', async ({ browser }) => {
+    const ctx = await browser.newContext()
+    const page = await ctx.newPage()
     await page.goto('/onboarding')
     await expect(page.getByText(/no invite code/i)).toBeVisible({ timeout: 10000 })
+    await ctx.close()
   })
 
-  test('admin can see pending invites and revoke them', async ({ page }) => {
-    await loginAsAdmin(page)
-    await page.getByRole('link', { name: 'Users' }).click()
-    await expect(page.getByRole('heading', { name: 'Users' })).toBeVisible()
+  test('admin can see pending invites and revoke them', async ({ adminPage }) => {
+    await adminPage.getByRole('link', { name: 'Users' }).click()
+    await expect(adminPage.getByRole('heading', { name: 'Users' })).toBeVisible()
 
     // Create an invite
     const userName = `Revoke ${Date.now()}`
     const userPhone = uniquePhone()
 
-    await page.getByRole('button', { name: /invite user/i }).click()
+    await adminPage.getByRole('button', { name: /invite user/i }).click()
 
     // Wait for the invite form to render
-    const nameInput = page.getByLabel('Name')
+    const nameInput = adminPage.getByLabel('Name')
     await expect(nameInput).toBeVisible({ timeout: 10000 })
     await nameInput.fill(userName)
 
     // PhoneInput is a complex component — use the input with the invite-phone id
-    const phoneInput = page.locator('#invite-phone')
+    const phoneInput = adminPage.locator('#invite-phone')
     await expect(phoneInput).toBeVisible({ timeout: 5000 })
     await phoneInput.fill(userPhone)
     await phoneInput.blur()
 
-    await page.getByRole('button', { name: /create invite/i }).click()
+    await adminPage.getByRole('button', { name: /create invite/i }).click()
 
     // Wait for invite link to appear, then close the send invite dialog
-    await expect(page.getByTestId('invite-link-code')).toBeVisible({ timeout: 15000 })
-    await page.keyboard.press('Escape')
-    await page.waitForTimeout(300)
+    await expect(adminPage.getByTestId('invite-link-code')).toBeVisible({ timeout: 15000 })
+    await adminPage.keyboard.press('Escape')
+    await adminPage.waitForTimeout(300)
 
     // Close the invite link card
-    await page.getByTestId('dismiss-invite').click()
+    await adminPage.getByTestId('dismiss-invite').click()
 
     // Pending invites section should show our invite
-    await expect(page.getByText(userName)).toBeVisible()
+    await expect(adminPage.getByText(userName)).toBeVisible()
 
     // Revoke it — find the paragraph with the user name, then go up to the parent container
-    const inviteEntry = page.locator('p').filter({ hasText: userName }).locator('..').locator('..')
+    const inviteEntry = adminPage
+      .locator('p')
+      .filter({ hasText: userName })
+      .locator('..')
+      .locator('..')
     await inviteEntry.getByRole('button', { name: /revoke/i }).click()
 
     // Invite should be removed
-    await expect(page.locator('main').getByText(userName)).not.toBeVisible({ timeout: 5000 })
+    await expect(adminPage.locator('main').getByText(userName)).not.toBeVisible({ timeout: 5000 })
   })
 })
