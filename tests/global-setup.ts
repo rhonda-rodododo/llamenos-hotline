@@ -187,12 +187,17 @@ async function createRoleAccount(
     storageFile: string
   }
 ) {
-  // Navigate to Users page
+  // Navigate to Users page — wait for data to load before interacting
   await adminPage.getByRole('link', { name: 'Users' }).click()
   await expect(adminPage.getByRole('heading', { name: 'Users' })).toBeVisible({ timeout: 10000 })
+  // Wait for the page data to settle (React Query fetch + render)
+  await adminPage.waitForLoadState('networkidle')
+  await adminPage.waitForTimeout(1000)
 
   // Click "Invite User"
-  await adminPage.getByRole('button', { name: /invite user/i }).click()
+  const inviteBtn = adminPage.getByRole('button', { name: /invite user/i })
+  await inviteBtn.waitFor({ state: 'visible', timeout: 10000 })
+  await inviteBtn.click()
 
   // Fill invite form
   await adminPage.getByLabel('Name').fill(opts.name)
@@ -228,14 +233,17 @@ async function createRoleAccount(
   const inviteLink = await inviteLinkEl.textContent()
   if (!inviteLink) throw new Error(`Failed to get invite link for ${opts.name}`)
 
-  // Dismiss the send invite dialog if it auto-opens
-  await adminPage.keyboard.press('Escape')
-  await adminPage.waitForTimeout(300)
-
-  // Dismiss the invite link card
-  const dismissBtn = adminPage.getByTestId('dismiss-invite')
+  // Dismiss all overlays — send invite dialog, invite link card
+  // Press Escape repeatedly to close any dialogs
+  for (let i = 0; i < 3; i++) {
+    await adminPage.keyboard.press('Escape')
+    await adminPage.waitForTimeout(300)
+  }
+  // Also click dismiss button if still visible
+  const dismissBtn = adminPage.getByTestId('dismiss-invite').first()
   if (await dismissBtn.isVisible({ timeout: 1000 }).catch(() => false)) {
     await dismissBtn.click()
+    await adminPage.waitForTimeout(300)
   }
 
   // Open new browser context for the invited user
@@ -254,6 +262,9 @@ async function createRoleAccount(
     // Create PIN
     await enterSetupPin(userPage, TEST_PIN)
 
+    // Wait for confirm step to render (prevent Enter bleed from create step)
+    await userPage.getByText('Confirm your PIN').waitFor({ state: 'visible', timeout: 5000 })
+
     // Confirm PIN
     await enterSetupPin(userPage, TEST_PIN)
 
@@ -264,7 +275,7 @@ async function createRoleAccount(
     // Download backup — triggers blob download via <a> element
     const userDownload = userPage.waitForEvent('download', { timeout: 15000 })
     await userPage.getByRole('button', { name: /download encrypted backup/i }).click()
-    await userDownload.catch(() => {})
+    await userDownload
 
     // Acknowledge backup
     await userPage.getByText('I have saved my recovery key').click()
