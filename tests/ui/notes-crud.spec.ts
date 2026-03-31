@@ -25,8 +25,10 @@ test.describe('Notes CRUD', () => {
     await adminPage.locator('textarea').fill('Test note from E2E')
     await adminPage.getByRole('button', { name: /save/i }).click()
 
-    // Note should appear as paragraph text (not in textarea)
-    await expect(adminPage.locator('p').filter({ hasText: 'Test note from E2E' })).toBeVisible()
+    // Note should appear as decrypted paragraph text after list refetch + decryption
+    await expect(adminPage.locator('p').filter({ hasText: 'Test note from E2E' })).toBeVisible({
+      timeout: 15000,
+    })
   })
 
   test('can cancel new note', async ({ adminPage }) => {

@@ -421,7 +421,7 @@ authFacade.post('/session/revoke', async (c) => {
     httpOnly: true,
     secure: true,
     sameSite: 'Strict',
-    path: '/auth/token',
+    path: '/api/auth/token',
     maxAge: 0,
   })
 

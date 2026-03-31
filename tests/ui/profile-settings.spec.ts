@@ -29,7 +29,12 @@ test.describe('Profile self-service', () => {
     await expect(
       adminPage.getByRole('heading', { name: 'Account Settings', exact: true })
     ).toBeVisible()
-    await expect(adminPage.locator('#profile-name')).toHaveValue(newName)
+    // After PIN unlock, the crypto worker needs time to decrypt envelope-encrypted fields.
+    // Wait for the profile name input to show the decrypted value (not [encrypted]).
+    await expect(adminPage.locator('#profile-name')).not.toHaveValue('[encrypted]', {
+      timeout: 15000,
+    })
+    await expect(adminPage.locator('#profile-name')).toHaveValue(newName, { timeout: 10000 })
 
     // Restore original name
     await adminPage.locator('#profile-name').fill(oldName || 'Admin')
@@ -151,7 +156,11 @@ test.describe('Profile self-service', () => {
     await expect(
       volunteerPage.getByRole('heading', { name: 'Account Settings', exact: true })
     ).toBeVisible()
-    await expect(volunteerPage.locator('#profile-name')).toHaveValue(newName)
+    // After PIN unlock, the crypto worker needs time to decrypt envelope-encrypted fields.
+    await expect(volunteerPage.locator('#profile-name')).not.toHaveValue('[encrypted]', {
+      timeout: 15000,
+    })
+    await expect(volunteerPage.locator('#profile-name')).toHaveValue(newName, { timeout: 10000 })
   })
 
   test('spoken language selection works', async ({ adminPage }) => {
