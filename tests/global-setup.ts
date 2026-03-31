@@ -4,12 +4,19 @@ const TEST_PIN = '123456'
 const TEST_RESET_SECRET = process.env.DEV_RESET_SECRET || 'test-reset-secret'
 const STORAGE_DIR = 'tests/storage'
 
-/** Enter a 6-digit PIN into the PinInput component. */
+/**
+ * Enter a 6-digit PIN into the PinInput component.
+ * Uses per-digit click+type because the bootstrap/onboarding components
+ * re-render heavily and the faster keyboard.type approach drops digits.
+ */
 async function enterSetupPin(page: import('@playwright/test').Page, pin: string) {
   const firstDigit = page.locator('input[aria-label="PIN digit 1"]')
   await firstDigit.waitFor({ state: 'visible', timeout: 30000 })
-  await firstDigit.focus()
-  await page.keyboard.type(pin, { delay: 80 })
+  for (let i = 0; i < pin.length; i++) {
+    const input = page.locator(`input[aria-label="PIN digit ${i + 1}"]`)
+    await input.click()
+    await input.pressSequentially(pin[i])
+  }
   await page.keyboard.press('Enter')
 }
 
@@ -45,17 +52,33 @@ async function bootstrapAdmin(page: import('@playwright/test').Page) {
   const recoveryKey = page.getByTestId('recovery-key')
   await expect(recoveryKey).toBeVisible({ timeout: 90000 })
 
+  // Log all console output to help debug failures
+  page.on('console', (msg) => {
+    if (msg.type() === 'error' || msg.type() === 'warn') {
+      console.log(`[BROWSER ${msg.type().toUpperCase()}] ${msg.text()}`)
+    }
+  })
+  page.on('pageerror', (err) => console.log(`[PAGE ERROR] ${err.message}`))
+
   // Download backup (required before continuing)
+  const downloadPromise = page.waitForEvent('download')
   await page.getByRole('button', { name: /download encrypted backup/i }).click()
+  const download = await downloadPromise
+  console.log(`[SETUP] Backup downloaded: ${download.suggestedFilename()}`)
 
   // Acknowledge backup saved
   await page.getByText('I have saved my recovery key').click()
+  console.log('[SETUP] Backup acknowledged')
 
-  // Continue to setup wizard
-  await page.getByRole('button', { name: /continue to setup/i }).click()
+  // Continue to setup wizard — this triggers importKey (PBKDF2 600K) + signIn
+  const continueBtn = page.getByRole('button', { name: /continue to setup/i })
+  await expect(continueBtn).toBeEnabled({ timeout: 5000 })
+  console.log('[SETUP] Clicking Continue to Setup...')
+  await continueBtn.click()
+  console.log('[SETUP] Continue clicked, waiting for Setup Wizard (PBKDF2 + signIn)...')
 
-  // Wait for setup wizard to load (importKey runs PBKDF2 again — slow)
-  await expect(page.getByText('Setup Wizard')).toBeVisible({ timeout: 90000 })
+  // Wait for setup wizard to load — importKey + signIn can take 30s+ on CI
+  await expect(page.getByText('Setup Wizard')).toBeVisible({ timeout: 120000 })
   await expect(page.getByText('Identity', { exact: true })).toBeVisible()
 
   // Complete identity step (minimum for functional hub)
@@ -183,8 +206,10 @@ async function createRoleAccount(
     const recoveryKey = userPage.getByTestId('recovery-key')
     await expect(recoveryKey).toBeVisible({ timeout: 90000 })
 
-    // Download backup
+    // Download backup — triggers blob download via <a> element
+    const userDownload = userPage.waitForEvent('download', { timeout: 15000 })
     await userPage.getByRole('button', { name: /download encrypted backup/i }).click()
+    await userDownload.catch(() => {})
 
     // Acknowledge backup
     await userPage.getByText('I have saved my recovery key').click()
