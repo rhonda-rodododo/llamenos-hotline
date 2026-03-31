@@ -1,11 +1,5 @@
 import { expect, test } from '../fixtures/auth'
-import {
-  completeProfileSetup,
-  createUserAndGetNsec,
-  loginAsUser,
-  navigateAfterLogin,
-  uniquePhone,
-} from '../helpers'
+import { navigateAfterLogin, uniquePhone } from '../helpers'
 
 test.describe('Ban management', () => {
   test.beforeEach(async ({ adminPage }) => {
@@ -202,21 +196,9 @@ test.describe('Ban management', () => {
     await expect(adminPage.getByText(/invalid phone/i)).toBeVisible({ timeout: 5000 })
   })
 
-  test('user cannot access ban list', async ({ adminPage }) => {
-    // Create a user
-    const phone = uniquePhone()
-    const name = `NoBanVol ${Date.now()}`
-    await adminPage.getByRole('link', { name: 'Users' }).click()
-    const nsec = await createUserAndGetNsec(adminPage, name, phone)
-    await adminPage.getByTestId('dismiss-nsec').click()
-
-    // Login as user
-    await adminPage.getByRole('button', { name: /log out/i }).click()
-    await loginAsUser(adminPage, nsec)
-    await completeProfileSetup(adminPage)
-
-    // Navigate directly to bans page (SPA navigate to avoid full reload clearing keyManager)
-    await navigateAfterLogin(adminPage, '/bans')
-    await expect(adminPage.getByText(/access denied/i)).toBeVisible({ timeout: 10000 })
+  test('volunteer cannot access ban list', async ({ volunteerPage }) => {
+    // Navigate directly to bans page as a volunteer
+    await navigateAfterLogin(volunteerPage, '/bans')
+    await expect(volunteerPage.getByText(/access denied/i)).toBeVisible({ timeout: 10000 })
   })
 })

@@ -1,16 +1,15 @@
 import { expect, test } from '../fixtures/auth'
-import { completeProfileSetup, createUserAndGetNsec, loginAsUser, uniquePhone } from '../helpers'
 
 test.describe('Dashboard Analytics', () => {
   test('analytics section is visible to admins on the dashboard', async ({ adminPage }) => {
-    // loginAsAdmin already lands on dashboard — no need to navigate again
+    // Admin fixture lands on dashboard — no need to navigate again
     const trigger = adminPage.getByTestId('analytics-section-trigger')
     await expect(trigger).toBeVisible({ timeout: 15000 })
     await expect(trigger).toContainText('Analytics')
   })
 
   test('analytics section is collapsed by default', async ({ adminPage }) => {
-    // loginAsAdmin already lands on dashboard
+    // Admin fixture lands on dashboard
     // Charts should not be visible when collapsed
     await expect(adminPage.getByTestId('call-volume-chart')).not.toBeVisible()
     await expect(adminPage.getByTestId('call-hours-chart')).not.toBeVisible()
@@ -100,18 +99,11 @@ test.describe('Dashboard Analytics', () => {
 })
 
 test.describe('Dashboard Analytics — user visibility', () => {
-  test('analytics section is hidden from users', async ({ adminPage, request }) => {
-    // Create a user and get their nsec
-    const phone = uniquePhone()
-    const nsec = await createUserAndGetNsec(adminPage, 'Test User', phone)
+  test('analytics section is hidden from volunteers', async ({ volunteerPage }) => {
+    // Navigate to dashboard as a volunteer
+    await volunteerPage.goto('/')
 
-    // Login as the user
-    await loginAsUser(adminPage, nsec)
-    await completeProfileSetup(adminPage)
-
-    await adminPage.goto('/')
-
-    // Analytics trigger should NOT be visible for users
-    await expect(adminPage.getByTestId('analytics-section-trigger')).not.toBeVisible()
+    // Analytics trigger should NOT be visible for volunteers
+    await expect(volunteerPage.getByTestId('analytics-section-trigger')).not.toBeVisible()
   })
 })

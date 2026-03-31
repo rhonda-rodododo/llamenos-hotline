@@ -1,26 +1,7 @@
 import { expect, test } from '../fixtures/auth'
-import {
-  TEST_PIN,
-  completeProfileSetup,
-  createUserAndGetNsec,
-  enterPin,
-  loginAsUser,
-  navigateAfterLogin,
-  uniquePhone,
-} from '../helpers'
+import { TEST_PIN, enterPin, navigateAfterLogin } from '../helpers'
 
 test.describe('Profile self-service', () => {
-  let userNsec: string
-
-  test.beforeAll(async ({ browser }) => {
-    const page = await browser.newPage()
-    // Use the raw page for beforeAll setup — import loginAsAdmin from helpers for this
-    const { loginAsAdmin } = await import('../helpers')
-    await loginAsAdmin(page)
-    userNsec = await createUserAndGetNsec(page, 'Profile Vol', uniquePhone())
-    await page.close()
-  })
-
   test('admin can edit profile name and it persists', async ({ adminPage }) => {
     await adminPage.getByRole('link', { name: 'Settings', exact: true }).click()
     await expect(
@@ -88,20 +69,19 @@ test.describe('Profile self-service', () => {
     await expect(adminPage.getByText(/invalid phone/i)).toBeVisible({ timeout: 5000 })
   })
 
-  test('user sees profile card in settings', async ({ page }) => {
-    await loginAsUser(page, userNsec)
-    await completeProfileSetup(page)
-
-    await page.getByRole('link', { name: 'Settings' }).click()
-    await expect(page.getByRole('heading', { name: 'Account Settings', exact: true })).toBeVisible()
+  test('volunteer sees profile card in settings', async ({ volunteerPage }) => {
+    await volunteerPage.getByRole('link', { name: 'Settings' }).click()
+    await expect(
+      volunteerPage.getByRole('heading', { name: 'Account Settings', exact: true })
+    ).toBeVisible()
 
     // Profile card should be visible for all users
-    await expect(page.getByRole('heading', { name: 'Profile' })).toBeVisible()
-    await expect(page.locator('#profile-name')).toBeVisible()
-    await expect(page.locator('#profile-phone')).toBeVisible()
+    await expect(volunteerPage.getByRole('heading', { name: 'Profile' })).toBeVisible()
+    await expect(volunteerPage.locator('#profile-name')).toBeVisible()
+    await expect(volunteerPage.locator('#profile-phone')).toBeVisible()
 
     // Public key should be shown
-    await expect(page.getByText(/npub1/).first()).toBeVisible()
+    await expect(volunteerPage.getByText(/npub1/).first()).toBeVisible()
   })
 
   test('admin sees key backup in user settings and spam in admin settings', async ({
@@ -132,46 +112,46 @@ test.describe('Profile self-service', () => {
     await expect(adminPage.getByRole('heading', { name: /passkeys/i })).toBeVisible()
   })
 
-  test('user does not see admin settings link', async ({ page }) => {
-    await loginAsUser(page, userNsec)
-    await completeProfileSetup(page)
-
-    await page.getByRole('link', { name: 'Settings' }).click()
-    await expect(page.getByRole('heading', { name: 'Account Settings', exact: true })).toBeVisible()
+  test('volunteer does not see admin settings link', async ({ volunteerPage }) => {
+    await volunteerPage.getByRole('link', { name: 'Settings' }).click()
+    await expect(
+      volunteerPage.getByRole('heading', { name: 'Account Settings', exact: true })
+    ).toBeVisible()
 
     // Should NOT see Hub Settings nav link
-    await expect(page.getByRole('link', { name: 'Hub Settings' })).not.toBeVisible()
+    await expect(volunteerPage.getByRole('link', { name: 'Hub Settings' })).not.toBeVisible()
 
     // Should NOT see admin-only sections on user settings page
-    await expect(page.getByRole('heading', { name: /passkey policy/i })).not.toBeVisible()
-    await expect(page.getByRole('heading', { name: /spam mitigation/i })).not.toBeVisible()
+    await expect(volunteerPage.getByRole('heading', { name: /passkey policy/i })).not.toBeVisible()
+    await expect(volunteerPage.getByRole('heading', { name: /spam mitigation/i })).not.toBeVisible()
   })
 
-  test('user can update name and phone', async ({ page }) => {
-    await loginAsUser(page, userNsec)
-    await completeProfileSetup(page)
-
-    await page.getByRole('link', { name: 'Settings' }).click()
-    await expect(page.getByRole('heading', { name: 'Account Settings', exact: true })).toBeVisible()
+  test('volunteer can update name and phone', async ({ volunteerPage }) => {
+    await volunteerPage.getByRole('link', { name: 'Settings' }).click()
+    await expect(
+      volunteerPage.getByRole('heading', { name: 'Account Settings', exact: true })
+    ).toBeVisible()
 
     // Update name
     const newName = `Vol ${Date.now()}`
-    await page.locator('#profile-name').fill(newName)
+    await volunteerPage.locator('#profile-name').fill(newName)
 
     // Update phone
-    await page.locator('#profile-phone').fill('+15551234567')
-    await page.locator('#profile-phone').blur()
+    await volunteerPage.locator('#profile-phone').fill('+15551234567')
+    await volunteerPage.locator('#profile-phone').blur()
 
-    await page.getByRole('button', { name: /update profile/i }).click()
-    await expect(page.getByText(/profile updated/i)).toBeVisible({ timeout: 5000 })
+    await volunteerPage.getByRole('button', { name: /update profile/i }).click()
+    await expect(volunteerPage.getByText(/profile updated/i)).toBeVisible({ timeout: 5000 })
 
     // Verify name persists after reload
-    await page.reload()
-    await enterPin(page, TEST_PIN)
+    await volunteerPage.reload()
+    await enterPin(volunteerPage, TEST_PIN)
     // PIN unlock redirects to dashboard — navigate back to Settings
-    await page.getByRole('link', { name: 'Settings' }).click()
-    await expect(page.getByRole('heading', { name: 'Account Settings', exact: true })).toBeVisible()
-    await expect(page.locator('#profile-name')).toHaveValue(newName)
+    await volunteerPage.getByRole('link', { name: 'Settings' }).click()
+    await expect(
+      volunteerPage.getByRole('heading', { name: 'Account Settings', exact: true })
+    ).toBeVisible()
+    await expect(volunteerPage.locator('#profile-name')).toHaveValue(newName)
   })
 
   test('spoken language selection works', async ({ adminPage }) => {

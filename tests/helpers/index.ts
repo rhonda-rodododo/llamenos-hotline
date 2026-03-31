@@ -3,8 +3,6 @@ import { TestIds } from '../test-ids'
 
 export const ADMIN_NSEC = 'nsec174zsa94n3e7t0ugfldh9tgkkzmaxhalr78uxt9phjq3mmn6d6xas5jdffh'
 export const TEST_PIN = '123456'
-const TEST_JWT_SECRET =
-  process.env.JWT_SECRET || '0000000000000000000000000000000000000000000000000000000000000003'
 
 /**
  * Default timeout values for common operations.
@@ -30,57 +28,6 @@ export { TestIds } from '../test-ids'
 
 // Re-export page object utilities
 export * from '../pages/index'
-
-/**
- * Encrypt an nsec with a PIN and store in the browser's localStorage.
- *
- * Runs the PBKDF2 key derivation + XChaCha20-Poly1305 encryption inside
- * the browser via the app's own key-manager module. This avoids cross-platform
- * crypto divergence between Node.js and Chromium's WebCrypto implementations
- * (which caused test failures on macOS ARM64).
- */
-async function preloadEncryptedKey(page: Page, nsec: string, pin: string): Promise<void> {
-  // Wait for the key-manager module to be loaded (page must already be on the app)
-  await page.waitForFunction(() => window.__TEST_KEY_MANAGER, { timeout: 10000 })
-
-  // Derive pubkey and hex secret key from nsec in Node so we can pass them to the browser
-  const { nip19, getPublicKey } = await import('nostr-tools')
-  const { bytesToHex } = await import('@noble/hashes/utils.js')
-  const decoded = nip19.decode(nsec)
-  if (decoded.type !== 'nsec') throw new Error('Expected nsec')
-  const pubkey = getPublicKey(decoded.data)
-  const nsecHex = bytesToHex(decoded.data)
-
-  // Run encryption entirely in the browser using the app's own crypto.
-  // This avoids cross-platform divergence between Node.js and Chromium PBKDF2.
-  // importKey requires IdP value — use synthetic 'device-link' value (same as recovery flow).
-  // Real IdP value rotation happens on first unlock.
-  await page.evaluate(
-    async ({ nsecHex, pin, pubkey }) => {
-      // Derive synthetic IdP value in-browser using SubtleCrypto (same as key-store-v2.syntheticIdpValue)
-      const encoder = new TextEncoder()
-      const data = encoder.encode('llamenos:synthetic:device-link')
-      const hashBuffer = await crypto.subtle.digest('SHA-256', data)
-      const syntheticValue = new Uint8Array(hashBuffer)
-      await window.__TEST_KEY_MANAGER.importKey(
-        nsecHex,
-        pin,
-        pubkey,
-        syntheticValue,
-        undefined,
-        'device-link'
-      )
-    },
-    { nsecHex, pin, pubkey }
-  )
-
-  // Verify the key was actually stored before allowing reload.
-  // Under load, the localStorage write from importKey can be lost if the page
-  // reloads too quickly after evaluate() resolves.
-  await page.waitForFunction(() => localStorage.getItem('llamenos-encrypted-key-v2') !== null, {
-    timeout: 5000,
-  })
-}
 
 /**
  * Enter a PIN into the PinInput component.
@@ -196,112 +143,6 @@ export async function reenterPinAfterReload(page: Page): Promise<void> {
     await enterPin(page, TEST_PIN)
     await page.waitForURL((u) => !u.toString().includes('/login'), { timeout: 15000 })
   }
-}
-
-/**
- * Login as admin: pre-loads encrypted key into localStorage, then enters PIN.
- * Also installs a handler to auto-dismiss the session expired modal if it appears.
- */
-export async function loginAsAdmin(page: Page) {
-  await page.goto('/login', { waitUntil: 'domcontentloaded' })
-  await page.evaluate(() => sessionStorage.clear())
-  await preloadEncryptedKey(page, ADMIN_NSEC, TEST_PIN)
-
-  // Generate JWT for the admin and inject into the auth facade client.
-  // The PIN unlock flow calls getMe() which requires a valid JWT.
-  const { signAccessToken } = await import('../../src/server/lib/jwt')
-  const { nip19, getPublicKey } = await import('nostr-tools')
-  const decoded = nip19.decode(ADMIN_NSEC) as { type: 'nsec'; data: Uint8Array }
-  const adminPubkey = getPublicKey(decoded.data)
-  const jwtSecret = TEST_JWT_SECRET
-  const jwt = await signAccessToken({ pubkey: adminPubkey, permissions: ['*'] }, jwtSecret)
-
-  await page.reload({ waitUntil: 'domcontentloaded' })
-
-  // Store JWT in sessionStorage (survives reloads) and inject into facade client
-  await page.waitForFunction(() => window.__TEST_AUTH_FACADE, { timeout: 10000 })
-  await page.evaluate((token) => {
-    sessionStorage.setItem('__TEST_JWT', token)
-    window.__TEST_AUTH_FACADE.setAccessToken(token)
-  }, jwt)
-
-  await enterPin(page, TEST_PIN)
-  await expect(page.getByRole('heading', { name: 'Dashboard', exact: true })).toBeVisible({
-    timeout: 60000,
-  })
-
-  // Inject a deterministic test hub key into the browser's hub-key cache.
-  // Phase 2B moved org metadata to hub-key E2EE. Without the hub key the
-  // browser cannot decrypt role names, hub names, or custom field labels.
-  // In E2E tests the server stores plaintext as the "ciphertext" (no real
-  // encryption during seeding), so injecting any 32-byte key here ensures
-  // decryptHubField has a key available; the fallback in decryptHubField
-  // will surface the raw value when the test key doesn't match the seed.
-  await page.waitForFunction(() => !!window.__TEST_HUB_KEY_CACHE, { timeout: 10000 })
-  await page.evaluate(() => {
-    const testKey = new Uint8Array(32).fill(0x42)
-    window.__TEST_HUB_KEY_CACHE.set('global', testKey)
-  })
-
-  // Auto-dismiss session expired modal if it appears during the test.
-  // The modal overlays the entire page and blocks all pointer events.
-  // Use noWaitAfter to prevent Playwright from waiting for navigations triggered by the click.
-  await page.addLocatorHandler(page.getByText('Session Expired'), async () => {
-    const reconnectBtn = page.getByRole('button', { name: /reconnect/i })
-    if (await reconnectBtn.isVisible({ timeout: 1000 }).catch(() => false)) {
-      await reconnectBtn.click({ timeout: 3000 }).catch(() => {
-        // If click fails (e.g., modal dismissed by another action), ignore
-      })
-    }
-  })
-}
-
-/**
- * Login as user: pre-loads encrypted key into localStorage, then enters PIN.
- */
-export async function loginAsUser(page: Page, nsec: string) {
-  await page.goto('/login', { waitUntil: 'domcontentloaded' })
-  await page.evaluate(() => sessionStorage.clear())
-  await preloadEncryptedKey(page, nsec, TEST_PIN)
-
-  // Generate JWT for the user and inject into the auth facade client
-  const { signAccessToken } = await import('../../src/server/lib/jwt')
-  const { nip19, getPublicKey } = await import('nostr-tools')
-  const decoded = nip19.decode(nsec) as { type: 'nsec'; data: Uint8Array }
-  const userPubkey = getPublicKey(decoded.data)
-  const jwtSecret = TEST_JWT_SECRET
-  const jwt = await signAccessToken({ pubkey: userPubkey, permissions: [] }, jwtSecret)
-
-  await page.reload({ waitUntil: 'domcontentloaded' })
-
-  await page.waitForFunction(() => window.__TEST_AUTH_FACADE, { timeout: 10000 })
-  await page.evaluate((token) => {
-    sessionStorage.setItem('__TEST_JWT', token)
-    window.__TEST_AUTH_FACADE.setAccessToken(token)
-  }, jwt)
-
-  await enterPin(page, TEST_PIN)
-  await page.waitForURL((url) => !url.toString().includes('/login'), { timeout: Timeouts.AUTH })
-  // Wait for potential client-side redirect to profile-setup (async auth guard)
-  await page.waitForTimeout(1500)
-  // Complete profile setup if redirected there (first-time user login)
-  if (page.url().includes('profile-setup')) {
-    await completeProfileSetup(page)
-  }
-  // Short delay for initial API calls to complete
-  await page.waitForTimeout(Timeouts.UI_SETTLE)
-}
-
-/**
- * Login using direct nsec entry (recovery path).
- * Useful for first-time login tests when no stored key exists.
- */
-export async function loginWithNsec(page: Page, nsec: string) {
-  await page.goto('/login')
-  await page.evaluate(() => sessionStorage.clear())
-  await page.locator('#nsec').fill(nsec)
-  await page.getByRole('button', { name: /log in/i }).click()
-  await page.waitForURL((url) => !url.toString().includes('/login'), { timeout: 15000 })
 }
 
 export async function logout(page: Page) {

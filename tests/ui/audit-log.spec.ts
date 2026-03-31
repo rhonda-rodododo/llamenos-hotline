@@ -1,12 +1,5 @@
 import { expect, test } from '../fixtures/auth'
-import {
-  completeProfileSetup,
-  createUserAndGetNsec,
-  dismissNsecCard,
-  loginAsUser,
-  navigateAfterLogin,
-  uniquePhone,
-} from '../helpers'
+import { navigateAfterLogin } from '../helpers'
 
 test.describe('Audit log', () => {
   test('page loads with heading and layout', async ({ adminPage }) => {
@@ -43,26 +36,17 @@ test.describe('Audit log', () => {
     await expect(adminPage.getByText(/all events/i).first()).toBeVisible()
   })
 
-  test('user sees access denied on audit page', async ({ adminPage }) => {
-    const phone = uniquePhone()
-    const name = `AuditVol ${Date.now()}`
-    const nsec = await createUserAndGetNsec(adminPage, name, phone)
-    await dismissNsecCard(adminPage)
-
-    // Log in as the user
-    await loginAsUser(adminPage, nsec)
-    await completeProfileSetup(adminPage)
-
-    // Try to access audit log
-    await navigateAfterLogin(adminPage, '/audit')
+  test('volunteer sees access denied on audit page', async ({ volunteerPage }) => {
+    // Try to access audit log as a volunteer
+    await navigateAfterLogin(volunteerPage, '/audit')
     // User should either be redirected or see access denied / empty state
-    const heading = adminPage.getByRole('heading', { name: /audit log/i })
+    const heading = volunteerPage.getByRole('heading', { name: /audit log/i })
     const isVisible = await heading.isVisible({ timeout: 3000 }).catch(() => false)
     // Whether redirected or shown the page, the user should not see real audit entries
     if (isVisible) {
       // If shown the page, entries should be empty or access denied
       await expect(
-        adminPage.getByText(/no audit log entries|access denied|forbidden/i)
+        volunteerPage.getByText(/no audit log entries|access denied|forbidden/i)
       ).toBeVisible({
         timeout: 5000,
       })

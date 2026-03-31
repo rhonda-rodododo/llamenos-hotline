@@ -1,7 +1,5 @@
 import { expect, test } from '../fixtures/auth'
-import { navigateAfterLogin, uniquePhone } from '../helpers'
-import { ADMIN_NSEC } from '../helpers'
-import { createAuthedRequestFromNsec } from '../helpers/authed-request'
+import { navigateAfterLogin } from '../helpers'
 
 // --- Role-based UI navigation ---
 
