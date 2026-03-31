@@ -1,5 +1,5 @@
 import { expect, test } from '../fixtures/auth'
-import { loginAsAdmin, navigateAfterLogin } from '../helpers'
+import { navigateAfterLogin } from '../helpers'
 
 test.describe('Demo Mode', () => {
   // --- Helpers ---
@@ -160,8 +160,8 @@ test.describe('Demo Mode', () => {
   test('demo banner shows when logged in', async ({ adminPage }) => {
     await completeSetupWithDemoMode(adminPage)
 
-    // Re-login to see the banner
-    await loginAsAdmin(adminPage)
+    // Navigate to dashboard to see the banner
+    await navigateAfterLogin(adminPage, '/')
 
     // Wait for config to load — the hotline name in the sidebar confirms config loaded
     await expect(adminPage.getByRole('navigation')).toBeVisible({ timeout: 10000 })
