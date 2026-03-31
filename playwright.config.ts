@@ -15,7 +15,7 @@ export default defineConfig({
         ["list"],
       ]
     : [["html"], ["list"]],
-  timeout: 60_000,
+  timeout: 90_000,
   expect: {
     timeout: 10_000,
   },

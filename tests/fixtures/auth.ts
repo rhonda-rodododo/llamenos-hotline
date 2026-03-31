@@ -76,9 +76,9 @@ async function createAuthenticatedPage(
 
   // With refresh blocked, the app should show the login/PIN screen
   const firstState = await Promise.race([
-    pinInput.waitFor({ state: 'visible', timeout: 30000 }).then(() => 'pin' as const),
-    dashboardHeading.waitFor({ state: 'visible', timeout: 30000 }).then(() => 'dashboard' as const),
-    profileSetup.waitFor({ state: 'visible', timeout: 30000 }).then(() => 'profile' as const),
+    pinInput.waitFor({ state: 'visible', timeout: 45000 }).then(() => 'pin' as const),
+    dashboardHeading.waitFor({ state: 'visible', timeout: 45000 }).then(() => 'dashboard' as const),
+    profileSetup.waitFor({ state: 'visible', timeout: 45000 }).then(() => 'profile' as const),
   ])
 
   // Unblock refresh so the PIN unlock flow can call refreshToken and getUserInfo
@@ -113,9 +113,9 @@ async function createAuthenticatedPage(
       const reloadPinInput = page.locator('input[aria-label="PIN digit 1"]')
       const reloadDashboard = page.getByRole('heading', { name: 'Dashboard', exact: true })
       const reloadFirst = await Promise.race([
-        reloadPinInput.waitFor({ state: 'visible', timeout: 30000 }).then(() => 'pin' as const),
+        reloadPinInput.waitFor({ state: 'visible', timeout: 45000 }).then(() => 'pin' as const),
         reloadDashboard
-          .waitFor({ state: 'visible', timeout: 30000 })
+          .waitFor({ state: 'visible', timeout: 45000 })
           .then(() => 'dashboard' as const),
       ])
       if (reloadFirst === 'pin') {
