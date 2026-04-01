@@ -32,6 +32,6 @@ test.describe('Call-to-Contact Workflow', () => {
     })
     expect(res.status()).toBe(400)
     const data = await res.json()
-    expect(data.error).toContain('required')
+    expect(data.error).toContain('Validation failed')
   })
 })
