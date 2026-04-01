@@ -181,8 +181,9 @@ export async function reenterPinAfterReload(page: Page): Promise<void> {
   }
 
   await enterPin(page, TEST_PIN)
-  // PBKDF2 600K + unlockWithPin + invalidateQueries can take 30s+ on CI
-  await page.waitForURL((u) => !u.toString().includes('/login'), { timeout: 60000 })
+  // PBKDF2 600K + unlockWithPin + loadHubKeys + invalidateQueries can take 60s+
+  // under parallel worker load (3 workers each doing PBKDF2 simultaneously)
+  await page.waitForURL((u) => !u.toString().includes('/login'), { timeout: 90000 })
   // Wait for the authenticated layout to render (sidebar, dashboard heading)
   const dashHeading = page.getByRole('heading', { name: 'Dashboard', exact: true })
   await dashHeading.waitFor({ state: 'visible', timeout: 30000 }).catch(() => {

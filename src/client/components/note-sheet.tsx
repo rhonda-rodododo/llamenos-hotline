@@ -28,7 +28,9 @@ import {
 import { Switch } from '@/components/ui/switch'
 import { type CustomFieldDefinition, createNote, updateNote } from '@/lib/api'
 import { useCallHistory } from '@/lib/queries/calls'
+import { queryKeys } from '@/lib/queries/keys'
 import { useCustomFields } from '@/lib/queries/notes'
+import { queryClient } from '@/lib/query-client'
 import { useToast } from '@/lib/toast'
 import type { NotePayload } from '@shared/types'
 import { Clock, Lock, Save } from 'lucide-react'
@@ -136,6 +138,7 @@ export function NoteSheet() {
       } else {
         await createNote({ callId: draft.callId, encryptedContent, authorEnvelope, adminEnvelopes })
       }
+      void queryClient.invalidateQueries({ queryKey: queryKeys.notes.all })
       draft.clearDraft()
       close()
       onSaved?.()
