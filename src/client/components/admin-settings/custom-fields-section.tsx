@@ -14,6 +14,8 @@ import { Switch } from '@/components/ui/switch'
 import { type CustomFieldDefinition, updateCustomFields } from '@/lib/api'
 import { useConfig } from '@/lib/config'
 import { decryptHubField } from '@/lib/hub-field-crypto'
+import { queryKeys } from '@/lib/queries/keys'
+import { queryClient } from '@/lib/query-client'
 import { useToast } from '@/lib/toast'
 import { type LocationPrecision, MAX_CUSTOM_FIELDS } from '@shared/types'
 import { ChevronDown, ChevronUp, Plus, Save, StickyNote, Trash2 } from 'lucide-react'
@@ -48,7 +50,11 @@ export function CustomFieldsSection({
     ;[next[index], next[swapIdx]] = [next[swapIdx], next[index]]
     for (let i = 0; i < next.length; i++) next[i].order = i
     onChange(next)
-    updateCustomFields(next).catch(() => toast(t('common.error'), 'error'))
+    updateCustomFields(next)
+      .then(
+        () => void queryClient.invalidateQueries({ queryKey: queryKeys.settings.customFields() })
+      )
+      .catch(() => toast(t('common.error'), 'error'))
   }
 
   async function handleDelete(fieldId: string) {
@@ -58,6 +64,7 @@ export function CustomFieldsSection({
     try {
       const res = await updateCustomFields(next)
       onChange(res.fields)
+      void queryClient.invalidateQueries({ queryKey: queryKeys.settings.customFields() })
     } catch {
       toast(t('common.error'), 'error')
     }
@@ -90,6 +97,7 @@ export function CustomFieldsSection({
       }
       const res = await updateCustomFields(next)
       onChange(res.fields)
+      void queryClient.invalidateQueries({ queryKey: queryKeys.settings.customFields() })
       setEditing(null)
       toast(t('common.success'), 'success')
     } catch {
