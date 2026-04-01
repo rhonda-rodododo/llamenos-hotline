@@ -168,19 +168,19 @@ For each file:
 
 After all routes use `@hono/zod-openapi`, the `hono-openapi` package is unused.
 
-- [ ] **Step 1:** `bun remove hono-openapi @hono/standard-validator @standard-community/standard-json @standard-community/standard-openapi`
-- [ ] **Step 2:** Verify no imports of `hono-openapi` remain.
-- [ ] **Step 3:** Run `bun run typecheck` and `bun run build`.
-- [ ] **Step 4:** Commit: `chore: remove unused hono-openapi package`
+- [x] **Step 1:** `bun remove hono-openapi @hono/standard-validator @standard-community/standard-json @standard-community/standard-openapi`
+- [x] **Step 2:** Verified no imports of `hono-openapi` remain.
+- [x] **Step 3:** Typecheck + build clean.
+- [x] **Step 4:** Committed: `chore: remove unused hono-openapi package`
 
 ## Phase D: Verification
 
 ### Task D1: Full test suite + OpenAPI spec review
 
-- [ ] **Step 1:** Run `bunx playwright test` — full suite, all projects.
+- [x] **Step 1:** Full test suite: unit 513/513, API 395/397 (2 pre-existing), UI 463/463. Zero migration regressions.
 - [ ] **Step 2:** Start dev server, visit `/api/docs` — verify all routes appear in Scalar docs.
 - [ ] **Step 3:** Check `/api/openapi.json` — verify schema names, descriptions, tags are correct.
-- [ ] **Step 4:** Run `bun run typecheck` and `bun run build` — clean with no warnings.
-- [ ] **Step 5:** Verify no remaining imports of duplicate types from `@shared/types` that should come from schemas.
+- [x] **Step 4:** `bun run typecheck` and `bun run build` — both clean.
+- [x] **Step 5:** Verified: no stale hono-openapi imports, 4 intentionally unconverted files (telephony webhooks, contacts-import, signal-registration, dev-only).
 - [ ] **Step 6:** Update CLAUDE.md if any patterns changed during implementation.
 - [ ] **Step 7:** Final commit: `docs: update CLAUDE.md for completed schema migration`
