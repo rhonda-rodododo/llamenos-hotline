@@ -142,50 +142,64 @@ describe('RecordsService', () => {
 
 **Requires**: Docker services + dev server
 
-**Key helpers**:
-- `createAuthedRequest(request, nsecOrSecretKey)` — wraps Playwright's `APIRequestContext` with JWT auth
-- `createAuthedRequestFromNsec(request, nsec)` — convenience for nsec strings
-- `simulateIncomingCall(request, provider, params)` — telephony webhook simulation
-- `simulateIncomingMessage(request, provider, channel, params)` — messaging simulation
+**Setup**: The `api-setup` project runs `tests/api-global-setup.ts` which resets DB via
+`POST /api/test-reset` without a browser. API tests are independent from UI setup.
 
-**Pattern**:
+**Key helpers**:
+- `TestContext` from `tests/api-helpers.ts` — multi-role test environment with hub isolation
+- `createAuthedRequest(request, secretKey)` — wraps Playwright's `APIRequestContext` with JWT auth
+- `createAuthedRequestFromNsec(request, nsec)` — convenience for nsec strings
+- `simulateIncomingCall()`, `simulateIncomingMessage()` from `tests/helpers/simulation.ts`
+
+**Pattern — TestContext (preferred for multi-role tests)**:
+
+```typescript
+import { test, expect } from '@playwright/test'
+import { TestContext } from '../api-helpers'
+
+test.describe('Contact Directory — Permissions', () => {
+  let ctx: TestContext
+
+  test.beforeAll(async ({ request }) => {
+    // Creates hub, admin API, and additional role-scoped APIs
+    ctx = await TestContext.create(request, { roles: ['volunteer', 'reviewer'] })
+  })
+
+  test.beforeEach(async ({ request }) => {
+    ctx.refreshApis(request) // fresh request context per test
+  })
+
+  test('volunteer cannot delete contacts', async () => {
+    // Create as admin
+    const res = await ctx.api('admin').post(ctx.hubPath('/contacts'), { name: 'Test' })
+    const { id } = await res.json()
+
+    // Attempt delete as volunteer — should be forbidden
+    const delRes = await ctx.api('volunteer').delete(ctx.hubPath(`/contacts/${id}`))
+    expect(delRes.status()).toBe(403)
+  })
+
+  test.afterAll(async () => {
+    await ctx.cleanup() // deletes hub + custom role users
+  })
+})
+```
+
+**Pattern — Simple single-role tests**:
 
 ```typescript
 import { test, expect } from '@playwright/test'
 import { createAuthedRequestFromNsec } from '../helpers/authed-request'
 import { ADMIN_NSEC } from '../helpers'
 
-test.describe('Volunteers API', () => {
-  let hubId: string
-
-  test.beforeAll(async ({ request }) => {
+test.describe('Settings API', () => {
+  test('updates org name', async ({ request }) => {
     const api = await createAuthedRequestFromNsec(request, ADMIN_NSEC)
-    const res = await api.post('/api/hubs', { name: `test-vol-${Date.now()}` })
+    const res = await api.put('/api/settings', { orgName: 'Test Org' })
     expect(res.ok()).toBeTruthy()
-    hubId = (await res.json()).id
-  })
 
-  test.afterAll(async ({ request }) => {
-    const api = await createAuthedRequestFromNsec(request, ADMIN_NSEC)
-    await api.delete(`/api/hubs/${hubId}`)
-  })
-
-  test('create and list volunteers', async ({ request }) => {
-    const api = await createAuthedRequestFromNsec(request, ADMIN_NSEC)
-
-    // Create
-    const createRes = await api.post(`/api/hubs/${hubId}/volunteers`, {
-      name: 'Test Volunteer',
-      phone: '+15551234567',
-    })
-    expect(createRes.ok()).toBeTruthy()
-    const volunteer = await createRes.json()
-
-    // List — verify the volunteer appears
-    const listRes = await api.get(`/api/hubs/${hubId}/volunteers`)
-    expect(listRes.ok()).toBeTruthy()
-    const volunteers = await listRes.json()
-    expect(volunteers.some((v: { id: string }) => v.id === volunteer.id)).toBe(true)
+    const get = await api.get('/api/settings')
+    expect((await get.json()).orgName).toBe('Test Org')
   })
 })
 ```
@@ -193,8 +207,10 @@ test.describe('Volunteers API', () => {
 **Rules**:
 - Test through HTTP. Don't import server internals — the HTTP boundary is the contract.
 - Natural flows. `POST` → `GET` → `PUT` → `DELETE` in sequence, not isolated.
+- Use `TestContext` for multi-role permission tests — it handles hub creation, role assignment,
+  and cleanup automatically.
 - Use simulation helpers for telephony/messaging instead of hitting real providers.
-- Hub-scoped. Create hub in `beforeAll`, delete in `afterAll`.
+- Hub-scoped. TestContext handles this; for manual setup, create hub in `beforeAll`, delete in `afterAll`.
 
 ### UI E2E Tests (`tests/ui/*.spec.ts`)
 
@@ -204,73 +220,122 @@ test.describe('Volunteers API', () => {
 
 **Requires**: Docker services + dev server + Chromium
 
-**Key helpers**:
-- `loginAsAdmin(page)` — full admin auth flow (nsec + PIN + session)
-- `loginAsVolunteer(page, nsec)` — volunteer auth with profile setup
-- `enterPin(page, pin)` — PIN entry with auto-advance
-- `navigateAfterLogin(page, url)` — SPA navigation without reload
-- `createTestHub(page, name)` — creates hub via API while on page
-- Page objects in `tests/pages/index.ts` — `waitForApiAndUi()`, `clickAndWaitForApi()`
+**Setup**: The `setup` project runs `tests/global-setup.ts` which performs a **real browser
+bootstrap**: creates the admin account through the setup wizard, then creates additional role
+accounts (hub-admin, volunteer, reviewer, reporter) through the invite flow. Each role's auth
+state is saved to `tests/storage/{role}.json`.
 
-**Pattern**:
+**Role-based fixtures** (`tests/fixtures/auth.ts`):
+
+Tests import from fixtures instead of base Playwright. Each fixture provides a pre-authenticated
+page with the role's storage state, PIN already entered:
 
 ```typescript
-import { test, expect } from '@playwright/test'
-import { loginAsAdmin, createTestHub, deleteTestHub, TestIds } from '../helpers'
+import { test, expect } from '../fixtures/auth'
+```
 
-test.describe('Volunteer Management', () => {
-  let hubId: string
+Available fixtures: `adminPage`, `hubAdminPage`, `volunteerPage`, `reviewerPage`, `reporterPage`
+(each with a corresponding `*Context`).
 
-  test.beforeAll(async ({ browser }) => {
-    const page = await browser.newPage()
-    await loginAsAdmin(page)
-    hubId = await createTestHub(page, `test-ui-vol-${Date.now()}`)
-    await page.close()
+**Key helpers**:
+- `navigateAfterLogin(page, url)` — SPA navigation without reload
+- `reenterPinAfterReload(page)` — re-enters PIN after `page.reload()` clears keyManager
+- `enterPin(page, pin)` — types PIN with 80ms per-digit delay (prevents input loss during re-renders)
+- `Navigation` object — `goToDashboard()`, `goToUsers()`, `goToShifts()`, etc.
+- Page objects — `UserPage`, `ShiftPage`, `BanListPage`, `NotesPage`, `CallHistoryPage`
+- `waitForApiAndUi(page)` — waits for network idle after actions
+- `clickAndWaitForApi(page, locator, pattern)` — click + wait for API response
+
+**Pattern — Role fixtures (preferred)**:
+
+```typescript
+import { expect, test } from '../fixtures/auth'
+import { navigateAfterLogin, TestIds } from '../helpers'
+import { UserPage, Navigation } from '../pages'
+
+test.describe('User Management', () => {
+  test.beforeEach(async ({ adminPage }) => {
+    await navigateAfterLogin(adminPage, '/admin/users')
   })
 
-  test.afterAll(async ({ browser }) => {
-    const page = await browser.newPage()
-    await loginAsAdmin(page)
-    await deleteTestHub(page, hubId)
-    await page.close()
+  test('admin adds a user', async ({ adminPage }) => {
+    await UserPage.addUser(adminPage, { name: 'New Vol', phone: '+15551234567' })
+    await expect(adminPage.getByTestId(TestIds.USER_ROW)).toContainText('New Vol')
   })
 
-  test('adds a volunteer from the UI', async ({ page }) => {
-    await loginAsAdmin(page)
-    await page.goto(`/admin/hubs/${hubId}/volunteers`)
-
-    // Use stable data-testid selectors
-    await page.getByTestId(TestIds.VOLUNTEER_ADD_BTN).click()
-    await page.getByTestId(TestIds.VOLUNTEER_NAME_INPUT).fill('Jane Doe')
-    await page.getByTestId(TestIds.VOLUNTEER_PHONE_INPUT).fill('+15559876543')
-    await page.getByTestId(TestIds.VOLUNTEER_SAVE_BTN).click()
-
-    // Verify the volunteer appears in the list
-    await expect(page.getByTestId(TestIds.VOLUNTEER_ROW)).toContainText('Jane Doe')
+  test('volunteer cannot access admin pages', async ({ volunteerPage }) => {
+    await volunteerPage.goto('/admin/users')
+    // Should redirect or show forbidden
+    await expect(volunteerPage.getByTestId(TestIds.FORBIDDEN_MESSAGE)).toBeVisible()
   })
 })
 ```
 
+**Pattern — Page objects for complex flows**:
+
+```typescript
+import { expect, test } from '../fixtures/auth'
+import { Navigation, ShiftPage } from '../pages'
+
+test('creates a recurring shift', async ({ adminPage }) => {
+  await Navigation.goToShifts(adminPage)
+  await ShiftPage.createShift(adminPage, {
+    name: 'Evening',
+    startTime: '18:00',
+    endTime: '22:00',
+    days: ['Mon', 'Wed', 'Fri'],
+  })
+  await expect(adminPage.getByTestId(TestIds.SHIFT_CARD)).toContainText('Evening')
+})
+```
+
 **Rules**:
-- **Stable selectors only.** Use `getByTestId()` with constants from `tests/test-ids.ts`.
+- **Use role fixtures.** Import `test` from `tests/fixtures/auth`, not `@playwright/test`.
+  The fixtures give you pre-authenticated pages — don't reimplement auth in tests.
+- **Stable selectors via `data-testid`.** Use `TestIds` from `tests/test-ids.ts` and `getByTestId()`.
   Never `getByText()` for dynamic content — it breaks on i18n, rewording, or data changes.
   If a component doesn't have a `data-testid`, add one.
 - **Natural user flows.** Navigate → interact → verify result. Test what a user does, not
   implementation details.
-- **Page objects for shared flows.** Login, navigation, hub creation live in helpers/pages.
-  If you're writing the same sequence in multiple tests, extract it.
-- **Auth helpers handle complexity.** `loginAsAdmin(page)` deals with nsec encryption, PIN entry,
-  session modals, and profile setup. Don't reimplement auth in tests.
+- **Use page objects.** Navigation, UserPage, ShiftPage, etc. live in `tests/pages/index.ts`.
+  Changes to UI only need updates there. If writing the same sequence in multiple tests, extract it.
+- **PIN re-entry after reload.** If a test calls `page.reload()`, the in-memory keyManager is
+  cleared. Use `reenterPinAfterReload(page)` to re-enter the PIN.
+- **Timeouts.** Use centralized `Timeouts` constants from helpers. PBKDF2 takes ~30s on CI,
+  so auth operations use `Timeouts.AUTH` (60s). Don't hardcode timeout values.
+
+## Global Setup & Auth Architecture
+
+Tests use a two-phase setup:
+
+1. **`setup` project** (UI tests): Real browser bootstrap — creates admin via setup wizard,
+   then creates role accounts (hub-admin, volunteer, reviewer, reporter) via invite flow.
+   Saves each role's auth state (encrypted key + refresh cookie) to `tests/storage/{role}.json`.
+
+2. **`api-setup` project** (API tests): Lightweight — resets DB via `POST /api/test-reset`,
+   no browser needed. Independent from UI setup.
+
+**Auth flow per test**: Each role fixture loads its storage state into a fresh browser context,
+navigates to `/`, and enters the PIN. Token refresh is blocked during setup to ensure the
+PIN screen appears, then unblocked after authentication completes.
+
+**Adding a new role**: Add it to `global-setup.ts` (create via invite), `fixtures/auth.ts`
+(add fixture), and storage gitignore.
 
 ## Selectors: The TestIds System
 
-All stable selectors live in `tests/test-ids.ts`:
+All stable selectors live in `tests/test-ids.ts` (150+ IDs):
 
 ```typescript
 export const TestIds = {
-  VOLUNTEER_ADD_BTN: 'volunteer-add-btn',
-  VOLUNTEER_ROW: 'volunteer-row',
+  USER_ADD_BTN: 'user-add-btn',
+  USER_ROW: 'user-row',
   // ...
+}
+
+// Dynamic row IDs
+export function rowTestId(baseId: string, identifier: string): string {
+  return `${baseId}-${identifier}`
 }
 ```
 
@@ -279,6 +344,7 @@ When adding a new component that tests need to interact with:
 1. Add the ID to `tests/test-ids.ts` following the `SECTION_ELEMENT_ACTION` convention
 2. Add `data-testid={TestIds.YOUR_ID}` to the component
 3. Use `page.getByTestId(TestIds.YOUR_ID)` in tests
+4. For rows with dynamic data, use `rowTestId(TestIds.USER_ROW, pubkey)`
 
 This means selectors survive refactors, renames, and i18n changes.
 
@@ -296,7 +362,12 @@ File C (hub-c)  ──┘
 Within a file, tests run serially (they may depend on prior test state within the same hub).
 Across files, everything is parallel.
 
-**Setup**: Create hub in `beforeAll`, store `hubId`, use it in every test, delete in `afterAll`.
+**API tests**: Use `TestContext.create(request, { roles: [...] })` — it creates the hub,
+assigns roles, and provides `ctx.hubPath()` for hub-scoped API paths. Cleanup in `afterAll`
+via `ctx.cleanup()`.
+
+**UI tests**: Role fixtures use the shared hub from global setup. For tests that need an
+isolated hub, create one via API in `beforeAll` and clean up in `afterAll`.
 
 **Naming**: Include a timestamp or random suffix to avoid name collisions:
 `test-volunteers-${Date.now()}`.
@@ -395,3 +466,7 @@ If a var exists in CI but not locally (or vice versa), something's out of sync.
 | Giant test files (>500 lines) | Hard to maintain, slow per-file | Split by feature area |
 | `expect(res.status()).toBe(200)` alone | Doesn't verify the response body | Also check the response payload |
 | Weakening app validation to pass tests | Creates false security | Fix the test approach instead |
+| Manual auth in UI tests | Fragile, duplicated | Use role fixtures from `tests/fixtures/auth` |
+| Inline navigation sequences | Breaks on UI changes | Use `Navigation` page object |
+| Hardcoded timeouts | Flaky across environments | Use `Timeouts` constants from helpers |
+| Importing `test` from `@playwright/test` in UI tests | Misses role fixtures | Import from `tests/fixtures/auth` |
