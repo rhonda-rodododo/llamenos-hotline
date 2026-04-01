@@ -22,10 +22,16 @@ export class AriClient {
   private maxReconnectDelay = 30000
   private shouldReconnect = true
   private authHeader: string
+  private hasConnected = false
+  private connectionDeadline: number | null = null
+
+  /** Maximum time (ms) to wait for an initial Asterisk connection before exiting. Default 5 minutes. */
+  private readonly connectionTimeoutMs: number
 
   constructor(config: BridgeConfig) {
     this.config = config
     this.authHeader = `Basic ${btoa(`${config.ariUsername}:${config.ariPassword}`)}`
+    this.connectionTimeoutMs = config.connectionTimeoutMs ?? 5 * 60 * 1000
   }
 
   /** Register an event handler for all ARI events */
@@ -33,9 +39,15 @@ export class AriClient {
     this.eventHandlers.push(handler)
   }
 
-  /** Connect to the ARI WebSocket */
+  /** Connect to the ARI WebSocket. Starts the connection deadline timer on first call. */
   async connect(): Promise<void> {
     this.shouldReconnect = true
+    if (!this.hasConnected) {
+      this.connectionDeadline = Date.now() + this.connectionTimeoutMs
+      console.log(
+        `[ari] Will exit if Asterisk is not reachable within ${Math.round(this.connectionTimeoutMs / 1000)}s`
+      )
+    }
     await this.doConnect()
   }
 
@@ -59,6 +71,8 @@ export class AriClient {
       ws.addEventListener('open', () => {
         console.log('[ari] WebSocket connected')
         this.reconnectDelay = 1000
+        this.hasConnected = true
+        this.connectionDeadline = null
         this.ws = ws
         resolve()
       })
@@ -100,8 +114,36 @@ export class AriClient {
   }
 
   private scheduleReconnect(): void {
-    console.log(`[ari] Reconnecting in ${this.reconnectDelay}ms...`)
+    // If we've never connected and the deadline has passed, exit
+    if (this.connectionDeadline !== null && Date.now() >= this.connectionDeadline) {
+      console.error(
+        `[ari] FATAL: Could not connect to Asterisk within ${Math.round(this.connectionTimeoutMs / 1000)}s — exiting.`
+      )
+      console.error(
+        '[ari] Make sure Asterisk is running and ARI is reachable at:',
+        this.config.ariUrl
+      )
+      process.exit(1)
+    }
+
+    const remaining = this.connectionDeadline
+      ? ` (${Math.round((this.connectionDeadline - Date.now()) / 1000)}s until timeout)`
+      : ''
+    console.log(`[ari] Reconnecting in ${this.reconnectDelay}ms...${remaining}`)
+
     setTimeout(async () => {
+      // Check deadline again before attempting (time passed during the delay)
+      if (this.connectionDeadline !== null && Date.now() >= this.connectionDeadline) {
+        console.error(
+          `[ari] FATAL: Could not connect to Asterisk within ${Math.round(this.connectionTimeoutMs / 1000)}s — exiting.`
+        )
+        console.error(
+          '[ari] Make sure Asterisk is running and ARI is reachable at:',
+          this.config.ariUrl
+        )
+        process.exit(1)
+      }
+
       try {
         await this.doConnect()
       } catch (err) {

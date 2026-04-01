@@ -100,7 +100,18 @@ export type AnyAriEvent =
 export interface AriChannel {
   id: string
   name: string
-  state: 'Down' | 'Rsrved' | 'OffHook' | 'Dialing' | 'Ring' | 'Ringing' | 'Up' | 'Busy' | 'Dialing Offhook' | 'Pre-ring' | 'Unknown'
+  state:
+    | 'Down'
+    | 'Rsrved'
+    | 'OffHook'
+    | 'Dialing'
+    | 'Ring'
+    | 'Ringing'
+    | 'Up'
+    | 'Busy'
+    | 'Dialing Offhook'
+    | 'Pre-ring'
+    | 'Unknown'
   caller: { name: string; number: string }
   connected: { name: string; number: string }
   accountcode: string
@@ -143,7 +154,17 @@ export interface AriRecording {
 /** Webhook payload sent to the CF Worker, mimicking Twilio's format */
 export interface WebhookPayload {
   /** Event type, maps to Twilio's webhook URL paths */
-  event: 'incoming' | 'language-selected' | 'captcha' | 'call-status' | 'wait-music' | 'queue-exit' | 'volunteer-answer' | 'call-recording' | 'voicemail-recording' | 'voicemail-complete'
+  event:
+    | 'incoming'
+    | 'language-selected'
+    | 'captcha'
+    | 'call-status'
+    | 'wait-music'
+    | 'queue-exit'
+    | 'volunteer-answer'
+    | 'call-recording'
+    | 'voicemail-recording'
+    | 'voicemail-complete'
   /** Channel ID (equivalent to Twilio CallSid) */
   CallSid: string
   /** Caller phone number in E.164 (equivalent to Twilio From) */
@@ -153,7 +174,14 @@ export interface WebhookPayload {
   /** DTMF digits pressed (for gather responses) */
   Digits?: string
   /** Call status for status callbacks */
-  CallStatus?: 'initiated' | 'ringing' | 'in-progress' | 'completed' | 'busy' | 'no-answer' | 'failed'
+  CallStatus?:
+    | 'initiated'
+    | 'ringing'
+    | 'in-progress'
+    | 'completed'
+    | 'busy'
+    | 'no-answer'
+    | 'failed'
   /** Queue time in seconds */
   QueueTime?: string
   /** Queue exit result */
@@ -347,4 +375,6 @@ export interface BridgeConfig {
   sipUsername?: string
   /** SIP trunk password */
   sipPassword?: string
+  /** Maximum time (ms) to wait for an initial Asterisk connection before exiting. Default 5 minutes (300000). */
+  connectionTimeoutMs?: number
 }
