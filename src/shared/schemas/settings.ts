@@ -1,5 +1,5 @@
 import { z } from 'zod/v4'
-import { ChannelTypeSchema } from './common'
+import { ChannelTypeSchema, CustomFieldContextSchema } from './common'
 import { TelephonyProviderConfigSchema } from './providers'
 export type { ChannelType } from './common'
 
@@ -7,6 +7,8 @@ export const HubSchema = z.object({
   id: z.string(),
   name: z.string(),
   description: z.string().optional(),
+  encryptedName: z.string().optional(),
+  encryptedDescription: z.string().optional(),
   status: z.enum(['active', 'suspended', 'archived']),
   phoneNumber: z.string().optional(),
   createdBy: z.string(),
@@ -55,17 +57,48 @@ export const UpdateRoleSchema = z.object({
 })
 export type UpdateRoleInput = z.infer<typeof UpdateRoleSchema>
 
+const LocationFieldSettingsSchema = z.object({
+  maxPrecision: z.enum(['none', 'city', 'neighborhood', 'block', 'exact']),
+  allowGps: z.boolean(),
+})
+
+const CustomFieldValidationSchema = z.object({
+  minLength: z.number().int().optional(),
+  maxLength: z.number().int().optional(),
+  min: z.number().optional(),
+  max: z.number().optional(),
+})
+
 export const CustomFieldDefinitionSchema = z.object({
   id: z.uuid(),
-  hubId: z.string().optional(),
-  fieldName: z.string(),
+  name: z.string(),
   label: z.string(),
-  fieldType: z.enum(['text', 'number', 'select', 'checkbox', 'textarea', 'file']),
-  options: z.array(z.string()).optional(),
+  type: z.enum([
+    'text',
+    'number',
+    'select',
+    'checkbox',
+    'textarea',
+    'file',
+    'location',
+    'contact',
+    'contacts',
+  ]),
   required: z.boolean(),
-  showInVolunteerView: z.boolean(),
+  options: z.array(z.string()).optional(),
+  encryptedFieldName: z.string().optional(),
+  encryptedLabel: z.string().optional(),
+  encryptedOptions: z.string().optional(),
+  validation: CustomFieldValidationSchema.optional(),
+  visibleTo: z.string(),
+  context: CustomFieldContextSchema,
+  reportTypeIds: z.array(z.string()).optional(),
+  maxFileSize: z.number().int().optional(),
+  allowedMimeTypes: z.array(z.string()).optional(),
+  maxFiles: z.number().int().optional(),
+  locationSettings: LocationFieldSettingsSchema.optional(),
   order: z.number().int(),
-  createdAt: z.iso.datetime(),
+  createdAt: z.string(),
 })
 export type CustomFieldDefinition = z.infer<typeof CustomFieldDefinitionSchema>
 
