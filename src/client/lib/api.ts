@@ -604,8 +604,10 @@ export async function getProviderHealth() {
 
 // --- Telephony Provider Settings ---
 
-export type { TelephonyProviderConfig, TelephonyProviderType } from '@shared/types'
-import type { TelephonyProviderConfig, TelephonyProviderType } from '@shared/types'
+export type { TelephonyProviderConfig } from '@shared/schemas'
+export type { TelephonyProviderType } from '@shared/types'
+import type { TelephonyProviderConfig } from '@shared/schemas'
+import type { TelephonyProviderType } from '@shared/types'
 
 export async function getTelephonyProvider() {
   return request<TelephonyProviderConfig | null>('/settings/telephony-provider')
@@ -1126,7 +1128,8 @@ export async function getUserLoads() {
 
 // --- Messaging Config ---
 
-export type { MessagingConfig, EnabledChannels } from '@shared/types'
+export type { EnabledChannels } from '@shared/schemas'
+export type { MessagingConfig } from '@shared/types'
 import type { MessagingConfig } from '@shared/types'
 
 export async function getMessagingConfig() {
@@ -1149,8 +1152,8 @@ export async function testMessagingChannel(channel: string) {
 
 // --- Setup State ---
 
-export type { SetupState } from '@shared/types'
-import type { SetupState } from '@shared/types'
+export type { SetupState } from '@shared/schemas'
+import type { SetupState } from '@shared/schemas'
 
 export async function getSetupState() {
   return request<SetupState>('/setup/state')
@@ -1636,8 +1639,10 @@ export async function seedDemoData() {
 
 // --- Blasts ---
 
-import type { Blast, BlastContent, BlastSettings, Subscriber } from '@shared/types'
-export type { Subscriber, Blast, BlastContent, BlastSettings }
+import type { BlastContent, BlastSettings } from '@shared/schemas'
+import type { Blast, Subscriber } from '@shared/types'
+export type { BlastContent, BlastSettings }
+export type { Subscriber, Blast }
 
 export async function listSubscribers(params?: {
   tag?: string
@@ -1731,8 +1736,8 @@ export async function updateBlastSettings(data: Partial<BlastSettings>) {
 
 // --- Hub Management ---
 
-export type { Hub } from '@shared/types'
-import type { Hub } from '@shared/types'
+export type { Hub } from '@shared/schemas'
+import type { Hub } from '@shared/schemas'
 
 export async function listHubs() {
   return request<{ hubs: Hub[] }>('/hubs')
@@ -1774,8 +1779,10 @@ export async function removeHubMember(hubId: string, pubkey: string) {
 
 // --- Geocoding ---
 
-import type { GeocodingConfig, GeocodingConfigAdmin, LocationResult } from '@shared/types'
-export type { GeocodingConfig, GeocodingConfigAdmin, LocationResult } from '@shared/types'
+import type { GeocodingConfig } from '@shared/schemas'
+import type { GeocodingConfigAdmin, LocationResult } from '@shared/types'
+export type { GeocodingConfig } from '@shared/schemas'
+export type { GeocodingConfigAdmin, LocationResult } from '@shared/types'
 
 export async function geocodingAutocomplete(query: string, limit = 5) {
   return request<LocationResult[]>('/geocoding/autocomplete', {
@@ -1819,7 +1826,7 @@ export async function testGeocodingProvider() {
 
 // --- Retention Settings (GDPR) ---
 
-import type { RetentionSettings } from '@shared/types'
+import type { RetentionSettings } from '@shared/schemas'
 export type { RetentionSettings }
 
 export async function getRetentionSettings() {
