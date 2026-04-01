@@ -1,6 +1,6 @@
+import { OpenAPIHono } from '@hono/zod-openapi'
 import { Scalar } from '@scalar/hono-api-reference'
 import { Hono } from 'hono'
-import { openAPIRouteHandler } from 'hono-openapi'
 import { createMiddleware } from 'hono/factory'
 import type { IdPAdapter } from './idp/adapter'
 import messagingRoutes from './messaging/router'
@@ -64,43 +64,41 @@ const app = new Hono<AppEnv>()
 app.onError(errorHandler)
 
 // --- API routes: CORS on all /api/* ---
-const api = new Hono<AppEnv>()
+const api = new OpenAPIHono<AppEnv>()
 
 // Health check — before CORS middleware (internal probes only, no external access needed)
 api.route('/health', healthRoutes)
 api.route('/metrics', metricsRoutes)
 
-// OpenAPI spec + Scalar docs — public, before CORS
-api.get(
-  '/openapi.json',
-  openAPIRouteHandler(api, {
-    documentation: {
-      info: {
-        title: 'Llamenos Hotline API',
-        version: '0.32.0',
-        description:
-          'Crisis response hotline API with hub-scoped access control and field-level encryption.',
-      },
-      servers: [{ url: '/api', description: 'Current server' }],
-      tags: [
-        { name: 'Auth', description: 'Authentication and session management' },
-        { name: 'Users', description: 'User (volunteer/admin) management' },
-        { name: 'Shifts', description: 'Shift schedule management' },
-        { name: 'Calls', description: 'Call routing and history' },
-        { name: 'Notes', description: 'Call notes (E2EE)' },
-        { name: 'Reports', description: 'Report submission and management' },
-        { name: 'Contacts', description: 'Contact directory (E2EE)' },
-        { name: 'Conversations', description: 'Two-way messaging' },
-        { name: 'Blasts', description: 'Broadcast messaging' },
-        { name: 'Settings', description: 'Hub and system settings' },
-        { name: 'Hubs', description: 'Multi-hub management' },
-        { name: 'Teams', description: 'Team management' },
-        { name: 'Tags', description: 'Tag management' },
-        { name: 'Intakes', description: 'Intake form management' },
-      ],
-    },
-  })
-)
+// OpenAPI spec — auto-generated from route definitions
+api.doc('/openapi.json', {
+  openapi: '3.1.0',
+  info: {
+    title: 'Llamenos Hotline API',
+    version: '0.32.0',
+    description:
+      'Crisis response hotline API with hub-scoped access control and field-level encryption.',
+  },
+  servers: [{ url: '/api', description: 'Current server' }],
+  tags: [
+    { name: 'Auth', description: 'Authentication and session management' },
+    { name: 'Users', description: 'User (volunteer/admin) management' },
+    { name: 'Shifts', description: 'Shift schedule management' },
+    { name: 'Calls', description: 'Call routing and history' },
+    { name: 'Notes', description: 'Call notes (E2EE)' },
+    { name: 'Reports', description: 'Report submission and management' },
+    { name: 'Contacts', description: 'Contact directory (E2EE)' },
+    { name: 'Conversations', description: 'Two-way messaging' },
+    { name: 'Blasts', description: 'Broadcast messaging' },
+    { name: 'Settings', description: 'Hub and system settings' },
+    { name: 'Hubs', description: 'Multi-hub management' },
+    { name: 'Teams', description: 'Team management' },
+    { name: 'Tags', description: 'Tag management' },
+    { name: 'Intakes', description: 'Intake form management' },
+  ],
+})
+
+// Scalar interactive API docs
 api.get(
   '/docs',
   Scalar({
@@ -232,7 +230,7 @@ const requireHubOrSuperAdmin = createMiddleware<AppEnv>(async (c, next) => {
 })
 
 // Authenticated routes
-const authenticated = new Hono<AppEnv>()
+const authenticated = new OpenAPIHono<AppEnv>()
 authenticated.use('*', auth)
 authenticated.route('/users', usersRoutes)
 // Resource routes shared with hub-scoped router: require hub context for non-super-admins
@@ -291,7 +289,7 @@ authenticated.route('/geocoding', geocodingRoutes)
 authenticated.route('/notifications', notificationsRoutes)
 
 // Hub-scoped authenticated routes
-const hubScoped = new Hono<AppEnv>()
+const hubScoped = new OpenAPIHono<AppEnv>()
 hubScoped.use('*', hubContext)
 hubScoped.route('/analytics', analyticsRoutes)
 hubScoped.route('/shifts', shiftsRoutes)

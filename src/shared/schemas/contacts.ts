@@ -1,0 +1,70 @@
+import { z } from 'zod/v4'
+import { RecipientEnvelopeSchema } from './records'
+
+// ── Create Contact ──
+export const CreateContactSchema = z.object({
+  contactType: z.string().min(1),
+  riskLevel: z.string().min(1),
+  tags: z.array(z.string()).optional(),
+  identifierHash: z.string().optional(),
+  assignedTo: z.string().optional(),
+  encryptedDisplayName: z.string().min(1),
+  displayNameEnvelopes: z.array(RecipientEnvelopeSchema).min(1),
+  encryptedNotes: z.string().optional(),
+  notesEnvelopes: z.array(RecipientEnvelopeSchema).optional(),
+  encryptedFullName: z.string().optional(),
+  fullNameEnvelopes: z.array(RecipientEnvelopeSchema).optional(),
+  encryptedPhone: z.string().optional(),
+  phoneEnvelopes: z.array(RecipientEnvelopeSchema).optional(),
+  encryptedPII: z.string().optional(),
+  piiEnvelopes: z.array(RecipientEnvelopeSchema).optional(),
+})
+export type CreateContactInput = z.infer<typeof CreateContactSchema>
+
+// ── Update Contact ──
+export const UpdateContactSchema = z.object({
+  contactType: z.string().optional(),
+  riskLevel: z.string().optional(),
+  tags: z.array(z.string()).optional(),
+  identifierHash: z.string().optional(),
+  assignedTo: z.string().nullable().optional(),
+  encryptedDisplayName: z.string().optional(),
+  displayNameEnvelopes: z.array(RecipientEnvelopeSchema).optional(),
+  encryptedNotes: z.string().optional(),
+  notesEnvelopes: z.array(RecipientEnvelopeSchema).optional(),
+  encryptedFullName: z.string().optional(),
+  fullNameEnvelopes: z.array(RecipientEnvelopeSchema).optional(),
+  encryptedPhone: z.string().optional(),
+  phoneEnvelopes: z.array(RecipientEnvelopeSchema).optional(),
+  encryptedPII: z.string().optional(),
+  piiEnvelopes: z.array(RecipientEnvelopeSchema).optional(),
+})
+export type UpdateContactInput = z.infer<typeof UpdateContactSchema>
+
+// ── Link Contact ──
+export const LinkContactSchema = z.object({
+  type: z.enum(['call', 'conversation']),
+  targetId: z.string().min(1),
+})
+export type LinkContactInput = z.infer<typeof LinkContactSchema>
+
+// ── Bulk Update Contacts ──
+export const BulkUpdateContactsSchema = z.object({
+  contactIds: z.array(z.string().min(1)).min(1),
+  addTags: z.array(z.string()).optional(),
+  removeTags: z.array(z.string()).optional(),
+  riskLevel: z.string().optional(),
+})
+export type BulkUpdateContactsInput = z.infer<typeof BulkUpdateContactsSchema>
+
+// ── Bulk Delete Contacts ──
+export const BulkDeleteContactsSchema = z.object({
+  contactIds: z.array(z.string().min(1)).min(1),
+})
+export type BulkDeleteContactsInput = z.infer<typeof BulkDeleteContactsSchema>
+
+// ── Hash Phone ──
+export const HashPhoneSchema = z.object({
+  phone: z.string().min(1),
+})
+export type HashPhoneInput = z.infer<typeof HashPhoneSchema>
