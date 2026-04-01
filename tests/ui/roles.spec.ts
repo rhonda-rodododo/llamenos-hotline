@@ -169,8 +169,14 @@ test.describe('Role Editor — Permission Metadata UI', () => {
     ).toBeVisible()
 
     // Expand Roles section and open Create Role editor
-    await adminPage.getByText('Roles & Permissions').click()
-    await adminPage.getByTestId('create-role-btn').click()
+    await expect(adminPage.getByText('Roles & Permissions')).toBeVisible({ timeout: 30000 })
+    const createBtn = adminPage.getByTestId('create-role-btn')
+    const alreadyExpanded = await createBtn.isVisible({ timeout: 2000 }).catch(() => false)
+    if (!alreadyExpanded) {
+      await adminPage.getByText('Roles & Permissions').click()
+      await expect(createBtn).toBeVisible({ timeout: 15000 })
+    }
+    await createBtn.click()
 
     // Expand the contacts domain
     const contactsDomain = adminPage.getByTestId('permission-domain-contacts')
@@ -202,8 +208,14 @@ test.describe('Role Editor — Permission Metadata UI', () => {
       adminPage.getByRole('heading', { name: 'Hub Settings', exact: true })
     ).toBeVisible()
 
-    await adminPage.getByText('Roles & Permissions').click()
-    await adminPage.getByTestId('create-role-btn').click()
+    await expect(adminPage.getByText('Roles & Permissions')).toBeVisible({ timeout: 30000 })
+    const createBtn2 = adminPage.getByTestId('create-role-btn')
+    const expanded2 = await createBtn2.isVisible({ timeout: 2000 }).catch(() => false)
+    if (!expanded2) {
+      await adminPage.getByText('Roles & Permissions').click()
+      await expect(createBtn2).toBeVisible({ timeout: 15000 })
+    }
+    await createBtn2.click()
 
     // Editor should be visible
     await expect(adminPage.getByTestId('save-role-btn')).toBeVisible()
