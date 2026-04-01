@@ -144,7 +144,9 @@ test.describe('WebRTC & Call Preference Settings', () => {
     await adminPage.getByRole('link', { name: 'Hub Settings' }).click()
     await adminPage.getByText('Telephony Provider').first().click()
 
-    // Fill in basic Twilio credentials
+    // Fill in basic Twilio credentials (phone number required to enable save)
+    await adminPage.locator('#provider-phone').fill('+15551234567')
+    await adminPage.locator('#provider-phone').blur()
     await adminPage.getByTestId('account-sid').fill('ACwebrtctest123')
     await adminPage.getByTestId('auth-token').fill('webrtc-auth-token')
 
