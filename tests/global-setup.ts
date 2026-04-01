@@ -79,11 +79,32 @@ async function bootstrapAdmin(page: import('@playwright/test').Page) {
     if (registrations) {
       await Promise.all(registrations.map((r) => r.unregister()))
     }
+    // Clear Cache Storage (Workbox precache) to prevent stale API responses
+    if ('caches' in window) {
+      const cacheNames = await caches.keys()
+      await Promise.all(cacheNames.map((name) => caches.delete(name)))
+    }
   })
   await page.reload({ waitUntil: 'domcontentloaded' })
 
-  // Wait for bootstrap UI — config fetch must return needsBootstrap=true
-  await expect(page.getByText('Create Admin Account')).toBeVisible({ timeout: 30000 })
+  // Wait for bootstrap UI — config fetch must return needsBootstrap=true.
+  // The SetupWizard shows "Create Admin Account" when needsBootstrap is true.
+  // If the setup wizard (step 1) shows instead, the config fetch returned stale data.
+  const bootstrapTitle = page.getByText('Create Admin Account')
+  const wizardTitle = page.getByText('Setup Wizard')
+  const firstVisible = await Promise.race([
+    bootstrapTitle.waitFor({ state: 'visible', timeout: 30000 }).then(() => 'bootstrap' as const),
+    wizardTitle.waitFor({ state: 'visible', timeout: 30000 }).then(() => 'wizard' as const),
+  ])
+
+  if (firstVisible === 'wizard') {
+    // Setup wizard appeared instead of bootstrap — the app may have stale config.
+    // Force a fresh config fetch by navigating away and back.
+    console.log('[SETUP] WARNING: Setup Wizard appeared instead of bootstrap. Forcing reload...')
+    await page.goto('about:blank')
+    await page.goto('/setup', { waitUntil: 'networkidle' })
+    await expect(bootstrapTitle).toBeVisible({ timeout: 30000 })
+  }
 
   // Click "Get Started"
   await page.getByRole('button', { name: /get started/i }).click()
