@@ -21,6 +21,10 @@ function loadConfig(): BridgeConfig {
   if (!workerWebhookUrl) throw new Error('WORKER_WEBHOOK_URL is required')
   if (!bridgeSecret) throw new Error('BRIDGE_SECRET is required')
 
+  const connectionTimeoutMs = process.env.ARI_CONNECTION_TIMEOUT_MS
+    ? Number.parseInt(process.env.ARI_CONNECTION_TIMEOUT_MS, 10)
+    : undefined
+
   return {
     ariUrl,
     ariRestUrl,
@@ -34,6 +38,7 @@ function loadConfig(): BridgeConfig {
     sipProvider: process.env.SIP_PROVIDER,
     sipUsername: process.env.SIP_USERNAME,
     sipPassword: process.env.SIP_PASSWORD,
+    connectionTimeoutMs,
   }
 }
 
