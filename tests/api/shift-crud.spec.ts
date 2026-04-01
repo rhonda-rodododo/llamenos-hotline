@@ -108,7 +108,7 @@ test.describe('Shift CRUD and Scheduling', () => {
 
   test('set fallback group', async () => {
     const res = await adminApi.put(ctx.hubPath('/shifts/fallback'), {
-      volunteers: [ctx.user('volunteer').pubkey],
+      users: [ctx.user('volunteer').pubkey],
     })
     expect(res.status()).toBe(200)
   })

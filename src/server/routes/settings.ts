@@ -120,16 +120,18 @@ const updateCustomFieldsRoute = createRoute({
   summary: 'Replace custom field definitions',
   middleware: [requirePermission('settings:manage-fields')],
   request: {
-    body: { content: { 'application/json': { schema: PassthroughSchema } } },
+    body: {
+      content: {
+        'application/json': {
+          schema: z.object({ fields: z.array(PassthroughSchema) }),
+        },
+      },
+    },
   },
   responses: {
     200: {
       description: 'Updated custom fields',
       content: { 'application/json': { schema: z.object({ fields: z.array(PassthroughSchema) }) } },
-    },
-    400: {
-      description: 'Invalid input',
-      content: { 'application/json': { schema: ErrorSchema } },
     },
   },
 })
@@ -138,13 +140,9 @@ settings.openapi(updateCustomFieldsRoute, async (c) => {
   const services = c.get('services')
   const hubId = c.get('hubId')
   const pubkey = c.get('pubkey')
-  const body = c.req.valid('json')
-  const fields = Array.isArray(body) ? body : (body as Record<string, unknown>).fields
-  if (!Array.isArray(fields)) {
-    return c.json({ error: 'fields must be an array' }, 400)
-  }
+  const { fields } = c.req.valid('json')
   const updated = await services.settings.updateCustomFields(
-    fields as Parameters<typeof services.settings.updateCustomFields>[0],
+    fields as unknown as Parameters<typeof services.settings.updateCustomFields>[0],
     hubId ?? undefined
   )
   await services.records.addAuditEntry(hubId ?? 'global', 'customFieldsUpdated', pubkey, {})
@@ -307,7 +305,7 @@ const updateIvrLanguagesRoute = createRoute({
   request: {
     body: {
       content: {
-        'application/json': { schema: z.object({ languages: z.array(z.string()) }).passthrough() },
+        'application/json': { schema: z.object({ enabledLanguages: z.array(z.string()) }) },
       },
     },
   },
@@ -323,14 +321,10 @@ settings.openapi(updateIvrLanguagesRoute, async (c) => {
   const services = c.get('services')
   const hubId = c.get('hubId')
   const pubkey = c.get('pubkey')
-  const rawBody = await c.req.json()
-  const languages = Array.isArray(rawBody) ? rawBody : rawBody.languages
-  const updated = await services.settings.updateIvrLanguages(
-    languages as string[],
-    hubId ?? undefined
-  )
+  const { enabledLanguages } = c.req.valid('json')
+  const updated = await services.settings.updateIvrLanguages(enabledLanguages, hubId ?? undefined)
   await services.records.addAuditEntry(hubId ?? 'global', 'ivrLanguagesUpdated', pubkey, {
-    languages,
+    enabledLanguages,
   } as Record<string, unknown>)
   return c.json({ enabledLanguages: updated }, 200)
 })

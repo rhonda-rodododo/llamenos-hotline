@@ -96,18 +96,20 @@ test.describe('Settings Management', () => {
     })
 
     test('admin can set custom fields', async () => {
-      const res = await adminApi.put('/api/settings/custom-fields', [
-        {
-          id: `field-test-${Date.now()}`,
-          name: 'test_field',
-          label: 'Test Field',
-          type: 'text',
-          required: false,
-          visibleToUsers: true,
-          editableByUsers: false,
-          context: 'notes',
-        },
-      ])
+      const res = await adminApi.put('/api/settings/custom-fields', {
+        fields: [
+          {
+            id: `field-test-${Date.now()}`,
+            name: 'test_field',
+            label: 'Test Field',
+            type: 'text',
+            required: false,
+            visibleTo: 'contacts:envelope-summary',
+            context: 'call-notes',
+            order: 0,
+          },
+        ],
+      })
       expect(res.status()).toBe(200)
     })
 
@@ -151,7 +153,9 @@ test.describe('Settings Management', () => {
     })
 
     test('admin can update IVR languages', async () => {
-      const res = await adminApi.patch('/api/settings/ivr-languages', ['en', 'es'])
+      const res = await adminApi.patch('/api/settings/ivr-languages', {
+        enabledLanguages: ['en', 'es'],
+      })
       expect(res.status()).toBe(200)
     })
 
