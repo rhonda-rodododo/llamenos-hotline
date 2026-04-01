@@ -1,5 +1,7 @@
 import { z } from 'zod/v4'
+import { ChannelTypeSchema } from './common'
 import { TelephonyProviderConfigSchema } from './providers'
+export type { ChannelType } from './common'
 
 export const HubSchema = z.object({
   id: z.string(),
@@ -108,3 +110,35 @@ export const MessagingConfigSchema = z.object({
   channels: z.array(MessagingChannelConfigSchema),
 })
 export type MessagingConfig = z.infer<typeof MessagingConfigSchema>
+
+export const WebAuthnSettingsSchema = z.object({
+  requireForAdmins: z.boolean(),
+  requireForUsers: z.boolean(),
+})
+export type WebAuthnSettings = z.infer<typeof WebAuthnSettingsSchema>
+
+export const GeocodingConfigSchema = z.object({
+  provider: z.enum(['opencage', 'geoapify']).nullable(),
+  countries: z.array(z.string()),
+  enabled: z.boolean(),
+})
+export type GeocodingConfig = z.infer<typeof GeocodingConfigSchema>
+
+export const SetupStateSchema = z.object({
+  setupCompleted: z.boolean(),
+  completedSteps: z.array(z.string()),
+  pendingChannels: z.array(ChannelTypeSchema),
+  selectedChannels: z.array(ChannelTypeSchema),
+  demoMode: z.boolean().optional(),
+})
+export type SetupState = z.infer<typeof SetupStateSchema>
+
+export const EnabledChannelsSchema = z.object({
+  voice: z.boolean(),
+  sms: z.boolean(),
+  whatsapp: z.boolean(),
+  signal: z.boolean(),
+  rcs: z.boolean(),
+  reports: z.boolean(),
+})
+export type EnabledChannels = z.infer<typeof EnabledChannelsSchema>

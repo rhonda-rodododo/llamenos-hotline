@@ -53,3 +53,34 @@ export const BlastDeliverySchema = z.object({
   sentAt: z.iso.datetime().optional(),
 })
 export type BlastDelivery = z.infer<typeof BlastDeliverySchema>
+
+export const BlastContentSchema = z.object({
+  text: z.string(),
+  mediaUrl: z.string().optional(),
+  mediaType: z.string().optional(),
+  smsText: z.string().optional(),
+  whatsappTemplateId: z.string().optional(),
+  rcsRichCard: z.boolean().optional(),
+})
+export type BlastContent = z.infer<typeof BlastContentSchema>
+
+export const BlastStatsSchema = z.object({
+  totalRecipients: z.number().int(),
+  sent: z.number().int(),
+  delivered: z.number().int(),
+  failed: z.number().int(),
+  optedOut: z.number().int(),
+})
+export type BlastStats = z.infer<typeof BlastStatsSchema>
+
+export const BlastSettingsSchema = z.object({
+  subscribeKeyword: z.string(),
+  unsubscribeKeyword: z.string(),
+  confirmationMessage: z.string(),
+  unsubscribeMessage: z.string(),
+  doubleOptIn: z.boolean(),
+  optOutFooter: z.string(),
+  maxBlastsPerDay: z.number().int(),
+  rateLimitPerSecond: z.number().int(),
+})
+export type BlastSettings = z.infer<typeof BlastSettingsSchema>

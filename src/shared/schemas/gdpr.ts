@@ -13,4 +13,6 @@ export const RetentionSettingsSchema = z.object({
   messagesDays: z.number().int().min(30).max(3650),
   auditLogDays: z.number().int().min(365).max(3650),
 })
-export type RetentionSettingsInput = z.infer<typeof RetentionSettingsSchema>
+export type RetentionSettings = z.infer<typeof RetentionSettingsSchema>
+/** @deprecated Use RetentionSettings */
+export type RetentionSettingsInput = RetentionSettings

@@ -65,6 +65,29 @@ export const CreateNoteSchema = z.object({
 })
 export type CreateNoteInput = z.infer<typeof CreateNoteSchema>
 
+export const KeyEnvelopeSchema = z.object({
+  wrappedKey: z.string(),
+  ephemeralPubkey: z.string(),
+})
+export type KeyEnvelope = z.infer<typeof KeyEnvelopeSchema>
+
+export const NotePayloadSchema = z.object({
+  text: z.string(),
+  fields: z
+    .record(
+      z.string(),
+      z.union([
+        z.string(),
+        z.array(z.string()),
+        z.number(),
+        z.boolean(),
+        z.object({ fileId: z.string() }),
+      ])
+    )
+    .optional(),
+})
+export type NotePayload = z.infer<typeof NotePayloadSchema>
+
 export const EncryptedCallRecordSchema = z.object({
   id: z.uuid(),
   hubId: z.string(),
