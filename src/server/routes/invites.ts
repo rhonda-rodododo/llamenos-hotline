@@ -1,6 +1,6 @@
+import { OpenAPIHono, createRoute, z } from '@hono/zod-openapi'
 import { HMAC_IP_PREFIX } from '@shared/crypto-labels'
 import { resolvePermissions } from '@shared/permissions'
-import { Hono } from 'hono'
 import { setCookie } from 'hono/cookie'
 import { getIdPAdapter } from '../app'
 import { hashIP } from '../lib/crypto-service'
@@ -14,13 +14,37 @@ import {
 } from '../services/invite-delivery-service'
 import type { AppEnv } from '../types'
 
-const invites = new Hono<AppEnv>()
+const invites = new OpenAPIHono<AppEnv>()
 
 // --- Public routes (no auth) ---
 
-invites.get('/validate/:code', async (c) => {
+// ── GET /validate/{code} — Validate invite code ──
+
+const validateRoute = createRoute({
+  method: 'get',
+  path: '/validate/{code}',
+  tags: ['Invites'],
+  summary: 'Validate an invite code',
+  request: {
+    params: z.object({
+      code: z.string().openapi({ param: { name: 'code', in: 'path' }, example: 'abc123' }),
+    }),
+  },
+  responses: {
+    200: {
+      description: 'Validation result',
+      content: { 'application/json': { schema: z.object({}).passthrough() } },
+    },
+    429: {
+      description: 'Rate limited',
+      content: { 'application/json': { schema: z.object({ error: z.string() }) } },
+    },
+  },
+})
+
+invites.openapi(validateRoute, async (c) => {
   const services = c.get('services')
-  const code = c.req.param('code')
+  const { code } = c.req.valid('param')
   // Rate limit invite validation to prevent enumeration
   const clientIp = c.req.header('CF-Connecting-IP') || 'unknown'
   const limited = await services.settings.checkRateLimit(
@@ -29,15 +53,47 @@ invites.get('/validate/:code', async (c) => {
   )
   if (limited) return c.json({ error: 'Too many requests' }, 429)
   const result = await services.identity.validateInvite(code)
-  return c.json(result)
+  return c.json(result, 200)
 })
 
-invites.post('/redeem', async (c) => {
+// ── POST /redeem — Redeem invite code ──
+
+const redeemRoute = createRoute({
+  method: 'post',
+  path: '/redeem',
+  tags: ['Invites'],
+  summary: 'Redeem an invite code',
+  request: {
+    body: {
+      content: {
+        'application/json': {
+          schema: z.object({
+            code: z.string(),
+            pubkey: z.string(),
+          }),
+        },
+      },
+    },
+  },
+  responses: {
+    200: {
+      description: 'Invite redeemed',
+      content: { 'application/json': { schema: z.object({}).passthrough() } },
+    },
+    400: {
+      description: 'Missing fields',
+      content: { 'application/json': { schema: z.object({ error: z.string() }) } },
+    },
+    429: {
+      description: 'Rate limited',
+      content: { 'application/json': { schema: z.object({ error: z.string() }) } },
+    },
+  },
+})
+
+invites.openapi(redeemRoute, async (c) => {
   const services = c.get('services')
-  const body = (await c.req.json()) as {
-    code: string
-    pubkey: string
-  }
+  const body = c.req.valid('json')
 
   if (!body.pubkey || !body.code) {
     return c.json({ error: 'Missing code or pubkey' }, 400)
@@ -81,7 +137,7 @@ invites.post('/redeem', async (c) => {
   }
 
   // Enroll the new user in the IdP and return their nsecSecret for KEK derivation
-  let nsecSecret: string | undefined
+  let nsecSecret: string | null = null
   const idpAdapter = getIdPAdapter()
   if (idpAdapter) {
     try {
@@ -115,70 +171,186 @@ invites.post('/redeem', async (c) => {
     maxAge: 30 * 24 * 60 * 60,
   })
 
-  return c.json({ ...user, nsecSecret, accessToken })
+  return c.json({ ...user, nsecSecret, accessToken }, 200)
 })
 
 // --- Authenticated routes (require invites permissions) ---
 
-invites.get('/', authMiddleware, requirePermission('invites:read'), async (c) => {
-  const services = c.get('services')
-  const inviteList = await services.identity.getInvites()
-  return c.json({ invites: inviteList })
+// ── GET / — List invites ──
+
+const listInvitesRoute = createRoute({
+  method: 'get',
+  path: '/',
+  tags: ['Invites'],
+  summary: 'List all invites',
+  middleware: [authMiddleware, requirePermission('invites:read')],
+  responses: {
+    200: {
+      description: 'Invite list',
+      content: {
+        'application/json': {
+          schema: z.object({ invites: z.array(z.object({}).passthrough()) }),
+        },
+      },
+    },
+  },
 })
 
-/**
- * GET /api/invites/available-channels
- * Returns which messaging channels are configured for invite delivery.
- * Signal > WhatsApp > SMS — always prefer encrypted channels.
- */
-invites.get(
-  '/available-channels',
-  authMiddleware,
-  requirePermission('invites:create'),
-  async (c) => {
-    const services = c.get('services')
-    const config = await services.settings.getMessagingConfig()
-    return c.json({
+invites.openapi(listInvitesRoute, async (c) => {
+  const services = c.get('services')
+  const inviteList = await services.identity.getInvites()
+  return c.json({ invites: inviteList }, 200)
+})
+
+// ── GET /available-channels — Check configured messaging channels for delivery ──
+
+const availableChannelsRoute = createRoute({
+  method: 'get',
+  path: '/available-channels',
+  tags: ['Invites'],
+  summary: 'Get available invite delivery channels',
+  middleware: [authMiddleware, requirePermission('invites:create')],
+  responses: {
+    200: {
+      description: 'Available channels',
+      content: {
+        'application/json': {
+          schema: z.object({
+            signal: z.boolean(),
+            whatsapp: z.boolean(),
+            sms: z.boolean(),
+          }),
+        },
+      },
+    },
+  },
+})
+
+invites.openapi(availableChannelsRoute, async (c) => {
+  const services = c.get('services')
+  const config = await services.settings.getMessagingConfig()
+  return c.json(
+    {
       signal: config.enabledChannels.includes('signal') && !!config.signal,
       whatsapp: config.enabledChannels.includes('whatsapp') && !!config.whatsapp,
       sms: config.enabledChannels.includes('sms') && !!config.sms?.enabled,
-    })
-  }
-)
+    },
+    200
+  )
+})
 
-invites.post('/', authMiddleware, requirePermission('invites:create'), async (c) => {
+// ── POST / — Create invite ──
+
+const createInviteRoute = createRoute({
+  method: 'post',
+  path: '/',
+  tags: ['Invites'],
+  summary: 'Create a new invite',
+  middleware: [authMiddleware, requirePermission('invites:create')],
+  request: {
+    body: {
+      content: {
+        'application/json': {
+          schema: z.object({
+            name: z.string(),
+            phone: z.string().optional(),
+            roleIds: z.array(z.string()),
+          }),
+        },
+      },
+    },
+  },
+  responses: {
+    201: {
+      description: 'Invite created',
+      content: {
+        'application/json': {
+          schema: z.object({ invite: z.object({}).passthrough() }),
+        },
+      },
+    },
+    400: {
+      description: 'Invalid phone number',
+      content: { 'application/json': { schema: z.object({ error: z.string() }) } },
+    },
+  },
+})
+
+invites.openapi(createInviteRoute, async (c) => {
   const services = c.get('services')
   const pubkey = c.get('pubkey')
-  const body = (await c.req.json()) as { name: string; phone: string; roleIds: string[] }
+  const body = c.req.valid('json')
   if (body.phone && !isValidE164(body.phone)) {
     return c.json({ error: 'Invalid phone number. Use E.164 format (e.g. +12125551234)' }, 400)
   }
-  const invite = await services.identity.createInvite({ ...body, createdBy: pubkey })
+  const invite = await services.identity.createInvite({
+    name: body.name,
+    phone: body.phone ?? '',
+    roleIds: body.roleIds,
+    createdBy: pubkey,
+  })
   await services.records.addAuditEntry('global', 'inviteCreated', pubkey, { name: body.name })
   return c.json({ invite }, 201)
 })
 
-/**
- * POST /api/invites/:code/send
- * Deliver invite link via a secure messaging channel.
- *
- * Requires:
- * - Valid, unexpired invite code
- * - E.164 phone number
- * - Explicit acknowledgedInsecure: true for SMS channel
- *
- * Phone stored as HMAC hash only — never in plaintext.
- */
-invites.post('/:code/send', authMiddleware, requirePermission('invites:create'), async (c) => {
+// ── POST /{code}/send — Deliver invite via secure messaging channel ──
+
+const sendInviteRoute = createRoute({
+  method: 'post',
+  path: '/{code}/send',
+  tags: ['Invites'],
+  summary: 'Send invite via messaging channel',
+  middleware: [authMiddleware, requirePermission('invites:create')],
+  request: {
+    params: z.object({
+      code: z.string().openapi({ param: { name: 'code', in: 'path' } }),
+    }),
+    body: {
+      content: {
+        'application/json': {
+          schema: z.object({
+            recipientPhone: z.string(),
+            channel: z.enum(['signal', 'whatsapp', 'sms']),
+            acknowledgedInsecure: z.boolean().optional(),
+          }),
+        },
+      },
+    },
+  },
+  responses: {
+    200: {
+      description: 'Invite sent',
+      content: {
+        'application/json': {
+          schema: z.object({ sent: z.boolean(), channel: z.string() }),
+        },
+      },
+    },
+    404: {
+      description: 'Invite not found',
+      content: { 'application/json': { schema: z.object({ error: z.string() }) } },
+    },
+    410: {
+      description: 'Invite expired',
+      content: { 'application/json': { schema: z.object({ error: z.string() }) } },
+    },
+    422: {
+      description: 'Validation error',
+      content: { 'application/json': { schema: z.object({ error: z.string() }).passthrough() } },
+    },
+    502: {
+      description: 'Delivery failed',
+      content: { 'application/json': { schema: z.object({ error: z.string() }) } },
+    },
+  },
+})
+
+invites.openapi(sendInviteRoute, async (c) => {
   const services = c.get('services')
   const pubkey = c.get('pubkey')
-  const code = c.req.param('code')
+  const { code } = c.req.valid('param')
 
-  const body = (await c.req.json()) as {
-    recipientPhone: string
-    channel: InviteDeliveryChannel
-    acknowledgedInsecure?: boolean
-  }
+  const body = c.req.valid('json')
 
   // Validate channel value
   const validChannels: InviteDeliveryChannel[] = ['signal', 'whatsapp', 'sms']
@@ -205,8 +377,10 @@ invites.post('/:code/send', authMiddleware, requirePermission('invites:create'),
   // Validate invite exists and is not expired or already used
   const validation = await services.identity.validateInvite(code)
   if (!validation.valid) {
-    const status = validation.error === 'expired' ? 410 : 404
-    return c.json({ error: validation.error }, status)
+    if (validation.error === 'expired') {
+      return c.json({ error: 'expired' }, 410)
+    }
+    return c.json({ error: validation.error ?? 'Invalid invite' }, 404)
   }
 
   // Look up full invite to get expiresAt
@@ -246,16 +420,37 @@ invites.post('/:code/send', authMiddleware, requirePermission('invites:create'),
     channel: deliveryResult.channel,
   })
 
-  return c.json({ sent: true, channel: deliveryResult.channel })
+  return c.json({ sent: true, channel: deliveryResult.channel }, 200)
 })
 
-invites.delete('/:code', authMiddleware, requirePermission('invites:revoke'), async (c) => {
+// ── DELETE /{code} — Revoke invite ──
+
+const revokeInviteRoute = createRoute({
+  method: 'delete',
+  path: '/{code}',
+  tags: ['Invites'],
+  summary: 'Revoke an invite',
+  middleware: [authMiddleware, requirePermission('invites:revoke')],
+  request: {
+    params: z.object({
+      code: z.string().openapi({ param: { name: 'code', in: 'path' } }),
+    }),
+  },
+  responses: {
+    200: {
+      description: 'Invite revoked',
+      content: { 'application/json': { schema: z.object({ ok: z.boolean() }) } },
+    },
+  },
+})
+
+invites.openapi(revokeInviteRoute, async (c) => {
   const services = c.get('services')
   const pubkey = c.get('pubkey')
-  const code = c.req.param('code')
+  const { code } = c.req.valid('param')
   await services.identity.revokeInvite(code)
   await services.records.addAuditEntry('global', 'inviteRevoked', pubkey, { code })
-  return c.json({ ok: true })
+  return c.json({ ok: true }, 200)
 })
 
 export default invites

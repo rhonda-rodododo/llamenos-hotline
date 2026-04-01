@@ -1,5 +1,5 @@
+import { OpenAPIHono, createRoute, z } from '@hono/zod-openapi'
 import { HMAC_IP_PREFIX } from '@shared/crypto-labels'
-import { Hono } from 'hono'
 import { setCookie } from 'hono/cookie'
 import { getPrimaryRole } from '../../shared/permissions'
 import { getIdPAdapter } from '../app'
@@ -11,10 +11,53 @@ import { auth as authMiddleware } from '../middleware/auth'
 import { checkPermission } from '../middleware/permission-guard'
 import type { AppEnv, WebAuthnCredential } from '../types'
 
-const auth = new Hono<AppEnv>()
+const auth = new OpenAPIHono<AppEnv>()
 
-// --- Bootstrap (no auth — one-shot admin registration) ---
-auth.post('/bootstrap', async (c) => {
+// ── POST /bootstrap — One-shot admin registration (no auth) ──
+
+const bootstrapRoute = createRoute({
+  method: 'post',
+  path: '/bootstrap',
+  tags: ['Auth'],
+  summary: 'Bootstrap first admin',
+  request: {
+    body: {
+      content: {
+        'application/json': {
+          schema: z.object({ pubkey: z.string() }),
+        },
+      },
+    },
+  },
+  responses: {
+    200: {
+      description: 'Admin bootstrapped',
+      content: { 'application/json': { schema: z.object({}).passthrough() } },
+    },
+    400: {
+      description: 'Invalid request',
+      content: { 'application/json': { schema: z.object({ error: z.string() }) } },
+    },
+    403: {
+      description: 'Admin already exists',
+      content: { 'application/json': { schema: z.object({ error: z.string() }) } },
+    },
+    429: {
+      description: 'Rate limited',
+      content: { 'application/json': { schema: z.object({ error: z.string() }) } },
+    },
+    500: {
+      description: 'Bootstrap failed',
+      content: { 'application/json': { schema: z.object({ error: z.string() }) } },
+    },
+    503: {
+      description: 'IdP not available',
+      content: { 'application/json': { schema: z.object({ error: z.string() }) } },
+    },
+  },
+})
+
+auth.openapi(bootstrapRoute, async (c) => {
   const services = c.get('services')
 
   // Rate limit by IP
@@ -29,7 +72,7 @@ auth.post('/bootstrap', async (c) => {
     }
   }
 
-  const body = (await c.req.json()) as { pubkey: string }
+  const body = c.req.valid('json')
   if (!body.pubkey) {
     return c.json({ error: 'Invalid request' }, 400)
   }
@@ -71,19 +114,37 @@ auth.post('/bootstrap', async (c) => {
     maxAge: 30 * 24 * 60 * 60,
   })
 
-  return c.json({
-    ok: true,
-    roles: ['role-super-admin'],
-    nsecSecret: nsecSecretHex,
-    accessToken,
-  })
+  return c.json(
+    {
+      ok: true,
+      roles: ['role-super-admin'],
+      nsecSecret: nsecSecretHex,
+      accessToken,
+    },
+    200
+  )
 })
 
 // --- Authenticated routes ---
 auth.use('/me', authMiddleware)
 auth.use('/me/*', authMiddleware)
 
-auth.get('/me', async (c) => {
+// ── GET /me — Get current user profile ──
+
+const getMeRoute = createRoute({
+  method: 'get',
+  path: '/me',
+  tags: ['Auth'],
+  summary: 'Get current user profile',
+  responses: {
+    200: {
+      description: 'User profile',
+      content: { 'application/json': { schema: z.object({}).passthrough() } },
+    },
+  },
+})
+
+auth.openapi(getMeRoute, async (c) => {
   const services = c.get('services')
   const pubkey = c.get('pubkey')
   const user = c.get('user')
@@ -101,22 +162,17 @@ auth.get('/me', async (c) => {
   const primaryRole = getPrimaryRole(user.roles, allRoles)
 
   // Resolve admin decryption pubkey from DB (actual super-admin) instead of stale env var.
-  // The env var ADMIN_PUBKEY may not match the dynamically-generated bootstrap admin pubkey.
   const superAdminPubkeys = await services.identity.getSuperAdminPubkeys()
   const adminDecryptionPubkey =
     c.env.ADMIN_DECRYPTION_PUBKEY || superAdminPubkeys[0] || c.env.ADMIN_PUBKEY
 
-  return c.json({
+  const meResponse: Record<string, unknown> = {
     pubkey: user.pubkey,
     roles: user.roles,
     hubRoles: user.hubRoles ?? [],
     permissions,
     primaryRole: primaryRole ? { id: primaryRole.id, name: primaryRole.name } : null,
     name: user.name,
-    // E2EE envelope fields — client uses these to decrypt name with their private key
-    ...(user.encryptedName !== undefined ? { encryptedName: user.encryptedName } : {}),
-    ...(user.nameEnvelopes !== undefined ? { nameEnvelopes: user.nameEnvelopes } : {}),
-    // PII: phone always masked in self-view (client shows masked; unmask via PIN challenge + ?unmask=true on /users/:pubkey)
     phone: maskPhone(user.phone),
     transcriptionEnabled: user.transcriptionEnabled,
     spokenLanguages: user.spokenLanguages || ['en'],
@@ -126,56 +182,152 @@ auth.get('/me', async (c) => {
     callPreference: user.callPreference ?? 'phone',
     webauthnRequired,
     webauthnRegistered: webauthnCreds.length > 0,
-    // H17: Removed adminPubkey (signing key identity) — only decryption pubkey needed
     adminDecryptionPubkey,
-    // HIGH-W1: Global server event key removed — hub keys delivered via per-hub ECIES
-    // envelopes (GET /api/hubs/:hubId/key). Clients use hub-key-cache.ts for decryption.
-  })
+  }
+  if (user.encryptedName !== undefined) meResponse.encryptedName = user.encryptedName
+  if (user.nameEnvelopes !== undefined) meResponse.nameEnvelopes = user.nameEnvelopes
+
+  return c.json(meResponse, 200)
 })
 
-auth.post('/me/logout', async (c) => {
+// ── POST /me/logout ──
+
+const logoutRoute = createRoute({
+  method: 'post',
+  path: '/me/logout',
+  tags: ['Auth'],
+  summary: 'Log out',
+  responses: {
+    200: {
+      description: 'Logged out',
+      content: { 'application/json': { schema: z.object({ ok: z.boolean() }) } },
+    },
+  },
+})
+
+auth.openapi(logoutRoute, async (c) => {
   const services = c.get('services')
   const pubkey = c.get('pubkey')
   await services.records.addAuditEntry('global', 'logout', pubkey)
-  return c.json({ ok: true })
+  return c.json({ ok: true }, 200)
 })
 
-auth.patch('/me/profile', async (c) => {
+// ── PATCH /me/profile ──
+
+const updateProfileRoute = createRoute({
+  method: 'patch',
+  path: '/me/profile',
+  tags: ['Auth'],
+  summary: 'Update own profile',
+  request: {
+    body: {
+      content: {
+        'application/json': {
+          schema: z.object({
+            name: z.string().optional(),
+            phone: z.string().optional(),
+            spokenLanguages: z.array(z.string()).optional(),
+            uiLanguage: z.string().optional(),
+            profileCompleted: z.boolean().optional(),
+            callPreference: z.enum(['phone', 'browser', 'both']).optional(),
+          }),
+        },
+      },
+    },
+  },
+  responses: {
+    200: {
+      description: 'Profile updated',
+      content: { 'application/json': { schema: z.object({ ok: z.boolean() }) } },
+    },
+    400: {
+      description: 'Invalid phone number',
+      content: { 'application/json': { schema: z.object({ error: z.string() }) } },
+    },
+  },
+})
+
+auth.openapi(updateProfileRoute, async (c) => {
   const services = c.get('services')
   const pubkey = c.get('pubkey')
-  const body = (await c.req.json()) as {
-    name?: string
-    phone?: string
-    spokenLanguages?: string[]
-    uiLanguage?: string
-    profileCompleted?: boolean
-    callPreference?: 'phone' | 'browser' | 'both'
-  }
+  const body = c.req.valid('json')
   if (body.phone && !isValidE164(body.phone)) {
     return c.json({ error: 'Invalid phone number. Use E.164 format (e.g. +12125551234)' }, 400)
   }
   await services.identity.updateUser(pubkey, body)
-  return c.json({ ok: true })
+  return c.json({ ok: true }, 200)
 })
 
-auth.patch('/me/availability', async (c) => {
+// ── PATCH /me/availability ──
+
+const updateAvailabilityRoute = createRoute({
+  method: 'patch',
+  path: '/me/availability',
+  tags: ['Auth'],
+  summary: 'Toggle break status',
+  request: {
+    body: {
+      content: {
+        'application/json': {
+          schema: z.object({ onBreak: z.boolean() }),
+        },
+      },
+    },
+  },
+  responses: {
+    200: {
+      description: 'Availability updated',
+      content: { 'application/json': { schema: z.object({ ok: z.boolean() }) } },
+    },
+  },
+})
+
+auth.openapi(updateAvailabilityRoute, async (c) => {
   const services = c.get('services')
   const pubkey = c.get('pubkey')
-  const body = (await c.req.json()) as { onBreak: boolean }
+  const body = c.req.valid('json')
   await services.identity.updateUser(pubkey, { onBreak: body.onBreak })
   await services.records.addAuditEntry(
     'global',
     body.onBreak ? 'userOnBreak' : 'userAvailable',
     pubkey
   )
-  return c.json({ ok: true })
+  return c.json({ ok: true }, 200)
 })
 
-auth.patch('/me/transcription', async (c) => {
+// ── PATCH /me/transcription ──
+
+const updateTranscriptionRoute = createRoute({
+  method: 'patch',
+  path: '/me/transcription',
+  tags: ['Auth'],
+  summary: 'Toggle transcription',
+  request: {
+    body: {
+      content: {
+        'application/json': {
+          schema: z.object({ enabled: z.boolean() }),
+        },
+      },
+    },
+  },
+  responses: {
+    200: {
+      description: 'Transcription preference updated',
+      content: { 'application/json': { schema: z.object({ ok: z.boolean() }) } },
+    },
+    403: {
+      description: 'Opt-out not allowed',
+      content: { 'application/json': { schema: z.object({ error: z.string() }) } },
+    },
+  },
+})
+
+auth.openapi(updateTranscriptionRoute, async (c) => {
   const services = c.get('services')
   const pubkey = c.get('pubkey')
   const permissions = c.get('permissions')
-  const body = (await c.req.json()) as { enabled: boolean }
+  const body = c.req.valid('json')
   // If user is trying to disable, check if admin allows opt-out
   if (!body.enabled && !checkPermission(permissions, 'settings:manage-transcription')) {
     const transSettings = await services.settings.getTranscriptionSettings()
@@ -187,7 +339,7 @@ auth.patch('/me/transcription', async (c) => {
   await services.records.addAuditEntry('global', 'transcriptionToggled', pubkey, {
     enabled: body.enabled,
   })
-  return c.json({ ok: true })
+  return c.json({ ok: true }, 200)
 })
 
 export default auth

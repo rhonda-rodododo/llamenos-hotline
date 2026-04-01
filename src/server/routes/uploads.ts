@@ -1,4 +1,4 @@
-import { Hono } from 'hono'
+import { OpenAPIHono, createRoute, z } from '@hono/zod-openapi'
 import type { UploadInit } from '../../shared/types'
 import { checkPermission, requirePermission } from '../middleware/permission-guard'
 import type { AppEnv } from '../types'
@@ -7,15 +7,62 @@ const MAX_UPLOAD_SIZE = 100 * 1024 * 1024 // 100 MB
 const MAX_CHUNK_SIZE = 10 * 1024 * 1024 // 10 MB
 const MAX_CHUNKS = 10000
 
-const uploads = new Hono<AppEnv>()
+const uploads = new OpenAPIHono<AppEnv>()
 uploads.use('*', requirePermission('files:upload'))
 
-// Initialize an upload — creates a file record and returns uploadId
-uploads.post('/init', async (c) => {
+const UploadIdParamSchema = z.object({
+  id: z.string().openapi({ param: { name: 'id', in: 'path' }, example: 'upload-abc123' }),
+})
+
+// ── POST /init — Initialize an upload ──
+
+const initUploadRoute = createRoute({
+  method: 'post',
+  path: '/init',
+  tags: ['Uploads'],
+  summary: 'Initialize a chunked upload',
+  request: {
+    body: {
+      content: {
+        'application/json': {
+          schema: z.object({
+            totalSize: z.number(),
+            totalChunks: z.number(),
+            conversationId: z.string().optional(),
+            recipientEnvelopes: z.array(z.object({}).passthrough()).optional(),
+            encryptedMetadata: z.array(z.object({}).passthrough()).optional(),
+            contextType: z.string().optional(),
+            contextId: z.string().optional(),
+          }),
+        },
+      },
+    },
+  },
+  responses: {
+    200: {
+      description: 'Upload initialized',
+      content: {
+        'application/json': {
+          schema: z.object({ uploadId: z.string(), totalChunks: z.number() }),
+        },
+      },
+    },
+    400: {
+      description: 'Invalid request',
+      content: { 'application/json': { schema: z.object({ error: z.string() }) } },
+    },
+    503: {
+      description: 'File storage not configured',
+      content: { 'application/json': { schema: z.object({ error: z.string() }) } },
+    },
+  },
+})
+
+uploads.openapi(initUploadRoute, async (c) => {
   const services = c.get('services')
   const hubId = c.get('hubId')
   const pubkey = c.get('pubkey')
-  const body = (await c.req.json()) as UploadInit
+  const body = c.req.valid('json') as unknown as UploadInit
 
   // conversationId is required for conversation/message attachments but optional for custom_field uploads
   const isCustomField = body.contextType === 'custom_field'
@@ -58,10 +105,12 @@ uploads.post('/init', async (c) => {
     totalChunks: body.totalChunks,
   })
 
-  return c.json({ uploadId, totalChunks: body.totalChunks })
+  return c.json({ uploadId, totalChunks: body.totalChunks }, 200)
 })
 
-// Upload a chunk
+// ── PUT /{id}/chunks/{chunkIndex} — Upload a chunk ──
+// Binary body — kept as standard Hono route
+
 uploads.put('/:id/chunks/:chunkIndex', async (c) => {
   const pubkey = c.get('pubkey')
   const permissions = c.get('permissions')
@@ -102,13 +151,50 @@ uploads.put('/:id/chunks/:chunkIndex', async (c) => {
   return c.json({ chunkIndex, completedChunks, totalChunks })
 })
 
-// Complete an upload — assembles chunks
-uploads.post('/:id/complete', async (c) => {
+// ── POST /{id}/complete — Complete an upload (assembles chunks) ──
+
+const completeUploadRoute = createRoute({
+  method: 'post',
+  path: '/{id}/complete',
+  tags: ['Uploads'],
+  summary: 'Complete a chunked upload',
+  request: {
+    params: UploadIdParamSchema,
+  },
+  responses: {
+    200: {
+      description: 'Upload completed',
+      content: {
+        'application/json': {
+          schema: z.object({ fileId: z.string(), status: z.string() }),
+        },
+      },
+    },
+    400: {
+      description: 'Not all chunks uploaded',
+      content: { 'application/json': { schema: z.object({ error: z.string() }).passthrough() } },
+    },
+    403: {
+      description: 'Forbidden',
+      content: { 'application/json': { schema: z.object({ error: z.string() }) } },
+    },
+    404: {
+      description: 'Upload not found',
+      content: { 'application/json': { schema: z.object({ error: z.string() }) } },
+    },
+    500: {
+      description: 'Assembly failed',
+      content: { 'application/json': { schema: z.object({ error: z.string() }) } },
+    },
+  },
+})
+
+uploads.openapi(completeUploadRoute, async (c) => {
   const services = c.get('services')
   const hubId = c.get('hubId')
   const pubkey = c.get('pubkey')
   const permissions = c.get('permissions')
-  const uploadId = c.req.param('id')
+  const { id: uploadId } = c.req.valid('param')
 
   const record = await services.files.getFileRecord(uploadId)
   if (!record) {
@@ -167,15 +253,46 @@ uploads.post('/:id/complete', async (c) => {
     uploadId,
   })
 
-  return c.json({ fileId: uploadId, status: 'complete' })
+  return c.json({ fileId: uploadId, status: 'complete' }, 200)
 })
 
-// Get upload status (for resume)
-uploads.get('/:id/status', async (c) => {
+// ── GET /{id}/status — Get upload status (for resume) ──
+
+const getUploadStatusRoute = createRoute({
+  method: 'get',
+  path: '/{id}/status',
+  tags: ['Uploads'],
+  summary: 'Get upload status',
+  request: {
+    params: UploadIdParamSchema,
+  },
+  responses: {
+    200: {
+      description: 'Upload status',
+      content: {
+        'application/json': {
+          schema: z.object({
+            uploadId: z.string(),
+            status: z.string(),
+            completedChunks: z.number(),
+            totalChunks: z.number(),
+            totalSize: z.number(),
+          }),
+        },
+      },
+    },
+    404: {
+      description: 'Upload not found',
+      content: { 'application/json': { schema: z.object({ error: z.string() }) } },
+    },
+  },
+})
+
+uploads.openapi(getUploadStatusRoute, async (c) => {
   const pubkey = c.get('pubkey')
   const permissions = c.get('permissions')
   const services = c.get('services')
-  const uploadId = c.req.param('id')
+  const { id: uploadId } = c.req.valid('param')
 
   const record = await services.files.getFileRecord(uploadId)
   if (!record) {
@@ -187,26 +304,69 @@ uploads.get('/:id/status', async (c) => {
     return c.json({ error: 'Upload not found' }, 404)
   }
 
-  return c.json({
-    uploadId: record.id,
-    status: record.status,
-    completedChunks: record.completedChunks,
-    totalChunks: record.totalChunks,
-    totalSize: record.totalSize,
-  })
+  return c.json(
+    {
+      uploadId: record.id,
+      status: record.status,
+      completedChunks: record.completedChunks,
+      totalChunks: record.totalChunks,
+      totalSize: record.totalSize,
+    },
+    200
+  )
 })
 
-// Bind an upload to a parent record (note, report, etc.) after it's been saved
-uploads.patch('/:id/context', async (c) => {
+// ── PATCH /{id}/context — Bind an upload to a parent record ──
+
+const bindContextRoute = createRoute({
+  method: 'patch',
+  path: '/{id}/context',
+  tags: ['Uploads'],
+  summary: 'Bind upload to a parent record',
+  request: {
+    params: UploadIdParamSchema,
+    body: {
+      content: {
+        'application/json': {
+          schema: z.object({
+            contextId: z.string(),
+            contextType: z.enum(['note', 'report', 'custom_field']),
+          }),
+        },
+      },
+    },
+  },
+  responses: {
+    200: {
+      description: 'Context bound',
+      content: { 'application/json': { schema: z.object({ ok: z.boolean() }) } },
+    },
+    400: {
+      description: 'Invalid context',
+      content: { 'application/json': { schema: z.object({ error: z.string() }) } },
+    },
+    403: {
+      description: 'Forbidden',
+      content: { 'application/json': { schema: z.object({ error: z.string() }) } },
+    },
+    404: {
+      description: 'Upload not found',
+      content: { 'application/json': { schema: z.object({ error: z.string() }) } },
+    },
+    409: {
+      description: 'Upload not complete',
+      content: { 'application/json': { schema: z.object({ error: z.string() }) } },
+    },
+  },
+})
+
+uploads.openapi(bindContextRoute, async (c) => {
   const services = c.get('services')
   const hubId = c.get('hubId')
   const pubkey = c.get('pubkey')
-  const uploadId = c.req.param('id')
+  const { id: uploadId } = c.req.valid('param')
 
-  const body = (await c.req.json()) as {
-    contextId: string
-    contextType: 'note' | 'report' | 'custom_field'
-  }
+  const body = c.req.valid('json')
 
   if (
     !body.contextId ||
@@ -238,7 +398,7 @@ uploads.patch('/:id/context', async (c) => {
     contextId: body.contextId,
   })
 
-  return c.json({ ok: true })
+  return c.json({ ok: true }, 200)
 })
 
 export default uploads

@@ -1,15 +1,42 @@
-import { Hono } from 'hono'
+import { OpenAPIHono, createRoute, z } from '@hono/zod-openapi'
 import { generateWebRtcToken, isWebRtcConfigured } from '../telephony/webrtc-tokens'
 import type { AppEnv } from '../types'
 
-const webrtc = new Hono<AppEnv>()
+const webrtc = new OpenAPIHono<AppEnv>()
 
-/**
- * GET /api/telephony/webrtc-token
- * Generate a provider-specific WebRTC access token for the authenticated user.
- * Requires: provider config with webrtcEnabled=true and appropriate credentials.
- */
-webrtc.get('/webrtc-token', async (c) => {
+// ── GET /webrtc-token — Generate a provider-specific WebRTC access token ──
+
+const webrtcTokenRoute = createRoute({
+  method: 'get',
+  path: '/webrtc-token',
+  tags: ['WebRTC'],
+  summary: 'Generate WebRTC access token',
+  responses: {
+    200: {
+      description: 'WebRTC token generated',
+      content: {
+        'application/json': {
+          schema: z.object({
+            token: z.string(),
+            provider: z.string(),
+            identity: z.string(),
+            ttl: z.number(),
+          }),
+        },
+      },
+    },
+    400: {
+      description: 'WebRTC not available or not configured',
+      content: { 'application/json': { schema: z.object({ error: z.string() }) } },
+    },
+    500: {
+      description: 'Token generation failed',
+      content: { 'application/json': { schema: z.object({ error: z.string() }) } },
+    },
+  },
+})
+
+webrtc.openapi(webrtcTokenRoute, async (c) => {
   const services = c.get('services')
   const pubkey = c.get('pubkey')
   const user = c.get('user')
@@ -39,24 +66,48 @@ webrtc.get('/webrtc-token', async (c) => {
     // Use a sanitized identity (pubkey prefix — unique per user)
     const identity = `vol_${pubkey.slice(0, 16)}`
     const result = await generateWebRtcToken(config, identity)
-    return c.json({ token: result.token, provider: result.provider, identity, ttl: result.ttl })
+    return c.json(
+      { token: result.token, provider: result.provider, identity, ttl: result.ttl },
+      200
+    )
   } catch (err) {
     console.error('[webrtc] Token generation failed:', err)
     return c.json({ error: 'Failed to generate WebRTC token' }, 500)
   }
 })
 
-/**
- * GET /api/telephony/webrtc-status
- * Check whether WebRTC is available for the current provider.
- */
-webrtc.get('/webrtc-status', async (c) => {
+// ── GET /webrtc-status — Check whether WebRTC is available ──
+
+const webrtcStatusRoute = createRoute({
+  method: 'get',
+  path: '/webrtc-status',
+  tags: ['WebRTC'],
+  summary: 'Check WebRTC availability',
+  responses: {
+    200: {
+      description: 'WebRTC status',
+      content: {
+        'application/json': {
+          schema: z.object({
+            available: z.boolean(),
+            provider: z.string().nullable(),
+          }),
+        },
+      },
+    },
+  },
+})
+
+webrtc.openapi(webrtcStatusRoute, async (c) => {
   const services = c.get('services')
   const config = await services.settings.getTelephonyProvider()
-  return c.json({
-    available: isWebRtcConfigured(config),
-    provider: config?.type ?? null,
-  })
+  return c.json(
+    {
+      available: isWebRtcConfigured(config),
+      provider: config?.type ?? null,
+    },
+    200
+  )
 })
 
 export default webrtc

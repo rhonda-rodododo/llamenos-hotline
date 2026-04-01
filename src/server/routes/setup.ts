@@ -1,24 +1,60 @@
-import { Hono } from 'hono'
+import { OpenAPIHono, createRoute, z } from '@hono/zod-openapi'
 import { validateExternalUrl } from '../lib/ssrf-guard'
 import { requirePermission } from '../middleware/permission-guard'
 import type { AppEnv } from '../types'
 
-const setup = new Hono<AppEnv>()
+const setup = new OpenAPIHono<AppEnv>()
 
-// Get setup state (any authenticated user — used for redirect logic)
-setup.get('/state', async (c) => {
+// ── GET /state — Get setup state (any authenticated user — used for redirect logic) ──
+
+const getStateRoute = createRoute({
+  method: 'get',
+  path: '/state',
+  tags: ['Setup'],
+  summary: 'Get setup state',
+  responses: {
+    200: {
+      description: 'Setup state',
+      content: { 'application/json': { schema: z.object({}).passthrough() } },
+    },
+  },
+})
+
+setup.openapi(getStateRoute, async (c) => {
   const services = c.get('services')
   const hubId = c.get('hubId')
   const state = await services.settings.getSetupState(hubId ?? undefined)
-  return c.json(state)
+  return c.json(state, 200)
 })
 
-// Update setup state (admin only)
-setup.patch('/state', requirePermission('settings:manage'), async (c) => {
+// ── PATCH /state — Update setup state (admin only) ──
+
+const updateStateRoute = createRoute({
+  method: 'patch',
+  path: '/state',
+  tags: ['Setup'],
+  summary: 'Update setup state',
+  middleware: [requirePermission('settings:manage')],
+  request: {
+    body: {
+      content: {
+        'application/json': { schema: z.object({}).passthrough() },
+      },
+    },
+  },
+  responses: {
+    200: {
+      description: 'Updated setup state',
+      content: { 'application/json': { schema: z.object({}).passthrough() } },
+    },
+  },
+})
+
+setup.openapi(updateStateRoute, async (c) => {
   const services = c.get('services')
   const hubId = c.get('hubId')
   const pubkey = c.get('pubkey')
-  const body = await c.req.json()
+  const body = c.req.valid('json')
   const updated = await services.settings.updateSetupState(
     body as Parameters<typeof services.settings.updateSetupState>[0],
     hubId ?? undefined
@@ -29,15 +65,39 @@ setup.patch('/state', requirePermission('settings:manage'), async (c) => {
     pubkey,
     body as Record<string, unknown>
   )
-  return c.json(updated)
+  return c.json(updated, 200)
 })
 
-// Complete setup (admin only) — also creates default hub if none exists
-setup.post('/complete', requirePermission('settings:manage'), async (c) => {
+// ── POST /complete — Complete setup (admin only) ──
+
+const completeSetupRoute = createRoute({
+  method: 'post',
+  path: '/complete',
+  tags: ['Setup'],
+  summary: 'Complete setup wizard',
+  middleware: [requirePermission('settings:manage')],
+  request: {
+    body: {
+      content: {
+        'application/json': {
+          schema: z.object({ demoMode: z.boolean().optional() }),
+        },
+      },
+    },
+  },
+  responses: {
+    200: {
+      description: 'Setup completed',
+      content: { 'application/json': { schema: z.object({}).passthrough() } },
+    },
+  },
+})
+
+setup.openapi(completeSetupRoute, async (c) => {
   const services = c.get('services')
   const hubId = c.get('hubId')
   const pubkey = c.get('pubkey')
-  const body = (await c.req.json().catch(() => ({}))) as { demoMode?: boolean }
+  const body = c.req.valid('json')
 
   // Create default hub if none exists
   try {
@@ -71,12 +131,47 @@ setup.post('/complete', requirePermission('settings:manage'), async (c) => {
   await services.records.addAuditEntry(hubId ?? 'global', 'setupCompleted', pubkey, {
     demoMode: body.demoMode ?? false,
   })
-  return c.json(updated)
+  return c.json(updated, 200)
 })
 
-// Test Signal bridge connection
-setup.post('/test/signal', requirePermission('settings:manage-messaging'), async (c) => {
-  const body = (await c.req.json()) as { bridgeUrl: string; bridgeApiKey: string }
+// ── POST /test/signal — Test Signal bridge connection ──
+
+const testSignalRoute = createRoute({
+  method: 'post',
+  path: '/test/signal',
+  tags: ['Setup'],
+  summary: 'Test Signal bridge connection',
+  middleware: [requirePermission('settings:manage-messaging')],
+  request: {
+    body: {
+      content: {
+        'application/json': {
+          schema: z.object({
+            bridgeUrl: z.string(),
+            bridgeApiKey: z.string().optional(),
+          }),
+        },
+      },
+    },
+  },
+  responses: {
+    200: {
+      description: 'Connection test result',
+      content: { 'application/json': { schema: z.object({ ok: z.boolean() }).passthrough() } },
+    },
+    400: {
+      description: 'Invalid request or connection failed',
+      content: {
+        'application/json': {
+          schema: z.object({ ok: z.boolean(), error: z.string() }),
+        },
+      },
+    },
+  },
+})
+
+setup.openapi(testSignalRoute, async (c) => {
+  const body = c.req.valid('json')
 
   if (!body.bridgeUrl) {
     return c.json({ ok: false, error: 'Bridge URL is required' }, 400)
@@ -100,7 +195,7 @@ setup.post('/test/signal', requirePermission('settings:manage-messaging'), async
     clearTimeout(timeout)
 
     if (res.ok) {
-      return c.json({ ok: true })
+      return c.json({ ok: true }, 200)
     }
     return c.json({ ok: false, error: `Bridge returned ${res.status}` }, 400)
   } catch (err) {
@@ -109,9 +204,44 @@ setup.post('/test/signal', requirePermission('settings:manage-messaging'), async
   }
 })
 
-// Test WhatsApp connection (direct Meta API)
-setup.post('/test/whatsapp', requirePermission('settings:manage-messaging'), async (c) => {
-  const body = (await c.req.json()) as { phoneNumberId: string; accessToken: string }
+// ── POST /test/whatsapp — Test WhatsApp connection (direct Meta API) ──
+
+const testWhatsappRoute = createRoute({
+  method: 'post',
+  path: '/test/whatsapp',
+  tags: ['Setup'],
+  summary: 'Test WhatsApp API connection',
+  middleware: [requirePermission('settings:manage-messaging')],
+  request: {
+    body: {
+      content: {
+        'application/json': {
+          schema: z.object({
+            phoneNumberId: z.string(),
+            accessToken: z.string(),
+          }),
+        },
+      },
+    },
+  },
+  responses: {
+    200: {
+      description: 'Connection test result',
+      content: { 'application/json': { schema: z.object({ ok: z.boolean() }).passthrough() } },
+    },
+    400: {
+      description: 'Invalid request or connection failed',
+      content: {
+        'application/json': {
+          schema: z.object({ ok: z.boolean(), error: z.string() }),
+        },
+      },
+    },
+  },
+})
+
+setup.openapi(testWhatsappRoute, async (c) => {
+  const body = c.req.valid('json')
 
   if (!body.phoneNumberId || !body.accessToken) {
     return c.json({ ok: false, error: 'Phone Number ID and Access Token are required' }, 400)
@@ -130,7 +260,7 @@ setup.post('/test/whatsapp', requirePermission('settings:manage-messaging'), asy
     clearTimeout(timeout)
 
     if (res.ok) {
-      return c.json({ ok: true })
+      return c.json({ ok: true }, 200)
     }
     return c.json({ ok: false, error: `WhatsApp API returned ${res.status}` }, 400)
   } catch (err) {

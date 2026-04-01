@@ -1,8 +1,8 @@
-import { Hono } from 'hono'
+import { OpenAPIHono, createRoute, z } from '@hono/zod-openapi'
 import { BUILD_VERSION } from '../lib/build-constants'
 import type { AppEnv } from '../types'
 
-const health = new Hono<AppEnv>()
+const health = new OpenAPIHono<AppEnv>()
 
 interface BackupStatus {
   lastSuccessAt: string
@@ -73,8 +73,26 @@ async function runChecks(): Promise<HealthResult> {
   return { status, checks, details }
 }
 
-// Full health check — dependency status
-health.get('/', async (c) => {
+// ── GET / — Full health check — dependency status ──
+
+const healthCheckRoute = createRoute({
+  method: 'get',
+  path: '/',
+  tags: ['Health'],
+  summary: 'Full health check with dependency status',
+  responses: {
+    200: {
+      description: 'All checks passing',
+      content: { 'application/json': { schema: z.object({}).passthrough() } },
+    },
+    503: {
+      description: 'One or more checks failing',
+      content: { 'application/json': { schema: z.object({}).passthrough() } },
+    },
+  },
+})
+
+health.openapi(healthCheckRoute, async (c) => {
   const [{ status, checks, details }, backup] = await Promise.all([runChecks(), readBackupStatus()])
   const hasDetails = Object.keys(details).length > 0
 
@@ -85,17 +103,49 @@ health.get('/', async (c) => {
       ...(hasDetails && { details }),
       ...(backup && { backup }),
       version: BUILD_VERSION,
-      uptime: typeof process !== 'undefined' ? Math.floor(process.uptime()) : undefined,
+      uptime: typeof process !== 'undefined' ? Math.floor(process.uptime()) : null,
     },
-    status === 'ok' ? 200 : 503
+    status === 'ok' ? (200 as const) : (503 as const)
   )
 })
 
-// Kubernetes liveness probe — process is alive, always returns 200
-health.get('/live', (c) => c.json({ status: 'ok' }))
+// ── GET /live — Kubernetes liveness probe ──
 
-// Kubernetes readiness probe — verifies all dependencies
-health.get('/ready', async (c) => {
+const livenessRoute = createRoute({
+  method: 'get',
+  path: '/live',
+  tags: ['Health'],
+  summary: 'Kubernetes liveness probe',
+  responses: {
+    200: {
+      description: 'Process is alive',
+      content: { 'application/json': { schema: z.object({ status: z.literal('ok') }) } },
+    },
+  },
+})
+
+health.openapi(livenessRoute, (c) => c.json({ status: 'ok' as const }, 200))
+
+// ── GET /ready — Kubernetes readiness probe ──
+
+const readinessRoute = createRoute({
+  method: 'get',
+  path: '/ready',
+  tags: ['Health'],
+  summary: 'Kubernetes readiness probe',
+  responses: {
+    200: {
+      description: 'All dependencies ready',
+      content: { 'application/json': { schema: z.object({}).passthrough() } },
+    },
+    503: {
+      description: 'One or more dependencies not ready',
+      content: { 'application/json': { schema: z.object({}).passthrough() } },
+    },
+  },
+})
+
+health.openapi(readinessRoute, async (c) => {
   const { status, checks, details } = await runChecks()
   const hasDetails = Object.keys(details).length > 0
 
@@ -106,7 +156,7 @@ health.get('/ready', async (c) => {
       ...(hasDetails && { details }),
       version: BUILD_VERSION,
     },
-    status === 'ok' ? 200 : 503
+    status === 'ok' ? (200 as const) : (503 as const)
   )
 })
 
