@@ -164,15 +164,22 @@ PLAYWRIGHT_WORKERS=3 bunx playwright test    # Run with 3 workers (after isolati
 
 **Local E2E tests**: Copy `.env.local.example` to `.env.local`, fill in your values, then start backing services with `bun run dev:docker` before running `bun run dev:server`.
 
-## Adding New Features
+## Significant Work Requires Planning
 
-### Workflow
+**Any non-trivial effort MUST go through the superpowers workflow.** This applies to ALL domains — API endpoints, UI features, deployment changes, protocol updates, documentation overhauls, tooling, test infrastructure, schema migrations, encrypted field additions. If it touches more than 2-3 files or introduces new concepts, it's significant.
 
-1. **Spec**: Write a spec in `docs/plans/` using the `superpowers:brainstorming` skill to explore requirements.
-2. **Plan**: Use `superpowers:writing-plans` to create an implementation plan with concrete file paths and steps.
-3. **Implement**: Use `superpowers:executing-plans` or `superpowers:subagent-driven-development` for multi-step work.
-4. **Review**: Use `superpowers:requesting-code-review` before merging. For received feedback, use `superpowers:receiving-code-review`.
-5. **Test**: Use `test-writer` skill for writing tests and `test-runner` skill for running them.
+### Workflow (mandatory for significant work)
+
+1. **Brainstorm**: Invoke `superpowers:brainstorming` to explore requirements, edge cases, and approach options.
+2. **Plan**: Invoke `superpowers:writing-plans` to create a concrete implementation plan with file paths and steps.
+3. **Implement**: Use `superpowers:executing-plans` or `superpowers:subagent-driven-development` for multi-step work. Use domain-specific skills alongside:
+   - API routes → `api-schema-dev` skill
+   - UI components → `frontend-design` skill
+   - Tests → `test-writer` + `test-runner` skills
+   - Complex features → `feature-dev:feature-dev` skill
+4. **Review**: Invoke `superpowers:requesting-code-review` before merging. For received feedback, use `superpowers:receiving-code-review`.
+5. **Test**: Use `test-writer` skill for writing tests and `test-runner` skill for running them. Run tests iteratively during implementation, not just at the end.
+6. **Verify**: Invoke `superpowers:verification-before-completion` before claiming work is done.
 
 ### API Schema Pattern
 
