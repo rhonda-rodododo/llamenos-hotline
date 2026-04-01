@@ -140,10 +140,12 @@ test.describe('Role Editor — Permission Metadata UI', () => {
     await adminPage.getByTestId('create-role-btn').click()
 
     // Permission group labels should render with human-friendly names, not raw domains
-    await expect(adminPage.getByText('Contact Directory')).toBeVisible({ timeout: 15000 })
-    await expect(adminPage.getByText('User Management')).toBeVisible()
-    await expect(adminPage.getByText('Audit Log')).toBeVisible()
-    await expect(adminPage.getByText('GDPR / Privacy')).toBeVisible()
+    // Scope to main content to avoid matching sidebar nav links (e.g. "Audit Log")
+    const main = adminPage.locator('main')
+    await expect(main.getByText('Contact Directory')).toBeVisible({ timeout: 15000 })
+    await expect(main.getByText('User Management')).toBeVisible()
+    await expect(main.getByText('Audit Log')).toBeVisible()
+    await expect(main.getByText('GDPR / Privacy')).toBeVisible()
 
     // Domain sections should be present via data-testid
     await expect(adminPage.getByTestId('permission-domain-contacts')).toBeVisible()

@@ -887,13 +887,17 @@ export class SettingsService {
       throw new AppError(403, 'Cannot modify the super-admin role')
     }
 
-    // Client provides hub-key encrypted name/description
+    // Client provides hub-key encrypted name/description; fall back to plaintext
     const encFields: Record<string, unknown> = {}
     if (data.encryptedName) {
       encFields.encryptedName = data.encryptedName
+    } else if (data.name !== undefined) {
+      encFields.encryptedName = data.name as Ciphertext
     }
     if (data.encryptedDescription !== undefined) {
       encFields.encryptedDescription = data.encryptedDescription ?? null
+    } else if (data.description !== undefined) {
+      encFields.encryptedDescription = (data.description as Ciphertext) ?? null
     }
 
     const [updated] = await this.db
@@ -962,13 +966,17 @@ export class SettingsService {
     const rows = await this.db.select().from(hubs).where(eq(hubs.id, id)).limit(1)
     if (!rows[0]) throw new AppError(404, 'Hub not found')
 
-    // Client provides hub-key encrypted name/description
+    // Client provides hub-key encrypted name/description; fall back to plaintext
     const encFields: Record<string, unknown> = {}
     if (data.encryptedName !== undefined) {
       encFields.encryptedName = data.encryptedName
+    } else if (data.name !== undefined) {
+      encFields.encryptedName = data.name as Ciphertext
     }
     if (data.encryptedDescription !== undefined) {
       encFields.encryptedDescription = data.encryptedDescription ?? null
+    } else if (data.description !== undefined) {
+      encFields.encryptedDescription = (data.description as Ciphertext) ?? null
     }
 
     const [row] = await this.db

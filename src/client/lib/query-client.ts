@@ -67,16 +67,18 @@ keyManager.onLock(() => {
   }
 })
 
-// On unlock: invalidate encrypted queries so they are re-fetched and
-// decrypted with the newly loaded key — but only if there's an active
-// auth session. During bootstrap/onboarding the key unlocks before
-// a JWT exists; firing queries without a token causes a 401 cascade.
-keyManager.onUnlock(() => {
-  // Dynamic import to avoid circular dependency
-  import('./auth-facade-client').then(({ authFacadeClient }) => {
-    if (!authFacadeClient.getAccessToken()) return
-    for (const key of ENCRYPTED_QUERY_KEYS) {
-      void queryClient.invalidateQueries({ queryKey: [key] })
-    }
-  })
-})
+// On unlock: query invalidation is handled explicitly by auth.tsx
+// AFTER loadHubKeysForUser() completes — see invalidateEncryptedQueries().
+// Doing it here in the onUnlock callback caused a race: queries would refetch
+// while the hub key cache was still empty, caching raw ciphertext instead of
+// decrypted plaintext for hub-encrypted fields (roles, shifts, report types).
+
+/**
+ * Invalidate all encrypted query domains so they re-fetch and decrypt
+ * with the current keys. Call this AFTER hub keys are loaded.
+ */
+export function invalidateEncryptedQueries(): void {
+  for (const key of ENCRYPTED_QUERY_KEYS) {
+    void queryClient.invalidateQueries({ queryKey: [key] })
+  }
+}

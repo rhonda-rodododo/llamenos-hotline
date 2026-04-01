@@ -79,10 +79,12 @@ export class ShiftService {
     const rows = await this.db.select().from(shiftSchedules).where(whereClause).limit(1)
     if (!rows[0]) throw new AppError(404, 'Schedule not found')
 
-    // Client provides hub-key encrypted name
+    // Client provides hub-key encrypted name; fall back to plaintext name
     const encFields: Record<string, unknown> = {}
     if (data.encryptedName !== undefined) {
       encFields.encryptedName = data.encryptedName
+    } else if (data.name !== undefined) {
+      encFields.encryptedName = data.name as Ciphertext
     }
 
     const [row] = await this.db
@@ -164,10 +166,12 @@ export class ShiftService {
     const rows = await this.db.select().from(ringGroups).where(eq(ringGroups.id, id)).limit(1)
     if (!rows[0]) throw new AppError(404, 'Ring group not found')
 
-    // Client provides hub-key encrypted name
+    // Client provides hub-key encrypted name; fall back to plaintext name
     const encFields: Record<string, unknown> = {}
     if (data.encryptedName !== undefined) {
       encFields.encryptedName = data.encryptedName
+    } else if (data.name !== undefined) {
+      encFields.encryptedName = data.name as Ciphertext
     }
 
     const [row] = await this.db

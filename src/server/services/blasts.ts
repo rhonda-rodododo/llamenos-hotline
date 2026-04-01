@@ -114,10 +114,12 @@ export class BlastService {
 
     const statsUpdate = data.stats ? { stats: { ...existing.stats, ...data.stats } } : {}
 
-    // Client provides hub-key encrypted name
+    // Client provides hub-key encrypted name; fall back to plaintext name
     const encFields: Record<string, unknown> = {}
     if (data.encryptedName !== undefined) {
       encFields.encryptedName = data.encryptedName
+    } else if (data.name !== undefined) {
+      encFields.encryptedName = data.name as Ciphertext
     }
 
     const [row] = await this.db

@@ -102,13 +102,17 @@ export class ReportTypeService {
         )
     }
 
-    // Client provides hub-key encrypted name/description
+    // Client provides hub-key encrypted name/description; fall back to plaintext
     const encFields: Record<string, unknown> = {}
     if (data.encryptedName !== undefined) {
       encFields.encryptedName = data.encryptedName
+    } else if (data.name !== undefined) {
+      encFields.encryptedName = data.name as Ciphertext
     }
     if (data.encryptedDescription !== undefined) {
       encFields.encryptedDescription = data.encryptedDescription ?? null
+    } else if (data.description !== undefined) {
+      encFields.encryptedDescription = (data.description as Ciphertext) ?? null
     }
 
     const [row] = await this.db
