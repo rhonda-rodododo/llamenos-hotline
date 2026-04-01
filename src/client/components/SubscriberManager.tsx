@@ -1,49 +1,37 @@
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { getSubscriberStats, importSubscribers, listSubscribers, removeSubscriber } from '@/lib/api'
+import { importSubscribers, removeSubscriber } from '@/lib/api'
 import type { Subscriber } from '@/lib/api'
+import { useSubscriberStats, useSubscribers } from '@/lib/queries/blasts'
+import { queryKeys } from '@/lib/queries/keys'
 import { useToast } from '@/lib/toast'
+import { useQueryClient } from '@tanstack/react-query'
 import { Trash2, Upload, Users } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-
-interface SubscriberStatsData {
-  total: number
-  active: number
-  paused: number
-  byChannel: Record<string, number>
-}
 
 export function SubscriberManager() {
   const { t } = useTranslation()
   const { toast } = useToast()
-  const [subscribers, setSubscribers] = useState<Subscriber[]>([])
-  const [stats, setStats] = useState<SubscriberStatsData | null>(null)
-  const [loading, setLoading] = useState(true)
+  const queryClient = useQueryClient()
+
+  const { data: subscribers = [], isLoading } = useSubscribers()
+  const { data: stats } = useSubscriberStats()
+
   const [csvData, setCsvData] = useState('')
   const [importing, setImporting] = useState(false)
-
-  useEffect(() => {
-    loadData()
-  }, [])
-
-  async function loadData() {
-    try {
-      const [subsRes, statsRes] = await Promise.all([listSubscribers(), getSubscriberStats()])
-      setSubscribers(subsRes.subscribers)
-      setStats(statsRes)
-    } catch {
-      toast(t('common.error'), 'error')
-    } finally {
-      setLoading(false)
-    }
-  }
 
   async function handleRemove(id: string) {
     try {
       await removeSubscriber(id)
-      setSubscribers((prev) => prev.filter((s) => s.id !== id))
+      // Optimistically remove from cache
+      queryClient.setQueryData<Subscriber[]>(
+        queryKeys.blasts.subscribers(),
+        (prev) => prev?.filter((s) => s.id !== id) ?? []
+      )
+      // Invalidate stats so they recompute
+      void queryClient.invalidateQueries({ queryKey: queryKeys.blasts.subscriberStats() })
       toast(t('common.success'), 'success')
     } catch {
       toast(t('common.error'), 'error')
@@ -65,7 +53,9 @@ export function SubscriberManager() {
       const res = await importSubscribers({ subscribers: subs })
       toast(t('blasts.importResult', { imported: res.imported, skipped: res.skipped }), 'success')
       setCsvData('')
-      await loadData()
+      // Refresh subscribers and stats
+      void queryClient.invalidateQueries({ queryKey: queryKeys.blasts.subscribers() })
+      void queryClient.invalidateQueries({ queryKey: queryKeys.blasts.subscriberStats() })
     } catch {
       toast(t('common.error'), 'error')
     } finally {
@@ -134,7 +124,7 @@ export function SubscriberManager() {
           </CardTitle>
         </CardHeader>
         <CardContent className="p-0">
-          {loading ? (
+          {isLoading ? (
             <div className="p-4 text-center text-muted-foreground">{t('common.loading')}</div>
           ) : subscribers.length === 0 ? (
             <div className="p-6 text-center text-muted-foreground">{t('blasts.noSubscribers')}</div>

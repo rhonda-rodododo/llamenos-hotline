@@ -2,7 +2,7 @@ import { sha256 } from '@noble/hashes/sha2.js'
 import { bytesToHex, utf8ToBytes } from '@noble/hashes/utils.js'
 import { HMAC_PHONE_PREFIX, LABEL_AUDIT_EVENT, LABEL_VOLUNTEER_PII } from '@shared/crypto-labels'
 import type { Ciphertext } from '@shared/crypto-types'
-import { and, asc, desc, eq, gte, inArray, lte, or, sql } from 'drizzle-orm'
+import { and, count, desc, eq, gte, inArray, lte, or, sql } from 'drizzle-orm'
 import type { KeyEnvelope, RecipientEnvelope } from '../../shared/types'
 import type { Database } from '../db'
 import { auditLog, bans, callRecords, noteEnvelopes, volunteers } from '../db/schema'
@@ -98,9 +98,8 @@ export class RecordsService {
     // E2EE encrypt phone + reason for bannedBy + admin pubkeys
     const adminPubkeys = (await this.#getSuperAdminPubkeys()).filter(isValidPubkey)
     const recipientPubkeys = [
-      ...(isValidPubkey(data.bannedBy) ? [data.bannedBy] : []),
-      ...adminPubkeys,
-    ].filter((pk, i, arr) => arr.indexOf(pk) === i) // deduplicate
+      ...new Set([...(isValidPubkey(data.bannedBy) ? [data.bannedBy] : []), ...adminPubkeys]),
+    ]
     const phoneEnvelope =
       recipientPubkeys.length > 0
         ? this.crypto.envelopeEncrypt(data.phone, recipientPubkeys, LABEL_VOLUNTEER_PII)
@@ -160,9 +159,11 @@ export class RecordsService {
       newPhones.map((phone) => {
         const phoneHash = this.crypto.hmac(phone, HMAC_PHONE_PREFIX)
         const recipientPubkeys = [
-          ...(isValidPubkey(data.bannedBy) ? [data.bannedBy] : []),
-          ...bulkAdminPubkeys,
-        ].filter((pk, i, arr) => arr.indexOf(pk) === i)
+          ...new Set([
+            ...(isValidPubkey(data.bannedBy) ? [data.bannedBy] : []),
+            ...bulkAdminPubkeys,
+          ]),
+        ]
         const phoneEnvelope =
           recipientPubkeys.length > 0
             ? this.crypto.envelopeEncrypt(phone, recipientPubkeys, LABEL_VOLUNTEER_PII)
@@ -329,8 +330,6 @@ export class RecordsService {
     filters?: CallRecordFilters
   ): Promise<{ calls: EncryptedCallRecord[]; total: number }> {
     const hId = hubId ?? 'global'
-
-    // Build query conditions
     const conditions = [eq(callRecords.hubId, hId)]
     if (filters?.dateFrom) {
       conditions.push(gte(callRecords.startedAt, new Date(filters.dateFrom)))
@@ -340,40 +339,56 @@ export class RecordsService {
       toDate.setUTCHours(23, 59, 59, 999)
       conditions.push(lte(callRecords.startedAt, toDate))
     }
+    const whereClause = and(...conditions)
 
+    // If no post-decrypt filters, use SQL pagination
+    if (!filters?.voicemailOnly && !filters?.search) {
+      const [{ value: rawTotal }] = await this.db
+        .select({ value: count() })
+        .from(callRecords)
+        .where(whereClause)
+      const total = Number(rawTotal)
+      const offset = (page - 1) * limit
+      const rows = await this.db
+        .select()
+        .from(callRecords)
+        .where(whereClause)
+        .orderBy(desc(callRecords.startedAt))
+        .limit(limit)
+        .offset(offset)
+      return { calls: rows.map((r) => this.#rowToCallRecord(r)), total }
+    }
+
+    // With post-decrypt filters, still load all (can't filter in SQL due to encryption)
     const allRows = await this.db
       .select()
       .from(callRecords)
-      .where(and(...conditions))
+      .where(whereClause)
       .orderBy(desc(callRecords.startedAt))
-
     let filtered = allRows.map((r) => this.#rowToCallRecord(r))
-
     if (filters?.voicemailOnly) {
       filtered = filtered.filter((c) => c.hasVoicemail)
     }
-
     if (filters?.search) {
       const q = filters.search.toLowerCase()
       filtered = filtered.filter(
         (c) => c.callerLast4?.includes(q) || c.id.toLowerCase().includes(q)
       )
     }
-
-    const total = filtered.length
+    const filteredTotal = filtered.length
     const start = (page - 1) * limit
-    return { calls: filtered.slice(start, start + limit), total }
+    return { calls: filtered.slice(start, start + limit), total: filteredTotal }
   }
 
   async getCallsTodayCount(hubId?: string): Promise<number> {
     const hId = hubId ?? 'global'
     const todayStart = new Date()
     todayStart.setUTCHours(0, 0, 0, 0)
-    const rows = await this.db
-      .select({ id: callRecords.id })
+    const [{ value }] = await this.db
+      .select({ value: count() })
       .from(callRecords)
       .where(and(eq(callRecords.hubId, hId), gte(callRecords.startedAt, todayStart)))
-    return rows.length
+    return Number(value)
   }
 
   // ------------------------------------------------------------------ Notes
@@ -427,34 +442,36 @@ export class RecordsService {
   async getNotes(filters: NoteFilters): Promise<{ notes: EncryptedNote[]; total: number }> {
     const hId = filters.hubId ?? 'global'
     const conditions: ReturnType<typeof eq>[] = [eq(noteEnvelopes.hubId, hId)]
-
-    if (filters.authorPubkey) {
-      conditions.push(eq(noteEnvelopes.authorPubkey, filters.authorPubkey))
-    }
-    if (filters.callId) {
-      conditions.push(eq(noteEnvelopes.callId, filters.callId))
-    }
-    if (filters.conversationId) {
+    if (filters.authorPubkey) conditions.push(eq(noteEnvelopes.authorPubkey, filters.authorPubkey))
+    if (filters.callId) conditions.push(eq(noteEnvelopes.callId, filters.callId))
+    if (filters.conversationId)
       conditions.push(eq(noteEnvelopes.conversationId, filters.conversationId))
-    }
-    if (filters.contactHash) {
-      conditions.push(eq(noteEnvelopes.contactHash, filters.contactHash))
-    }
+    if (filters.contactHash) conditions.push(eq(noteEnvelopes.contactHash, filters.contactHash))
+    const whereClause = and(...conditions)
 
+    const [{ value: rawTotal }] = await this.db
+      .select({ value: count() })
+      .from(noteEnvelopes)
+      .where(whereClause)
+    const total = Number(rawTotal)
+
+    if (filters.page && filters.limit) {
+      const offset = (filters.page - 1) * filters.limit
+      const rows = await this.db
+        .select()
+        .from(noteEnvelopes)
+        .where(whereClause)
+        .orderBy(desc(noteEnvelopes.createdAt))
+        .limit(filters.limit)
+        .offset(offset)
+      return { notes: rows.map((r) => this.#rowToNote(r)), total }
+    }
     const rows = await this.db
       .select()
       .from(noteEnvelopes)
-      .where(and(...conditions))
+      .where(whereClause)
       .orderBy(desc(noteEnvelopes.createdAt))
-
-    const notes = rows.map((r) => this.#rowToNote(r))
-    const total = notes.length
-
-    if (filters.page && filters.limit) {
-      const start = (filters.page - 1) * filters.limit
-      return { notes: notes.slice(start, start + filters.limit), total }
-    }
-    return { notes, total }
+    return { notes: rows.map((r) => this.#rowToNote(r)), total }
   }
 
   async getNote(id: string): Promise<EncryptedNote | null> {
@@ -471,40 +488,30 @@ export class RecordsService {
     total: number
   }> {
     const hId = hubId ?? 'global'
-    const rows = await this.db
-      .select()
+    const aggregated = await this.db
+      .select({
+        contactHash: noteEnvelopes.contactHash,
+        firstSeen: sql<Date>`min(${noteEnvelopes.createdAt})`,
+        lastSeen: sql<Date>`max(${noteEnvelopes.createdAt})`,
+        noteCount: count(),
+      })
       .from(noteEnvelopes)
       .where(and(eq(noteEnvelopes.hubId, hId), sql`${noteEnvelopes.contactHash} IS NOT NULL`))
-      .orderBy(asc(noteEnvelopes.createdAt))
+      .groupBy(noteEnvelopes.contactHash)
+      .orderBy(sql`max(${noteEnvelopes.createdAt}) DESC`)
 
-    const contactMap = new Map<
-      string,
-      { contactHash: string; firstSeen: string; lastSeen: string; noteCount: number }
-    >()
-    for (const row of rows) {
-      if (!row.contactHash) continue
-      const createdAt = row.createdAt.toISOString()
-      const existing = contactMap.get(row.contactHash)
-      if (existing) {
-        existing.noteCount++
-        if (createdAt < existing.firstSeen) existing.firstSeen = createdAt
-        if (createdAt > existing.lastSeen) existing.lastSeen = createdAt
-      } else {
-        contactMap.set(row.contactHash, {
-          contactHash: row.contactHash,
-          firstSeen: createdAt,
-          lastSeen: createdAt,
-          noteCount: 1,
-        })
-      }
-    }
-
-    const contacts = Array.from(contactMap.values()).sort(
-      (a, b) => new Date(b.lastSeen).getTime() - new Date(a.lastSeen).getTime()
-    )
-    const total = contacts.length
+    const total = aggregated.length
     const start = (page - 1) * limit
-    return { contacts: contacts.slice(start, start + limit), total }
+    const pageResults = aggregated.slice(start, start + limit)
+    return {
+      contacts: pageResults.map((r) => ({
+        contactHash: r.contactHash!,
+        firstSeen: new Date(r.firstSeen).toISOString(),
+        lastSeen: new Date(r.lastSeen).toISOString(),
+        noteCount: Number(r.noteCount),
+      })),
+      total,
+    }
   }
 
   async getContactNotes(contactHash: string, hubId?: string): Promise<EncryptedNote[]> {

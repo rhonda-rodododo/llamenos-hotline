@@ -21,21 +21,25 @@ import {
   type IvrAudioRecording,
   type SpamSettings,
   type TelephonyProviderConfig,
-  getCallSettings,
-  getCustomFields,
-  getGeocodingSettings,
-  getIvrLanguages,
-  getMessagingConfig,
-  getSpamSettings,
-  getTelephonyProvider,
-  getTranscriptionSettings,
-  listIvrAudio,
-  listReportTypes,
+  type WebAuthnSettings,
   updateSpamSettings,
   updateTranscriptionSettings,
 } from '@/lib/api'
-import { type WebAuthnSettings, getWebAuthnSettings } from '@/lib/api'
 import { useAuth } from '@/lib/auth'
+import { queryKeys } from '@/lib/queries/keys'
+import { useReportTypes } from '@/lib/queries/reports'
+import {
+  useCallSettings,
+  useCustomFields,
+  useGeocodingConfig,
+  useIvrAudio,
+  useIvrLanguages,
+  useMessagingConfig,
+  useProviderConfig,
+  useSpamSettings,
+  useTranscriptionSettings,
+  useWebAuthnSettings,
+} from '@/lib/queries/settings'
 import { useToast } from '@/lib/toast'
 import { IVR_LANGUAGES } from '@shared/languages'
 import {
@@ -44,6 +48,7 @@ import {
   type ReportType,
   type TelephonyProviderDraft,
 } from '@shared/types'
+import { useQueryClient } from '@tanstack/react-query'
 import { createFileRoute, useSearch } from '@tanstack/react-router'
 import { Settings2 } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
@@ -61,25 +66,43 @@ function AdminSettingsPage() {
   const { section } = useSearch({ from: '/admin/settings' })
   const { isAdmin } = useAuth()
   const { toast } = useToast()
-  const [spam, setSpam] = useState<SpamSettings | null>(null)
-  const [callSet, setCallSet] = useState<CallSettings | null>(null)
-  const [globalTranscription, setGlobalTranscription] = useState(false)
-  const [allowVolunteerOptOut, setAllowVolunteerOptOut] = useState(false)
-  const [ivrEnabled, setIvrEnabled] = useState<string[]>([...IVR_LANGUAGES])
-  const [ivrAudio, setIvrAudio] = useState<IvrAudioRecording[]>([])
-  const [loading, setLoading] = useState(true)
+  const queryClient = useQueryClient()
+
+  // UI-only state
   const [confirmToggle, setConfirmToggle] = useState<{ key: string; newValue: boolean } | null>(
     null
   )
-  const [webauthnSettings, setWebauthnSettings] = useState<WebAuthnSettings | null>(null)
-  const [customFieldDefs, setCustomFieldDefs] = useState<CustomFieldDefinition[]>([])
-  const [providerConfig, setProviderConfig] = useState<TelephonyProviderConfig | null>(null)
-  const [providerDraft, setProviderDraft] = useState<TelephonyProviderDraft>({
-    type: 'twilio',
-  })
-  const [messagingConfig, setMessagingConfig] = useState<MessagingConfig | null>(null)
-  const [geocodingConfig, setGeocodingConfig] = useState<GeocodingConfigAdmin | null>(null)
-  const [reportTypes, setReportTypes] = useState<ReportType[]>([])
+  // Local draft state for provider (section manages its own draft edits)
+  const [providerDraft, setProviderDraft] = useState<TelephonyProviderDraft>({ type: 'twilio' })
+
+  // Settings queries
+  const { data: spam } = useSpamSettings()
+  const { data: callSet } = useCallSettings()
+  const { data: transcriptionSettings } = useTranscriptionSettings()
+  const { data: ivrEnabledData } = useIvrLanguages()
+  const { data: ivrAudio = [] } = useIvrAudio()
+  const { data: webauthnSettings } = useWebAuthnSettings()
+  const { data: customFieldDefs = [] } = useCustomFields()
+  const { data: providerConfig } = useProviderConfig()
+  const { data: messagingConfig } = useMessagingConfig()
+  const { data: geocodingConfig } = useGeocodingConfig()
+  const { data: reportTypesData } = useReportTypes()
+
+  const ivrEnabled = ivrEnabledData ?? [...IVR_LANGUAGES]
+  const globalTranscription = transcriptionSettings?.globalEnabled ?? false
+  const allowVolunteerOptOut = transcriptionSettings?.allowVolunteerOptOut ?? false
+  const reportTypes = reportTypesData ?? []
+
+  // Sync provider draft when config loads
+  useEffect(() => {
+    if (providerConfig) {
+      setProviderDraft(providerConfig)
+    }
+  }, [providerConfig])
+
+  // Show loading until the core settings are available
+  const isLoading =
+    spam === undefined && callSet === undefined && transcriptionSettings === undefined
 
   const { expanded, toggleSection } = usePersistedExpanded(
     'settings-expanded:/admin/settings',
@@ -89,52 +112,13 @@ function AdminSettingsPage() {
   const scrolledRef = useRef(false)
 
   useEffect(() => {
-    if (!isAdmin) return
-    Promise.all([
-      getSpamSettings().then(setSpam),
-      getCallSettings().then(setCallSet),
-      getTranscriptionSettings().then((r) => {
-        setGlobalTranscription(r.globalEnabled)
-        setAllowVolunteerOptOut(r.allowVolunteerOptOut)
-      }),
-      getIvrLanguages().then((r) => setIvrEnabled(r.enabledLanguages ?? [])),
-      listIvrAudio().then((r) => setIvrAudio(r.recordings)),
-      getWebAuthnSettings()
-        .then(setWebauthnSettings)
-        .catch(() => {}),
-      getCustomFields()
-        .then((r) => setCustomFieldDefs(r.fields))
-        .catch(() => {}),
-      getTelephonyProvider()
-        .then((config) => {
-          if (config) {
-            setProviderConfig(config)
-            setProviderDraft(config)
-          }
-        })
-        .catch(() => {}),
-      getMessagingConfig()
-        .then(setMessagingConfig)
-        .catch(() => {}),
-      getGeocodingSettings()
-        .then(setGeocodingConfig)
-        .catch(() => {}),
-      listReportTypes()
-        .then((r) => setReportTypes(r.reportTypes))
-        .catch(() => {}),
-    ])
-      .catch(() => toast(t('common.error'), 'error'))
-      .finally(() => setLoading(false))
-  }, [isAdmin])
-
-  useEffect(() => {
-    if (!loading && section && !scrolledRef.current) {
+    if (!isLoading && section && !scrolledRef.current) {
       scrolledRef.current = true
       requestAnimationFrame(() => {
         document.getElementById(section)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
       })
     }
-  }, [loading, section])
+  }, [isLoading, section])
 
   function handleConfirmToggle(key: string, newValue: boolean) {
     setConfirmToggle({ key, newValue })
@@ -146,13 +130,13 @@ function AdminSettingsPage() {
     try {
       if (key === 'transcription') {
         const res = await updateTranscriptionSettings({ globalEnabled: newValue })
-        setGlobalTranscription(res.globalEnabled)
+        queryClient.setQueryData(queryKeys.settings.transcription(), res)
       } else if (key === 'captcha') {
         const res = await updateSpamSettings({ voiceCaptchaEnabled: newValue })
-        setSpam(res)
+        queryClient.setQueryData(queryKeys.settings.spam(), res)
       } else if (key === 'rateLimit') {
         const res = await updateSpamSettings({ rateLimitEnabled: newValue })
-        setSpam(res)
+        queryClient.setQueryData(queryKeys.settings.spam(), res)
       }
     } catch {
       toast(t('common.error'), 'error')
@@ -215,7 +199,7 @@ function AdminSettingsPage() {
     : undefined
 
   if (!isAdmin) return <div className="text-muted-foreground">{t('common.error')}</div>
-  if (loading) return <div className="text-muted-foreground">{t('common.loading')}</div>
+  if (isLoading) return <div className="text-muted-foreground">{t('common.loading')}</div>
 
   return (
     <div className="space-y-4">
@@ -234,7 +218,9 @@ function AdminSettingsPage() {
       {webauthnSettings && (
         <PasskeyPolicySection
           settings={webauthnSettings}
-          onChange={setWebauthnSettings}
+          onChange={(updated: WebAuthnSettings) =>
+            queryClient.setQueryData(queryKeys.settings.webauthn(), updated)
+          }
           expanded={expanded.has('passkey-policy')}
           onToggle={(open) => toggleSection('passkey-policy', open)}
           statusSummary={passkeyStatus}
@@ -248,9 +234,11 @@ function AdminSettingsPage() {
       />
 
       <TelephonyProviderSection
-        config={providerConfig}
+        config={providerConfig ?? null}
         draft={providerDraft}
-        onConfigChange={setProviderConfig}
+        onConfigChange={(updated: TelephonyProviderConfig | null) =>
+          queryClient.setQueryData(queryKeys.settings.provider(), updated)
+        }
         onDraftChange={setProviderDraft}
         expanded={expanded.has('telephony-provider')}
         onToggle={(open) => toggleSection('telephony-provider', open)}
@@ -260,8 +248,18 @@ function AdminSettingsPage() {
       <TranscriptionSection
         globalEnabled={globalTranscription}
         allowOptOut={allowVolunteerOptOut}
-        onGlobalChange={setGlobalTranscription}
-        onOptOutChange={setAllowVolunteerOptOut}
+        onGlobalChange={(enabled: boolean) =>
+          queryClient.setQueryData(queryKeys.settings.transcription(), {
+            ...transcriptionSettings,
+            globalEnabled: enabled,
+          })
+        }
+        onOptOutChange={(enabled: boolean) =>
+          queryClient.setQueryData(queryKeys.settings.transcription(), {
+            ...transcriptionSettings,
+            allowVolunteerOptOut: enabled,
+          })
+        }
         onConfirmToggle={handleConfirmToggle}
         expanded={expanded.has('transcription')}
         onToggle={(open) => toggleSection('transcription', open)}
@@ -270,7 +268,9 @@ function AdminSettingsPage() {
 
       <IvrLanguagesSection
         enabled={ivrEnabled}
-        onChange={setIvrEnabled}
+        onChange={(langs: string[]) =>
+          queryClient.setQueryData(queryKeys.settings.ivrLanguages(), langs)
+        }
         expanded={expanded.has('ivr-languages')}
         onToggle={(open) => toggleSection('ivr-languages', open)}
         statusSummary={ivrStatus}
@@ -279,7 +279,9 @@ function AdminSettingsPage() {
       {callSet && (
         <CallSettingsSection
           settings={callSet}
-          onChange={setCallSet}
+          onChange={(updated: CallSettings) =>
+            queryClient.setQueryData(queryKeys.settings.call(), updated)
+          }
           expanded={expanded.has('call-settings')}
           onToggle={(open) => toggleSection('call-settings', open)}
           statusSummary={callStatus}
@@ -289,7 +291,9 @@ function AdminSettingsPage() {
       <VoicePromptsSection
         ivrEnabled={ivrEnabled}
         recordings={ivrAudio}
-        onRecordingsChange={setIvrAudio}
+        onRecordingsChange={(updated: IvrAudioRecording[]) =>
+          queryClient.setQueryData(queryKeys.settings.ivrAudio(), updated)
+        }
         expanded={expanded.has('voice-prompts')}
         onToggle={(open) => toggleSection('voice-prompts', open)}
         statusSummary={
@@ -301,7 +305,9 @@ function AdminSettingsPage() {
 
       <CustomFieldsSection
         fields={customFieldDefs}
-        onChange={setCustomFieldDefs}
+        onChange={(updated: CustomFieldDefinition[]) =>
+          queryClient.setQueryData(queryKeys.settings.customFields(), updated)
+        }
         expanded={expanded.has('custom-fields')}
         onToggle={(open) => toggleSection('custom-fields', open)}
         statusSummary={customFieldsStatus}
@@ -310,7 +316,9 @@ function AdminSettingsPage() {
       <ReportTypesSection
         reportTypes={reportTypes}
         customFields={customFieldDefs}
-        onChange={setReportTypes}
+        onChange={(updated: ReportType[]) =>
+          queryClient.setQueryData(queryKeys.settings.reportTypes(), updated)
+        }
         expanded={expanded.has('report-types')}
         onToggle={(open) => toggleSection('report-types', open)}
         statusSummary={reportTypesStatus}
@@ -319,7 +327,9 @@ function AdminSettingsPage() {
       {geocodingConfig && (
         <GeocodingSettingsSection
           config={geocodingConfig}
-          onChange={setGeocodingConfig}
+          onChange={(updated: GeocodingConfigAdmin) =>
+            queryClient.setQueryData(queryKeys.settings.geocoding(), updated)
+          }
           expanded={expanded.has('geocoding')}
           onToggle={(open) => toggleSection('geocoding', open)}
           statusSummary={
@@ -333,7 +343,9 @@ function AdminSettingsPage() {
       {spam && (
         <SpamSection
           settings={spam}
-          onChange={setSpam}
+          onChange={(updated: SpamSettings) =>
+            queryClient.setQueryData(queryKeys.settings.spam(), updated)
+          }
           onConfirmToggle={handleConfirmToggle}
           expanded={expanded.has('spam')}
           onToggle={(open) => toggleSection('spam', open)}
@@ -344,7 +356,9 @@ function AdminSettingsPage() {
       {messagingConfig && (
         <RCSChannelSection
           config={messagingConfig}
-          onConfigChange={setMessagingConfig}
+          onConfigChange={(updated: MessagingConfig) =>
+            queryClient.setQueryData(queryKeys.settings.messaging(), updated)
+          }
           expanded={expanded.has('rcs-channel')}
           onToggle={(open) => toggleSection('rcs-channel', open)}
           statusSummary={
@@ -358,7 +372,9 @@ function AdminSettingsPage() {
       {messagingConfig && (
         <SignalChannelSection
           config={messagingConfig}
-          onConfigChange={setMessagingConfig}
+          onConfigChange={(updated: MessagingConfig) =>
+            queryClient.setQueryData(queryKeys.settings.messaging(), updated)
+          }
           expanded={expanded.has('signal-channel')}
           onToggle={(open) => toggleSection('signal-channel', open)}
           statusSummary={

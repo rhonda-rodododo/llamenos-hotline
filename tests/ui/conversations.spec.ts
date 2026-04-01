@@ -56,6 +56,7 @@ test.describe('Conversations — with channels enabled', () => {
     // Step 1: Identity — fill required name
     await page.locator('#hotline-name').fill('Test Conversations Hotline')
     await page.getByRole('button', { name: /next/i }).click()
+    await page.waitForTimeout(1000)
     await expect(page.getByText('Choose Communication Channels')).toBeVisible({ timeout: 5000 })
 
     // Step 2: Select Reports (no provider needed)
@@ -64,14 +65,24 @@ test.describe('Conversations — with channels enabled', () => {
       .filter({ has: page.getByText('Reports', { exact: true }) })
     await reportsCard.click()
     await page.getByRole('button', { name: /next/i }).click()
+    await page.waitForTimeout(1000)
     await expect(page.getByText('Configure Providers')).toBeVisible({ timeout: 5000 })
 
     // Step 3: Skip providers
-    await page.getByRole('button', { name: /skip/i }).click()
+    const skipBtn3 = page.getByRole('button', { name: /skip/i })
+    await skipBtn3.waitFor({ state: 'visible', timeout: 10000 })
+    await skipBtn3.click()
+    await page.waitForTimeout(500)
     // Step 4: Skip settings
-    await page.getByRole('button', { name: /skip/i }).click()
+    const skipBtn4 = page.getByRole('button', { name: /skip/i })
+    await skipBtn4.waitFor({ state: 'visible', timeout: 10000 })
+    await skipBtn4.click()
+    await page.waitForTimeout(500)
     // Step 5: Skip invite
-    await page.getByRole('button', { name: /skip/i }).click()
+    const skipBtn5 = page.getByRole('button', { name: /skip/i })
+    await skipBtn5.waitFor({ state: 'visible', timeout: 10000 })
+    await skipBtn5.click()
+    await page.waitForTimeout(500)
 
     // Step 6: Complete setup
     await expect(page.getByText('Review & Launch')).toBeVisible({ timeout: 5000 })

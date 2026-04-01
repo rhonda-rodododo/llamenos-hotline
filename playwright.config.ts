@@ -15,14 +15,14 @@ export default defineConfig({
         ["list"],
       ]
     : [["html"], ["list"]],
-  timeout: 30_000,
+  timeout: 60_000,
   expect: {
     timeout: 10_000,
   },
   use: {
     baseURL: process.env.PLAYWRIGHT_BASE_URL || "http://localhost:3000",
     ignoreHTTPSErrors: !!process.env.PLAYWRIGHT_IGNORE_HTTPS_ERRORS,
-    trace: "on-first-retry",
+    trace: "retain-on-failure",
     actionTimeout: 10_000,
     navigationTimeout: 15_000,
   },

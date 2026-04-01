@@ -5,6 +5,62 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.31.0] - 2026-03-30
+
+### Bug Fixes
+
+- cache invalidation gaps — hub key rotation, test reset, NostrPublisher interface
+- revert pool size default to 10 — CI Postgres max_connections too low for 20
+
+### Documentation
+
+- backend performance optimization plan (A+B categories)
+- update plan with verified corrections — count(), imports, missing files, dedup instances
+
+### Features
+
+- add TTL cache utility for service-level caching
+
+### Miscellaneous
+
+- v0.31.0 [skip ci]
+
+### Performance
+
+- cache HKDF-derived keys and server keypair in CryptoService
+- centralize hub key cache in SettingsService, remove duplicated #getHubKey
+- cache listRoles results (10s TTL) — eliminates per-request DB query
+- cache telephony configs and phone→hub lookup
+- add 13 missing database indexes for hot query paths
+- SQL pagination and COUNT(*) — stop loading entire result sets into memory
+- replace O(n^2) array dedup with Set (6 instances)
+- bounded Nostr event queue, faster AUTH, eager connect on startup
+- cache crypto import and HMAC key in asterisk-bridge WebhookSender
+- parallelize blast delivery — concurrent sends per channel with rate limiting
+- increase default DB pool size to 20, add maxLifetime for connection recycling
+
+### Bench
+
+- add performance benchmarks for crypto caching, dedup, and cache operations
+
+### Ops
+
+- configure Postgres max_connections=1000, bump PG_POOL_SIZE default to 20 in deploy configs
+
+### Security
+
+- make settings reference #private on hub key consumers — prevents external access to getHubKey()
+
+## [0.30.0] - 2026-03-30
+
+### Features
+
+- IdP-agnostic auth facade & multi-factor nsec hardening (#18)
+
+### Miscellaneous
+
+- v0.30.0 [skip ci]
+
 ## [0.29.2] - 2026-03-29
 
 ### Bug Fixes

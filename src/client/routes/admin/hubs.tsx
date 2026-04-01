@@ -15,18 +15,16 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
 import { Textarea } from '@/components/ui/textarea'
-import {
-  type Hub,
-  type HubExportCategory,
-  archiveHub,
-  createHub,
-  deleteHub,
-  exportHubData,
-  listHubs,
-  updateHub,
-} from '@/lib/api'
+import { type Hub, type HubExportCategory, exportHubData } from '@/lib/api'
 import { useAuth } from '@/lib/auth'
 import { decryptHubField, encryptHubField } from '@/lib/hub-field-crypto'
+import {
+  useArchiveHub,
+  useCreateHub,
+  useDeleteHub,
+  useHubs,
+  useUpdateHub,
+} from '@/lib/queries/hubs'
 import { useToast } from '@/lib/toast'
 import { createFileRoute } from '@tanstack/react-router'
 import {
@@ -53,27 +51,16 @@ function HubsPage() {
   const { hasPermission } = auth
   const { toast } = useToast()
   const isSuperAdmin = auth.roles.includes('role-super-admin')
-  const [hubs, setHubs] = useState<Hub[]>([])
-  const [loading, setLoading] = useState(true)
   const [showCreateDialog, setShowCreateDialog] = useState(false)
   const [editingHub, setEditingHub] = useState<Hub | null>(null)
   const [archivingHub, setArchivingHub] = useState<Hub | null>(null)
   const [deletingHub, setDeletingHub] = useState<Hub | null>(null)
 
-  useEffect(() => {
-    loadHubs()
-  }, [])
-
-  async function loadHubs() {
-    try {
-      const res = await listHubs()
-      setHubs(res.hubs)
-    } catch {
-      toast(t('common.error'), 'error')
-    } finally {
-      setLoading(false)
-    }
-  }
+  const { data: hubs = [], isLoading: loading } = useHubs()
+  const createHub = useCreateHub()
+  const updateHub = useUpdateHub()
+  const deleteHub = useDeleteHub()
+  const archiveHub = useArchiveHub()
 
   if (!hasPermission('system:manage-hubs')) {
     return (
@@ -134,10 +121,9 @@ function HubsPage() {
       <CreateHubDialog
         open={showCreateDialog}
         onOpenChange={setShowCreateDialog}
-        onCreated={(hub) => {
-          setHubs((prev) => [...prev, hub])
-          setShowCreateDialog(false)
-        }}
+        createHub={createHub}
+        onCreated={() => setShowCreateDialog(false)}
+        toast={toast}
       />
 
       {/* Edit hub dialog */}
@@ -149,10 +135,9 @@ function HubsPage() {
           }}
           hub={editingHub}
           isSuperAdmin={isSuperAdmin}
-          onUpdated={(updated) => {
-            setHubs((prev) => prev.map((h) => (h.id === updated.id ? updated : h)))
-            setEditingHub(null)
-          }}
+          updateHub={updateHub}
+          onUpdated={() => setEditingHub(null)}
+          toast={toast}
         />
       )}
 
@@ -163,10 +148,9 @@ function HubsPage() {
           if (!open) setArchivingHub(null)
         }}
         hub={archivingHub}
-        onArchived={(id) => {
-          setHubs((prev) => prev.filter((h) => h.id !== id))
-          setArchivingHub(null)
-        }}
+        archiveHub={archiveHub}
+        onArchived={() => setArchivingHub(null)}
+        toast={toast}
       />
 
       {/* Delete hub dialog */}
@@ -176,10 +160,9 @@ function HubsPage() {
           if (!open) setDeletingHub(null)
         }}
         hub={deletingHub}
-        onDeleted={(id) => {
-          setHubs((prev) => prev.filter((h) => h.id !== id))
-          setDeletingHub(null)
-        }}
+        deleteHub={deleteHub}
+        onDeleted={() => setDeletingHub(null)}
+        toast={toast}
       />
     </div>
   )
@@ -295,18 +278,20 @@ function HubRow({
 function CreateHubDialog({
   open,
   onOpenChange,
+  createHub,
   onCreated,
+  toast,
 }: {
   open: boolean
   onOpenChange: (open: boolean) => void
-  onCreated: (hub: Hub) => void
+  createHub: ReturnType<typeof useCreateHub>
+  onCreated: () => void
+  toast: ReturnType<typeof useToast>['toast']
 }) {
   const { t } = useTranslation()
-  const { toast } = useToast()
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
   const [phoneNumber, setPhoneNumber] = useState('')
-  const [saving, setSaving] = useState(false)
 
   function resetForm() {
     setName('')
@@ -314,24 +299,24 @@ function CreateHubDialog({
     setPhoneNumber('')
   }
 
-  async function handleSubmit(e: React.FormEvent) {
+  function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (!name.trim()) return
-    setSaving(true)
-    try {
-      const res = await createHub({
+    createHub.mutate(
+      {
         name: name.trim(),
         ...(description.trim() && { description: description.trim() }),
         ...(phoneNumber.trim() && { phoneNumber: phoneNumber.trim() }),
-      })
-      onCreated(res.hub)
-      resetForm()
-      toast(t('hubs.hubCreated'), 'success')
-    } catch {
-      toast(t('common.error'), 'error')
-    } finally {
-      setSaving(false)
-    }
+      },
+      {
+        onSuccess: () => {
+          onCreated()
+          resetForm()
+          toast(t('hubs.hubCreated'), 'success')
+        },
+        onError: () => toast(t('common.error'), 'error'),
+      }
+    )
   }
 
   return (
@@ -381,12 +366,12 @@ function CreateHubDialog({
                 onOpenChange(false)
                 resetForm()
               }}
-              disabled={saving}
+              disabled={createHub.isPending}
             >
               {t('common.cancel')}
             </Button>
-            <Button type="submit" disabled={saving || !name.trim()}>
-              {saving ? t('common.loading') : t('hubs.createHub')}
+            <Button type="submit" disabled={createHub.isPending || !name.trim()}>
+              {createHub.isPending ? t('common.loading') : t('hubs.createHub')}
             </Button>
           </DialogFooter>
         </form>
@@ -400,24 +385,25 @@ function EditHubDialog({
   onOpenChange,
   hub,
   isSuperAdmin,
+  updateHub,
   onUpdated,
+  toast,
 }: {
   open: boolean
   onOpenChange: (open: boolean) => void
   hub: Hub
   isSuperAdmin: boolean
-  onUpdated: (hub: Hub) => void
+  updateHub: ReturnType<typeof useUpdateHub>
+  onUpdated: () => void
+  toast: ReturnType<typeof useToast>['toast']
 }) {
   const { t } = useTranslation()
-  const { toast } = useToast()
   const decryptedName = decryptHubField(hub.encryptedName, hub.id, hub.name)
   const decryptedDesc = decryptHubField(hub.encryptedDescription, hub.id, hub.description)
   const [name, setName] = useState(decryptedName)
   const [description, setDescription] = useState(decryptedDesc)
   const [phoneNumber, setPhoneNumber] = useState(hub.phoneNumber || '')
-  const [saving, setSaving] = useState(false)
   const [showAccessConfirm, setShowAccessConfirm] = useState<'enable' | 'disable' | null>(null)
-  const [togglingAccess, setTogglingAccess] = useState(false)
 
   // Reset form state when hub changes
   useEffect(() => {
@@ -426,27 +412,30 @@ function EditHubDialog({
     setPhoneNumber(hub.phoneNumber || '')
   }, [hub])
 
-  async function handleSubmit(e: React.FormEvent) {
+  function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (!name.trim()) return
-    setSaving(true)
-    try {
-      const trimmedName = name.trim()
-      const trimmedDesc = description.trim()
-      const res = await updateHub(hub.id, {
-        name: trimmedName,
-        description: trimmedDesc || undefined,
-        phoneNumber: phoneNumber.trim() || undefined,
-        encryptedName: encryptHubField(trimmedName, hub.id),
-        encryptedDescription: trimmedDesc ? encryptHubField(trimmedDesc, hub.id) : undefined,
-      })
-      onUpdated(res.hub)
-      toast(t('hubs.hubUpdated'), 'success')
-    } catch {
-      toast(t('common.error'), 'error')
-    } finally {
-      setSaving(false)
-    }
+    const trimmedName = name.trim()
+    const trimmedDesc = description.trim()
+    updateHub.mutate(
+      {
+        id: hub.id,
+        data: {
+          name: trimmedName,
+          description: trimmedDesc || undefined,
+          phoneNumber: phoneNumber.trim() || undefined,
+          encryptedName: encryptHubField(trimmedName, hub.id),
+          encryptedDescription: trimmedDesc ? encryptHubField(trimmedDesc, hub.id) : undefined,
+        },
+      },
+      {
+        onSuccess: () => {
+          onUpdated()
+          toast(t('hubs.hubUpdated'), 'success')
+        },
+        onError: () => toast(t('common.error'), 'error'),
+      }
+    )
   }
 
   function handleAccessToggleRequest() {
@@ -457,19 +446,21 @@ function EditHubDialog({
     }
   }
 
-  async function handleAccessToggleConfirm() {
+  function handleAccessToggleConfirm() {
     const newValue = showAccessConfirm === 'enable'
-    setTogglingAccess(true)
-    try {
-      const res = await updateHub(hub.id, { allowSuperAdminAccess: newValue })
-      onUpdated(res.hub)
-      toast(t('hubs.hubUpdated'), 'success')
-    } catch {
-      toast(t('common.error'), 'error')
-    } finally {
-      setTogglingAccess(false)
-      setShowAccessConfirm(null)
-    }
+    updateHub.mutate(
+      { id: hub.id, data: { allowSuperAdminAccess: newValue } },
+      {
+        onSuccess: () => {
+          toast(t('hubs.hubUpdated'), 'success')
+          setShowAccessConfirm(null)
+        },
+        onError: () => {
+          toast(t('common.error'), 'error')
+          setShowAccessConfirm(null)
+        },
+      }
+    )
   }
 
   return (
@@ -569,12 +560,12 @@ function EditHubDialog({
                 type="button"
                 variant="outline"
                 onClick={() => onOpenChange(false)}
-                disabled={saving}
+                disabled={updateHub.isPending}
               >
                 {t('common.cancel')}
               </Button>
-              <Button type="submit" disabled={saving || !name.trim()}>
-                {saving ? t('common.loading') : t('common.save')}
+              <Button type="submit" disabled={updateHub.isPending || !name.trim()}>
+                {updateHub.isPending ? t('common.loading') : t('common.save')}
               </Button>
             </DialogFooter>
           </form>
@@ -602,7 +593,7 @@ function EditHubDialog({
               type="button"
               variant="outline"
               onClick={() => setShowAccessConfirm(null)}
-              disabled={togglingAccess}
+              disabled={updateHub.isPending}
             >
               {t('common.cancel')}
             </Button>
@@ -610,10 +601,10 @@ function EditHubDialog({
               type="button"
               variant={showAccessConfirm === 'disable' ? 'destructive' : 'default'}
               onClick={handleAccessToggleConfirm}
-              disabled={togglingAccess}
+              disabled={updateHub.isPending}
               data-testid="hub-access-confirm-btn"
             >
-              {togglingAccess ? t('common.loading') : t('common.confirm')}
+              {updateHub.isPending ? t('common.loading') : t('common.confirm')}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -635,17 +626,19 @@ function DeleteHubDialog({
   open,
   onOpenChange,
   hub,
+  deleteHub,
   onDeleted,
+  toast,
 }: {
   open: boolean
   onOpenChange: (open: boolean) => void
   hub: Hub | null
-  onDeleted: (hubId: string) => void
+  deleteHub: ReturnType<typeof useDeleteHub>
+  onDeleted: () => void
+  toast: ReturnType<typeof useToast>['toast']
 }) {
   const { t } = useTranslation()
-  const { toast } = useToast()
   const [confirmName, setConfirmName] = useState('')
-  const [saving, setSaving] = useState(false)
   const [exporting, setExporting] = useState(false)
   const [selectedCategories, setSelectedCategories] = useState<Set<HubExportCategory>>(
     new Set(EXPORT_CATEGORIES.map((c) => c.key))
@@ -688,24 +681,23 @@ function DeleteHubDialog({
     }
   }
 
-  async function handleConfirm() {
+  function handleConfirm() {
     if (!hub || !canDelete) return
-    setSaving(true)
-    try {
-      await deleteHub(hub.id)
-      onDeleted(hub.id)
-      onOpenChange(false)
-      toast(t('hubs.hubDeleted'), 'success')
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : ''
-      if (msg.includes('active calls')) {
-        toast(t('hubs.deleteHubActiveCallsError'), 'error')
-      } else {
-        toast(t('common.error'), 'error')
-      }
-    } finally {
-      setSaving(false)
-    }
+    deleteHub.mutate(hub.id, {
+      onSuccess: () => {
+        onDeleted()
+        onOpenChange(false)
+        toast(t('hubs.hubDeleted'), 'success')
+      },
+      onError: (err) => {
+        const msg = err instanceof Error ? err.message : ''
+        if (msg.includes('active calls')) {
+          toast(t('hubs.deleteHubActiveCallsError'), 'error')
+        } else {
+          toast(t('common.error'), 'error')
+        }
+      },
+    })
   }
 
   function handleClose() {
@@ -777,17 +769,22 @@ function DeleteHubDialog({
           />
         </div>
         <DialogFooter>
-          <Button type="button" variant="outline" onClick={handleClose} disabled={saving}>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={handleClose}
+            disabled={deleteHub.isPending}
+          >
             {t('common.cancel')}
           </Button>
           <Button
             type="button"
             variant="destructive"
             onClick={handleConfirm}
-            disabled={saving || !canDelete}
+            disabled={deleteHub.isPending || !canDelete}
             data-testid="delete-hub-confirm-btn"
           >
-            {saving ? t('common.loading') : t('hubs.deleteHub')}
+            {deleteHub.isPending ? t('common.loading') : t('hubs.deleteHub')}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -799,32 +796,31 @@ function ArchiveHubDialog({
   open,
   onOpenChange,
   hub,
+  archiveHub,
   onArchived,
+  toast,
 }: {
   open: boolean
   onOpenChange: (open: boolean) => void
   hub: Hub | null
-  onArchived: (hubId: string) => void
+  archiveHub: ReturnType<typeof useArchiveHub>
+  onArchived: () => void
+  toast: ReturnType<typeof useToast>['toast']
 }) {
   const { t } = useTranslation()
-  const { toast } = useToast()
-  const [saving, setSaving] = useState(false)
 
   if (!hub) return null
 
-  async function handleConfirm() {
+  function handleConfirm() {
     if (!hub) return
-    setSaving(true)
-    try {
-      await archiveHub(hub.id)
-      onArchived(hub.id)
-      onOpenChange(false)
-      toast(t('hubs.hubArchived'), 'success')
-    } catch {
-      toast(t('common.error'), 'error')
-    } finally {
-      setSaving(false)
-    }
+    archiveHub.mutate(hub.id, {
+      onSuccess: () => {
+        onArchived()
+        onOpenChange(false)
+        toast(t('hubs.hubArchived'), 'success')
+      },
+      onError: () => toast(t('common.error'), 'error'),
+    })
   }
 
   return (
@@ -839,12 +835,17 @@ function ArchiveHubDialog({
             type="button"
             variant="outline"
             onClick={() => onOpenChange(false)}
-            disabled={saving}
+            disabled={archiveHub.isPending}
           >
             {t('common.cancel')}
           </Button>
-          <Button type="button" variant="destructive" onClick={handleConfirm} disabled={saving}>
-            {saving ? t('common.loading') : t('hubs.archiveHub')}
+          <Button
+            type="button"
+            variant="destructive"
+            onClick={handleConfirm}
+            disabled={archiveHub.isPending}
+          >
+            {archiveHub.isPending ? t('common.loading') : t('hubs.archiveHub')}
           </Button>
         </DialogFooter>
       </DialogContent>

@@ -27,6 +27,9 @@ export interface NostrPublisher {
   /** Get the server's public key (hex, x-only 32 bytes) */
   readonly serverPubkey: string
 
+  /** Eager connection (optional — implementations without persistent connections can no-op) */
+  connect?(): Promise<void>
+
   /** Graceful shutdown (close connections, flush queues) */
   close(): void
 }
@@ -126,6 +129,8 @@ export class NodeNostrPublisher implements NostrPublisher {
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null
   private pendingEvents: VerifiedEvent[] = []
   private closed = false
+  private static readonly MAX_PENDING = 500
+  private authTimer: ReturnType<typeof setTimeout> | null = null
 
   constructor(
     private readonly relayUrl: string,
@@ -179,16 +184,19 @@ export class NodeNostrPublisher implements NostrPublisher {
   async publish(template: EventTemplate): Promise<void> {
     const event = signServerEvent(template, this.secretKey)
 
-    // If connected and authenticated, send immediately
     if (this.ws?.readyState === WebSocket.OPEN && this.authenticated) {
       this.ws.send(JSON.stringify(['EVENT', event]))
       return
     }
 
-    // Queue and ensure connection
+    // Bounded queue — drop oldest if at capacity
+    if (this.pendingEvents.length >= NodeNostrPublisher.MAX_PENDING) {
+      this.pendingEvents.shift()
+      console.warn('[nostr-publisher] Queue full, dropping oldest event')
+    }
     this.pendingEvents.push(event)
+
     if (!this.ws || this.ws.readyState === WebSocket.CLOSED) {
-      // Fire and forget — event is queued and will be sent on connect
       this.connect().catch((err) => {
         console.error('[nostr-publisher] Failed to connect:', err)
       })
@@ -200,6 +208,10 @@ export class NodeNostrPublisher implements NostrPublisher {
     if (this.reconnectTimer) {
       clearTimeout(this.reconnectTimer)
       this.reconnectTimer = null
+    }
+    if (this.authTimer) {
+      clearTimeout(this.authTimer)
+      this.authTimer = null
     }
     if (this.ws) {
       this.ws.close()
@@ -214,6 +226,10 @@ export class NodeNostrPublisher implements NostrPublisher {
         const data = JSON.parse(typeof msg.data === 'string' ? msg.data : '')
         if (Array.isArray(data)) {
           if (data[0] === 'AUTH') {
+            if (this.authTimer) {
+              clearTimeout(this.authTimer)
+              this.authTimer = null
+            }
             this.handleNIP42Auth(data[1] as string)
           } else if (data[0] === 'OK') {
             // Event accepted — data[1] is event ID, data[2] is boolean, data[3] is message
@@ -232,6 +248,10 @@ export class NodeNostrPublisher implements NostrPublisher {
     ws.addEventListener('close', () => {
       this.authenticated = false
       this.ws = null
+      if (this.authTimer) {
+        clearTimeout(this.authTimer)
+        this.authTimer = null
+      }
       if (!this.closed) {
         this.scheduleReconnect()
       }
@@ -242,7 +262,8 @@ export class NodeNostrPublisher implements NostrPublisher {
     })
 
     // If no AUTH challenge arrives within 2s, assume open relay
-    setTimeout(() => {
+    this.authTimer = setTimeout(() => {
+      this.authTimer = null
       if (!this.authenticated && this.ws === ws) {
         this.authenticated = true
         this.flushPendingEvents()

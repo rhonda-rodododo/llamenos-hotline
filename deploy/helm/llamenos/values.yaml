@@ -24,7 +24,7 @@ postgres:
   port: 5432
   database: llamenos
   user: llamenos
-  poolSize: 10
+  poolSize: 20
 
 # RustFS for blob storage (S3-compatible)
 rustfs:

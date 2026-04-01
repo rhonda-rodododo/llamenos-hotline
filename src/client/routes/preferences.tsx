@@ -2,9 +2,9 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
+import { usePreferences, useUpdatePreferences } from '@/lib/queries/preferences'
 import { createFileRoute } from '@tanstack/react-router'
 import { Bell } from 'lucide-react'
-import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 export const Route = createFileRoute('/preferences')({
@@ -14,59 +14,33 @@ export const Route = createFileRoute('/preferences')({
   }),
 })
 
-interface SubscriberPrefs {
-  channels: Array<{ type: string; verified: boolean }>
-  language: string
-  status: string
-}
-
 function PreferencesPage() {
   const { t } = useTranslation()
   const search = Route.useSearch()
-  const [subscriber, setSubscriber] = useState<SubscriberPrefs | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState('')
 
-  useEffect(() => {
-    if (!search.token) {
-      setError(t('preferences.invalidToken'))
-      setLoading(false)
-      return
-    }
-    fetch(`/api/messaging/preferences?token=${encodeURIComponent(search.token)}`)
-      .then((r) => (r.ok ? r.json() : Promise.reject()))
-      .then((data) => setSubscriber(data as SubscriberPrefs))
-      .catch(() => setError(t('preferences.invalidToken')))
-      .finally(() => setLoading(false))
-  }, [search.token, t])
+  const { data: subscriber, isLoading, isError } = usePreferences(search.token)
+  const updateMutation = useUpdatePreferences(search.token)
 
   async function handleUpdate(updates: Record<string, unknown>) {
     try {
-      const res = await fetch(
-        `/api/messaging/preferences?token=${encodeURIComponent(search.token)}`,
-        {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(updates),
-        }
-      )
-      if (res.ok) {
-        const updated = (await res.json()) as SubscriberPrefs
-        setSubscriber(updated)
-      }
+      await updateMutation.mutateAsync(updates)
     } catch {
       // silently fail — subscriber preferences are best-effort
     }
   }
 
-  if (loading)
+  if (isLoading)
     return (
       <div className="flex h-screen items-center justify-center text-muted-foreground">
         {t('common.loading')}
       </div>
     )
-  if (error)
-    return <div className="flex h-screen items-center justify-center text-destructive">{error}</div>
+  if (isError || !search.token)
+    return (
+      <div className="flex h-screen items-center justify-center text-destructive">
+        {t('preferences.invalidToken')}
+      </div>
+    )
   if (!subscriber) return null
 
   return (

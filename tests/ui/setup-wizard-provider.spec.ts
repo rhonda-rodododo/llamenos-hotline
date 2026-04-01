@@ -29,12 +29,15 @@ test.describe('Setup Wizard - Provider Module', () => {
   // Helper: click Next
   async function clickNext(page: import('@playwright/test').Page) {
     await page.getByRole('button', { name: /next/i }).click()
-    await page.waitForTimeout(500)
+    await page.waitForTimeout(1000)
   }
 
   // Helper: click Skip
   async function clickSkip(page: import('@playwright/test').Page) {
-    await page.getByRole('button', { name: /skip/i }).click()
+    const skipBtn = page.getByRole('button', { name: /skip/i })
+    await skipBtn.waitFor({ state: 'visible', timeout: 10000 })
+    await skipBtn.click()
+    await page.waitForTimeout(500)
   }
 
   // Helper: navigate to step 3 with Voice selected

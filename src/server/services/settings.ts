@@ -65,6 +65,7 @@ import {
   transcriptionSettings,
   volunteers,
 } from '../db/schema'
+import { TtlCache } from '../lib/cache'
 import type { CryptoService } from '../lib/crypto-service'
 import { AppError } from '../lib/errors'
 import type {
@@ -80,6 +81,11 @@ import type {
 } from '../types'
 
 export class SettingsService {
+  private hubKeyCache = new TtlCache<Uint8Array | null>(30_000)
+  private roleCache = new TtlCache<Role[]>(10_000) // 10s TTL
+  private telephonyConfigCache = new TtlCache<TelephonyProviderConfig | null>(30_000) // 30s TTL
+  private phoneToHubCache = new TtlCache<string | null>(60_000) // 60s TTL
+
   constructor(
     protected readonly db: Database,
     private readonly crypto: CryptoService
@@ -89,19 +95,31 @@ export class SettingsService {
 
   async #getHubKey(hubId: string): Promise<Uint8Array | null> {
     if (!hubId || hubId === 'global') return null
-    const envelopes = await this.db.select().from(hubKeys).where(eq(hubKeys.hubId, hubId))
-    if (envelopes.length === 0) return null
-    try {
-      return this.crypto.unwrapHubKey(
-        envelopes.map((r) => ({
-          pubkey: r.pubkey,
-          wrappedKey: r.encryptedKey,
-          ephemeralPubkey: r.ephemeralPubkey ?? '',
-        }))
-      )
-    } catch {
-      return null // Server not in hub key envelope list
-    }
+    return this.hubKeyCache.getOrSet(hubId, async () => {
+      const envelopes = await this.db.select().from(hubKeys).where(eq(hubKeys.hubId, hubId))
+      if (envelopes.length === 0) return null
+      try {
+        return this.crypto.unwrapHubKey(
+          envelopes.map((r) => ({
+            pubkey: r.pubkey,
+            wrappedKey: r.encryptedKey,
+            ephemeralPubkey: r.ephemeralPubkey ?? '',
+          }))
+        )
+      } catch {
+        return null // Server not in hub key envelope list
+      }
+    })
+  }
+
+  /** @internal Hub key lookup for dependent services. Uses shared TTL cache. */
+  getHubKey(hubId: string): Promise<Uint8Array | null> {
+    return this.#getHubKey(hubId)
+  }
+
+  /** Invalidate cached hub key (call after key rotation). */
+  invalidateHubKey(hubId: string): void {
+    this.hubKeyCache.delete(hubId)
   }
 
   // ------------------------------------------------------------------ Spam Settings
@@ -378,27 +396,29 @@ export class SettingsService {
 
   async getTelephonyProvider(hubId?: string): Promise<TelephonyProviderConfig | null> {
     const hId = hubId ?? 'global'
-    const rows = await this.db
-      .select()
-      .from(telephonyConfig)
-      .where(eq(telephonyConfig.hubId, hId))
-      .limit(1)
-    if (!rows[0]) return null
-    const configStr = rows[0].config
-    if (!configStr) return null
-    let json: string
-    try {
-      json = this.crypto.serverDecrypt(configStr as Ciphertext, LABEL_PROVIDER_CREDENTIAL_WRAP)
-    } catch {
-      // Legacy plaintext — re-encrypt and update
-      json = configStr
-      const encrypted = this.crypto.serverEncrypt(json, LABEL_PROVIDER_CREDENTIAL_WRAP)
-      await this.db
-        .update(telephonyConfig)
-        .set({ config: encrypted })
+    return this.telephonyConfigCache.getOrSet(hId, async () => {
+      const rows = await this.db
+        .select()
+        .from(telephonyConfig)
         .where(eq(telephonyConfig.hubId, hId))
-    }
-    return JSON.parse(json) as TelephonyProviderConfig
+        .limit(1)
+      if (!rows[0]) return null
+      const configStr = rows[0].config
+      if (!configStr) return null
+      let json: string
+      try {
+        json = this.crypto.serverDecrypt(configStr as Ciphertext, LABEL_PROVIDER_CREDENTIAL_WRAP)
+      } catch {
+        // Legacy plaintext — re-encrypt and update
+        json = configStr
+        const encrypted = this.crypto.serverEncrypt(json, LABEL_PROVIDER_CREDENTIAL_WRAP)
+        await this.db
+          .update(telephonyConfig)
+          .set({ config: encrypted })
+          .where(eq(telephonyConfig.hubId, hId))
+      }
+      return JSON.parse(json) as TelephonyProviderConfig
+    })
   }
 
   async updateTelephonyProvider(
@@ -406,6 +426,8 @@ export class SettingsService {
     hubId?: string
   ): Promise<TelephonyProviderConfig> {
     const hId = hubId ?? 'global'
+    this.telephonyConfigCache.delete(hId)
+    this.phoneToHubCache.clear() // phone mapping may have changed
     const encrypted = this.crypto.serverEncrypt(
       JSON.stringify(config),
       LABEL_PROVIDER_CREDENTIAL_WRAP
@@ -421,6 +443,11 @@ export class SettingsService {
   }
 
   async getHubByPhone(phone: string): Promise<Hub | null> {
+    const cachedHubId = this.phoneToHubCache.get(phone)
+    if (cachedHubId !== undefined) {
+      return cachedHubId ? this.getHub(cachedHubId) : null
+    }
+
     // Fetch all telephony configs and filter by phone in decrypted config
     const rows = await this.db.select().from(telephonyConfig)
     for (const row of rows) {
@@ -438,27 +465,11 @@ export class SettingsService {
         }
       }
       if (cfg.phoneNumber === phone) {
-        // Look up the hub
-        const hubRows = await this.db.select().from(hubs).where(eq(hubs.id, row.hubId)).limit(1)
-        if (hubRows[0]) {
-          const h = hubRows[0]
-          const hk = await this.#getHubKey(h.id)
-          const hName = this.crypto.decryptField(
-            h.encryptedName as Ciphertext,
-            hk,
-            'llamenos:hub-name'
-          )
-          const hDesc = h.encryptedDescription
-            ? this.crypto.decryptField(
-                h.encryptedDescription as Ciphertext,
-                hk,
-                'llamenos:hub-name'
-              ) || undefined
-            : undefined
-          return this.#rowToHub(h, hName, hDesc)
-        }
+        this.phoneToHubCache.set(phone, row.hubId)
+        return this.getHub(row.hubId)
       }
     }
+    this.phoneToHubCache.set(phone, null)
     return null
   }
 
@@ -830,6 +841,10 @@ export class SettingsService {
   // ------------------------------------------------------------------ Roles
 
   async listRoles(hubId?: string): Promise<Role[]> {
+    const cacheKey = hubId ?? '__global__'
+    const cached = this.roleCache.get(cacheKey)
+    if (cached) return cached
+
     const hId = hubId ?? null
     const rows = hId
       ? await this.db.select().from(roles).where(eq(roles.hubId, hId))
@@ -867,9 +882,11 @@ export class SettingsService {
         const refetched = hId
           ? await this.db.select().from(roles).where(eq(roles.hubId, hId))
           : await this.db.select().from(roles).where(sql`${roles.hubId} IS NULL`)
-        return this.#decryptRoles(refetched)
+        const result = await this.#decryptRoles(refetched)
+        this.roleCache.set(cacheKey, result)
+        return result
       }
-      return seeded.map((r) => {
+      const result = seeded.map((r) => {
         const name = this.crypto.decryptField(
           r.encryptedName as Ciphertext,
           hubKey,
@@ -884,11 +901,16 @@ export class SettingsService {
           : ''
         return this.#rowToRole(r, name, desc)
       })
+      this.roleCache.set(cacheKey, result)
+      return result
     }
-    return this.#decryptRoles(rows)
+    const result = await this.#decryptRoles(rows)
+    this.roleCache.set(cacheKey, result)
+    return result
   }
 
   async createRole(data: CreateRoleData): Promise<Role> {
+    this.roleCache.clear()
     const hubId = data.hubId ?? null
     const existing = await this.db
       .select({ id: roles.id })
@@ -930,6 +952,7 @@ export class SettingsService {
   }
 
   async updateRole(id: string, data: UpdateRoleData): Promise<Role> {
+    this.roleCache.clear()
     const rows = await this.db.select().from(roles).where(eq(roles.id, id)).limit(1)
     const role = rows[0]
     if (!role) throw new AppError(404, 'Role not found')
@@ -979,6 +1002,7 @@ export class SettingsService {
   }
 
   async deleteRole(id: string): Promise<void> {
+    this.roleCache.clear()
     const rows = await this.db.select().from(roles).where(eq(roles.id, id)).limit(1)
     const role = rows[0]
     if (!role) throw new AppError(404, 'Role not found')
@@ -1219,6 +1243,7 @@ export class SettingsService {
   }
 
   async setHubKeyEnvelopes(hubId: string, envelopes: HubKeyEntry[]): Promise<void> {
+    this.hubKeyCache.delete(hubId)
     // Verify hub exists
     const hubRows = await this.db
       .select({ id: hubs.id })
@@ -1267,6 +1292,11 @@ export class SettingsService {
   }
 
   async resetForTest(): Promise<void> {
+    // Clear all runtime caches
+    this.hubKeyCache.clear()
+    this.roleCache.clear()
+    this.telephonyConfigCache.clear()
+    this.phoneToHubCache.clear()
     // Clear runtime state only — preserve system roles (they are code defaults, not user data)
     await this.db.delete(captchaState)
     await this.db.delete(rateLimitCounters)

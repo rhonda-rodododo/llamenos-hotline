@@ -25,14 +25,9 @@ import {
   SheetTitle,
 } from '@/components/ui/sheet'
 import { Switch } from '@/components/ui/switch'
-import {
-  type CallRecord,
-  type CustomFieldDefinition,
-  createNote,
-  getCallHistory,
-  getCustomFields,
-  updateNote,
-} from '@/lib/api'
+import { type CustomFieldDefinition, createNote, updateNote } from '@/lib/api'
+import { useCallHistory } from '@/lib/queries/calls'
+import { useCustomFields } from '@/lib/queries/notes'
 import { useToast } from '@/lib/toast'
 import type { NotePayload } from '@shared/types'
 import { Clock, Lock, Save } from 'lucide-react'
@@ -44,9 +39,12 @@ export function NoteSheet() {
     useNoteSheet()
   const { toast } = useToast()
   const [saving, setSaving] = useState(false)
-  const [recentCalls, setRecentCalls] = useState<CallRecord[]>([])
-  const [customFields, setCustomFields] = useState<CustomFieldDefinition[]>([])
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({})
+
+  const { data: customFieldsData } = useCustomFields()
+  const { data: callHistoryData } = useCallHistory(isAdmin && isOpen ? { limit: 20 } : undefined)
+  const customFields = customFieldsData ?? []
+  const recentCalls = callHistoryData?.calls ?? []
 
   const draftKey = mode === 'edit' && editNoteId ? `edit:${editNoteId}` : 'new'
   const draft = useDraft(draftKey)
@@ -69,19 +67,6 @@ export function NoteSheet() {
       }
     }
   }, [isOpen, mode, initialText, initialCallId])
-
-  // Load custom fields and recent calls
-  useEffect(() => {
-    if (!isOpen) return
-    getCustomFields()
-      .then((r) => setCustomFields(r.fields))
-      .catch(() => {})
-    if (isAdmin) {
-      getCallHistory({ limit: 20 })
-        .then((r) => setRecentCalls(r.calls))
-        .catch(() => {})
-    }
-  }, [isAdmin, isOpen])
 
   function validateFields(): boolean {
     const errors: Record<string, string> = {}

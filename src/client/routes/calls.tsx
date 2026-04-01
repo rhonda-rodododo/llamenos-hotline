@@ -4,12 +4,9 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { VoicemailPlayer } from '@/components/voicemail-player'
-import { type CallRecord, type Volunteer, getCallHistory, listVolunteers } from '@/lib/api'
 import { useAuth } from '@/lib/auth'
-import { decryptCallRecord } from '@/lib/crypto'
-import * as keyManager from '@/lib/key-manager'
-import { useToast } from '@/lib/toast'
-import { useDecryptedArray } from '@/lib/use-decrypted'
+import { useCallHistory } from '@/lib/queries/calls'
+import { useVolunteers } from '@/lib/queries/volunteers'
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
 import { Link } from '@tanstack/react-router'
 import {
@@ -25,7 +22,7 @@ import {
   Voicemail,
   X,
 } from 'lucide-react'
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 type CallsSearch = {
@@ -49,86 +46,34 @@ export const Route = createFileRoute('/calls')({
 
 function CallHistoryPage() {
   const { t } = useTranslation()
-  const { isAdmin, hasNsec, publicKey, hasPermission } = useAuth()
-  const { toast } = useToast()
+  const { isAdmin, hasPermission } = useAuth()
   const navigate = useNavigate({ from: '/calls' })
   const { page, q, dateFrom, dateTo, voicemailOnly } = Route.useSearch()
-  const [calls, setCalls] = useState<CallRecord[]>([])
-  const [total, setTotal] = useState(0)
-  const [loading, setLoading] = useState(true)
-  const [volunteers, setVolunteers] = useState<Volunteer[]>([])
   // Local input state (synced to URL on submit)
   const [searchInput, setSearchInput] = useState(q)
   const [dateFromInput, setDateFromInput] = useState(dateFrom)
   const [dateToInput, setDateToInput] = useState(dateTo)
   const limit = 50
 
-  const fetchCalls = useCallback(() => {
-    setLoading(true)
-    getCallHistory({
-      page,
-      limit,
-      search: q || undefined,
-      dateFrom: dateFrom || undefined,
-      dateTo: dateTo || undefined,
-      voicemailOnly: voicemailOnly || undefined,
-    })
-      .then((r) => {
-        setCalls(r.calls)
-        setTotal(r.total)
-      })
-      .catch(() => toast(t('common.error'), 'error'))
-      .finally(() => setLoading(false))
-  }, [page, q, dateFrom, dateTo, voicemailOnly])
+  const { data, isLoading } = useCallHistory({
+    page,
+    limit,
+    search: q || undefined,
+    dateFrom: dateFrom || undefined,
+    dateTo: dateTo || undefined,
+    voicemailOnly: voicemailOnly || undefined,
+  })
 
-  useEffect(() => {
-    fetchCalls()
-  }, [fetchCalls])
+  const { data: volunteers = [] } = useVolunteers()
 
-  // Decrypt encrypted call records client-side (Epic 77)
-  useEffect(() => {
-    if (!hasNsec || !publicKey || calls.length === 0) return
-    void (async () => {
-      const unlocked = await keyManager.isUnlocked()
-      if (!unlocked) return
-
-      let changed = false
-      const decrypted: CallRecord[] = []
-      for (const call of calls) {
-        if (call.answeredBy !== undefined) {
-          decrypted.push(call)
-          continue
-        }
-        if (!call.encryptedContent || !call.adminEnvelopes?.length) {
-          decrypted.push(call)
-          continue
-        }
-        const meta = await decryptCallRecord(call.encryptedContent, call.adminEnvelopes, publicKey)
-        if (meta) {
-          changed = true
-          decrypted.push({ ...call, answeredBy: meta.answeredBy, callerNumber: meta.callerNumber })
-        } else {
-          decrypted.push(call)
-        }
-      }
-      if (changed) setCalls(decrypted)
-    })()
-  }, [calls, hasNsec, publicKey])
-
-  useEffect(() => {
-    listVolunteers()
-      .then((r) => setVolunteers(r.volunteers))
-      .catch(() => {})
-  }, [])
-
-  const decryptedVolunteers = useDecryptedArray(volunteers)
-  const decryptedCalls = useDecryptedArray(calls)
+  const calls = data?.calls ?? []
+  const total = data?.total ?? 0
 
   const nameMap = useMemo(() => {
     const map = new Map<string, string>()
-    for (const v of decryptedVolunteers) map.set(v.pubkey, v.name)
+    for (const v of volunteers) map.set(v.pubkey, v.name)
     return map
-  }, [decryptedVolunteers])
+  }, [volunteers])
 
   function handleSearch(e: React.FormEvent) {
     e.preventDefault()
@@ -259,7 +204,7 @@ function CallHistoryPage() {
 
       <Card>
         <CardContent className="p-0">
-          {loading ? (
+          {isLoading ? (
             <div className="divide-y divide-border">
               {Array.from({ length: 5 }).map((_, i) => (
                 <div key={i} className="flex items-center gap-4 px-6 py-3">
@@ -270,14 +215,14 @@ function CallHistoryPage() {
                 </div>
               ))}
             </div>
-          ) : decryptedCalls.length === 0 ? (
+          ) : calls.length === 0 ? (
             <div className="py-8 text-center text-muted-foreground">
               <PhoneIncoming className="mx-auto mb-2 h-8 w-8 opacity-40" />
               {hasFilters ? t('callHistory.noResults') : t('callHistory.noCalls')}
             </div>
           ) : (
             <div className="divide-y divide-border">
-              {decryptedCalls.map((call) => (
+              {calls.map((call) => (
                 <div
                   key={call.id}
                   className="flex flex-wrap items-center gap-3 px-4 py-3 sm:px-6 hover:bg-muted/30 transition-colors"

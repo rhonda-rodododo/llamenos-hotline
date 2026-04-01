@@ -1,0 +1,158 @@
+/**
+ * Query key factories for all API resources.
+ *
+ * Structured keys enable targeted cache invalidation:
+ *   queryClient.invalidateQueries({ queryKey: queryKeys.volunteers.all })
+ *
+ * Each `all` entry is a plain array (not a function) so it serves as the
+ * prefix for all sub-keys in that resource, enabling wildcard invalidation.
+ */
+
+export const queryKeys = {
+  volunteers: {
+    all: ['volunteers'] as const,
+    list: () => ['volunteers', 'list'] as const,
+    detail: (pubkey: string) => ['volunteers', 'detail', pubkey] as const,
+  },
+
+  invites: {
+    all: ['invites'] as const,
+    list: () => ['invites', 'list'] as const,
+    channels: () => ['invites', 'channels'] as const,
+  },
+
+  contacts: {
+    all: ['contacts'] as const,
+    list: (filters?: { contactType?: string; riskLevel?: string }) =>
+      ['contacts', 'list', filters ?? {}] as const,
+    detail: (id: string) => ['contacts', 'detail', id] as const,
+    timeline: (id: string) => ['contacts', 'timeline', id] as const,
+    relationships: () => ['contacts', 'relationships'] as const,
+  },
+
+  notes: {
+    all: ['notes'] as const,
+    list: (filters?: { callId?: string; page?: number; limit?: number }) =>
+      ['notes', 'list', filters ?? {}] as const,
+    detail: (id: string) => ['notes', 'detail', id] as const,
+  },
+
+  calls: {
+    all: ['calls'] as const,
+    active: () => ['calls', 'active'] as const,
+    history: (filters?: {
+      page?: number
+      limit?: number
+      search?: string
+      dateFrom?: string
+      dateTo?: string
+      voicemailOnly?: boolean
+    }) => ['calls', 'history', filters ?? {}] as const,
+    detail: (id: string) => ['calls', 'detail', id] as const,
+    todayCount: () => ['calls', 'todayCount'] as const,
+  },
+
+  shifts: {
+    all: ['shifts'] as const,
+    list: () => ['shifts', 'list'] as const,
+    fallback: () => ['shifts', 'fallback'] as const,
+    myStatus: () => ['shifts', 'myStatus'] as const,
+  },
+
+  bans: {
+    all: ['bans'] as const,
+    list: () => ['bans', 'list'] as const,
+  },
+
+  audit: {
+    all: ['audit'] as const,
+    list: (filters?: {
+      page?: number
+      limit?: number
+      actorPubkey?: string
+      eventType?: string
+      dateFrom?: string
+      dateTo?: string
+      search?: string
+    }) => ['audit', 'list', filters ?? {}] as const,
+  },
+
+  reports: {
+    all: ['reports'] as const,
+    list: (filters?: {
+      status?: string
+      category?: string
+      page?: number
+      limit?: number
+    }) => ['reports', 'list', filters ?? {}] as const,
+    detail: (id: string) => ['reports', 'detail', id] as const,
+    messages: (reportId: string) => ['reports', 'messages', reportId] as const,
+  },
+
+  blasts: {
+    all: ['blasts'] as const,
+    list: () => ['blasts', 'list'] as const,
+    settings: () => ['blasts', 'settings'] as const,
+    subscribers: () => ['blasts', 'subscribers'] as const,
+    subscriberStats: () => ['blasts', 'subscriberStats'] as const,
+  },
+
+  conversations: {
+    all: ['conversations'] as const,
+    list: (filters?: {
+      status?: string
+      channel?: string
+      page?: number
+      limit?: number
+    }) => ['conversations', 'list', filters ?? {}] as const,
+    messages: (conversationId: string) => ['conversations', 'messages', conversationId] as const,
+  },
+
+  settings: {
+    spam: () => ['settings', 'spam'] as const,
+    call: () => ['settings', 'call'] as const,
+    transcription: () => ['settings', 'transcription'] as const,
+    ivrLanguages: () => ['settings', 'ivrLanguages'] as const,
+    ivrAudio: () => ['settings', 'ivrAudio'] as const,
+    webauthn: () => ['settings', 'webauthn'] as const,
+    customFields: () => ['settings', 'customFields'] as const,
+    provider: () => ['settings', 'provider'] as const,
+    messaging: () => ['settings', 'messaging'] as const,
+    geocoding: () => ['settings', 'geocoding'] as const,
+    reportTypes: () => ['settings', 'reportTypes'] as const,
+    retention: () => ['settings', 'retention'] as const,
+  },
+
+  hubs: {
+    all: ['hubs'] as const,
+    list: () => ['hubs', 'list'] as const,
+  },
+
+  preferences: {
+    mine: () => ['preferences', 'mine'] as const,
+  },
+
+  credentials: {
+    mine: () => ['credentials', 'mine'] as const,
+  },
+
+  analytics: {
+    callVolume: (days?: number) => ['analytics', 'callVolume', days ?? null] as const,
+    callHours: () => ['analytics', 'callHours'] as const,
+    volunteerStats: () => ['analytics', 'volunteerStats'] as const,
+  },
+
+  presence: {
+    list: () => ['presence', 'list'] as const,
+  },
+
+  roles: {
+    all: ['roles'] as const,
+    list: () => ['roles', 'list'] as const,
+    permissions: () => ['roles', 'permissions'] as const,
+  },
+
+  provider: {
+    health: () => ['provider', 'health'] as const,
+  },
+} as const

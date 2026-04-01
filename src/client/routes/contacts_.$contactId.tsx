@@ -5,21 +5,17 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
-import {
-  type ContactRecord,
-  type ContactRelationshipRecord,
-  deleteContact,
-  getContact,
-  getContactTimeline,
-  listContactRelationships,
-  listContacts,
-} from '@/lib/api'
 import { useAuth } from '@/lib/auth'
-import { useDecryptedArray, useDecryptedObject } from '@/lib/use-decrypted'
-import { LABEL_CONTACT_PII, LABEL_CONTACT_SUMMARY } from '@shared/crypto-labels'
+import {
+  useContact,
+  useContactRelationships,
+  useContactTimeline,
+  useContacts,
+  useDeleteContact,
+} from '@/lib/queries/contacts'
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
 import { ArrowLeft, BookUser, Lock } from 'lucide-react'
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 
@@ -34,71 +30,44 @@ const RISK_COLORS: Record<string, string> = {
   critical: 'bg-red-500/10 text-red-500 border-red-500/20',
 }
 
-type Timeline = {
-  calls: unknown[]
-  conversations: unknown[]
-  notes: unknown[]
-}
-
 function ContactProfilePage() {
   const { t } = useTranslation()
   const { hasPermission } = useAuth()
   const navigate = useNavigate()
   const { contactId } = Route.useParams()
 
-  const [contact, setContact] = useState<ContactRecord | null>(null)
-  const [timeline, setTimeline] = useState<Timeline>({ calls: [], conversations: [], notes: [] })
-  const [relationships, setRelationships] = useState<ContactRelationshipRecord[]>([])
-  const [allContacts, setAllContacts] = useState<ContactRecord[]>([])
-  const [loading, setLoading] = useState(true)
   const [deleteOpen, setDeleteOpen] = useState(false)
 
   const canReadPii = hasPermission('contacts:read-pii')
   const canDelete = hasPermission('contacts:delete')
 
-  useEffect(() => {
-    setLoading(true)
-    Promise.all([
-      getContact(contactId),
-      getContactTimeline(contactId),
-      listContactRelationships(),
-      listContacts(),
-    ])
-      .then(([c, tl, rels, allC]) => {
-        setContact(c)
-        setTimeline(tl)
-        setRelationships(rels)
-        setAllContacts(allC.contacts)
-      })
-      .catch(() => toast.error(t('common.error')))
-      .finally(() => setLoading(false))
-  }, [contactId, t])
+  // React Query: contact detail (decrypts summary+PII tiers in query fn),
+  // timeline, relationships, and all contacts list (for relationship names)
+  const { data: contact, isLoading: loading } = useContact(contactId)
+  const { data: timeline = { calls: [], conversations: [], notes: [] } } =
+    useContactTimeline(contactId)
+  const { data: relationships = [] } = useContactRelationships()
+  const { data: allContacts = [] } = useContacts()
+  const deleteContactMutation = useDeleteContact()
 
-  // Decrypt contact summary-tier and PII-tier fields via Web Worker
-  const decSummary = useDecryptedObject(contact, LABEL_CONTACT_SUMMARY)
-  const decPii = useDecryptedObject(contact, LABEL_CONTACT_PII)
-  const decAllContacts = useDecryptedArray(allContacts, LABEL_CONTACT_SUMMARY)
-
-  const displayName =
-    ((decSummary as Record<string, unknown> | null)?.displayName as string) ?? '[encrypted]'
-  const decryptedNotes = ((decSummary as Record<string, unknown> | null)?.notes as string) || null
-  const decryptedFullName = canReadPii
-    ? ((decPii as Record<string, unknown> | null)?.fullName as string) || null
-    : null
-  const decryptedPhone = canReadPii
-    ? ((decPii as Record<string, unknown> | null)?.phone as string) || null
-    : null
+  // useContact already decrypts summary+PII tiers — access fields directly
+  const contactAny = contact as (typeof contact & Record<string, unknown>) | undefined
+  const displayName = (contactAny?.displayName as string) ?? '[encrypted]'
+  const decryptedNotes = (contactAny?.notes as string) || null
+  const decryptedFullName = canReadPii ? (contactAny?.fullName as string) || null : null
+  const decryptedPhone = canReadPii ? (contactAny?.phone as string) || null : null
 
   // Build a map of contactId → display name for relationships
+  // useContacts already decrypts displayName via LABEL_CONTACT_SUMMARY
   const contactNames = useMemo(() => {
     const map = new Map<string, string>()
-    for (const c of decAllContacts) {
+    for (const c of allContacts) {
       const name =
         ((c as unknown as Record<string, unknown>).displayName as string) ?? '[encrypted]'
       map.set(c.id, name)
     }
     return map
-  }, [decAllContacts])
+  }, [allContacts])
 
   function getContactTypeLabel(type: string): string {
     if (type === 'partner-org') return t('contacts.partnerOrg')
@@ -107,7 +76,7 @@ function ContactProfilePage() {
   }
 
   async function handleDelete() {
-    await deleteContact(contactId)
+    await deleteContactMutation.mutateAsync(contactId)
     toast.success(t('contacts.deleted'))
     navigate({ to: '/contacts', search: { contactType: '', riskLevel: '', q: '' } })
   }

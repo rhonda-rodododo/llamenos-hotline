@@ -4,19 +4,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Checkbox } from '@/components/ui/checkbox'
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
-import {
-  type AuditLogEntry,
-  type Shift,
-  type Volunteer,
-  getVolunteerUnmasked,
-  listAuditLog,
-  listShifts,
-  listVolunteers,
-  updateVolunteer,
-} from '@/lib/api'
+import { type Volunteer, getVolunteerUnmasked } from '@/lib/api'
 import { useAuth } from '@/lib/auth'
+import { useAuditLog } from '@/lib/queries/audit'
+import { useShifts } from '@/lib/queries/shifts'
+import { useUpdateVolunteer, useVolunteer } from '@/lib/queries/volunteers'
 import { useToast } from '@/lib/toast'
-import { useDecryptedObject } from '@/lib/use-decrypted'
 import { LANGUAGES } from '@shared/languages'
 import { Link, createFileRoute } from '@tanstack/react-router'
 import {
@@ -34,7 +27,7 @@ import {
   ShieldCheck,
   User,
 } from 'lucide-react'
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 const MESSAGING_CHANNELS = ['sms', 'whatsapp', 'signal', 'rcs', 'web'] as const
@@ -58,47 +51,28 @@ function VolunteerProfilePage() {
   const { isAdmin } = useAuth()
   const { pubkey } = Route.useParams()
   const { toast } = useToast()
-  const [volunteer, setVolunteer] = useState<Volunteer | null>(null)
-  const [shifts, setShifts] = useState<Shift[]>([])
-  const [auditEntries, setAuditEntries] = useState<AuditLogEntry[]>([])
-  const [auditTotal, setAuditTotal] = useState(0)
   const [auditPage, setAuditPage] = useState(1)
-  const [loading, setLoading] = useState(true)
-  const [auditLoading, setAuditLoading] = useState(true)
   const [unmaskedPhone, setUnmaskedPhone] = useState<string | null>(null)
   const [savingChannels, setSavingChannels] = useState(false)
   const auditLimit = 20
 
-  // Load volunteer + shifts
-  useEffect(() => {
-    Promise.all([listVolunteers(), listShifts()])
-      .then(([volRes, shiftRes]) => {
-        const vol = volRes.volunteers.find((v) => v.pubkey === pubkey) || null
-        setVolunteer(vol)
-        setShifts(shiftRes.shifts)
-      })
-      .catch(() => {})
-      .finally(() => setLoading(false))
-  }, [pubkey])
+  // React Query: volunteer (already decrypted by query fn), shifts, audit log
+  const { data: volunteer, isLoading: loading } = useVolunteer(pubkey)
+  const { data: allShifts = [] } = useShifts()
+  const { data: auditData, isLoading: auditLoading } = useAuditLog({
+    page: auditPage,
+    limit: auditLimit,
+    actorPubkey: pubkey,
+  })
+  const updateVolunteerMutation = useUpdateVolunteer()
 
-  // Load audit entries for this volunteer
-  useEffect(() => {
-    setAuditLoading(true)
-    listAuditLog({ page: auditPage, limit: auditLimit, actorPubkey: pubkey })
-      .then((r) => {
-        setAuditEntries(r.entries)
-        setAuditTotal(r.total)
-      })
-      .catch(() => {})
-      .finally(() => setAuditLoading(false))
-  }, [pubkey, auditPage])
+  const auditEntries = auditData?.entries ?? []
+  const auditTotal = auditData?.total ?? 0
 
   const assignedShifts = useMemo(
-    () => shifts.filter((s) => s.volunteerPubkeys.includes(pubkey)),
-    [shifts, pubkey]
+    () => allShifts.filter((s) => s.volunteerPubkeys.includes(pubkey)),
+    [allShifts, pubkey]
   )
-
-  const decryptedVolunteer = useDecryptedObject(volunteer)
 
   if (!isAdmin) {
     return <div className="text-muted-foreground">Access denied</div>
@@ -130,7 +104,8 @@ function VolunteerProfilePage() {
   }
 
   const auditTotalPages = Math.ceil(auditTotal / auditLimit)
-  const displayName = decryptedVolunteer?.name ?? volunteer.name
+  // useVolunteer already decrypts name/phone via the query fn
+  const displayName = volunteer.name
 
   const langMap = new Map(LANGUAGES.map((l) => [l.code, l]))
 
@@ -270,11 +245,13 @@ function VolunteerProfilePage() {
         onSave={async (channels, enabled) => {
           setSavingChannels(true)
           try {
-            const res = await updateVolunteer(pubkey, {
-              supportedMessagingChannels: channels,
-              messagingEnabled: enabled,
+            await updateVolunteerMutation.mutateAsync({
+              pubkey,
+              data: {
+                supportedMessagingChannels: channels,
+                messagingEnabled: enabled,
+              },
             })
-            setVolunteer(res.volunteer)
             toast(t('volunteerProfile.channelsSaved'), 'success')
           } catch {
             toast(t('common.error'), 'error')
