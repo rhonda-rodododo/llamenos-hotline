@@ -101,7 +101,17 @@ async function bootstrapAdmin(page: import('@playwright/test').Page) {
     // Setup wizard appeared instead of bootstrap — the app may have stale config.
     // Force a fresh config fetch by navigating away and back.
     console.log('[SETUP] WARNING: Setup Wizard appeared instead of bootstrap. Forcing reload...')
+    // Clear everything aggressively
+    await page.evaluate(async () => {
+      localStorage.clear()
+      sessionStorage.clear()
+      if ('caches' in window) {
+        const names = await caches.keys()
+        await Promise.all(names.map((n) => caches.delete(n)))
+      }
+    })
     await page.goto('about:blank')
+    await page.waitForTimeout(1000)
     await page.goto('/setup', { waitUntil: 'networkidle' })
     await expect(bootstrapTitle).toBeVisible({ timeout: 30000 })
   }
