@@ -178,9 +178,9 @@ After all routes use `@hono/zod-openapi`, the `hono-openapi` package is unused.
 ### Task D1: Full test suite + OpenAPI spec review
 
 - [x] **Step 1:** Full test suite: unit 513/513, API 395/397 (2 pre-existing), UI 463/463. Zero migration regressions.
-- [ ] **Step 2:** Start dev server, visit `/api/docs` — verify all routes appear in Scalar docs.
-- [ ] **Step 3:** Check `/api/openapi.json` — verify schema names, descriptions, tags are correct.
+- [x] **Step 2:** `/api/docs` serves Scalar HTML. 233 paths across 29 tags.
+- [x] **Step 3:** `/api/openapi.json` verified — all converted routes present with correct tags.
 - [x] **Step 4:** `bun run typecheck` and `bun run build` — both clean.
 - [x] **Step 5:** Verified: no stale hono-openapi imports, 4 intentionally unconverted files (telephony webhooks, contacts-import, signal-registration, dev-only).
-- [ ] **Step 6:** Update CLAUDE.md if any patterns changed during implementation.
-- [ ] **Step 7:** Final commit: `docs: update CLAUDE.md for completed schema migration`
+- [x] **Step 6:** Updated CLAUDE.md: OpenAPIHono in tech stack, schema architecture, external schemas, directory structure.
+- [x] **Step 7:** Committed: `feat: external schemas for third-party webhooks + CLAUDE.md update`
