@@ -12,7 +12,7 @@ Llámenos is a secure crisis response hotline webapp. Callers dial a phone numbe
 
 - **Runtime/Package Manager**: Bun (runs TypeScript natively — no bundling step for server)
 - **Frontend**: Vite + TanStack Router (SPA, no SSR) + shadcn/ui (component installer)
-- **Backend**: Bun + Hono + PostgreSQL + RustFS (self-hosted via Docker/Ansible)
+- **Backend**: Bun + Hono (OpenAPIHono + @hono/zod-openapi) + PostgreSQL + RustFS (self-hosted via Docker/Ansible)
 - **Telephony**: Twilio via a `TelephonyAdapter` interface (designed for future provider swaps, e.g. SIP trunks)
 - **Auth**: Nostr keypairs (BIP-340 Schnorr signatures) + WebAuthn session tokens for multi-device support
 - **i18n**: Built-in from day one — all user-facing strings must be translatable
@@ -57,7 +57,10 @@ src/
     server.ts       # Entry point
     app.ts          # Hono app wiring
   shared/           # Cross-boundary types and config (@shared alias)
-    types.ts        # Shared types (CustomFieldDefinition, NotePayload, etc.)
+    schemas/        # Zod schemas — single source of truth for API types
+      external/     # Third-party webhook/API schemas (Twilio, Vonage, Plivo, Authentik, OpenCage)
+      index.ts      # Barrel re-export
+    types.ts        # Branded types (Ciphertext fields), constants, re-exports from schemas
     languages.ts    # Centralized language config (codes, labels, Twilio voice IDs)
     crypto-labels.ts # 25 domain separation constants for all cryptographic operations
 ```
@@ -85,6 +88,8 @@ src/
 - **Hash-chained audit log**: SHA-256 chain with `previousEntryHash` + `entryHash` for tamper detection (Epic 77).
 - **Blob storage (RustFS)**: S3-compatible object storage via `StorageManager` (`src/server/services/storage-manager.ts`). Per-hub buckets (`hub-{hubId}`) with lifecycle policies. Provider-agnostic `STORAGE_*` env vars (`STORAGE_ENDPOINT`, `STORAGE_ACCESS_KEY`, `STORAGE_SECRET_KEY`). Used for voicemail recordings, attachments, and encrypted exports.
 - **Domain separation**: All 25 crypto context constants in `src/shared/crypto-labels.ts` — NEVER use raw string literals for crypto contexts.
+- **Zod schemas as single source of truth**: `src/shared/schemas/` defines zod schemas for all API types. Types are derived via `z.infer<>`. Route files use `OpenAPIHono` + `createRoute()` from `@hono/zod-openapi` for declarative validation. `types.ts` re-exports from schemas where possible — types using branded `Ciphertext` remain in `types.ts` (schemas use plain `string` for API validation, app code uses branded types for safety). OpenAPI spec auto-generated at `/api/openapi.json`, Scalar docs at `/api/docs`.
+- **External schemas**: `src/shared/schemas/external/` contains zod schemas for third-party webhook payloads (Twilio, Vonage, Plivo, Asterisk) and API responses (Authentik, OpenCage). These are the runtime validation contract for incoming external data.
 
 ### Encrypted Field Development Guide
 
@@ -183,14 +188,18 @@ PLAYWRIGHT_WORKERS=3 bunx playwright test    # Run with 3 workers (after isolati
 
 ### API Schema Pattern
 
-All API route payloads should be validated with zod schemas. The pattern:
+All API routes use `OpenAPIHono` + `createRoute()` from `@hono/zod-openapi` for declarative validation. The pattern:
 
 1. **Define zod schemas** in `src/shared/schemas/` (e.g., `src/shared/schemas/report-types.ts`).
-2. **Export TypeScript types** from schemas: `export type CreateReportTypeInput = z.infer<typeof createReportTypeSchema>`.
-3. **Use schemas in route handlers**: `const body = createReportTypeSchema.parse(await c.req.json())`.
-4. **Import types in client code**: Use the zod-derived types for API calls and React components.
+2. **Export TypeScript types** from schemas: `export type CreateReportTypeInput = z.infer<typeof CreateReportTypeSchema>`.
+3. **Define routes with `createRoute()`**: Includes request body/param schemas, response schemas, tags, middleware.
+4. **Implement with `.openapi(route, handler)`**: Use `c.req.valid('json')` for validated bodies, `c.req.valid('param')` for path params.
+5. **Import types in client code** from `@shared/schemas` (not `@shared/types`) for schema-available types.
+6. **External webhook schemas** in `src/shared/schemas/external/` for third-party payloads (Twilio, Vonage, etc.).
 
-This ensures runtime validation at the API boundary and a single source of truth for types shared between client and server.
+OpenAPI spec auto-generated at `/api/openapi.json`. Scalar docs at `/api/docs`.
+
+**Note:** Types using branded `Ciphertext` (RecipientEnvelope, KeyEnvelope, CustomFieldDefinition) remain in `src/shared/types.ts` — schemas use `z.string()` for API validation but app code needs the branded type for compile-time safety.
 
 ### Testing New Features
 
