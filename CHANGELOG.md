@@ -5,24 +5,170 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.31.1] - 2026-04-01
+
+### Bug Fixes
+
+- asterisk bridge connection timeout & dev orchestration (#34)
+
+### Miscellaneous
+
+- v0.31.1 [skip ci]
+
 ## [0.31.0] - 2026-03-30
 
 ### Bug Fixes
 
 - cache invalidation gaps — hub key rotation, test reset, NostrPublisher interface
 - revert pool size default to 10 — CI Postgres max_connections too low for 20
+- add Authentik dev defaults to .env.dev.defaults
+- add IdP adapter initialization to server startup and CI env vars
+- share Postgres DB between Authentik and app in CI
+- authenticate token refresh via cookie only, not expired access JWT
+- list-then-delete Authentik sessions instead of bulk DELETE
+- resolve actual permissions in JWT instead of raw role IDs
+- pass all required env vars to docker-compose in CI
+- remove Authentik host port from base compose to prevent CI conflict
+- add AUTHENTIK_BOOTSTRAP_TOKEN to worker service
+- IdP integration test fixes
+- add WithKey variants for e2ee crypto functions used in tests
+- adapt E2E test helpers for IdP auth (v2 key store + JWT sessions)
+- JWT persistence and v2 key blob format in E2E tests
+- update all E2E test token access from localStorage to sessionStorage
+- address code review findings for E2E test infrastructure
+- add /api prefix to auth facade client paths + jwt_revocations safety net
+- consistent hex encoding in crypto worker reEncrypt + unlock
+- resolve unit and API test failures
+- update compose env vars from MINIO_* to STORAGE_* for RustFS
+- decrypt-on-fetch — singleton worker, auth context decryption, rate limits
+- restore contacts_.$contactId.tsx app fixes from main, re-apply decrypt migration
+- revert login page isAuthenticated redirect — __root.tsx handles it
+- IdP-specific E2E failures — invite JWT, pin wipe, userinfo fallback
+- invite onboarding nsec hex + pin challenge session clear
+- pass encryptedLabel + labelEnvelopes in /devices endpoint
+- webauthn session test — accept null nsecSecret from userinfo
+- demo-login checks database setting, not just env var
+- 3 remaining E2E failures — test bugs not app bugs
+- resolve E2E test failures from React Query migration
+- type error in keys.test.ts — use unknown[] for mixed tuple types
+- RCS toggle test — wait for React re-render after queryClient.setQueryData
+- remaining E2E failures — credentials cache, demo seed, device delete URL
+- UFW firewall rules for Docker container networking
+- UFW hardening — disable instead of reset, simplify SSH allow rule
+- Ansible deploy switches to deploy user after hardening
+- rewrite UFW firewall role to use shell commands
+- file permissions for Docker userns-remap compatibility
+- correct fileglob path for postgres-init and authentik-blueprints
+- increase VM playwright timeouts for Tart VM latency
+- resolve CI test failures — unit/integration split, port conflicts, bun version
+- CI test fixes — integration glob and JWT_SECRET for Playwright tests
+- validate JWT_SECRET and IDP_VALUE_ENCRYPTION_KEY at server startup
+- validate auth env vars at startup and increase CI Playwright workers
+- fail-fast server health check and upload E2E server logs on failure
+- use 3 workers for UI E2E tests, 6 for API tests
+- increase E2E test timeouts for react-query render overhead
+- increase global Playwright test timeout from 30s to 60s
+- advance setup wizard step optimistically and upload test traces
+- remove redundant useDecryptedArray causing infinite render loop
+- increase bootstrap test timeout to 120s for slow PBKDF2 on CI
+- increase bootstrap test assertion timeouts for PBKDF2 on CI
+- skip query invalidation on unlock when no JWT exists
+- increase bootstrap "Setup Wizard" assertion to 90s
+
+### CI/CD
+
+- add Authentik service container for API and E2E tests
+- trigger CI run for auth hardening PR
+- remove Authentik service container from CI (graceful fallback)
+- use docker-compose for Authentik in API and E2E tests
+- add separate integration-tests job with Postgres service
 
 ### Documentation
 
 - backend performance optimization plan (A+B categories)
 - update plan with verified corrections — count(), imports, missing files, dedup instances
+- add IdP auth facade & multi-factor nsec hardening spec
+- address spec review findings for IdP auth hardening
+- address R2 review suggestions for IdP auth hardening spec
+- production E2E testing plan with secure context analysis
+- add blast delivery engine design spec
+- add Bun native crypto note to IdP auth hardening spec
+- address spec review feedback for blast delivery engine
+- add IdP auth hardening implementation plan
+- address plan review findings for IdP auth hardening
+- add blast delivery engine implementation plan
+- add IdP auth Phase 2 integration & testing spec
+- address Phase 2 spec review findings
+- add Phase 2 integration implementation plan
+- address Phase 2 plan review findings
+- spec and plan for remaining 11 E2E test failures
+- add decrypt-on-fetch implementation plan (8 tasks)
+- add React Query data layer follow-up to backlog
+- add 4 implementation plans for idp-auth documentation overhaul
+- consolidated spec for idp-auth documentation overhaul
+- format spec table alignment
+- React Query refactor design spec
+- React Query refactor implementation plan — 16 tasks
+- update spec to document queryOptions() pattern
+- add epic 80 — realistic E2E test authentication
 
 ### Features
 
 - add TTL cache utility for service-level caching
+- add KEK and IdP value crypto-labels constants
+- add IdPAdapter interface and types
+- add JWT sign/verify utilities with jose
+- implement AuthentikAdapter and IdP adapter factory
+- replace serverSessions with jwtRevocations table
+- add auth facade server routes with JWT issuance and WebAuthn proxy
+- replace Schnorr auth with JWT validation, wire auth facade
+- add crypto Web Worker and main-thread client wrapper
+- add multi-factor key-store v2 with HKDF KEK derivation
+- add auth facade HTTP client
+- refactor key-manager to use crypto-worker, remove v1 key-store
+- add WebAuthn PRF support and facade endpoint integration
+- refactor auth provider to use facade + JWT tokens
+- simplify API client to JWT-only auth headers
+- refactor crypto and hub-key-cache to use worker isolation
+- sign Nostr relay events via crypto worker
+- add Authentik to Docker Compose and Ansible deployment
+- update UI components for async key-manager and worker isolation
+- add CSP and cross-origin isolation security headers
+- add admin re-enrollment and single-credential warning
+- update test helpers and specs for JWT auth migration
+- vendor DM Sans font for COEP compliance
+- add synthetic-to-real IdP value auto-rotation on unlock
+- restore device linking with worker-based nsec provisioning
+- add Authentik blueprint, postgres-init, and Docker infrastructure
+- hard-fail on missing IdP, add null guard and settings bridge
+- add enrollment endpoint, bootstrap creates Authentik user
+- use real IdP nsecSecret in bootstrap and onboarding flows
+- enroll test users in Authentik during setup
+- add auth facade API integration tests
+- update E2E tests for full auth facade flow
+- add isolated Docker Compose for idp-auth branch development
+- add decryptEnvelopeField to crypto worker for field-level decryption
+- add decrypt-on-fetch field decryption cache and utilities
+- add useDecryptedObject and useDecryptedArray React hooks
+- demo mode login for IdP auth — demo-login endpoint + signIn fix
+- add React Query infrastructure — QueryClient, provider, lock/unlock integration
+- add query key factories for all API resources
+- migrate volunteers route to React Query
+- migrate invites, contacts, roles to React Query
+- migrate notes route to React Query
+- migrate calls route + refactor useCalls to React Query
+- migrate shifts, bans, audit, hubs, roles to React Query
+- migrate reports, conversations to React Query
+- migrate blasts, settings, preferences, analytics, dashboard to React Query
+- migrate remaining components to React Query
+- add IdP auth vars to Ansible env template + generate-secrets
+- add Authentik to Ansible deployment — compose template + tasks
 
 ### Miscellaneous
 
+- update documentation screenshots with decrypted volunteer names
+- add React Query refactor to completed backlog
+- remove crypto test rewrite plan (all items complete)
 - v0.31.0 [skip ci]
 
 ### Performance
@@ -39,9 +185,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - parallelize blast delivery — concurrent sends per channel with rate limiting
 - increase default DB pool size to 20, add maxLifetime for connection recycling
 
+### Refactoring
+
+- separate unit and integration test suites
+- remove nsec from main thread — all decryption now worker-based
+- migrate all components from tryDecryptField to decrypt-on-fetch hooks
+- remove tryDecryptField — all field decryption now worker-based
+- convert all query hooks to queryOptions() for type-safe reuse
+- remove DecryptCache, useDecryptedArray, useDecryptedObject
+- replace useShiftStatus polling with React Query
+
+### Testing
+
+- rewrite crypto tests for worker-based architecture
+- add query key factory unit tests
+
 ### Bench
 
 - add performance benchmarks for crypto caching, dedup, and cache operations
+
+### Merge
+
+- resolve conflicts with main (blast delivery engine)
+- integrate main (blast encryption, upgrades) into idp-auth branch
+- integrate RustFS migration from main into idp-auth branch
+- integrate E2E stability fixes from main (#24)
+- integrate CI test reporting + field encryption docs from main
+- integrate field-level encryption overhaul from main (v0.28.0)
+- integrate main (contacts v1, crypto tests, docker fixes) into idp-auth
+- integrate E2E test fixes from main (contacts, webauthn, invite onboarding)
+- integrate main (playwright-cli, globalTeardown, v0.29.1)
 
 ### Ops
 
