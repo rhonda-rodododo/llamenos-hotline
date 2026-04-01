@@ -1,5 +1,5 @@
+import { OpenAPIHono, createRoute, z } from '@hono/zod-openapi'
 import { secp256k1 } from '@noble/curves/secp256k1.js'
-import { Hono } from 'hono'
 import { isValidE164 } from '../lib/helpers'
 import { projectUser } from '../lib/user-projector'
 import { checkPermission, requirePermission } from '../middleware/permission-guard'
@@ -16,25 +16,88 @@ function isValidSecp256k1Pubkey(pk: string): boolean {
   }
 }
 
-const users = new Hono<AppEnv>()
-users.use('*', requirePermission('users:read'))
+const users = new OpenAPIHono<AppEnv>()
 
-users.get('/', async (c) => {
+// All users endpoints require at least users:read
+const baseMiddleware = requirePermission('users:read')
+
+// ── Shared schemas ──
+
+const ErrorSchema = z.object({ error: z.string() })
+
+const UserResponseSchema = z.object({}).passthrough()
+
+const TargetPubkeyParamSchema = z.object({
+  targetPubkey: z.string().openapi({
+    param: { name: 'targetPubkey', in: 'path' },
+    example: 'a1b2c3d4e5f6...',
+  }),
+})
+
+const CreateUserBodySchema = z.object({
+  name: z.string(),
+  phone: z.string(),
+  roleIds: z.array(z.string()),
+  pubkey: z.string().optional(),
+})
+
+const UpdateUserBodySchema = z.object({}).passthrough()
+
+// ── GET / — list all users ──
+
+const listRoute = createRoute({
+  method: 'get',
+  path: '/',
+  tags: ['Users'],
+  summary: 'List all users',
+  middleware: [baseMiddleware],
+  responses: {
+    200: {
+      description: 'Users list',
+      content: {
+        'application/json': { schema: z.object({ users: z.array(UserResponseSchema) }) },
+      },
+    },
+  },
+})
+
+users.openapi(listRoute, async (c) => {
   const services = c.get('services')
   const requestorPubkey = c.get('pubkey')
   const permissions = c.get('permissions')
   const isAdmin = checkPermission(permissions, 'settings:manage')
 
   const allUsers = await services.identity.getUsers()
-  return c.json({ users: allUsers.map((u) => projectUser(u, requestorPubkey, isAdmin)) })
+  return c.json({ users: allUsers.map((u) => projectUser(u, requestorPubkey, isAdmin)) }, 200)
 })
 
-users.get('/:targetPubkey', async (c) => {
+// ── GET /{targetPubkey} — get user by pubkey ──
+
+const getByPubkeyRoute = createRoute({
+  method: 'get',
+  path: '/{targetPubkey}',
+  tags: ['Users'],
+  summary: 'Get user by pubkey',
+  middleware: [baseMiddleware],
+  request: { params: TargetPubkeyParamSchema },
+  responses: {
+    200: {
+      description: 'User details',
+      content: { 'application/json': { schema: UserResponseSchema } },
+    },
+    404: {
+      description: 'Not found',
+      content: { 'application/json': { schema: ErrorSchema } },
+    },
+  },
+})
+
+users.openapi(getByPubkeyRoute, async (c) => {
   const services = c.get('services')
   const requestorPubkey = c.get('pubkey')
   const permissions = c.get('permissions')
   const isAdmin = checkPermission(permissions, 'settings:manage')
-  const targetPubkey = c.req.param('targetPubkey')
+  const { targetPubkey } = c.req.valid('param')
 
   const user = await services.identity.getUser(targetPubkey)
   if (!user) return c.json({ error: 'Not found' }, 404)
@@ -47,18 +110,36 @@ users.get('/:targetPubkey', async (c) => {
     })
   }
 
-  return c.json(projectUser(user, requestorPubkey, isAdmin, unmask))
+  return c.json(projectUser(user, requestorPubkey, isAdmin, unmask), 200)
 })
 
-users.post('/', requirePermission('users:create'), async (c) => {
+// ── POST / — create a user ──
+
+const createRoute_ = createRoute({
+  method: 'post',
+  path: '/',
+  tags: ['Users'],
+  summary: 'Create a user',
+  middleware: [baseMiddleware, requirePermission('users:create')],
+  request: {
+    body: { content: { 'application/json': { schema: CreateUserBodySchema } } },
+  },
+  responses: {
+    201: {
+      description: 'User created',
+      content: { 'application/json': { schema: z.object({ user: UserResponseSchema }) } },
+    },
+    400: {
+      description: 'Validation error',
+      content: { 'application/json': { schema: ErrorSchema } },
+    },
+  },
+})
+
+users.openapi(createRoute_, async (c) => {
   const services = c.get('services')
   const pubkey = c.get('pubkey')
-  const body = (await c.req.json()) as {
-    name: string
-    phone: string
-    roleIds: string[]
-    pubkey?: string
-  }
+  const body = c.req.valid('json')
 
   if (body.phone && !isValidE164(body.phone)) {
     return c.json({ error: 'Invalid phone number. Use E.164 format (e.g. +12125551234)' }, 400)
@@ -93,11 +174,31 @@ users.post('/', requirePermission('users:create'), async (c) => {
   return c.json({ user: projectUser(user, pubkey, true) }, 201)
 })
 
-users.patch('/:targetPubkey', requirePermission('users:update'), async (c) => {
+// ── PATCH /{targetPubkey} — update a user ──
+
+const updateRoute = createRoute({
+  method: 'patch',
+  path: '/{targetPubkey}',
+  tags: ['Users'],
+  summary: 'Update a user',
+  middleware: [baseMiddleware, requirePermission('users:update')],
+  request: {
+    params: TargetPubkeyParamSchema,
+    body: { content: { 'application/json': { schema: UpdateUserBodySchema } } },
+  },
+  responses: {
+    200: {
+      description: 'User updated',
+      content: { 'application/json': { schema: z.object({ user: UserResponseSchema }) } },
+    },
+  },
+})
+
+users.openapi(updateRoute, async (c) => {
   const services = c.get('services')
   const pubkey = c.get('pubkey')
-  const targetPubkey = c.req.param('targetPubkey')
-  const body = (await c.req.json()) as Record<string, unknown>
+  const { targetPubkey } = c.req.valid('param')
+  const body = c.req.valid('json') as Record<string, unknown>
 
   const updated = await services.identity.updateUser(
     targetPubkey,
@@ -111,20 +212,36 @@ users.patch('/:targetPubkey', requirePermission('users:update'), async (c) => {
       roles: body.roles,
     })
   }
-  // JWT tokens are short-lived; deactivated users will fail auth on next request
 
-  return c.json({ user: projectUser(updated, pubkey, true) })
+  return c.json({ user: projectUser(updated, pubkey, true) }, 200)
 })
 
-users.delete('/:targetPubkey', requirePermission('users:delete'), async (c) => {
+// ── DELETE /{targetPubkey} — delete a user ──
+
+const deleteRoute = createRoute({
+  method: 'delete',
+  path: '/{targetPubkey}',
+  tags: ['Users'],
+  summary: 'Delete a user',
+  middleware: [baseMiddleware, requirePermission('users:delete')],
+  request: { params: TargetPubkeyParamSchema },
+  responses: {
+    200: {
+      description: 'User deleted',
+      content: { 'application/json': { schema: z.object({ ok: z.boolean() }) } },
+    },
+  },
+})
+
+users.openapi(deleteRoute, async (c) => {
   const services = c.get('services')
   const pubkey = c.get('pubkey')
-  const targetPubkey = c.req.param('targetPubkey')
+  const { targetPubkey } = c.req.valid('param')
   await services.identity.deleteUser(targetPubkey)
   await services.records.addAuditEntry('global', 'userRemoved', pubkey, {
     target: targetPubkey,
   })
-  return c.json({ ok: true })
+  return c.json({ ok: true }, 200)
 })
 
 export default users

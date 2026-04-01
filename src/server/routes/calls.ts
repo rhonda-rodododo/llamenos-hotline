@@ -1,11 +1,52 @@
-import { Hono } from 'hono'
+import { OpenAPIHono, createRoute, z } from '@hono/zod-openapi'
 import { getTelephony } from '../lib/adapters'
 import { checkPermission, requirePermission } from '../middleware/permission-guard'
 import type { AppEnv, AuditLogEntry } from '../types'
 
-const calls = new Hono<AppEnv>()
+const calls = new OpenAPIHono<AppEnv>()
 
-calls.get('/active', requirePermission('calls:read-active'), async (c) => {
+// ── Shared schemas ──
+
+const ActiveCallResponseSchema = z.object({
+  id: z.string(),
+  callerNumber: z.string(),
+  answeredBy: z.string().nullable(),
+  startedAt: z.string(),
+  status: z.string(),
+})
+
+const CallIdParamSchema = z.object({
+  callId: z.string().openapi({ param: { name: 'callId', in: 'path' }, example: 'CA123abc' }),
+})
+
+const AnswerBodySchema = z.object({
+  type: z.enum(['phone', 'browser']).optional(),
+})
+
+const ErrorSchema = z.object({ error: z.string() })
+const OkSchema = z.object({ ok: z.boolean() })
+
+// ── GET /active — list active calls ──
+
+const activeRoute = createRoute({
+  method: 'get',
+  path: '/active',
+  tags: ['Calls'],
+  summary: 'List active calls',
+  middleware: [requirePermission('calls:read-active')],
+  responses: {
+    200: {
+      description: 'Active calls list',
+      content: {
+        'application/json': {
+          schema: z.object({ calls: z.array(ActiveCallResponseSchema) }),
+        },
+      },
+    },
+  },
+})
+
+calls.openapi(activeRoute, async (c) => {
   const services = c.get('services')
   const hubId = c.get('hubId')
   const permissions = c.get('permissions')
@@ -21,29 +62,88 @@ calls.get('/active', requirePermission('calls:read-active'), async (c) => {
     status: call.status,
   }))
 
-  return c.json({ calls: mapped })
+  return c.json({ calls: mapped }, 200)
 })
 
-calls.get('/today-count', requirePermission('calls:read-active'), async (c) => {
+// ── GET /today-count — today's call count ──
+
+const todayCountRoute = createRoute({
+  method: 'get',
+  path: '/today-count',
+  tags: ['Calls'],
+  summary: 'Get today call count',
+  middleware: [requirePermission('calls:read-active')],
+  responses: {
+    200: {
+      description: 'Call count for today',
+      content: { 'application/json': { schema: z.object({ count: z.number() }) } },
+    },
+  },
+})
+
+calls.openapi(todayCountRoute, async (c) => {
   const services = c.get('services')
   const hubId = c.get('hubId')
   const count = await services.records.getCallsTodayCount(hubId)
-  return c.json({ count })
+  return c.json({ count }, 200)
 })
 
-calls.get('/presence', requirePermission('calls:read-presence'), async (c) => {
+// ── GET /presence — call presence info ──
+
+const presenceRoute = createRoute({
+  method: 'get',
+  path: '/presence',
+  tags: ['Calls'],
+  summary: 'Get call presence info',
+  middleware: [requirePermission('calls:read-presence')],
+  responses: {
+    200: {
+      description: 'Presence info',
+      content: {
+        'application/json': {
+          schema: z.object({
+            activeCalls: z.number(),
+            onShift: z.number(),
+            users: z.array(z.string()),
+          }),
+        },
+      },
+    },
+  },
+})
+
+calls.openapi(presenceRoute, async (c) => {
   const services = c.get('services')
   const hubId = c.get('hubId')
   const activeCalls = await services.calls.getActiveCalls(hubId)
   const onShift = await services.shifts.getActiveShifts(hubId)
-  return c.json({
-    activeCalls: activeCalls.length,
-    onShift: onShift.length,
-    users: onShift.map((s) => s.pubkey),
-  })
+  return c.json(
+    {
+      activeCalls: activeCalls.length,
+      onShift: onShift.length,
+      users: onShift.map((s) => s.pubkey),
+    },
+    200
+  )
 })
 
-calls.get('/history', requirePermission('calls:read-history'), async (c) => {
+// ── GET /history — call history ──
+
+const historyRoute = createRoute({
+  method: 'get',
+  path: '/history',
+  tags: ['Calls'],
+  summary: 'Get call history',
+  middleware: [requirePermission('calls:read-history')],
+  responses: {
+    200: {
+      description: 'Paginated call history',
+      content: { 'application/json': { schema: z.object({}).passthrough() } },
+    },
+  },
+})
+
+calls.openapi(historyRoute, async (c) => {
   const services = c.get('services')
   const hubId = c.get('hubId')
   const page = Number.parseInt(c.req.query('page') || '1', 10)
@@ -55,14 +155,35 @@ calls.get('/history', requirePermission('calls:read-history'), async (c) => {
     ...(c.req.query('voicemailOnly') === 'true' ? { voicemailOnly: true } : {}),
   }
   const result = await services.records.getCallHistory(page, limit, hubId, filters)
-  return c.json(result)
+  return c.json(result, 200)
 })
 
-// --- Call Detail ---
+// ── GET /{callId}/detail — call detail ──
 
-// Permission: admin (calls:read-history) or user who answered the call
-calls.get('/:callId/detail', async (c) => {
-  const callId = c.req.param('callId')
+const detailRoute = createRoute({
+  method: 'get',
+  path: '/{callId}/detail',
+  tags: ['Calls'],
+  summary: 'Get call detail',
+  request: { params: CallIdParamSchema },
+  responses: {
+    200: {
+      description: 'Call detail with notes and audit entries',
+      content: { 'application/json': { schema: z.object({}).passthrough() } },
+    },
+    403: {
+      description: 'Forbidden',
+      content: { 'application/json': { schema: ErrorSchema } },
+    },
+    404: {
+      description: 'Not found',
+      content: { 'application/json': { schema: ErrorSchema } },
+    },
+  },
+})
+
+calls.openapi(detailRoute, async (c) => {
+  const { callId } = c.req.valid('param')
   const services = c.get('services')
   const hubId = c.get('hubId')
   const permissions = c.get('permissions')
@@ -76,9 +197,6 @@ calls.get('/:callId/detail', async (c) => {
   // Users can only view calls they answered (check active + metadata)
   if (!isAdmin) {
     const activeCall = await services.calls.getActiveCall(callId, hubId)
-    // For archived calls, check by decrypted answeredBy — we can't do server-side,
-    // so we allow the user to fetch and let client validate via E2EE decryption.
-    // At minimum, if there's an active call that another user answered, deny.
     if (activeCall?.assignedPubkey && activeCall.assignedPubkey !== pubkey) {
       return c.json({ error: 'Forbidden' }, 403)
     }
@@ -103,18 +221,49 @@ calls.get('/:callId/detail', async (c) => {
     auditEntries = auditResult.entries
   }
 
-  return c.json({
-    call,
-    notes: notesResult.notes,
-    auditEntries,
-  })
+  return c.json(
+    {
+      call,
+      notes: notesResult.notes,
+      auditEntries,
+    },
+    200
+  )
 })
 
-// --- Call Actions (REST endpoints for WS→Nostr migration) ---
+// ── POST /{callId}/answer — answer a ringing call ──
 
-// Answer a ringing call (user)
-calls.post('/:callId/answer', requirePermission('calls:answer'), async (c) => {
-  const callId = c.req.param('callId')
+const answerRoute = createRoute({
+  method: 'post',
+  path: '/{callId}/answer',
+  tags: ['Calls'],
+  summary: 'Answer a ringing call',
+  middleware: [requirePermission('calls:answer')],
+  request: {
+    params: CallIdParamSchema,
+    body: {
+      content: { 'application/json': { schema: AnswerBodySchema } },
+      required: false,
+    },
+  },
+  responses: {
+    200: {
+      description: 'Call answered',
+      content: { 'application/json': { schema: z.object({}).passthrough() } },
+    },
+    404: {
+      description: 'Call not found',
+      content: { 'application/json': { schema: ErrorSchema } },
+    },
+    409: {
+      description: 'Call already answered',
+      content: { 'application/json': { schema: ErrorSchema } },
+    },
+  },
+})
+
+calls.openapi(answerRoute, async (c) => {
+  const { callId } = c.req.valid('param')
   const pubkey = c.get('pubkey')
   const services = c.get('services')
   const hubId = c.get('hubId')
@@ -153,33 +302,79 @@ calls.post('/:callId/answer', requirePermission('calls:answer'), async (c) => {
     }
   }
 
-  return c.json({ call: updated })
+  return c.json({ call: updated }, 200)
 })
 
-// Hang up an active call (user who answered it)
-calls.post('/:callId/hangup', requirePermission('calls:answer'), async (c) => {
-  const callId = c.req.param('callId')
+// ── POST /{callId}/hangup — hang up an active call ──
+
+const hangupRoute = createRoute({
+  method: 'post',
+  path: '/{callId}/hangup',
+  tags: ['Calls'],
+  summary: 'Hang up an active call',
+  middleware: [requirePermission('calls:answer')],
+  request: { params: CallIdParamSchema },
+  responses: {
+    200: {
+      description: 'Call hung up',
+      content: { 'application/json': { schema: OkSchema } },
+    },
+    403: {
+      description: 'Not your call',
+      content: { 'application/json': { schema: ErrorSchema } },
+    },
+    404: {
+      description: 'Call not found',
+      content: { 'application/json': { schema: ErrorSchema } },
+    },
+  },
+})
+
+calls.openapi(hangupRoute, async (c) => {
+  const { callId } = c.req.valid('param')
   const pubkey = c.get('pubkey')
   const services = c.get('services')
   const hubId = c.get('hubId')
 
-  // Verify the user answered this call
   const call = await services.calls.getActiveCall(callId, hubId)
   if (!call) return c.json({ error: 'Call not found' }, 404)
   if (call.assignedPubkey !== pubkey) return c.json({ error: 'Not your call' }, 403)
 
   await services.calls.deleteActiveCall(callId, hubId)
-  return c.json({ ok: true })
+  return c.json({ ok: true }, 200)
 })
 
-// Report a call as spam (user who answered it)
-calls.post('/:callId/spam', requirePermission('calls:answer'), async (c) => {
-  const callId = c.req.param('callId')
+// ── POST /{callId}/spam — report a call as spam ──
+
+const spamRoute = createRoute({
+  method: 'post',
+  path: '/{callId}/spam',
+  tags: ['Calls'],
+  summary: 'Report a call as spam',
+  middleware: [requirePermission('calls:answer')],
+  request: { params: CallIdParamSchema },
+  responses: {
+    200: {
+      description: 'Reported as spam',
+      content: { 'application/json': { schema: OkSchema } },
+    },
+    403: {
+      description: 'Not your call',
+      content: { 'application/json': { schema: ErrorSchema } },
+    },
+    404: {
+      description: 'Call not found',
+      content: { 'application/json': { schema: ErrorSchema } },
+    },
+  },
+})
+
+calls.openapi(spamRoute, async (c) => {
+  const { callId } = c.req.valid('param')
   const pubkey = c.get('pubkey')
   const services = c.get('services')
   const hubId = c.get('hubId')
 
-  // Verify the user answered this call
   const call = await services.calls.getActiveCall(callId, hubId)
   if (!call) return c.json({ error: 'Call not found' }, 404)
   if (call.assignedPubkey !== pubkey) return c.json({ error: 'Not your call' }, 403)
@@ -189,10 +384,12 @@ calls.post('/:callId/spam', requirePermission('calls:answer'), async (c) => {
     { status: 'spam', metadata: { ...call.metadata, reportedSpam: true, reportedBy: pubkey } },
     hubId
   )
-  return c.json({ ok: true })
+  return c.json({ ok: true }, 200)
 })
 
-// Permission checked inside handler: admin (calls:read-recording) or assigned user
+// ── GET /{callId}/recording — fetch call recording audio ──
+// This returns raw audio, not JSON — we use a standard Hono route for binary responses
+
 calls.get('/:callId/recording', async (c) => {
   const callId = c.req.param('callId')
   const services = c.get('services')
@@ -200,7 +397,6 @@ calls.get('/:callId/recording', async (c) => {
   const permissions = c.get('permissions')
   const pubkey = c.get('pubkey')
 
-  // Fetch the call record to verify permission and get recordingSid
   const callRecord = await services.records.getCallRecord(callId, hubId)
   if (!callRecord) return c.json({ error: 'Call not found' }, 404)
 
@@ -208,12 +404,8 @@ calls.get('/:callId/recording', async (c) => {
     return c.json({ error: 'No recording available for this call' }, 404)
   }
 
-  // Permission check: admin (calls:read-recording) or the user who answered
   const isAdmin = checkPermission(permissions, 'calls:read-recording')
-  // Note: answeredBy is in encrypted content; for permission check we use the active call's assignedPubkey
-  // If the call record is archived, the metadata is encrypted — admin check is the safe fallback
   if (!isAdmin) {
-    // Check active calls for current assignment
     const activeCall = await services.calls.getActiveCall(callId, hubId)
     const isAnsweringUser = activeCall?.assignedPubkey === pubkey
     if (!isAnsweringUser) {
@@ -221,7 +413,6 @@ calls.get('/:callId/recording', async (c) => {
     }
   }
 
-  // Fetch recording audio from the telephony provider on demand
   const adapter = await getTelephony(services.settings, hubId, {
     TWILIO_ACCOUNT_SID: c.env.TWILIO_ACCOUNT_SID,
     TWILIO_AUTH_TOKEN: c.env.TWILIO_AUTH_TOKEN,
@@ -241,15 +432,30 @@ calls.get('/:callId/recording', async (c) => {
   })
 })
 
-// Diagnostic endpoint
-calls.get('/debug', requirePermission('calls:debug'), async (c) => {
+// ── GET /debug — diagnostic endpoint ──
+
+const debugRoute = createRoute({
+  method: 'get',
+  path: '/debug',
+  tags: ['Calls'],
+  summary: 'Debug active calls and legs',
+  middleware: [requirePermission('calls:debug')],
+  responses: {
+    200: {
+      description: 'Debug info',
+      content: { 'application/json': { schema: z.object({}).passthrough() } },
+    },
+  },
+})
+
+calls.openapi(debugRoute, async (c) => {
   const services = c.get('services')
   const hubId = c.get('hubId')
   const activeCalls = await services.calls.getActiveCalls(hubId)
   const legs = await Promise.all(
     activeCalls.map((call) => services.calls.getCallLegs(call.callSid, hubId))
   )
-  return c.json({ activeCalls, legs: legs.flat() })
+  return c.json({ activeCalls, legs: legs.flat() }, 200)
 })
 
 export default calls
