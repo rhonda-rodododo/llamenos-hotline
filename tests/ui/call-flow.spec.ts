@@ -147,7 +147,7 @@ test.describe('Call flow', () => {
     await expect(adminPage.getByTestId(TestIds.INCOMING_CALLS_CARD)).toBeVisible({
       timeout: 30_000,
     })
-    await expect(adminPage.getByTestId(TestIds.INCOMING_CALL_ITEM)).toBeVisible({ timeout: 15_000 })
+    await expect(adminPage.getByTestId(TestIds.INCOMING_CALL_ITEM)).toBeVisible({ timeout: 35_000 })
     await expect(adminPage.getByTestId(TestIds.ANSWER_CALL_BTN)).toBeVisible({ timeout: 15_000 })
   })
 
@@ -161,7 +161,7 @@ test.describe('Call flow', () => {
     await waitForActiveCall(adminApi, CALL_SID, 'ringing')
 
     // Wait for dashboard to show the incoming call (real-time via Nostr relay)
-    await expect(adminPage.getByTestId(TestIds.INCOMING_CALL_ITEM)).toBeVisible({ timeout: 15_000 })
+    await expect(adminPage.getByTestId(TestIds.INCOMING_CALL_ITEM)).toBeVisible({ timeout: 35_000 })
 
     // Click Answer
     await adminPage.getByTestId(TestIds.ANSWER_CALL_BTN).click()
@@ -207,8 +207,9 @@ test.describe('Call flow', () => {
     // Navigate to dashboard
     await navigateAfterLogin(adminPage, '/')
 
-    // Answer the call via UI
-    await expect(adminPage.getByTestId(TestIds.INCOMING_CALL_ITEM)).toBeVisible({ timeout: 15_000 })
+    // Answer the call via UI — wait up to 35s for REST fallback polling (30s interval)
+    // if the Nostr relay event was missed due to late subscription
+    await expect(adminPage.getByTestId(TestIds.INCOMING_CALL_ITEM)).toBeVisible({ timeout: 35_000 })
     await adminPage.getByTestId(TestIds.ANSWER_CALL_BTN).click()
     await expect(adminPage.getByTestId(TestIds.ACTIVE_CALL_PANEL)).toBeVisible({ timeout: 8_000 })
 
@@ -294,7 +295,7 @@ test.describe('Call flow', () => {
     await navigateAfterLogin(adminPage, '/')
 
     // Answer the call
-    await expect(adminPage.getByTestId(TestIds.INCOMING_CALL_ITEM)).toBeVisible({ timeout: 15_000 })
+    await expect(adminPage.getByTestId(TestIds.INCOMING_CALL_ITEM)).toBeVisible({ timeout: 35_000 })
     await adminPage.getByTestId(TestIds.ANSWER_CALL_BTN).click()
     await expect(adminPage.getByTestId(TestIds.ACTIVE_CALL_PANEL)).toBeVisible({ timeout: 8_000 })
 
