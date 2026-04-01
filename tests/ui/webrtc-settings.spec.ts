@@ -144,9 +144,15 @@ test.describe('WebRTC & Call Preference Settings', () => {
     await adminPage.getByRole('link', { name: 'Hub Settings' }).click()
     await adminPage.getByText('Telephony Provider').first().click()
 
-    // Fill in basic Twilio credentials (phone number required to enable save)
-    await adminPage.locator('#provider-phone').fill('+15551234567')
-    await adminPage.locator('#provider-phone').blur()
+    // Fill in basic Twilio credentials (phone number required to enable save).
+    // PhoneInput wraps react-phone-number-input — fill() triggers onChange properly
+    // but the value must include country code. Clear first, then fill.
+    const phoneInput = adminPage.locator('#provider-phone')
+    await phoneInput.click()
+    await phoneInput.clear()
+    await phoneInput.pressSequentially('5551234567', { delay: 30 })
+    await phoneInput.press('Tab')
+    await adminPage.waitForTimeout(500)
     await adminPage.getByTestId('account-sid').fill('ACwebrtctest123')
     await adminPage.getByTestId('auth-token').fill('webrtc-auth-token')
 
