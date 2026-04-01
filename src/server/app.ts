@@ -1,4 +1,6 @@
+import { Scalar } from '@scalar/hono-api-reference'
 import { Hono } from 'hono'
+import { openAPIRouteHandler } from 'hono-openapi'
 import { createMiddleware } from 'hono/factory'
 import type { IdPAdapter } from './idp/adapter'
 import messagingRoutes from './messaging/router'
@@ -67,6 +69,46 @@ const api = new Hono<AppEnv>()
 // Health check — before CORS middleware (internal probes only, no external access needed)
 api.route('/health', healthRoutes)
 api.route('/metrics', metricsRoutes)
+
+// OpenAPI spec + Scalar docs — public, before CORS
+api.get(
+  '/openapi.json',
+  openAPIRouteHandler(api, {
+    documentation: {
+      info: {
+        title: 'Llamenos Hotline API',
+        version: '0.32.0',
+        description:
+          'Crisis response hotline API with hub-scoped access control and field-level encryption.',
+      },
+      servers: [{ url: '/api', description: 'Current server' }],
+      tags: [
+        { name: 'Auth', description: 'Authentication and session management' },
+        { name: 'Users', description: 'User (volunteer/admin) management' },
+        { name: 'Shifts', description: 'Shift schedule management' },
+        { name: 'Calls', description: 'Call routing and history' },
+        { name: 'Notes', description: 'Call notes (E2EE)' },
+        { name: 'Reports', description: 'Report submission and management' },
+        { name: 'Contacts', description: 'Contact directory (E2EE)' },
+        { name: 'Conversations', description: 'Two-way messaging' },
+        { name: 'Blasts', description: 'Broadcast messaging' },
+        { name: 'Settings', description: 'Hub and system settings' },
+        { name: 'Hubs', description: 'Multi-hub management' },
+        { name: 'Teams', description: 'Team management' },
+        { name: 'Tags', description: 'Tag management' },
+        { name: 'Intakes', description: 'Intake form management' },
+      ],
+    },
+  })
+)
+api.get(
+  '/docs',
+  Scalar({
+    url: '/api/openapi.json',
+    theme: 'kepler',
+    pageTitle: 'Llamenos Hotline API',
+  })
+)
 
 api.use('*', cors)
 
