@@ -6,10 +6,11 @@
  * Cache is short-lived (60s stale) since audit logs update frequently.
  */
 
-import { type AuditLogEntry, listAuditLog } from '@/lib/api'
+import { listAuditLog } from '@/lib/api'
 import { decryptArrayFields } from '@/lib/decrypt-fields'
 import * as keyManager from '@/lib/key-manager'
 import { LABEL_USER_PII } from '@shared/crypto-labels'
+import type { AuditLogEntry } from '@shared/schemas'
 import { queryOptions, useQuery } from '@tanstack/react-query'
 import { queryKeys } from './keys'
 

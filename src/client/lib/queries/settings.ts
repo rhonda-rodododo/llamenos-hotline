@@ -7,12 +7,9 @@
 
 import {
   type CallSettings,
-  type CustomFieldDefinition,
-  type GeocodingConfigAdmin,
   type IvrAudioRecording,
   type SpamSettings,
   type TelephonyProviderConfig,
-  type WebAuthnSettings,
   getCallSettings,
   getCustomFields,
   getGeocodingSettings,
@@ -40,7 +37,14 @@ import { decryptHubField } from '@/lib/hub-field-crypto'
 import * as keyManager from '@/lib/key-manager'
 import { type WebAuthnCredentialInfo, listCredentials } from '@/lib/webauthn'
 import { LABEL_USER_PII } from '@shared/crypto-labels'
-import type { MessagingConfig, RetentionSettings, TelephonyProviderDraft } from '@shared/types'
+import type { WebAuthnSettings } from '@shared/schemas'
+import type {
+  CustomFieldDefinition,
+  GeocodingConfigAdmin,
+  MessagingConfig,
+  RetentionSettings,
+  TelephonyProviderDraft,
+} from '@shared/types'
 import { queryOptions, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { queryKeys } from './keys'
 

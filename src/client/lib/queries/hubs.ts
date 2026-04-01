@@ -12,8 +12,9 @@
  * the immediate cache update, the hub would reappear after the invalidation refetch.
  */
 
-import { type Hub, archiveHub, createHub, deleteHub, listHubs, updateHub } from '@/lib/api'
+import { archiveHub, createHub, deleteHub, listHubs, updateHub } from '@/lib/api'
 import { decryptHubField } from '@/lib/hub-field-crypto'
+import type { Hub } from '@shared/schemas'
 import { queryOptions, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { queryKeys } from './keys'
 
