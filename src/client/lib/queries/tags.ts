@@ -7,6 +7,7 @@
  */
 
 import { type Tag, createTag, deleteTag, listTags, updateTag } from '@/lib/api'
+import { decryptHubField } from '@/lib/hub-field-crypto'
 import type { Ciphertext } from '@shared/crypto-types'
 import { queryOptions, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { queryKeys } from './keys'
@@ -15,12 +16,16 @@ import { queryKeys } from './keys'
 // tagsListOptions
 // ---------------------------------------------------------------------------
 
-export const tagsListOptions = () =>
+export const tagsListOptions = (hubId = 'global') =>
   queryOptions({
     queryKey: queryKeys.tags.list(),
     queryFn: async () => {
       const { tags } = await listTags()
-      return tags
+      return tags.map((tag) => ({
+        ...tag,
+        label: decryptHubField(tag.encryptedLabel, hubId, tag.name),
+        category: decryptHubField(tag.encryptedCategory, hubId, ''),
+      }))
     },
     staleTime: 5 * 60 * 1000,
   })
@@ -29,8 +34,8 @@ export const tagsListOptions = () =>
 // useTags
 // ---------------------------------------------------------------------------
 
-export function useTags() {
-  return useQuery(tagsListOptions())
+export function useTags(hubId = 'global') {
+  return useQuery(tagsListOptions(hubId))
 }
 
 // ---------------------------------------------------------------------------

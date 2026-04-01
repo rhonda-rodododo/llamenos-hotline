@@ -51,7 +51,7 @@ export function TagsSection({ expanded, onToggle, statusSummary }: Props) {
   const { currentHubId } = useConfig()
   const hubId = currentHubId ?? 'global'
 
-  const { data: tags = [], isLoading: tagsLoading } = useTags()
+  const { data: tags = [], isLoading: tagsLoading } = useTags(hubId)
   const createTag = useCreateTag()
   const updateTag = useUpdateTag()
   const deleteTagMutation = useDeleteTag()

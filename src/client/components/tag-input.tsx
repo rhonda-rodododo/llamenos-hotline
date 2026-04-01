@@ -18,7 +18,6 @@ import {
 } from '@/components/ui/command'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { useConfig } from '@/lib/config'
-import { decryptHubField } from '@/lib/hub-field-crypto'
 import { useTags } from '@/lib/queries/tags'
 import { cn } from '@/lib/utils'
 import { Check, ChevronsUpDown, Plus, X } from 'lucide-react'
@@ -34,19 +33,11 @@ interface TagInputProps {
 
 /** Resolve a tag definition from the tags list by its slug name. */
 function useDecryptedTags() {
-  const { data: tags = [] } = useTags()
   const { currentHubId } = useConfig()
   const hubId = currentHubId ?? 'global'
-
-  return useMemo(
-    () =>
-      tags.map((tag) => ({
-        ...tag,
-        label: decryptHubField(tag.encryptedLabel, hubId, tag.name),
-        category: decryptHubField(tag.encryptedCategory, hubId, ''),
-      })),
-    [tags, hubId]
-  )
+  // Tags queryFn already decrypts label/category via decryptHubField
+  const { data: tags = [] } = useTags(hubId)
+  return tags
 }
 
 export function TagInput({ value, onChange, allowCreate = false, placeholder }: TagInputProps) {
