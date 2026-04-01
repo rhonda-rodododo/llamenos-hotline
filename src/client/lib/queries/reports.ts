@@ -19,6 +19,7 @@ import {
 } from '@/lib/api'
 import { useAuth } from '@/lib/auth'
 import { decryptMessage } from '@/lib/crypto'
+import { decryptHubField } from '@/lib/hub-field-crypto'
 import * as keyManager from '@/lib/key-manager'
 import { queryOptions, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { queryKeys } from './keys'
@@ -239,12 +240,16 @@ export function useReportCategories() {
  * Fetch report type definitions (admin-configured).
  * Used by ReportForm to populate the report type select.
  */
-export const reportTypesOptions = () =>
+export const reportTypesOptions = (hubId = 'global') =>
   queryOptions({
     queryKey: queryKeys.settings.reportTypes(),
     queryFn: async (): Promise<ReportType[]> => {
       const { reportTypes } = await listReportTypes()
-      return reportTypes
+      return reportTypes.map((rt) => ({
+        ...rt,
+        name: decryptHubField(rt.encryptedName, hubId, rt.name),
+        description: decryptHubField(rt.encryptedDescription, hubId, rt.description),
+      }))
     },
     staleTime: 5 * 60 * 1000, // 5 minutes
   })
@@ -253,8 +258,8 @@ export const reportTypesOptions = () =>
 // useReportTypes
 // ---------------------------------------------------------------------------
 
-export function useReportTypes() {
-  return useQuery(reportTypesOptions())
+export function useReportTypes(hubId = 'global') {
+  return useQuery(reportTypesOptions(hubId))
 }
 
 // ---------------------------------------------------------------------------

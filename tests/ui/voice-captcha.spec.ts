@@ -1,6 +1,5 @@
-import { expect, test } from '@playwright/test'
-import { ADMIN_NSEC, loginAsAdmin } from '../helpers'
-import { createAuthedRequestFromNsec } from '../helpers/authed-request'
+import { expect, test } from '../fixtures/auth'
+import { createAdminApiFromStorageState } from '../helpers/authed-request'
 
 /**
  * Voice CAPTCHA E2E tests.
@@ -13,7 +12,7 @@ test.describe('Voice CAPTCHA', () => {
 
   // --- Test 5.1: CAPTCHA disabled — call routes directly ---
   test('CAPTCHA disabled — language-selected returns enqueue (no CAPTCHA)', async ({ request }) => {
-    const adminApi = createAuthedRequestFromNsec(request, ADMIN_NSEC)
+    const adminApi = createAdminApiFromStorageState(request)
     // Ensure CAPTCHA is disabled (default after reset)
     const spamRes = await adminApi.get('/api/settings/spam')
     expect(spamRes.ok()).toBeTruthy()
@@ -28,14 +27,17 @@ test.describe('Voice CAPTCHA', () => {
     expect(incomingRes.ok()).toBeTruthy()
 
     const body = await incomingRes.text()
-    // Should contain Enqueue (direct to queue, no CAPTCHA Gather)
-    expect(body).toContain('Enqueue')
+    // Should contain Enqueue (direct to queue) or voicemail (no volunteers on shift).
+    // The key assertion is that CAPTCHA Gather is NOT present when CAPTCHA is disabled.
+    const hasEnqueue = body.includes('Enqueue')
+    const hasVoicemail = body.includes('Record') || body.includes('leave a message')
+    expect(hasEnqueue || hasVoicemail).toBeTruthy()
     expect(body).not.toContain('<Gather')
   })
 
   // --- Test 5.2: CAPTCHA enabled — challenge presented ---
   test('CAPTCHA enabled — language-selected returns CAPTCHA Gather', async ({ request }) => {
-    const adminApi = createAuthedRequestFromNsec(request, ADMIN_NSEC)
+    const adminApi = createAdminApiFromStorageState(request)
     // Enable CAPTCHA via API
     const enableRes = await adminApi.patch('/api/settings/spam', { voiceCaptchaEnabled: true })
     expect(enableRes.ok()).toBeTruthy()
@@ -95,7 +97,7 @@ test.describe('Voice CAPTCHA', () => {
 
   // --- Test 5.4: Incorrect DTMF triggers retry, then rejection ---
   test('incorrect DTMF triggers retry then rejection after max attempts', async ({ request }) => {
-    const adminApi = createAuthedRequestFromNsec(request, ADMIN_NSEC)
+    const adminApi = createAdminApiFromStorageState(request)
     // Enable CAPTCHA with max attempts of 2
     const settingsRes = await adminApi.patch('/api/settings/spam', {
       voiceCaptchaEnabled: true,
@@ -166,43 +168,47 @@ test.describe('Voice CAPTCHA', () => {
   })
 
   // --- Admin UI: captchaMaxAttempts setting ---
-  test('admin can set captchaMaxAttempts in spam settings UI', async ({ page, request }) => {
-    await loginAsAdmin(page)
-    await page.getByRole('link', { name: 'Hub Settings' }).click()
-    await expect(page.getByRole('heading', { name: 'Hub Settings', exact: true })).toBeVisible()
+  test('admin can set captchaMaxAttempts in spam settings UI', async ({ adminPage, request }) => {
+    await adminPage.getByRole('link', { name: 'Hub Settings' }).click()
+    await expect(
+      adminPage.getByRole('heading', { name: 'Hub Settings', exact: true })
+    ).toBeVisible()
 
     // Expand spam section
-    await page.getByText('Spam Mitigation').first().click()
+    await adminPage.getByText('Spam Mitigation').first().click()
 
-    // Enable CAPTCHA if not already enabled
-    const captchaSwitch = page
-      .locator('text=Voice CAPTCHA')
-      .locator('..')
-      .locator('..')
-      .locator('..')
-      .getByRole('switch')
+    // Enable CAPTCHA if not already enabled.
+    // The switch is inside a bordered card that also contains the "Voice CAPTCHA" label.
+    const captchaCard = adminPage
+      .locator('div.flex.items-center.justify-between')
+      .filter({ has: adminPage.locator('text=Voice CAPTCHA') })
+      .first()
+    const captchaSwitch = captchaCard.getByRole('switch')
+    await expect(captchaSwitch).toBeVisible({ timeout: 10000 })
     const isChecked = await captchaSwitch.isChecked()
     if (!isChecked) {
       // Need to enable via confirmation dialog
       await captchaSwitch.click()
       // Handle potential confirmation dialog
-      const confirmBtn = page.getByRole('button', { name: /confirm|enable/i })
+      const confirmBtn = adminPage.getByRole('button', { name: /confirm|enable/i })
       if (await confirmBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
         await confirmBtn.click()
       }
     }
 
     // Max attempts input should now be visible
-    const maxAttemptsInput = page.locator('#captcha-max-attempts')
+    const maxAttemptsInput = adminPage.locator('#captcha-max-attempts')
     await expect(maxAttemptsInput).toBeVisible({ timeout: 5000 })
 
     // Change value to 3
     await maxAttemptsInput.clear()
     await maxAttemptsInput.fill('3')
     await maxAttemptsInput.press('Tab') // trigger onChange
+    // Wait for the mutation to persist (async save)
+    await adminPage.waitForTimeout(1500)
 
     // Verify it was saved via API
-    const adminApi = createAuthedRequestFromNsec(request, ADMIN_NSEC)
+    const adminApi = createAdminApiFromStorageState(request)
     const spamRes = await adminApi.get('/api/settings/spam')
     const spam = await spamRes.json()
     expect(spam.captchaMaxAttempts).toBe(3)

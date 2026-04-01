@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'bun:test'
 import { secp256k1 } from '@noble/curves/secp256k1.js'
 import { bytesToHex } from '@noble/hashes/utils.js'
-import { LABEL_VOLUNTEER_PII } from '@shared/crypto-labels'
+import { LABEL_USER_PII } from '@shared/crypto-labels'
 import { ClientCryptoService } from './crypto-service'
 
 describe('ClientCryptoService', () => {
@@ -12,12 +12,8 @@ describe('ClientCryptoService', () => {
 
   describe('envelopeEncrypt / envelopeDecrypt', () => {
     test('self-encrypt round-trip', () => {
-      const { encrypted, envelopes } = client.envelopeEncrypt(
-        'my name',
-        [pubkey],
-        LABEL_VOLUNTEER_PII
-      )
-      const pt = client.envelopeDecrypt(encrypted, envelopes, LABEL_VOLUNTEER_PII)
+      const { encrypted, envelopes } = client.envelopeEncrypt('my name', [pubkey], LABEL_USER_PII)
+      const pt = client.envelopeDecrypt(encrypted, envelopes, LABEL_USER_PII)
       expect(pt).toBe('my name')
     })
 
@@ -30,11 +26,11 @@ describe('ClientCryptoService', () => {
       const { encrypted, envelopes } = client.envelopeEncrypt(
         'shared',
         [pubkey, otherPub],
-        LABEL_VOLUNTEER_PII
+        LABEL_USER_PII
       )
 
-      expect(client.envelopeDecrypt(encrypted, envelopes, LABEL_VOLUNTEER_PII)).toBe('shared')
-      expect(otherClient.envelopeDecrypt(encrypted, envelopes, LABEL_VOLUNTEER_PII)).toBe('shared')
+      expect(client.envelopeDecrypt(encrypted, envelopes, LABEL_USER_PII)).toBe('shared')
+      expect(otherClient.envelopeDecrypt(encrypted, envelopes, LABEL_USER_PII)).toBe('shared')
     })
   })
 

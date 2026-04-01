@@ -1,8 +1,4 @@
-import {
-  HMAC_PHONE_PREFIX,
-  LABEL_PUSH_CREDENTIAL,
-  LABEL_VOLUNTEER_PII,
-} from '@shared/crypto-labels'
+import { HMAC_PHONE_PREFIX, LABEL_PUSH_CREDENTIAL, LABEL_USER_PII } from '@shared/crypto-labels'
 import type { Ciphertext } from '@shared/crypto-types'
 import { and, eq, inArray } from 'drizzle-orm'
 import webpush from 'web-push'
@@ -63,7 +59,7 @@ export class PushService {
       try {
         deviceLabel = this.crypto.serverDecrypt(
           row.encryptedDeviceLabel as Ciphertext,
-          LABEL_VOLUNTEER_PII
+          LABEL_USER_PII
         )
       } catch {
         // Decryption failed — leave as null
@@ -94,22 +90,18 @@ export class PushService {
     // HMAC hash endpoint for dedup
     const endpointHash = this.crypto.hmac(data.endpoint, HMAC_PHONE_PREFIX)
 
-    // E2EE envelope-encrypt device label for the volunteer's own pubkey (client-side decryption)
+    // E2EE envelope-encrypt device label for the user's own pubkey (client-side decryption)
     // Only attempt if pubkey looks like a valid 64-char hex secp256k1 x-only pubkey
     let labelEnvelope: ReturnType<CryptoService['envelopeEncrypt']> | undefined
     if (data.deviceLabel && /^[0-9a-f]{64}$/i.test(data.pubkey)) {
-      labelEnvelope = this.crypto.envelopeEncrypt(
-        data.deviceLabel,
-        [data.pubkey],
-        LABEL_VOLUNTEER_PII
-      )
+      labelEnvelope = this.crypto.envelopeEncrypt(data.deviceLabel, [data.pubkey], LABEL_USER_PII)
     }
 
     // E2EE device label: use envelope ciphertext if available, fallback to server-key
     const encryptedDeviceLabel = data.deviceLabel
       ? labelEnvelope
         ? labelEnvelope.encrypted
-        : this.crypto.serverEncrypt(data.deviceLabel, LABEL_VOLUNTEER_PII)
+        : this.crypto.serverEncrypt(data.deviceLabel, LABEL_USER_PII)
       : undefined
 
     const [row] = await this.db
@@ -172,7 +164,7 @@ export class PushService {
     await this.db.delete(pushSubscriptions).where(eq(pushSubscriptions.endpointHash, endpointHash))
   }
 
-  /** Get all subscriptions for a single volunteer pubkey. */
+  /** Get all subscriptions for a single user pubkey. */
   async getSubscriptionsForPubkey(pubkey: string): Promise<PushSubscription[]> {
     const rows = await this.db
       .select()
@@ -181,7 +173,7 @@ export class PushService {
     return rows.map((r) => this.#rowToSubscription(r))
   }
 
-  /** Get all subscriptions for a list of volunteer pubkeys. */
+  /** Get all subscriptions for a list of user pubkeys. */
   async getSubscriptionsForPubkeys(pubkeys: string[]): Promise<PushSubscription[]> {
     if (pubkeys.length === 0) return []
     const rows = await this.db
@@ -192,11 +184,11 @@ export class PushService {
   }
 
   /**
-   * Send Web Push notifications to all subscriptions for the given volunteer pubkeys.
+   * Send Web Push notifications to all subscriptions for the given user pubkeys.
    * Stale subscriptions (410/404) are automatically removed.
    * Non-fatal delivery errors are logged but do not throw.
    */
-  async sendPushToVolunteers(
+  async sendPushToUsers(
     pubkeys: string[],
     data: { type: string; callSid: string; hubId: string },
     env: { VAPID_PUBLIC_KEY?: string; VAPID_PRIVATE_KEY?: string }

@@ -8,7 +8,7 @@
  * 3. Discoverability - all test IDs in one file
  *
  * Naming convention: SECTION_ELEMENT_ACTION
- * e.g., VOLUNTEER_ROW_DELETE, SHIFT_CARD_EDIT
+ * e.g., USER_ROW_DELETE, SHIFT_CARD_EDIT
  */
 
 export const TestIds = {
@@ -16,16 +16,16 @@ export const TestIds = {
   NAV_SIDEBAR: 'nav-sidebar',
   NAV_ADMIN_SECTION: 'nav-admin-section',
 
-  // ============ Volunteers ============
-  VOLUNTEER_LIST: 'volunteer-list',
-  VOLUNTEER_ROW: 'volunteer-row',
-  VOLUNTEER_ADD_BTN: 'volunteer-add-btn',
-  VOLUNTEER_DELETE_BTN: 'volunteer-delete-btn',
-  VOLUNTEER_EDIT_BTN: 'volunteer-edit-btn',
-  VOLUNTEER_NSEC_CARD: 'volunteer-nsec-card',
-  VOLUNTEER_NSEC_CODE: 'volunteer-nsec-code',
-  VOLUNTEER_INVITE_CARD: 'volunteer-invite-card',
-  VOLUNTEER_INVITE_LINK: 'volunteer-invite-link',
+  // ============ Users ============
+  USER_LIST: 'user-list',
+  USER_ROW: 'user-row',
+  USER_ADD_BTN: 'user-add-btn',
+  USER_DELETE_BTN: 'user-delete-btn',
+  USER_EDIT_BTN: 'user-edit-btn',
+  USER_NSEC_CARD: 'user-nsec-card',
+  USER_NSEC_CODE: 'user-nsec-code',
+  USER_INVITE_CARD: 'user-invite-card',
+  USER_INVITE_LINK: 'user-invite-link',
   DISMISS_NSEC: 'dismiss-nsec',
   DISMISS_INVITE: 'dismiss-invite',
   TOGGLE_PHONE_VISIBILITY: 'toggle-phone-visibility',
@@ -170,7 +170,7 @@ export type TestId = (typeof TestIds)[keyof typeof TestIds]
 
 /**
  * Helper to create a data-testid selector string for use in tests.
- * Example: testId('volunteer-row') => '[data-testid="volunteer-row"]'
+ * Example: testId('user-row') => '[data-testid="user-row"]'
  */
 export function testIdSelector(id: TestId): string {
   return `[data-testid="${id}"]`
@@ -178,7 +178,7 @@ export function testIdSelector(id: TestId): string {
 
 /**
  * Helper to create a data-testid attribute value for a row item with an identifier.
- * Example: rowTestId('volunteer-row', 'abc123') => 'volunteer-row-abc123'
+ * Example: rowTestId('user-row', 'abc123') => 'user-row-abc123'
  */
 export function rowTestId(baseId: TestId, identifier: string): string {
   return `${baseId}-${identifier}`

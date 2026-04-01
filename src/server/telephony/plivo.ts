@@ -6,7 +6,7 @@ import type {
   CaptchaResponseParams,
   IncomingCallParams,
   LanguageMenuParams,
-  RingVolunteersParams,
+  RingUsersParams,
   TelephonyAdapter,
   TelephonyResponse,
   VoicemailParams,
@@ -228,7 +228,7 @@ export class PlivoAdapter implements TelephonyAdapter {
   async handleCallAnswered(params: CallAnsweredParams): Promise<TelephonyResponse> {
     const hp = hubXmlParam(params.hubId)
     return this.plivoXml(`
-      <Conference record="true" recordFileFormat="mp3" callbackUrl="${escapeXml(params.callbackUrl)}/api/telephony/call-recording?parentCallSid=${params.parentCallSid}&amp;pubkey=${params.volunteerPubkey}${hp}" callbackMethod="POST" startConferenceOnEnter="true" endConferenceOnExit="true">${params.parentCallSid}</Conference>
+      <Conference record="true" recordFileFormat="mp3" callbackUrl="${escapeXml(params.callbackUrl)}/api/telephony/call-recording?parentCallSid=${params.parentCallSid}&amp;pubkey=${params.userPubkey}${hp}" callbackMethod="POST" startConferenceOnEnter="true" endConferenceOnExit="true">${params.parentCallSid}</Conference>
     `)
   }
 
@@ -271,7 +271,7 @@ export class PlivoAdapter implements TelephonyAdapter {
     })
   }
 
-  async ringVolunteers(params: RingVolunteersParams): Promise<string[]> {
+  async ringUsers(params: RingUsersParams): Promise<string[]> {
     const callSids: string[] = []
     const hubParam = params.hubId ? `&hub=${encodeURIComponent(params.hubId)}` : ''
 
@@ -301,7 +301,7 @@ export class PlivoAdapter implements TelephonyAdapter {
         const body: Record<string, unknown> = {
           from: this.phoneNumber,
           to: target.to,
-          answer_url: `${params.callbackUrl}/api/telephony/volunteer-answer?parentCallSid=${params.callSid}&pubkey=${target.pubkey}${hubParam}`,
+          answer_url: `${params.callbackUrl}/api/telephony/user-answer?parentCallSid=${params.callSid}&pubkey=${target.pubkey}${hubParam}`,
           answer_method: 'POST',
           hangup_url: `${params.callbackUrl}/api/telephony/call-status?parentCallSid=${params.callSid}&pubkey=${target.pubkey}${hubParam}`,
           hangup_method: 'POST',

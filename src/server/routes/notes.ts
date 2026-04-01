@@ -1,13 +1,87 @@
-import type { KeyEnvelope, RecipientEnvelope } from '@shared/types'
-import { Hono } from 'hono'
+import { createRoute, z } from '@hono/zod-openapi'
+import { createRouter } from '../lib/openapi'
 import { checkPermission, requirePermission } from '../middleware/permission-guard'
 import type { AppEnv } from '../types'
 
-const notes = new Hono<AppEnv>()
-// Require at least notes:read-own to access any notes endpoint
-notes.use('*', requirePermission('notes:read-own'))
+const notes = createRouter()
 
-notes.get('/', async (c) => {
+// All notes endpoints require at least notes:read-own
+const baseMiddleware = requirePermission('notes:read-own')
+
+// ── Shared schemas ──
+
+const RecipientEnvelopeSchema = z.object({
+  pubkey: z.string(),
+  wrappedKey: z.string(),
+  ephemeralPubkey: z.string(),
+})
+
+const KeyEnvelopeSchema = z.object({
+  wrappedKey: z.string(),
+  ephemeralPubkey: z.string(),
+})
+
+const NoteResponseSchema = z.object({
+  id: z.string(),
+  callId: z.string().optional(),
+  conversationId: z.string().optional(),
+  contactHash: z.string().optional(),
+  authorPubkey: z.string(),
+  encryptedContent: z.string(),
+  createdAt: z.string(),
+  updatedAt: z.string(),
+  ephemeralPubkey: z.string().optional(),
+  authorEnvelope: KeyEnvelopeSchema.optional(),
+  adminEnvelopes: z.array(RecipientEnvelopeSchema).optional(),
+  replyCount: z.number().optional(),
+})
+
+const IdParamSchema = z.object({
+  id: z.string().openapi({ param: { name: 'id', in: 'path' }, example: 'note-abc123' }),
+})
+
+const CreateNoteBodySchema = z.object({
+  callId: z.string().optional(),
+  conversationId: z.string().optional(),
+  contactHash: z.string().optional(),
+  encryptedContent: z.string(),
+  authorEnvelope: KeyEnvelopeSchema.optional(),
+  adminEnvelopes: z.array(RecipientEnvelopeSchema).optional(),
+})
+
+const UpdateNoteBodySchema = z.object({
+  encryptedContent: z.string(),
+  authorEnvelope: KeyEnvelopeSchema.optional(),
+  adminEnvelopes: z.array(RecipientEnvelopeSchema).optional(),
+})
+
+const CreateReplyBodySchema = z.object({
+  encryptedContent: z.string(),
+  readerEnvelopes: z.array(RecipientEnvelopeSchema),
+  authorEnvelope: KeyEnvelopeSchema.optional(),
+})
+
+// ── GET / — list notes ──
+
+const listRoute = createRoute({
+  method: 'get',
+  path: '/',
+  tags: ['Notes'],
+  summary: 'List notes',
+  middleware: [baseMiddleware],
+  responses: {
+    200: {
+      description: 'Paginated notes',
+      content: {
+        'application/json': {
+          schema: z.object({ notes: z.array(NoteResponseSchema), total: z.number() }),
+        },
+      },
+    },
+  },
+})
+
+notes.openapi(listRoute, async (c) => {
   const services = c.get('services')
   const hubId = c.get('hubId')
   const pubkey = c.get('pubkey')
@@ -28,21 +102,37 @@ notes.get('/', async (c) => {
     limit,
     hubId: hubId ?? 'global',
   })
-  return c.json(result)
+  return c.json(result, 200)
 })
 
-notes.post('/', requirePermission('notes:create'), async (c) => {
+// ── POST / — create note ──
+
+const createRoute_ = createRoute({
+  method: 'post',
+  path: '/',
+  tags: ['Notes'],
+  summary: 'Create a note',
+  middleware: [baseMiddleware, requirePermission('notes:create')],
+  request: {
+    body: { content: { 'application/json': { schema: CreateNoteBodySchema } } },
+  },
+  responses: {
+    201: {
+      description: 'Note created',
+      content: { 'application/json': { schema: z.object({ note: NoteResponseSchema }) } },
+    },
+    400: {
+      description: 'Validation error',
+      content: { 'application/json': { schema: z.object({ error: z.string() }) } },
+    },
+  },
+})
+
+notes.openapi(createRoute_, async (c) => {
   const services = c.get('services')
   const hubId = c.get('hubId')
   const pubkey = c.get('pubkey')
-  const body = (await c.req.json()) as {
-    callId?: string
-    conversationId?: string
-    contactHash?: string
-    encryptedContent: string
-    authorEnvelope?: KeyEnvelope
-    adminEnvelopes?: RecipientEnvelope[]
-  }
+  const body = c.req.valid('json')
   if (!body.callId && !body.conversationId) {
     return c.json({ error: 'callId or conversationId required' }, 400)
   }
@@ -59,52 +149,106 @@ notes.post('/', requirePermission('notes:create'), async (c) => {
   return c.json({ note }, 201)
 })
 
-// --- Note Permalink (GET /notes/:noteId) ---
+// ── GET /{id} — get note by id ──
 
-notes.get('/:id', async (c) => {
+const getByIdRoute = createRoute({
+  method: 'get',
+  path: '/{id}',
+  tags: ['Notes'],
+  summary: 'Get a note by ID',
+  middleware: [baseMiddleware],
+  request: { params: IdParamSchema },
+  responses: {
+    200: {
+      description: 'Note details',
+      content: { 'application/json': { schema: z.object({ note: NoteResponseSchema }) } },
+    },
+    403: {
+      description: 'Forbidden',
+      content: { 'application/json': { schema: z.object({ error: z.string() }) } },
+    },
+    404: {
+      description: 'Not found',
+      content: { 'application/json': { schema: z.object({ error: z.string() }) } },
+    },
+  },
+})
+
+notes.openapi(getByIdRoute, async (c) => {
   const services = c.get('services')
-  const hubId = c.get('hubId')
   const pubkey = c.get('pubkey')
   const permissions = c.get('permissions')
-  const id = c.req.param('id')
+  const { id } = c.req.valid('param')
 
   const canReadAll = checkPermission(permissions, 'notes:read-all')
   const note = await services.records.getNote(id)
   if (!note) return c.json({ error: 'Note not found' }, 404)
 
-  // Volunteers can only view their own notes
+  // Users can only view their own notes
   if (!canReadAll && note.authorPubkey !== pubkey) {
     return c.json({ error: 'Forbidden' }, 403)
   }
 
-  return c.json({ note })
+  return c.json({ note }, 200)
 })
 
-notes.patch('/:id', requirePermission('notes:update-own'), async (c) => {
+// ── PATCH /{id} — update note ──
+
+const updateRoute = createRoute({
+  method: 'patch',
+  path: '/{id}',
+  tags: ['Notes'],
+  summary: 'Update a note',
+  middleware: [baseMiddleware, requirePermission('notes:update-own')],
+  request: {
+    params: IdParamSchema,
+    body: { content: { 'application/json': { schema: UpdateNoteBodySchema } } },
+  },
+  responses: {
+    200: {
+      description: 'Note updated',
+      content: { 'application/json': { schema: z.object({ note: NoteResponseSchema }) } },
+    },
+  },
+})
+
+notes.openapi(updateRoute, async (c) => {
   const services = c.get('services')
   const hubId = c.get('hubId')
   const pubkey = c.get('pubkey')
-  const id = c.req.param('id')
-  const body = (await c.req.json()) as {
-    encryptedContent: string
-    authorEnvelope?: KeyEnvelope
-    adminEnvelopes?: RecipientEnvelope[]
-  }
+  const { id } = c.req.valid('param')
+  const body = c.req.valid('json')
   const updated = await services.records.updateNote(id, { ...body, authorPubkey: pubkey })
   await services.records.addAuditEntry(hubId ?? 'global', 'noteEdited', pubkey, { noteId: id })
-  return c.json({ note: updated })
+  return c.json({ note: updated }, 200)
 })
 
-// --- Note Replies (Epic 123) ---
+// ── GET /{id}/replies — get replies to a note ──
 
-notes.get('/:id/replies', async (c) => {
+const getRepliesRoute = createRoute({
+  method: 'get',
+  path: '/{id}/replies',
+  tags: ['Notes'],
+  summary: 'Get replies to a note',
+  middleware: [baseMiddleware],
+  request: { params: IdParamSchema },
+  responses: {
+    200: {
+      description: 'Note replies',
+      content: {
+        'application/json': { schema: z.object({ notes: z.array(NoteResponseSchema) }) },
+      },
+    },
+  },
+})
+
+notes.openapi(getRepliesRoute, async (c) => {
   const services = c.get('services')
   const hubId = c.get('hubId')
-  const id = c.req.param('id')
+  const { id } = c.req.valid('param')
   // Replies are notes linked to the parent note via callId or conversationId
-  // Fetch the parent note first to get its context
   const parent = await services.records.getNote(id)
-  if (!parent) return c.json({ notes: [] })
+  if (!parent) return c.json({ notes: [] }, 200)
   const result = await services.records.getNotes({
     ...(parent.callId ? { callId: parent.callId } : {}),
     ...(parent.conversationId ? { conversationId: parent.conversationId } : {}),
@@ -112,19 +256,39 @@ notes.get('/:id/replies', async (c) => {
   })
   // Filter to only replies (notes after the parent that have the same context)
   const replies = result.notes.filter((n) => n.id !== id)
-  return c.json({ notes: replies })
+  return c.json({ notes: replies }, 200)
 })
 
-notes.post('/:id/replies', requirePermission('notes:reply'), async (c) => {
+// ── POST /{id}/replies — create a reply ──
+
+const createReplyRoute = createRoute({
+  method: 'post',
+  path: '/{id}/replies',
+  tags: ['Notes'],
+  summary: 'Reply to a note',
+  middleware: [baseMiddleware, requirePermission('notes:reply')],
+  request: {
+    params: IdParamSchema,
+    body: { content: { 'application/json': { schema: CreateReplyBodySchema } } },
+  },
+  responses: {
+    201: {
+      description: 'Reply created',
+      content: { 'application/json': { schema: NoteResponseSchema } },
+    },
+    404: {
+      description: 'Parent note not found',
+      content: { 'application/json': { schema: z.object({ error: z.string() }) } },
+    },
+  },
+})
+
+notes.openapi(createReplyRoute, async (c) => {
   const services = c.get('services')
   const hubId = c.get('hubId')
   const pubkey = c.get('pubkey')
-  const id = c.req.param('id')
-  const body = (await c.req.json()) as {
-    encryptedContent: string
-    readerEnvelopes: RecipientEnvelope[]
-    authorEnvelope?: KeyEnvelope
-  }
+  const { id } = c.req.valid('param')
+  const body = c.req.valid('json')
   // Get parent note for context
   const parent = await services.records.getNote(id)
   if (!parent) return c.json({ error: 'Parent note not found' }, 404)

@@ -13,8 +13,8 @@ import { generateSecretKey, getPublicKey } from 'nostr-tools/pure'
 import { ADMIN_NSEC, uniquePhone } from '../helpers'
 import { type AuthedRequest, createAuthedRequestFromNsec } from '../helpers/authed-request'
 
-/** Create a volunteer via admin API, returning pubkey and nsec. */
-async function createVolunteer(
+/** Create a user via admin API, returning pubkey and nsec. */
+async function createUser(
   adminApi: AuthedRequest,
   name: string,
   phone: string,
@@ -24,14 +24,14 @@ async function createVolunteer(
   const pubkey = getPublicKey(sk)
   const nsec = nip19.nsecEncode(sk)
 
-  const res = await adminApi.post('/api/volunteers', {
+  const res = await adminApi.post('/api/users', {
     name,
     phone,
     roleIds: roleIds ?? ['role-volunteer'],
     pubkey,
   })
   if (!res.ok()) {
-    throw new Error(`Failed to create volunteer: ${res.status()} ${await res.text()}`)
+    throw new Error(`Failed to create user: ${res.status()} ${await res.text()}`)
   }
 
   return { pubkey, nsec }
@@ -43,20 +43,19 @@ test.describe('Epic 68: Messaging Channel Permissions', () => {
   test.describe.configure({ mode: 'serial' })
 
   let adminApi: AuthedRequest
-  let volunteerNsec: string
-  let restrictedVolunteerNsec: string
+  let userNsec: string
+  let restrictedUserNsec: string
 
   test.beforeAll(async ({ request }) => {
     const setupApi = createAuthedRequestFromNsec(request, ADMIN_NSEC)
 
-    // Create a volunteer with default role (has all channel permissions)
-    const vol = await createVolunteer(setupApi, 'FullChannel Vol', uniquePhone())
-    volunteerNsec = vol.nsec
+    // Create a user with default role (has all channel permissions)
+    const vol = await createUser(setupApi, 'FullChannel Vol', uniquePhone())
+    userNsec = vol.nsec
 
     // Create a custom role with only SMS permission
     const roleRes = await setupApi.post('/api/settings/roles', {
-      name: 'SMS Only',
-      slug: 'sms-only',
+      encryptedName: 'encrypted-sms-only',
       permissions: [
         'conversations:claim',
         'conversations:claim-sms',
@@ -68,21 +67,19 @@ test.describe('Epic 68: Messaging Channel Permissions', () => {
     expect(roleRes.status()).toBe(201)
     const roleBody = await roleRes.json()
 
-    // Create a volunteer with restricted role
-    const restrictedVol = await createVolunteer(setupApi, 'SMSOnly Vol', uniquePhone(), [
-      roleBody.id,
-    ])
-    restrictedVolunteerNsec = restrictedVol.nsec
+    // Create a user with restricted role
+    const restrictedVol = await createUser(setupApi, 'SMSOnly Vol', uniquePhone(), [roleBody.id])
+    restrictedUserNsec = restrictedVol.nsec
   })
 
   test.beforeEach(async ({ request }) => {
     adminApi = createAuthedRequestFromNsec(request, ADMIN_NSEC)
   })
 
-  test('volunteer role includes all channel claim permissions by default', async ({ request }) => {
-    const volApi = createAuthedRequestFromNsec(request, volunteerNsec)
+  test('user role includes all channel claim permissions by default', async ({ request }) => {
+    const userApi = createAuthedRequestFromNsec(request, userNsec)
 
-    const res = await volApi.get('/api/auth/me')
+    const res = await userApi.get('/api/auth/me')
     expect(res.status()).toBe(200)
     const body = await res.json()
 
@@ -96,9 +93,9 @@ test.describe('Epic 68: Messaging Channel Permissions', () => {
   })
 
   test('restricted role only has specific channel permissions', async ({ request }) => {
-    const volApi = createAuthedRequestFromNsec(request, restrictedVolunteerNsec)
+    const userApi = createAuthedRequestFromNsec(request, restrictedUserNsec)
 
-    const res = await volApi.get('/api/auth/me')
+    const res = await userApi.get('/api/auth/me')
     expect(res.status()).toBe(200)
     const body = await res.json()
 
@@ -159,14 +156,14 @@ test.describe('Epic 69: Auto-Assignment Logic', () => {
       const body = await res.json()
       if (body) {
         expect(typeof body.autoAssign).toBe('boolean')
-        if (body.maxConcurrentPerVolunteer !== undefined) {
-          expect(typeof body.maxConcurrentPerVolunteer).toBe('number')
+        if (body.maxConcurrentPerUser !== undefined) {
+          expect(typeof body.maxConcurrentPerUser).toBe('number')
         }
       }
     }
   })
 
-  test('volunteer load endpoint exists and returns data', async () => {
+  test('user load endpoint exists and returns data', async () => {
     const res = await adminApi.get('/api/conversations/load')
     expect(res.status()).toBe(200)
     const body = await res.json()
@@ -174,12 +171,12 @@ test.describe('Epic 69: Auto-Assignment Logic', () => {
     expect(typeof body.loads).toBe('object')
   })
 
-  test('volunteer load endpoint requires admin permission', async ({ request }) => {
-    // Create a basic volunteer
-    const vol = await createVolunteer(adminApi, 'LoadTest Vol', uniquePhone())
-    const volApi = createAuthedRequestFromNsec(request, vol.nsec)
+  test('user load endpoint requires admin permission', async ({ request }) => {
+    // Create a basic user
+    const vol = await createUser(adminApi, 'LoadTest Vol', uniquePhone())
+    const userApi = createAuthedRequestFromNsec(request, vol.nsec)
 
-    const res = await volApi.get('/api/conversations/load')
+    const res = await userApi.get('/api/conversations/load')
     // 400 (hub context required for non-super-admin) or 403 (forbidden) — either way, access denied
     expect([400, 403]).toContain(res.status())
   })
@@ -196,7 +193,7 @@ test.describe('Epic 70: Conversation Reassignment API', () => {
     adminApi = createAuthedRequestFromNsec(request, ADMIN_NSEC)
   })
 
-  test('volunteer load data is retrieved correctly', async () => {
+  test('user load data is retrieved correctly', async () => {
     const res = await adminApi.get('/api/conversations/load')
     expect(res.status()).toBe(200)
     const body = await res.json()
@@ -343,8 +340,7 @@ test.describe('Channel Permission Integration', () => {
   test('admin can create role with specific channel permissions', async () => {
     // Create a role with only WhatsApp and Signal permissions
     const res = await adminApi.post('/api/settings/roles', {
-      name: 'WA+Signal Only',
-      slug: 'wa-signal-only',
+      encryptedName: 'encrypted-wa-signal-only',
       permissions: [
         'conversations:claim',
         'conversations:claim-whatsapp',
@@ -365,8 +361,7 @@ test.describe('Channel Permission Integration', () => {
   test('claim-any permission bypasses channel restrictions', async () => {
     // Create a role with claim-any
     const res = await adminApi.post('/api/settings/roles', {
-      name: 'All Channels',
-      slug: 'all-channels',
+      encryptedName: 'encrypted-all-channels',
       permissions: [
         'conversations:claim',
         'conversations:claim-any',
@@ -380,30 +375,30 @@ test.describe('Channel Permission Integration', () => {
     expect(body.permissions).toContain('conversations:claim-any')
   })
 
-  test('volunteer supportedMessagingChannels field is respected', async () => {
-    // Create a volunteer
-    const vol = await createVolunteer(adminApi, 'ChannelLimit Vol', uniquePhone())
+  test('user supportedMessagingChannels field is respected', async () => {
+    // Create a user
+    const vol = await createUser(adminApi, 'ChannelLimit Vol', uniquePhone())
 
-    // Update volunteer with supported channels
-    const updateRes = await adminApi.patch(`/api/volunteers/${vol.pubkey}`, {
+    // Update user with supported channels
+    const updateRes = await adminApi.patch(`/api/users/${vol.pubkey}`, {
       supportedMessagingChannels: ['sms', 'whatsapp'],
     })
     expect(updateRes.status()).toBe(200)
     const updateBody = await updateRes.json()
-    expect(updateBody.volunteer.supportedMessagingChannels).toEqual(['sms', 'whatsapp'])
+    expect(updateBody.user?.supportedMessagingChannels).toEqual(['sms', 'whatsapp'])
   })
 
-  test('volunteer messagingEnabled flag controls messaging access', async () => {
-    // Create a volunteer
-    const vol = await createVolunteer(adminApi, 'MsgDisabled Vol', uniquePhone())
+  test('user messagingEnabled flag controls messaging access', async () => {
+    // Create a user
+    const vol = await createUser(adminApi, 'MsgDisabled Vol', uniquePhone())
 
-    // Disable messaging for this volunteer
-    const updateRes = await adminApi.patch(`/api/volunteers/${vol.pubkey}`, {
+    // Disable messaging for this user
+    const updateRes = await adminApi.patch(`/api/users/${vol.pubkey}`, {
       messagingEnabled: false,
     })
     expect(updateRes.status()).toBe(200)
     const updateBody = await updateRes.json()
-    expect(updateBody.volunteer.messagingEnabled).toBe(false)
+    expect(updateBody.user?.messagingEnabled).toBe(false)
   })
 })
 
@@ -417,10 +412,9 @@ test.describe('Cleanup test data', () => {
     expect(rolesRes.status()).toBe(200)
     const rolesBody = await rolesRes.json()
 
-    // Delete custom roles created by these tests
+    // Delete custom roles created by these tests (non-default, non-system roles)
     const customRoles = rolesBody.roles.filter(
-      (r: { isDefault: boolean; slug: string }) =>
-        !r.isDefault && ['sms-only', 'wa-signal-only', 'all-channels'].includes(r.slug)
+      (r: { isDefault: boolean; isSystem: boolean }) => !r.isDefault && !r.isSystem
     )
 
     for (const role of customRoles) {

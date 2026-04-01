@@ -2,7 +2,7 @@
  * Permission Matrix Tests
  *
  * Systematically tests every major API endpoint domain against each role:
- * super-admin, hub-admin, volunteer, reviewer, reporter, and unauthenticated.
+ * super-admin, hub-admin, user (volunteer role), reviewer, reporter, and unauthenticated.
  *
  * Uses hub-scoped routes for non-super-admin users (MED-W1 compliance).
  */
@@ -77,28 +77,28 @@ test.describe('Permission Matrix', () => {
     }
   }
 
-  // ─── Volunteers domain ───────────────────────────────────────────────────
+  // ─── Users domain ───────────────────────────────────────────────────
 
-  test.describe('Volunteers domain', () => {
-    test('GET /api/volunteers — read access', async ({ request }) => {
+  test.describe('Users domain', () => {
+    test('GET /api/users — read access', async ({ request }) => {
       // Super-admin: global access
-      const saRes = await adminApi.get('/api/volunteers')
+      const saRes = await adminApi.get('/api/users')
       expect(saRes.status()).toBe(200)
 
       // Hub-admin: can read
-      const haRes = await ctx.api('hub-admin').get('/api/volunteers')
+      const haRes = await ctx.api('hub-admin').get('/api/users')
       expect(haRes.status()).toBe(200)
 
-      // Volunteer: can read (volunteers:read)
-      const volRes = await ctx.api('volunteer').get('/api/volunteers')
+      // User: can read (users:read)
+      const volRes = await ctx.api('volunteer').get('/api/users')
       expect(volRes.status()).toBe(200)
 
-      // Reporter: no volunteers:read
-      const repRes = await ctx.api('reporter').get('/api/volunteers')
+      // Reporter: no users:read
+      const repRes = await ctx.api('reporter').get('/api/users')
       expect(repRes.status()).toBe(403)
     })
 
-    test('POST /api/volunteers — create access', async () => {
+    test('POST /api/users — create access', async () => {
       const body = {
         name: 'Matrix Test Vol',
         phone: '+15550000001',
@@ -107,22 +107,22 @@ test.describe('Permission Matrix', () => {
       }
 
       // Super-admin: allowed (but pubkey '00'.repeat(32) is invalid secp256k1 — returns 400)
-      const saRes = await adminApi.post('/api/volunteers', body)
+      const saRes = await adminApi.post('/api/users', body)
       // Not forbidden (403) — admin has the permission; invalid pubkey may return 400
       expect(saRes.status()).not.toBe(403)
       expect(saRes.status()).not.toBe(500)
 
-      // Volunteer: denied
-      const volRes = await ctx.api('volunteer').post('/api/volunteers', body)
+      // User: denied
+      const volRes = await ctx.api('volunteer').post('/api/users', body)
       expect(volRes.status()).toBe(403)
 
       // Reporter: denied
-      const repRes = await ctx.api('reporter').post('/api/volunteers', body)
+      const repRes = await ctx.api('reporter').post('/api/users', body)
       expect(repRes.status()).toBe(403)
     })
 
     test('unauthenticated requests get 401', async ({ request }) => {
-      const res = await request.get('/api/volunteers')
+      const res = await request.get('/api/users')
       expect(res.status()).toBe(401)
     })
   })
@@ -139,7 +139,7 @@ test.describe('Permission Matrix', () => {
       const haRes = await ctx.api('hub-admin').get(ctx.hubPath('/bans'))
       expect(haRes.status()).toBe(200)
 
-      // Volunteer: no bans:read (gets 400 for missing hub or 403)
+      // User: no bans:read (gets 400 for missing hub or 403)
       const volRes = await ctx.api('volunteer').get(ctx.hubPath('/bans'))
       expect([400, 403]).toContain(volRes.status())
 
@@ -161,7 +161,7 @@ test.describe('Permission Matrix', () => {
         .post(ctx.hubPath('/bans'), { phone: '+15550009998', reason: 'Matrix test ban 2' })
       expect([200, 201]).toContain(haRes.status())
 
-      // Volunteer: denied
+      // User: denied
       const volRes = await ctx.api('volunteer').post(ctx.hubPath('/bans'), body)
       expect(volRes.status()).toBe(403)
     })
@@ -179,9 +179,9 @@ test.describe('Permission Matrix', () => {
       const haRes = await ctx.api('hub-admin').get(ctx.hubPath('/shifts'))
       expect(haRes.status()).toBe(200)
 
-      // Volunteer: has shifts:read-own but not shifts:read (may vary)
+      // User: has shifts:read-own but not shifts:read-all (may vary)
       const volRes = await ctx.api('volunteer').get(ctx.hubPath('/shifts'))
-      // Volunteer might get 200 (shifts:read-own allows list) or 403
+      // User might get 200 (shifts:read-own allows list) or 403
       expect(volRes.status()).not.toBe(500)
     })
 
@@ -191,14 +191,14 @@ test.describe('Permission Matrix', () => {
         startTime: '09:00',
         endTime: '17:00',
         days: [1, 2, 3],
-        volunteerPubkeys: [],
+        userPubkeys: [],
       }
 
       // Super-admin: allowed
       const saRes = await adminApi.post('/api/shifts', body)
       expect([200, 201]).toContain(saRes.status())
 
-      // Volunteer: denied
+      // User: denied
       const volRes = await ctx.api('volunteer').post(ctx.hubPath('/shifts'), body)
       expect(volRes.status()).toBe(403)
 
@@ -220,7 +220,7 @@ test.describe('Permission Matrix', () => {
       const haRes = await ctx.api('hub-admin').get(ctx.hubPath('/audit'))
       expect(haRes.status()).toBe(200)
 
-      // Volunteer: denied
+      // User: denied
       const volRes = await ctx.api('volunteer').get(ctx.hubPath('/audit'))
       expect(volRes.status()).toBe(403)
 
@@ -247,7 +247,7 @@ test.describe('Permission Matrix', () => {
       // Hub-admin may need explicit notes permission; 200 or 403 depending on role config
       expect(haRes.status()).not.toBe(500)
 
-      // Volunteer: has notes:read-own
+      // User: has notes:read-own
       const volRes = await ctx.api('volunteer').get(ctx.hubPath('/notes'))
       expect(volRes.status()).toBe(200)
 
@@ -272,9 +272,9 @@ test.describe('Permission Matrix', () => {
         const saRes = await adminApi.get(endpoint)
         expect(saRes.status(), `admin GET ${endpoint}`).toBe(200)
 
-        // Volunteer: denied
+        // User: denied
         const volRes = await ctx.api('volunteer').get(endpoint)
-        expect(volRes.status(), `volunteer GET ${endpoint}`).toBe(403)
+        expect(volRes.status(), `user GET ${endpoint}`).toBe(403)
 
         // Reporter: denied
         const repRes = await ctx.api('reporter').get(endpoint)
@@ -292,12 +292,11 @@ test.describe('Permission Matrix', () => {
 
     test('role creation requires system:manage-roles', async () => {
       const body = {
-        name: 'Unauthorized Role',
-        slug: `unauth-role-${Date.now().toString(36)}`,
+        encryptedName: 'encrypted-unauthorized-role',
         permissions: ['calls:read-active'],
       }
 
-      // Volunteer: denied
+      // User: denied
       const volRes = await ctx.api('volunteer').post('/api/settings/roles', body)
       expect(volRes.status()).toBe(403)
 
@@ -319,7 +318,7 @@ test.describe('Permission Matrix', () => {
       const haRes = await ctx.api('hub-admin').get(ctx.hubPath('/analytics/calls?days=7'))
       expect(haRes.status()).toBe(200)
 
-      // Volunteer: has calls:read-history — allowed
+      // User: has calls:read-history — allowed
       const volRes = await ctx.api('volunteer').get(ctx.hubPath('/analytics/calls?days=7'))
       expect(volRes.status()).toBe(200)
 
@@ -341,7 +340,7 @@ test.describe('Permission Matrix', () => {
       const haRes = await ctx.api('hub-admin').get(ctx.hubPath('/conversations'))
       expect(haRes.status()).toBe(200)
 
-      // Volunteer: has conversations:claim, conversations:read-assigned
+      // User: has conversations:claim, conversations:read-assigned
       const volRes = await ctx.api('volunteer').get(ctx.hubPath('/conversations'))
       expect(volRes.status()).toBe(200)
 
@@ -385,7 +384,7 @@ test.describe('Permission Matrix', () => {
       const haRes = await ctx.api('hub-admin').get(ctx.hubPath('/contacts'))
       expect(haRes.status()).toBe(200)
 
-      // Volunteer: may or may not have contacts:read
+      // User: may or may not have contacts:read
       const volRes = await ctx.api('volunteer').get(ctx.hubPath('/contacts'))
       expect(volRes.status()).not.toBe(500)
 
@@ -416,7 +415,7 @@ test.describe('Permission Matrix', () => {
       const saRes = await adminApi.get(`/api/gdpr/export/${targetPubkey}`)
       expect(saRes.status()).toBe(200)
 
-      // Volunteer: denied
+      // User: denied
       const volRes = await ctx.api('volunteer').get(`/api/gdpr/export/${targetPubkey}`)
       expect(volRes.status()).toBe(403)
 
@@ -446,7 +445,7 @@ test.describe('Permission Matrix', () => {
         const res = await ctx.api('volunteer').get(path)
         // 400 = hub context required, 403 = permission denied (checked before hub context)
         // Both are correct — the key assertion is they are NOT allowed through
-        expect(res.status(), `volunteer GET ${path} should be denied`).toBeGreaterThanOrEqual(400)
+        expect(res.status(), `user GET ${path} should be denied`).toBeGreaterThanOrEqual(400)
         expect(res.status(), `${path} should not 500`).not.toBe(500)
       }
     })

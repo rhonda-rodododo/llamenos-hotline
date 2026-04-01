@@ -2,24 +2,24 @@ import { describe, expect, test } from 'bun:test'
 import { queryKeys } from './keys'
 
 describe('queryKeys', () => {
-  // --- volunteers ---
-  test('volunteers.all is stable', () => {
-    expect(queryKeys.volunteers.all).toEqual(['volunteers'])
+  // --- users ---
+  test('users.all is stable', () => {
+    expect(queryKeys.users.all).toEqual(['users'])
   })
 
-  test('volunteers.list returns consistent key', () => {
-    expect(queryKeys.volunteers.list()).toEqual(['volunteers', 'list'])
-    expect(queryKeys.volunteers.list()).toEqual(queryKeys.volunteers.list())
+  test('users.list returns consistent key', () => {
+    expect(queryKeys.users.list()).toEqual(['users', 'list'])
+    expect(queryKeys.users.list()).toEqual(queryKeys.users.list())
   })
 
-  test('volunteers.detail includes pubkey', () => {
-    expect(queryKeys.volunteers.detail('abc123')).toEqual(['volunteers', 'detail', 'abc123'])
+  test('users.detail includes pubkey', () => {
+    expect(queryKeys.users.detail('abc123')).toEqual(['users', 'detail', 'abc123'])
   })
 
-  test('volunteers.all is a prefix of list and detail keys', () => {
-    const all = queryKeys.volunteers.all
-    const list = queryKeys.volunteers.list()
-    const detail = queryKeys.volunteers.detail('xyz')
+  test('users.all is a prefix of list and detail keys', () => {
+    const all = queryKeys.users.all
+    const list = queryKeys.users.list()
+    const detail = queryKeys.users.detail('xyz')
     expect(list.slice(0, all.length)).toEqual([...all])
     expect(detail.slice(0, all.length)).toEqual([...all])
   })
@@ -175,7 +175,7 @@ describe('queryKeys', () => {
   // --- prefix matching correctness ---
   test('key factories return arrays starting with their resource name', () => {
     const resourceChecks: [readonly unknown[], string][] = [
-      [queryKeys.volunteers.list(), 'volunteers'],
+      [queryKeys.users.list(), 'users'],
       [queryKeys.notes.list(), 'notes'],
       [queryKeys.calls.active(), 'calls'],
       [queryKeys.shifts.list(), 'shifts'],
@@ -191,7 +191,7 @@ describe('queryKeys', () => {
 
   // --- stability: calling a factory twice returns equal (but not same) arrays ---
   test('factory calls return value-equal arrays each invocation', () => {
-    expect(queryKeys.volunteers.list()).toEqual(queryKeys.volunteers.list())
+    expect(queryKeys.users.list()).toEqual(queryKeys.users.list())
     expect(queryKeys.calls.todayCount()).toEqual(queryKeys.calls.todayCount())
     expect(queryKeys.shifts.myStatus()).toEqual(queryKeys.shifts.myStatus())
     expect(queryKeys.preferences.mine()).toEqual(queryKeys.preferences.mine())

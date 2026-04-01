@@ -341,7 +341,7 @@ jobs:
         env:
           PLAYWRIGHT_BASE_URL: http://localhost:3000
           JWT_SECRET: ${{ env.TEST_JWT_SECRET }}
-        run: bunx playwright test --project=setup --project=api --workers=6
+        run: bunx playwright test --project=api-setup --project=api --workers=6
 
       - name: API test report
         uses: dorny/test-reporter@a6ddd83ac95ff4586f5d3aceeb314d9a1841db95 # v3.0.0

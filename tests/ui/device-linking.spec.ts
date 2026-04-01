@@ -1,20 +1,21 @@
-import { expect, test } from '@playwright/test'
-import { loginAsAdmin } from '../helpers'
+import { expect, test } from '../fixtures/auth'
+import { navigateAfterLogin } from '../helpers'
 
 test.describe('Device linking — /link-device page', () => {
-  test.beforeEach(async ({ page, request }) => {
-    // Ensure no stored key so the page doesn't redirect to /login
+  test('shows start linking button on initial load', async ({ browser }) => {
+    const ctx = await browser.newContext()
+    const page = await ctx.newPage()
     await page.addInitScript(() => localStorage.removeItem('llamenos-encrypted-key-v2'))
-  })
-
-  test('shows start linking button on initial load', async ({ page }) => {
     await page.goto('/link-device')
     await expect(page.getByTestId('link-device-card')).toBeVisible({ timeout: 10000 })
     await expect(page.getByTestId('start-linking')).toBeVisible()
+    await ctx.close()
   })
 
-  test('redirects to /login if user already has a stored key', async ({ page }) => {
-    // Override the beforeEach — inject a fake encrypted key blob
+  test('redirects to /login if user already has a stored key', async ({ browser }) => {
+    const ctx = await browser.newContext()
+    const page = await ctx.newPage()
+    // Inject a fake encrypted key blob
     await page.addInitScript(() => {
       localStorage.setItem(
         'llamenos-encrypted-key-v2',
@@ -33,9 +34,13 @@ test.describe('Device linking — /link-device page', () => {
     })
     await page.goto('/link-device')
     await page.waitForURL((u) => u.toString().includes('/login'), { timeout: 10000 })
+    await ctx.close()
   })
 
-  test('shows QR code and short code after clicking start', async ({ page }) => {
+  test('shows QR code and short code after clicking start', async ({ browser }) => {
+    const ctx = await browser.newContext()
+    const page = await ctx.newPage()
+    await page.addInitScript(() => localStorage.removeItem('llamenos-encrypted-key-v2'))
     await page.goto('/link-device')
     await expect(page.getByTestId('start-linking')).toBeVisible({ timeout: 10000 })
 
@@ -47,9 +52,13 @@ test.describe('Device linking — /link-device page', () => {
     const shortCode = await page.getByTestId('short-code').textContent()
     expect(shortCode).toBeTruthy()
     expect(shortCode?.trim()).toMatch(/^[A-F0-9]{8}$/)
+    await ctx.close()
   })
 
-  test('has language selector and theme toggles', async ({ page }) => {
+  test('has language selector and theme toggles', async ({ browser }) => {
+    const ctx = await browser.newContext()
+    const page = await ctx.newPage()
+    await page.addInitScript(() => localStorage.removeItem('llamenos-encrypted-key-v2'))
     await page.goto('/link-device')
     await expect(page.getByTestId('link-device-card')).toBeVisible({ timeout: 10000 })
 
@@ -57,52 +66,57 @@ test.describe('Device linking — /link-device page', () => {
     await expect(page.getByRole('button', { name: /light/i })).toBeVisible()
     await expect(page.getByRole('button', { name: /dark/i })).toBeVisible()
     await expect(page.getByRole('button', { name: /system/i })).toBeVisible()
+    await ctx.close()
   })
 })
 
 test.describe('Device linking — settings section', () => {
   async function goToLinkedDevices(page: import('@playwright/test').Page) {
-    await loginAsAdmin(page)
     await page.getByRole('link', { name: 'Settings', exact: true }).click()
     await expect(page.getByRole('heading', { name: 'Account Settings', exact: true })).toBeVisible()
     await page.getByRole('heading', { name: /linked devices/i }).click()
   }
 
-  test('settings page has linked devices section with code input', async ({ page }) => {
-    await goToLinkedDevices(page)
+  test('settings page has linked devices section with code input', async ({ adminPage }) => {
+    await goToLinkedDevices(adminPage)
 
-    await expect(page.getByTestId('link-code-input')).toBeVisible({ timeout: 10000 })
-    await expect(page.getByTestId('link-device-button')).toBeVisible()
+    await expect(adminPage.getByTestId('link-code-input')).toBeVisible({ timeout: 10000 })
+    await expect(adminPage.getByTestId('link-device-button')).toBeVisible()
   })
 
-  test('link device button is disabled when code input is empty', async ({ page }) => {
-    await goToLinkedDevices(page)
+  test('link device button is disabled when code input is empty', async ({ adminPage }) => {
+    await goToLinkedDevices(adminPage)
 
-    await expect(page.getByTestId('link-device-button')).toBeVisible({ timeout: 10000 })
-    await expect(page.getByTestId('link-device-button')).toBeDisabled()
+    await expect(adminPage.getByTestId('link-device-button')).toBeVisible({ timeout: 10000 })
+    await expect(adminPage.getByTestId('link-device-button')).toBeDisabled()
   })
 
-  test('entering invalid JSON code shows error', async ({ page }) => {
-    await goToLinkedDevices(page)
+  test('entering invalid JSON code shows error', async ({ adminPage }) => {
+    await goToLinkedDevices(adminPage)
 
-    await page.getByTestId('link-code-input').fill('not-valid-json')
-    await page.getByTestId('link-device-button').click()
+    await adminPage.getByTestId('link-code-input').fill('not-valid-json')
+    await adminPage.getByTestId('link-device-button').click()
 
-    await expect(page.getByText(/invalid|expired|error/i)).toBeVisible({ timeout: 10000 })
+    await expect(adminPage.getByText(/invalid|expired|error/i)).toBeVisible({ timeout: 10000 })
   })
 })
 
 test.describe('Device linking — login page integration', () => {
-  test('recovery view shows link-this-device button when no stored key', async ({ page }) => {
+  test('recovery view shows link-this-device button when no stored key', async ({ browser }) => {
+    const ctx = await browser.newContext()
+    const page = await ctx.newPage()
     await page.addInitScript(() => localStorage.removeItem('llamenos-encrypted-key-v2'))
     await page.goto('/login')
     // No stored key → recovery view is default
     await expect(page.getByRole('link', { name: /link this device/i })).toBeVisible({
       timeout: 10000,
     })
+    await ctx.close()
   })
 
-  test('link-this-device button navigates to /link-device', async ({ page }) => {
+  test('link-this-device button navigates to /link-device', async ({ browser }) => {
+    const ctx = await browser.newContext()
+    const page = await ctx.newPage()
     await page.addInitScript(() => localStorage.removeItem('llamenos-encrypted-key-v2'))
     await page.goto('/login')
     await expect(page.getByRole('link', { name: /link this device/i })).toBeVisible({
@@ -111,9 +125,12 @@ test.describe('Device linking — login page integration', () => {
 
     await page.getByRole('link', { name: /link this device/i }).click()
     await expect(page.getByTestId('link-device-card')).toBeVisible({ timeout: 10000 })
+    await ctx.close()
   })
 
-  test('recovery options from PIN view shows link-this-device', async ({ page }) => {
+  test('recovery options from PIN view shows link-this-device', async ({ browser }) => {
+    const ctx = await browser.newContext()
+    const page = await ctx.newPage()
     // Inject fake stored key for PIN view
     await page.addInitScript(() => {
       localStorage.setItem(
@@ -138,5 +155,6 @@ test.describe('Device linking — login page integration', () => {
     await expect(page.getByRole('link', { name: /link this device/i })).toBeVisible({
       timeout: 5000,
     })
+    await ctx.close()
   })
 })

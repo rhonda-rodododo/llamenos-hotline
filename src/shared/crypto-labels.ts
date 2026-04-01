@@ -117,7 +117,7 @@ export const LABEL_SERVER_NOSTR_KEY_INFO = 'llamenos:server-nostr-key:v1'
 /** Wake-tier ECIES push payload — decryptable without PIN (minimal metadata only) */
 export const LABEL_PUSH_WAKE = 'llamenos:push-wake'
 
-/** Full-tier ECIES push payload — decryptable only with volunteer's nsec */
+/** Full-tier ECIES push payload — decryptable only with user's nsec */
 export const LABEL_PUSH_FULL = 'llamenos:push-full'
 
 // --- Contact Identifier Encryption (Epic 255) ---
@@ -138,15 +138,20 @@ export const LABEL_VOICEMAIL_WRAP = 'llamenos:voicemail-audio'
 /** Voicemail transcript encryption (domain-separated from generic LABEL_MESSAGE) */
 export const LABEL_VOICEMAIL_TRANSCRIPT = 'llamenos:voicemail-transcript'
 
+// --- Contact Intake Encryption ---
+
+/** Contact intake payload — E2EE, enveloped for submitter + triage users. */
+export const LABEL_CONTACT_INTAKE = 'llamenos:contact-intake:v1'
+
 // --- Contact Directory Encryption ---
 
-/** Contact summary (Tier 1) — display name, notes, languages. Enveloped for contacts:read-summary recipients. */
+/** Contact summary (Tier 1) — display name, notes, languages. Enveloped for contacts:envelope-summary recipients. */
 export const LABEL_CONTACT_SUMMARY = 'llamenos:contact-summary'
 
-/** Contact PII (Tier 2) — full name, phone, email, address, DOB. Enveloped for contacts:read-pii recipients. */
+/** Contact PII (Tier 2) — full name, phone, email, address, DOB. Enveloped for contacts:envelope-full recipients. */
 export const LABEL_CONTACT_PII = 'llamenos:contact-pii'
 
-/** Contact relationship payload — fully E2EE, server sees nothing. Enveloped for contacts:read-pii recipients. */
+/** Contact relationship payload — fully E2EE, server sees nothing. Enveloped for contacts:envelope-full recipients. */
 export const LABEL_CONTACT_RELATIONSHIP = 'llamenos:contact-relationship'
 
 // --- Storage Credential Encryption ---
@@ -181,8 +186,8 @@ export const LABEL_BLAST_SETTINGS = 'llamenos:blast-settings:v1'
 
 // --- Field-Level Encryption (Phase 1) ---
 
-/** Server-key encryption of volunteer/invite PII (phone numbers) */
-export const LABEL_VOLUNTEER_PII = 'llamenos:volunteer-pii:v1'
+/** Server-key encryption of user/invite PII (phone numbers) */
+export const LABEL_USER_PII = 'llamenos:volunteer-pii:v1'
 
 /** Server-key encryption of ephemeral call data (caller numbers during active calls) */
 export const LABEL_EPHEMERAL_CALL = 'llamenos:ephemeral-call:v1'

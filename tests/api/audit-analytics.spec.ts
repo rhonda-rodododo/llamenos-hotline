@@ -31,7 +31,7 @@ test.describe('Audit Log and Analytics', () => {
       startTime: '09:00',
       endTime: '17:00',
       days: [1],
-      volunteerPubkeys: [],
+      userPubkeys: [],
     })
     if (shiftRes.ok()) {
       const { shift } = await shiftRes.json()
@@ -117,7 +117,7 @@ test.describe('Audit Log and Analytics', () => {
       expect(res.status()).toBe(200)
     })
 
-    test('volunteer cannot access audit log', async () => {
+    test('user cannot access audit log', async () => {
       const res = await ctx.api('volunteer').get(ctx.hubPath('/audit'))
       expect(res.status()).toBe(403)
     })
@@ -164,8 +164,8 @@ test.describe('Audit Log and Analytics', () => {
       expect(res.status()).toBe(200)
     })
 
-    test('volunteer analytics (requires audit:read)', async () => {
-      const res = await adminApi.get(ctx.hubPath('/analytics/volunteers'))
+    test('user analytics (requires audit:read)', async () => {
+      const res = await adminApi.get(ctx.hubPath('/analytics/users'))
       expect(res.status()).toBe(200)
     })
 
@@ -174,7 +174,7 @@ test.describe('Audit Log and Analytics', () => {
       expect(res.status()).toBe(200)
     })
 
-    test('volunteer can access call analytics (has calls:read-history)', async () => {
+    test('user can access call analytics (has calls:read-history)', async () => {
       const res = await ctx.api('volunteer').get(ctx.hubPath('/analytics/calls?days=7'))
       expect(res.status()).toBe(200)
     })

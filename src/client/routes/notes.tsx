@@ -7,10 +7,11 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import type { CallRecord } from '@/lib/api'
 import { useAuth } from '@/lib/auth'
+import { useConfig } from '@/lib/config'
 import { encryptNoteV2 } from '@/lib/crypto'
 import { useCallHistory } from '@/lib/queries/calls'
 import { useCreateNote, useCustomFields, useNotes, useUpdateNote } from '@/lib/queries/notes'
-import { useVolunteers } from '@/lib/queries/volunteers'
+import { useUsers } from '@/lib/queries/users'
 import { useToast } from '@/lib/toast'
 import type { FileFieldValue, NotePayload } from '@shared/types'
 import { Link, createFileRoute, useNavigate } from '@tanstack/react-router'
@@ -44,6 +45,8 @@ export const Route = createFileRoute('/notes')({
 function NotesPage() {
   const { t } = useTranslation()
   const { hasNsec, publicKey, isAdmin, adminDecryptionPubkey } = useAuth()
+  const { currentHubId } = useConfig()
+  const hubId = currentHubId ?? 'global'
   const { toast } = useToast()
   const navigate = useNavigate({ from: '/notes' })
   const { page, callId, search } = Route.useSearch()
@@ -59,8 +62,8 @@ function NotesPage() {
     page,
     limit,
   })
-  const { data: customFieldsData } = useCustomFields()
-  const { data: volunteersData } = useVolunteers()
+  const { data: customFieldsData } = useCustomFields(hubId)
+  const { data: usersData } = useUsers()
   const { data: callHistoryData } = useCallHistory(isAdmin ? { limit: 100 } : undefined)
 
   const createNoteMutation = useCreateNote()
@@ -69,14 +72,14 @@ function NotesPage() {
   const notes = notesData?.notes ?? []
   const total = notesData?.total ?? 0
   const customFields = customFieldsData ?? []
-  const volunteers = volunteersData ?? []
+  const allUsers = usersData ?? []
   const recentCalls: CallRecord[] = callHistoryData?.calls ?? []
 
   const nameMap = useMemo(() => {
     const map = new Map<string, string>()
-    for (const v of volunteers) map.set(v.pubkey, v.name)
+    for (const v of allUsers) map.set(v.pubkey, v.name)
     return map
-  }, [volunteers])
+  }, [allUsers])
 
   const callInfoMap = useMemo(() => {
     const map = new Map<string, CallRecord>()
@@ -159,7 +162,9 @@ function NotesPage() {
   }, {})
 
   const totalPages = Math.ceil(total / limit)
-  const visibleFields = customFields.filter((f) => isAdmin || f.visibleToVolunteers)
+  const visibleFields = customFields.filter(
+    (f) => isAdmin || f.visibleTo === 'contacts:envelope-summary'
+  )
   const saving = createNoteMutation.isPending || updateNoteMutation.isPending
 
   async function handleExport() {
@@ -293,7 +298,7 @@ function NotesPage() {
                   {(() => {
                     const callInfo = callInfoMap.get(cId)
                     if (!callInfo) return t('notes.callWith', { number: `${cId.slice(0, 12)}...` })
-                    const volunteerName = callInfo.answeredBy
+                    const answeredByName = callInfo.answeredBy
                       ? nameMap.get(callInfo.answeredBy)
                       : null
                     const cl4 = callInfo.callerLast4 ?? ''
@@ -302,16 +307,16 @@ function NotesPage() {
                       <span className="flex flex-wrap items-center gap-1.5">
                         {callInfo.status === 'unanswered' ? (
                           <span className="text-destructive">{t('callHistory.unanswered')}</span>
-                        ) : volunteerName && isAdmin ? (
+                        ) : answeredByName && isAdmin ? (
                           <Link
-                            to="/volunteers/$pubkey"
+                            to="/users/$pubkey"
                             params={{ pubkey: callInfo.answeredBy! }}
                             className="text-primary hover:underline"
                           >
-                            {volunteerName}
+                            {answeredByName}
                           </Link>
-                        ) : volunteerName ? (
-                          <span>{volunteerName}</span>
+                        ) : answeredByName ? (
+                          <span>{answeredByName}</span>
                         ) : (
                           <span>{t('callHistory.answeredBy')}</span>
                         )}

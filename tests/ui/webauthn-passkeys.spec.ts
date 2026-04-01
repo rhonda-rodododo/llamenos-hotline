@@ -1,5 +1,5 @@
-import { expect, test } from '@playwright/test'
-import { loginAsAdmin, navigateAfterLogin } from '../helpers'
+import { expect, test } from '../fixtures/auth'
+import { navigateAfterLogin } from '../helpers'
 
 // Window type augmentation for authed fetch helper
 declare global {
@@ -20,7 +20,8 @@ async function injectAuthedFetch(page: import('@playwright/test').Page) {
         ...((options.headers as Record<string, string>) || {}),
       }
       // Use JWT token from localStorage (set during login)
-      const token = sessionStorage.getItem('__TEST_JWT')
+      const token =
+        window.__TEST_AUTH_FACADE?.getAccessToken() ?? sessionStorage.getItem('__TEST_JWT')
       if (token) {
         headers.Authorization = `Bearer ${token}`
       }
@@ -37,12 +38,11 @@ test.describe('WebAuthn passkey registration and login', () => {
     test.skip(browserName !== 'chromium', 'WebAuthn CDP virtual authenticator requires Chromium')
   })
 
-  test('register options endpoint requires authentication', async ({ page }) => {
-    await loginAsAdmin(page)
-    await injectAuthedFetch(page)
+  test('register options endpoint requires authentication', async ({ adminPage }) => {
+    await injectAuthedFetch(adminPage)
 
     // Authenticated request should get options back
-    const result = await page.evaluate(async () => {
+    const result = await adminPage.evaluate(async () => {
       const res = await window.__authedFetch('/api/auth/webauthn/register-options', {
         method: 'POST',
         body: JSON.stringify({ label: 'Test Passkey' }),
@@ -54,10 +54,8 @@ test.describe('WebAuthn passkey registration and login', () => {
     expect(result.data).toHaveProperty('challenge')
   })
 
-  test('unauthenticated register options request returns 401', async ({ page }) => {
-    await loginAsAdmin(page)
-
-    const result = await page.evaluate(async () => {
+  test('unauthenticated register options request returns 401', async ({ adminPage }) => {
+    const result = await adminPage.evaluate(async () => {
       const res = await fetch('/api/auth/webauthn/register-options', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -67,10 +65,8 @@ test.describe('WebAuthn passkey registration and login', () => {
     expect(result).toBe(401)
   })
 
-  test('login options endpoint is public (no auth required)', async ({ page }) => {
-    await loginAsAdmin(page)
-
-    const result = await page.evaluate(async () => {
+  test('login options endpoint is public (no auth required)', async ({ adminPage }) => {
+    const result = await adminPage.evaluate(async () => {
       const res = await fetch('/api/auth/webauthn/login-options', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -84,12 +80,11 @@ test.describe('WebAuthn passkey registration and login', () => {
     }
   })
 
-  test('register a passkey via CDP virtual authenticator', async ({ page }) => {
-    await loginAsAdmin(page)
-    await injectAuthedFetch(page)
+  test('register a passkey via CDP virtual authenticator', async ({ adminPage }) => {
+    await injectAuthedFetch(adminPage)
 
     // Enable Chrome's virtual authenticator environment
-    const cdp = await page.context().newCDPSession(page)
+    const cdp = await adminPage.context().newCDPSession(adminPage)
     await cdp.send('WebAuthn.enable', { enableUI: false })
     const { authenticatorId } = await cdp.send('WebAuthn.addVirtualAuthenticator', {
       options: {
@@ -104,10 +99,10 @@ test.describe('WebAuthn passkey registration and login', () => {
 
     try {
       // Navigate to settings where passkey management lives
-      await navigateAfterLogin(page, '/settings')
+      await navigateAfterLogin(adminPage, '/settings')
 
       // Verify the page loaded
-      const pageLoaded = await page
+      const pageLoaded = await adminPage
         .getByRole('heading', { name: /settings/i })
         .isVisible({ timeout: 10000 })
         .catch(() => false)
@@ -117,7 +112,7 @@ test.describe('WebAuthn passkey registration and login', () => {
       }
 
       // Get registration options via API
-      const regOptions = await page.evaluate(async () => {
+      const regOptions = await adminPage.evaluate(async () => {
         const res = await window.__authedFetch('/api/auth/webauthn/register-options', {
           method: 'POST',
           body: JSON.stringify({ label: 'Test Passkey' }),
@@ -127,7 +122,7 @@ test.describe('WebAuthn passkey registration and login', () => {
       expect(regOptions).toHaveProperty('challenge')
 
       // Use @simplewebauthn/browser if available in page context, otherwise use raw navigator.credentials
-      const regResult = await page.evaluate(async (opts: Record<string, unknown>) => {
+      const regResult = await adminPage.evaluate(async (opts: Record<string, unknown>) => {
         try {
           // Attempt import of simplewebauthn/browser (may not be in page bundle)
           const { startRegistration } = await import('@simplewebauthn/browser' as string)
@@ -169,7 +164,7 @@ test.describe('WebAuthn passkey registration and login', () => {
 
       // Registration response may be null if browser API isn't available in this context
       if (regResult) {
-        const verifyResult = await page.evaluate(
+        const verifyResult = await adminPage.evaluate(
           async ({ attestation, challengeId }: { attestation: unknown; challengeId?: string }) => {
             const body: Record<string, unknown> = {
               attestation,
@@ -200,11 +195,10 @@ test.describe('WebAuthn passkey registration and login', () => {
     }
   })
 
-  test('credentials list endpoint returns array after registration', async ({ page }) => {
-    await loginAsAdmin(page)
-    await injectAuthedFetch(page)
+  test('credentials list endpoint returns array after registration', async ({ adminPage }) => {
+    await injectAuthedFetch(adminPage)
 
-    const result = await page.evaluate(async () => {
+    const result = await adminPage.evaluate(async () => {
       const res = await window.__authedFetch('/api/auth/devices')
       return { status: res.status, data: res.ok ? await res.json() : await res.text() }
     })
@@ -217,13 +211,12 @@ test.describe('WebAuthn passkey registration and login', () => {
   })
 
   test('full auth facade flow: register → login-verify returns JWT → userinfo returns nsecSecret', async ({
-    page,
+    adminPage,
   }) => {
-    await loginAsAdmin(page)
-    await injectAuthedFetch(page)
+    await injectAuthedFetch(adminPage)
 
     // Step 1: Register a passkey via the facade
-    const cdp = await page.context().newCDPSession(page)
+    const cdp = await adminPage.context().newCDPSession(adminPage)
     await cdp.send('WebAuthn.enable', { enableUI: false })
     const { authenticatorId } = await cdp.send('WebAuthn.addVirtualAuthenticator', {
       options: {
@@ -237,10 +230,10 @@ test.describe('WebAuthn passkey registration and login', () => {
     })
 
     try {
-      await navigateAfterLogin(page, '/settings')
+      await navigateAfterLogin(adminPage, '/settings')
 
       // Get registration options
-      const regOptions = await page.evaluate(async () => {
+      const regOptions = await adminPage.evaluate(async () => {
         const res = await window.__authedFetch('/api/auth/webauthn/register-options', {
           method: 'POST',
           body: JSON.stringify({ label: 'Facade Flow Key' }),
@@ -252,7 +245,7 @@ test.describe('WebAuthn passkey registration and login', () => {
       expect(regOptions).toHaveProperty('challengeId')
 
       // Create credential using raw WebAuthn API (virtual authenticator will auto-confirm)
-      const regResult = await page.evaluate(
+      const regResult = await adminPage.evaluate(
         async (opts: Record<string, unknown>) => {
           const challenge = Uint8Array.from(
             atob((opts.challenge as string).replace(/-/g, '+').replace(/_/g, '/')),
@@ -294,7 +287,7 @@ test.describe('WebAuthn passkey registration and login', () => {
       }
 
       // Step 2: Verify registration
-      const verifyRegResult = await page.evaluate(
+      const verifyRegResult = await adminPage.evaluate(
         async ({ attestation, challengeId }: { attestation: unknown; challengeId: string }) => {
           const res = await window.__authedFetch('/api/auth/webauthn/register-verify', {
             method: 'POST',
@@ -309,7 +302,7 @@ test.describe('WebAuthn passkey registration and login', () => {
 
       // Step 3: Login via the facade using the registered passkey
       // Get login options (public endpoint)
-      const loginOptions = await page.evaluate(async () => {
+      const loginOptions = await adminPage.evaluate(async () => {
         const res = await fetch('/api/auth/webauthn/login-options', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -321,7 +314,7 @@ test.describe('WebAuthn passkey registration and login', () => {
       expect(loginOptions).toHaveProperty('challengeId')
 
       // Create assertion (virtual authenticator auto-selects registered credential)
-      const assertionResult = await page.evaluate(
+      const assertionResult = await adminPage.evaluate(
         async (opts: Record<string, unknown>) => {
           const challenge = Uint8Array.from(
             atob((opts.challenge as string).replace(/-/g, '+').replace(/_/g, '/')),
@@ -355,7 +348,7 @@ test.describe('WebAuthn passkey registration and login', () => {
       }
 
       // Step 4: Verify login — response must contain a JWT accessToken (not a session token)
-      const loginVerifyResult = await page.evaluate(
+      const loginVerifyResult = await adminPage.evaluate(
         async ({ assertion, challengeId }: { assertion: unknown; challengeId: string }) => {
           const res = await fetch('/api/auth/webauthn/login-verify', {
             method: 'POST',
@@ -379,7 +372,7 @@ test.describe('WebAuthn passkey registration and login', () => {
       expect(jwtParts).toHaveLength(3)
 
       // Step 5: Use the JWT to call GET /api/auth/userinfo
-      const userinfoResult = await page.evaluate(async (token: string) => {
+      const userinfoResult = await adminPage.evaluate(async (token: string) => {
         const res = await fetch('/api/auth/userinfo', {
           headers: { Authorization: `Bearer ${token}` },
         })

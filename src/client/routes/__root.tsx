@@ -26,6 +26,7 @@ import { ReactQueryDevtools } from '@tanstack/react-query-devtools'
 import { Link, Outlet, createRootRoute, useLocation, useNavigate } from '@tanstack/react-router'
 import {
   Building2,
+  ClipboardList,
   Clock,
   Contact,
   FileText,
@@ -64,6 +65,7 @@ function RootLayout() {
     name,
     isLoading,
     profileCompleted,
+    needsKeySetup,
     hasPermission,
     primaryRoleName,
   } = useAuth()
@@ -99,10 +101,11 @@ function RootLayout() {
   }, [isLoading, configLoading, isAuthenticated, location.pathname, navigate, needsBootstrap])
 
   useEffect(() => {
-    if (!isLoading && isAuthenticated && location.pathname === '/login') {
+    // Don't redirect away from /login during post-passkey PIN setup (needsKeySetup)
+    if (!isLoading && isAuthenticated && !needsKeySetup && location.pathname === '/login') {
       navigate({ to: profileCompleted ? '/' : '/profile-setup' })
     }
-  }, [isLoading, isAuthenticated, location.pathname, navigate, profileCompleted])
+  }, [isLoading, isAuthenticated, needsKeySetup, location.pathname, navigate, profileCompleted])
 
   // Redirect to profile setup if not completed (skip during setup wizard)
   useEffect(() => {
@@ -411,8 +414,8 @@ function AuthenticatedLayout() {
                 <NavLink to="/shifts" icon={<Clock className="h-4 w-4" />}>
                   {t('nav.shifts')}
                 </NavLink>
-                <NavLink to="/volunteers" icon={<Users className="h-4 w-4" />}>
-                  {t('nav.volunteers')}
+                <NavLink to="/users" icon={<Users className="h-4 w-4" />}>
+                  {t('nav.users')}
                 </NavLink>
                 <NavLink to="/bans" icon={<ShieldBan className="h-4 w-4" />}>
                   {t('nav.banList')}
@@ -420,6 +423,11 @@ function AuthenticatedLayout() {
                 {hasPermission('contacts:read') && (
                   <NavLink to="/contacts" icon={<Contact className="h-4 w-4" />}>
                     {t('nav.contacts', { defaultValue: 'Contacts' })}
+                  </NavLink>
+                )}
+                {(hasPermission('contacts:triage') || hasPermission('notes:create')) && (
+                  <NavLink to="/intakes" icon={<ClipboardList className="h-4 w-4" />}>
+                    {t('nav.intakes', { defaultValue: 'Intakes' })}
                   </NavLink>
                 )}
                 <NavLink to="/audit" icon={<ScrollText className="h-4 w-4" />}>

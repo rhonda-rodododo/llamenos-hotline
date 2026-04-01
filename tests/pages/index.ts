@@ -6,7 +6,7 @@
  * not across all test files.
  */
 
-import { type Page, type Locator, expect } from '@playwright/test'
+import { type Locator, type Page, expect } from '@playwright/test'
 import { TestIds, rowTestId } from '../test-ids'
 
 // ============ Base Page Helpers ============
@@ -26,10 +26,10 @@ export async function waitForApiAndUi(page: Page, timeout = 2000): Promise<void>
 export async function clickAndWaitForApi(
   page: Page,
   buttonLocator: Locator,
-  apiPattern: string | RegExp,
+  apiPattern: string | RegExp
 ): Promise<void> {
   await Promise.all([
-    page.waitForResponse(r => {
+    page.waitForResponse((r) => {
       const url = r.url()
       return typeof apiPattern === 'string' ? url.includes(apiPattern) : apiPattern.test(url)
     }),
@@ -45,9 +45,9 @@ export const Navigation = {
     await expect(page.getByRole('heading', { name: 'Dashboard', exact: true })).toBeVisible()
   },
 
-  async goToVolunteers(page: Page): Promise<void> {
-    await page.getByRole('link', { name: 'Volunteers' }).click()
-    await expect(page.getByRole('heading', { name: 'Volunteers' })).toBeVisible()
+  async goToUsers(page: Page): Promise<void> {
+    await page.getByRole('link', { name: 'Users' }).click()
+    await expect(page.getByRole('heading', { name: 'Users' })).toBeVisible()
   },
 
   async goToShifts(page: Page): Promise<void> {
@@ -101,47 +101,47 @@ export const Navigation = {
   },
 }
 
-// ============ Volunteer Page ============
+// ============ User Page ============
 
-export const VolunteerPage = {
+export const UserPage = {
   /**
-   * Get a volunteer row by name.
+   * Get a user row by name.
    */
   getRow(page: Page, name: string): Locator {
-    return page.getByTestId(TestIds.VOLUNTEER_ROW).filter({ hasText: name })
+    return page.getByTestId(TestIds.USER_ROW).filter({ hasText: name })
   },
 
   /**
-   * Get a volunteer row by test ID with identifier.
+   * Get a user row by test ID with identifier.
    */
   getRowById(page: Page, pubkey: string): Locator {
-    return page.getByTestId(rowTestId(TestIds.VOLUNTEER_ROW, pubkey))
+    return page.getByTestId(rowTestId(TestIds.USER_ROW, pubkey))
   },
 
   /**
-   * Open the add volunteer form.
+   * Open the add user form.
    */
   async openAddForm(page: Page): Promise<void> {
-    await page.getByTestId(TestIds.VOLUNTEER_ADD_BTN).click()
+    await page.getByTestId(TestIds.USER_ADD_BTN).click()
     await expect(page.getByLabel('Name')).toBeVisible()
   },
 
   /**
-   * Fill and submit the add volunteer form.
+   * Fill and submit the add user form.
    */
-  async addVolunteer(page: Page, name: string, phone: string): Promise<void> {
+  async addUser(page: Page, name: string, phone: string): Promise<void> {
     await page.getByLabel('Name').fill(name)
     await page.getByLabel('Phone Number').fill(phone)
     await page.getByLabel('Phone Number').blur()
     await page.getByTestId(TestIds.FORM_SAVE_BTN).click()
-    await expect(page.getByTestId(TestIds.VOLUNTEER_NSEC_CODE)).toBeVisible({ timeout: 15000 })
+    await expect(page.getByTestId(TestIds.USER_NSEC_CODE)).toBeVisible({ timeout: 15000 })
   },
 
   /**
    * Get the generated nsec from the nsec card.
    */
   async getNsec(page: Page): Promise<string> {
-    const nsecCode = page.getByTestId(TestIds.VOLUNTEER_NSEC_CODE)
+    const nsecCode = page.getByTestId(TestIds.USER_NSEC_CODE)
     await expect(nsecCode).toBeVisible({ timeout: 15000 })
     const nsec = await nsecCode.textContent()
     if (!nsec) throw new Error('Failed to get nsec')
@@ -157,12 +157,15 @@ export const VolunteerPage = {
   },
 
   /**
-   * Delete a volunteer by name.
+   * Delete a user by name.
    */
-  async deleteVolunteer(page: Page, name: string): Promise<void> {
+  async deleteUser(page: Page, name: string): Promise<void> {
     const row = this.getRow(page, name)
-    await row.getByTestId(TestIds.VOLUNTEER_DELETE_BTN).click()
-    await page.getByRole('dialog').getByRole('button', { name: /delete/i }).click()
+    await row.getByTestId(TestIds.USER_DELETE_BTN).click()
+    await page
+      .getByRole('dialog')
+      .getByRole('button', { name: /delete/i })
+      .click()
     await expect(page.getByRole('dialog')).toBeHidden()
   },
 }
@@ -191,7 +194,7 @@ export const ShiftPage = {
   async createShift(
     page: Page,
     name: string,
-    options?: { startTime?: string; endTime?: string },
+    options?: { startTime?: string; endTime?: string }
   ): Promise<void> {
     await page.getByTestId(TestIds.SHIFT_NAME_INPUT).fill(name)
     if (options?.startTime) {

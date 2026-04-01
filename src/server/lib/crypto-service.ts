@@ -18,6 +18,28 @@ import {
 import type { Ciphertext, HmacHash } from '@shared/crypto-types'
 import type { RecipientEnvelope } from '@shared/types'
 
+/**
+ * Server-side cryptographic operations.
+ *
+ * Encryption tiers (in order of preference):
+ * 1. Envelope E2EE (ECIES per-recipient) — contacts, notes, PII, user/invite phone
+ * 2. Hub-key E2EE (symmetric, all hub members) — org metadata (role/hub/team/shift/tag names)
+ * 3. Server-key (below) — ONLY for fields the server must process at runtime
+ *
+ * Fields that MUST remain server-key encrypted:
+ * - provider_config credentials (server calls telephony/messaging APIs)
+ * - ivr_audio data (server serves to telephony bridge)
+ * - blast_settings welcome/bye/opt-in messages (server sends SMS)
+ * - push_subscriptions endpoint/auth/p256dh (server sends web push)
+ * - subscribers identifier (server sends blasts)
+ * - geocoding_config api_key (server calls geocoding API)
+ * - signal_registration_pending number (server registers with Signal bridge)
+ * - audit_log event/details (server writes audit entries)
+ * - active_calls caller number (server routes calls)
+ * - call_legs phone (server initiates call legs)
+ *
+ * All other encrypted fields use hub-key E2EE or envelope E2EE.
+ */
 export class CryptoService {
   private derivedKeys = new Map<string, Uint8Array>()
   private cachedServerPrivateKey: Uint8Array | null = null
@@ -160,6 +182,47 @@ export class CryptoService {
       throw new Error(`No hub key envelope for server pubkey ${pubkey}`)
     }
     return eciesUnwrapKey(envelope, privateKey, LABEL_HUB_KEY_WRAP)
+  }
+
+  /** Get the server's x-only public key hex (for hub key envelope inclusion). */
+  getServerPubkey(): string {
+    return this.getServerPrivateKey().pubkey
+  }
+
+  /**
+   * Generate a random hub key and ECIES-wrap it for each recipient pubkey.
+   * Always includes the server's own pubkey so the server can later re-wrap
+   * for new members (e.g., when an invite is redeemed).
+   */
+  generateAndWrapHubKey(recipientPubkeys: string[]): {
+    hubKey: Uint8Array
+    envelopes: Array<{ pubkey: string; wrappedKey: string; ephemeralPubkey: string }>
+  } {
+    const hubKey = crypto.getRandomValues(new Uint8Array(32))
+    const serverPubkey = this.getServerPubkey()
+    const allPubkeys = [...new Set([...recipientPubkeys, serverPubkey])]
+    const envelopes = allPubkeys.map((pubkey) => {
+      const { wrappedKey, ephemeralPubkey } = eciesWrapKey(hubKey, pubkey, LABEL_HUB_KEY_WRAP)
+      return { pubkey, wrappedKey, ephemeralPubkey }
+    })
+    return { hubKey, envelopes }
+  }
+
+  /**
+   * Wrap an existing hub key for a new recipient pubkey.
+   * Server unwraps its own envelope, then ECIES-wraps for the new recipient.
+   */
+  wrapHubKeyForNewMember(
+    existingEnvelopes: Array<{ pubkey: string; wrappedKey: string; ephemeralPubkey: string }>,
+    newMemberPubkey: string
+  ): { pubkey: string; wrappedKey: string; ephemeralPubkey: string } {
+    const hubKey = this.unwrapHubKey(existingEnvelopes)
+    const { wrappedKey, ephemeralPubkey } = eciesWrapKey(
+      hubKey,
+      newMemberPubkey,
+      LABEL_HUB_KEY_WRAP
+    )
+    return { pubkey: newMemberPubkey, wrappedKey, ephemeralPubkey }
   }
 }
 

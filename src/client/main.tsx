@@ -18,6 +18,9 @@ declare global {
     __TEST_ROUTER: typeof router
     __TEST_KEY_MANAGER: typeof import('./lib/key-manager')
     __TEST_AUTH_FACADE: typeof import('./lib/auth-facade-client').authFacadeClient
+    __TEST_HUB_KEY_CACHE: {
+      set: (hubId: string, key: Uint8Array) => void
+    }
     __llamenos_test_crypto: {
       encryptNoteV2: typeof import('./lib/crypto').encryptNoteV2
       decryptNoteV2: typeof import('./lib/crypto').decryptNoteV2
@@ -34,6 +37,9 @@ if (typeof window !== 'undefined') {
   })
   import('./lib/auth-facade-client').then(({ authFacadeClient }) => {
     window.__TEST_AUTH_FACADE = authFacadeClient
+  })
+  import('./lib/hub-key-cache').then(({ setHubKeyForTest }) => {
+    window.__TEST_HUB_KEY_CACHE = { set: setHubKeyForTest }
   })
   import('./lib/crypto').then(({ encryptNoteV2, decryptNoteV2, decryptMessage }) => {
     window.__llamenos_test_crypto = { encryptNoteV2, decryptNoteV2, decryptMessage }

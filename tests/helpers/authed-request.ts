@@ -3,6 +3,9 @@
  *
  * Generates JWT auth tokens directly in Node/Bun, without needing a browser context.
  */
+import * as fs from 'node:fs'
+import * as path from 'node:path'
+import { fileURLToPath } from 'node:url'
 import type { APIRequestContext, APIResponse } from '@playwright/test'
 import { getPublicKey } from 'nostr-tools'
 import { nip19 } from 'nostr-tools'
@@ -100,12 +103,100 @@ export function createAuthedRequestFromNsec(
 }
 
 /**
+ * Create an AuthedRequest from a hex pubkey directly (no secret key needed).
+ * Signs JWTs using the test JWT_SECRET with the provided pubkey as subject.
+ *
+ * Useful when the admin's nsec is unknown (e.g., bootstrapped via real UI flow)
+ * but the pubkey is available from storage state or refresh token.
+ */
+export function createAuthedRequestFromPubkey(
+  request: APIRequestContext,
+  pubkey: string,
+  permissions: string[] = ['*']
+): AuthedRequest {
+  const jwtSecret =
+    process.env.JWT_SECRET || '0000000000000000000000000000000000000000000000000000000000000003'
+
+  async function authHeaders(extra?: Record<string, string>): Promise<Record<string, string>> {
+    const token = await signAccessToken({ pubkey, permissions }, jwtSecret, { expiresIn: '15m' })
+    return {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json',
+      ...extra,
+    }
+  }
+
+  return {
+    pubkey,
+    async get(path, opts?) {
+      return request.get(path, { headers: await authHeaders(opts?.headers) })
+    },
+    async post(path, data?, opts?) {
+      return request.post(path, {
+        headers: await authHeaders(opts?.headers),
+        ...(data !== undefined ? { data } : {}),
+      })
+    },
+    async put(path, data?, opts?) {
+      return request.put(path, {
+        headers: await authHeaders(opts?.headers),
+        ...(data !== undefined ? { data } : {}),
+      })
+    },
+    async patch(path, data?, opts?) {
+      return request.patch(path, {
+        headers: await authHeaders(opts?.headers),
+        ...(data !== undefined ? { data } : {}),
+      })
+    },
+    async delete(path, data?, opts?) {
+      return request.delete(path, {
+        headers: await authHeaders(opts?.headers),
+        ...(data !== undefined ? { data } : {}),
+      })
+    },
+  }
+}
+
+/**
+ * Extract admin pubkey from the stored admin.json storage state file.
+ * Reads the refresh cookie JWT and decodes the `sub` claim (= admin pubkey).
+ */
+export function getAdminPubkeyFromStorageState(): string {
+  const __dirname = path.dirname(fileURLToPath(import.meta.url))
+  const storageStatePath = path.resolve(__dirname, '..', 'storage', 'admin.json')
+  const storageState = JSON.parse(fs.readFileSync(storageStatePath, 'utf-8'))
+  const refreshCookie = storageState.cookies?.find(
+    (c: { name: string }) => c.name === 'llamenos-refresh'
+  )
+  if (!refreshCookie) {
+    throw new Error('No llamenos-refresh cookie found in admin.json storage state')
+  }
+  const payload = JSON.parse(Buffer.from(refreshCookie.value.split('.')[1], 'base64url').toString())
+  if (!payload.sub) {
+    throw new Error('No sub claim found in admin refresh token')
+  }
+  return payload.sub as string
+}
+
+/**
+ * Create an admin AuthedRequest from the stored admin.json storage state.
+ * Extracts the admin's pubkey from the refresh cookie and creates a properly
+ * signed JWT. Works for UI tests where the admin was bootstrapped via real
+ * UI flow (not from a hardcoded nsec).
+ */
+export function createAdminApiFromStorageState(request: APIRequestContext): AuthedRequest {
+  const pubkey = getAdminPubkeyFromStorageState()
+  return createAuthedRequestFromPubkey(request, pubkey)
+}
+
+/**
  * Enroll a pubkey in Authentik via POST /api/auth/enroll.
  *
  * The enroll endpoint is idempotent — calling it twice for the same pubkey is safe.
  * Returns the hex-encoded nsecSecret assigned to the user in Authentik.
  *
- * @param adminApi - An AuthedRequest with `volunteers:create` or `*` permission
+ * @param adminApi - An AuthedRequest with `users:create` or `*` permission
  * @param pubkey - The hex pubkey of the user to enroll
  * @returns The hex-encoded nsecSecret
  */

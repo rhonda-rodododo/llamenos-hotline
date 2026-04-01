@@ -1,3 +1,5 @@
+import { OpenAPIHono } from '@hono/zod-openapi'
+import { Scalar } from '@scalar/hono-api-reference'
 import { Hono } from 'hono'
 import { createMiddleware } from 'hono/factory'
 import type { IdPAdapter } from './idp/adapter'
@@ -17,6 +19,7 @@ import blastsRoutes from './routes/blasts'
 import callsRoutes from './routes/calls'
 import configRoutes from './routes/config'
 import contactsRoutes from './routes/contacts'
+import contactImportRoutes from './routes/contacts-import'
 import conversationsRoutes from './routes/conversations'
 import devRoutes from './routes/dev'
 import filesRoutes from './routes/files'
@@ -24,6 +27,7 @@ import gdprRoutes from './routes/gdpr'
 import geocodingRoutes from './routes/geocoding'
 import healthRoutes from './routes/health'
 import hubRoutes from './routes/hubs'
+import intakesRoutes from './routes/intakes'
 import invitesRoutes from './routes/invites'
 import signalRegistrationRoutes from './routes/messaging/signal-registration'
 import metricsRoutes from './routes/metrics'
@@ -36,9 +40,11 @@ import reportsRoutes from './routes/reports'
 import settingsRoutes from './routes/settings'
 import setupRoutes from './routes/setup'
 import shiftsRoutes from './routes/shifts'
+import tagsRoutes from './routes/tags'
+import teamsRoutes from './routes/teams'
 import telephonyRoutes from './routes/telephony'
 import uploadsRoutes from './routes/uploads'
-import volunteersRoutes from './routes/volunteers'
+import usersRoutes from './routes/users'
 import webrtcRoutes from './routes/webrtc'
 import type { AppEnv } from './types'
 
@@ -58,11 +64,56 @@ const app = new Hono<AppEnv>()
 app.onError(errorHandler)
 
 // --- API routes: CORS on all /api/* ---
-const api = new Hono<AppEnv>()
+const api = new OpenAPIHono<AppEnv>({
+  defaultHook: (result, c) => {
+    if (!result.success) {
+      const issues = result.error.issues.map((i) => `${i.path.join('.')}: ${i.message}`)
+      return c.json({ error: `Validation failed: ${issues.join('; ')}` }, 400)
+    }
+  },
+})
 
 // Health check — before CORS middleware (internal probes only, no external access needed)
 api.route('/health', healthRoutes)
 api.route('/metrics', metricsRoutes)
+
+// OpenAPI spec — auto-generated from route definitions
+api.doc('/openapi.json', {
+  openapi: '3.1.0',
+  info: {
+    title: 'Llamenos Hotline API',
+    version: '0.32.0',
+    description:
+      'Crisis response hotline API with hub-scoped access control and field-level encryption.',
+  },
+  servers: [{ url: '/api', description: 'Current server' }],
+  tags: [
+    { name: 'Auth', description: 'Authentication and session management' },
+    { name: 'Users', description: 'User (volunteer/admin) management' },
+    { name: 'Shifts', description: 'Shift schedule management' },
+    { name: 'Calls', description: 'Call routing and history' },
+    { name: 'Notes', description: 'Call notes (E2EE)' },
+    { name: 'Reports', description: 'Report submission and management' },
+    { name: 'Contacts', description: 'Contact directory (E2EE)' },
+    { name: 'Conversations', description: 'Two-way messaging' },
+    { name: 'Blasts', description: 'Broadcast messaging' },
+    { name: 'Settings', description: 'Hub and system settings' },
+    { name: 'Hubs', description: 'Multi-hub management' },
+    { name: 'Teams', description: 'Team management' },
+    { name: 'Tags', description: 'Tag management' },
+    { name: 'Intakes', description: 'Intake form management' },
+  ],
+})
+
+// Scalar interactive API docs
+api.get(
+  '/docs',
+  Scalar({
+    url: '/api/openapi.json',
+    theme: 'kepler',
+    pageTitle: 'Llamenos Hotline API',
+  })
+)
 
 api.use('*', cors)
 
@@ -186,9 +237,9 @@ const requireHubOrSuperAdmin = createMiddleware<AppEnv>(async (c, next) => {
 })
 
 // Authenticated routes
-const authenticated = new Hono<AppEnv>()
+const authenticated = new OpenAPIHono<AppEnv>()
 authenticated.use('*', auth)
-authenticated.route('/volunteers', volunteersRoutes)
+authenticated.route('/users', usersRoutes)
 // Resource routes shared with hub-scoped router: require hub context for non-super-admins
 authenticated.use('/shifts/*', requireHubOrSuperAdmin)
 authenticated.use('/shifts', requireHubOrSuperAdmin)
@@ -212,6 +263,12 @@ authenticated.use('/blasts/*', requireHubOrSuperAdmin)
 authenticated.use('/blasts', requireHubOrSuperAdmin)
 authenticated.use('/contacts/*', requireHubOrSuperAdmin)
 authenticated.use('/contacts', requireHubOrSuperAdmin)
+authenticated.use('/tags/*', requireHubOrSuperAdmin)
+authenticated.use('/tags', requireHubOrSuperAdmin)
+authenticated.use('/teams/*', requireHubOrSuperAdmin)
+authenticated.use('/teams', requireHubOrSuperAdmin)
+authenticated.use('/intakes/*', requireHubOrSuperAdmin)
+authenticated.use('/intakes', requireHubOrSuperAdmin)
 authenticated.route('/analytics', analyticsRoutes)
 authenticated.route('/shifts', shiftsRoutes)
 authenticated.route('/bans', bansRoutes)
@@ -230,12 +287,16 @@ authenticated.route('/setup/provider', providerSetupRoutes)
 authenticated.route('/hubs', hubRoutes)
 authenticated.route('/blasts', blastsRoutes)
 authenticated.route('/contacts', contactsRoutes)
+authenticated.route('/contacts', contactImportRoutes)
+authenticated.route('/tags', tagsRoutes)
+authenticated.route('/teams', teamsRoutes)
+authenticated.route('/intakes', intakesRoutes)
 authenticated.route('/gdpr', gdprRoutes)
 authenticated.route('/geocoding', geocodingRoutes)
 authenticated.route('/notifications', notificationsRoutes)
 
 // Hub-scoped authenticated routes
-const hubScoped = new Hono<AppEnv>()
+const hubScoped = new OpenAPIHono<AppEnv>()
 hubScoped.use('*', hubContext)
 hubScoped.route('/analytics', analyticsRoutes)
 hubScoped.route('/shifts', shiftsRoutes)
@@ -248,6 +309,10 @@ hubScoped.route('/reports', reportsRoutes)
 hubScoped.route('/report-types', reportTypesRoutes)
 hubScoped.route('/blasts', blastsRoutes)
 hubScoped.route('/contacts', contactsRoutes)
+hubScoped.route('/contacts', contactImportRoutes)
+hubScoped.route('/tags', tagsRoutes)
+hubScoped.route('/teams', teamsRoutes)
+hubScoped.route('/intakes', intakesRoutes)
 
 authenticated.route('/hubs/:hubId', hubScoped)
 

@@ -9,30 +9,8 @@
  *   3. Voice CAPTCHA — CAPTCHA toggle controls routing behavior
  */
 
-import { expect, test } from '@playwright/test'
-import { loginAsAdmin, navigateAfterLogin } from '../helpers'
-
-declare global {
-  interface Window {
-    __authedFetch: (url: string, options?: RequestInit) => Promise<Response>
-  }
-}
-
-function injectAuthedFetch(page: import('@playwright/test').Page) {
-  return page.evaluate(() => {
-    window.__authedFetch = async (url: string, options: RequestInit = {}) => {
-      const headers: Record<string, string> = {
-        'Content-Type': 'application/json',
-        ...((options.headers as Record<string, string>) || {}),
-      }
-      const token = sessionStorage.getItem('__TEST_JWT')
-      if (token) {
-        headers.Authorization = `Bearer ${token}`
-      }
-      return fetch(url, { ...options, headers })
-    }
-  })
-}
+import { expect, test } from '../fixtures/auth'
+import { createAdminApiFromStorageState } from '../helpers/authed-request'
 
 function formEncode(params: Record<string, string>): string {
   return new URLSearchParams(params).toString()
@@ -67,21 +45,14 @@ test.describe('Ban list call enforcement', () => {
   const BANNED_NUMBER = '+15555559999'
   const CLEAN_NUMBER = '+15555550001'
 
-  test.beforeEach(async ({ page }) => {
-    await loginAsAdmin(page)
-    await navigateAfterLogin(page, '/')
-    await injectAuthedFetch(page)
-  })
-
-  test('call from banned number receives rejection response', async ({ page, request }) => {
+  test('call from banned number receives rejection response', async ({ request }) => {
+    const adminApi = createAdminApiFromStorageState(request)
     // Add number to ban list via API
-    await page.evaluate(async (num) => {
-      const res = await window.__authedFetch('/api/bans', {
-        method: 'POST',
-        body: JSON.stringify({ phone: num, reason: 'E2E ban test' }),
-      })
-      if (!res.ok) throw new Error(`addBan failed: ${res.status} ${await res.text()}`)
-    }, BANNED_NUMBER)
+    const banRes = await adminApi.post('/api/bans', {
+      phone: BANNED_NUMBER,
+      reason: 'E2E ban test',
+    })
+    expect(banRes.ok(), `addBan failed: ${banRes.status()}`).toBeTruthy()
 
     // Simulate call from banned number
     const res = await simulateCall(request, `CA_ban_${Date.now()}`, BANNED_NUMBER)
@@ -94,7 +65,7 @@ test.describe('Ban list call enforcement', () => {
     expect(body.toLowerCase()).not.toMatch(/enqueue|dial|queue/)
   })
 
-  test('call from non-banned number is NOT rejected', async ({ page, request }) => {
+  test('call from non-banned number is NOT rejected', async ({ request }) => {
     // Ensure CLEAN_NUMBER is not banned (global-setup handles this)
     const res = await simulateCall(request, `CA_clean_${Date.now()}`, CLEAN_NUMBER)
 
@@ -104,7 +75,8 @@ test.describe('Ban list call enforcement', () => {
     expect(body.toLowerCase()).not.toMatch(/^.*<reject/)
   })
 
-  test('ban list checked in real-time (no cache)', async ({ page, request }) => {
+  test('ban list checked in real-time (no cache)', async ({ request }) => {
+    const adminApi = createAdminApiFromStorageState(request)
     const freshNumber = '+15555553333'
 
     // First call — not banned, should route
@@ -113,13 +85,8 @@ test.describe('Ban list call enforcement', () => {
     const body1 = await res1.text()
     expect(body1.toLowerCase()).not.toMatch(/^.*<reject/)
 
-    // Add to ban list
-    await page.evaluate(async (num) => {
-      await window.__authedFetch('/api/bans', {
-        method: 'POST',
-        body: JSON.stringify({ phone: num, reason: 'E2E ban test' }),
-      })
-    }, freshNumber)
+    // Add to ban list via server-side API
+    await adminApi.post('/api/bans', { phone: freshNumber, reason: 'E2E ban test' })
 
     // Second call — now banned, should reject immediately
     const res2 = await simulateCall(request, `CA_fresh2_${Date.now()}`, freshNumber)
@@ -139,22 +106,10 @@ test.describe('Voice CAPTCHA', () => {
   const CALLER = '+15555552222'
   const HOTLINE = '+15559998888'
 
-  test.beforeEach(async ({ page }) => {
-    await loginAsAdmin(page)
-    await navigateAfterLogin(page, '/')
-    await injectAuthedFetch(page)
-  })
-
-  test.afterEach(async ({ page }) => {
+  test.afterEach(async ({ request }) => {
     // Reset CAPTCHA state after each test
-    await page
-      .evaluate(async () => {
-        await window.__authedFetch('/api/settings/spam', {
-          method: 'PATCH',
-          body: JSON.stringify({ voiceCaptchaEnabled: false }),
-        })
-      })
-      .catch(() => {})
+    const adminApi = createAdminApiFromStorageState(request)
+    await adminApi.patch('/api/settings/spam', { voiceCaptchaEnabled: false }).catch(() => {})
   })
 
   test('CAPTCHA disabled — call routes to language menu without digit challenge', async ({
@@ -173,15 +128,11 @@ test.describe('Voice CAPTCHA', () => {
     expect(body.length).toBeGreaterThan(20) // Has actual TwiML content
   })
 
-  test('CAPTCHA enabled — language-selected triggers CAPTCHA flow', async ({ page, request }) => {
-    // Enable CAPTCHA
-    await page.evaluate(async () => {
-      const res = await window.__authedFetch('/api/settings/spam', {
-        method: 'PATCH',
-        body: JSON.stringify({ voiceCaptchaEnabled: true }),
-      })
-      if (!res.ok) throw new Error(`updateSpam failed: ${res.status}`)
-    })
+  test('CAPTCHA enabled — language-selected triggers CAPTCHA flow', async ({ request }) => {
+    const adminApi = createAdminApiFromStorageState(request)
+    // Enable CAPTCHA via server-side API
+    const spamRes = await adminApi.patch('/api/settings/spam', { voiceCaptchaEnabled: true })
+    expect(spamRes.ok(), `updateSpam failed: ${spamRes.status()}`).toBeTruthy()
 
     const callSid = `CA_captcha_${Date.now()}`
 
@@ -207,13 +158,9 @@ test.describe('Voice CAPTCHA', () => {
     expect(langBody).toBeTruthy()
 
     // Verify no active call was created (since CAPTCHA hasn't been passed)
-    const activeCalls = await page.evaluate(async () => {
-      const res = await window.__authedFetch('/api/calls/active')
-      return res.json()
-    })
-    const callCreated = (activeCalls as { calls?: Array<{ id: string }> }).calls?.some(
-      (c) => c.id === callSid
-    )
+    const activeRes = await adminApi.get('/api/calls/active')
+    const activeCalls = (await activeRes.json()) as { calls?: Array<{ id: string }> }
+    const callCreated = activeCalls.calls?.some((c) => c.id === callSid)
     expect(callCreated).toBeFalsy()
   })
 })

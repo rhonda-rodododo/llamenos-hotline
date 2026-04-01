@@ -1,116 +1,106 @@
-import { expect, test } from '@playwright/test'
 import { generateSecretKey, getPublicKey } from 'nostr-tools/pure'
-import {
-  ADMIN_NSEC,
-  TEST_PIN,
-  enterPin,
-  loginAsAdmin,
-  navigateAfterLogin,
-  uniquePhone,
-} from '../helpers'
-import { createAuthedRequestFromNsec } from '../helpers/authed-request'
+import { expect, test } from '../fixtures/auth'
+import { TEST_PIN, enterPin, navigateAfterLogin, uniquePhone } from '../helpers'
+import { createAdminApiFromStorageState } from '../helpers/authed-request'
 
 test.describe('PIN Challenge (Re-auth Step-up)', () => {
   test.beforeEach(async ({ request }) => {
-    // Ensure at least one volunteer with a phone exists for the toggle button
-    const adminApi = createAuthedRequestFromNsec(request, ADMIN_NSEC)
+    // Ensure at least one user with a phone exists for the toggle button
+    const adminApi = createAdminApiFromStorageState(request)
     const sk = generateSecretKey()
     const pk = getPublicKey(sk)
-    await adminApi.post('/api/volunteers', {
+    await adminApi.post('/api/users', {
       pubkey: pk,
-      name: 'PIN Test Volunteer',
+      name: 'PIN Test User',
       phone: uniquePhone(),
       roleIds: ['role-volunteer'],
     })
   })
 
-  test('phone unmask on volunteers page requires PIN', async ({ page }) => {
-    await loginAsAdmin(page)
-    await navigateAfterLogin(page, '/volunteers')
+  test('phone unmask on users page requires PIN', async ({ adminPage }) => {
+    await navigateAfterLogin(adminPage, '/users')
 
-    // Wait for volunteers list to load
-    await expect(page.getByRole('heading', { name: 'Volunteers' })).toBeVisible()
+    // Wait for users list to load and decrypt (phone field is encrypted)
+    await expect(adminPage.getByRole('heading', { name: 'Users' })).toBeVisible()
 
-    // Find a volunteer row with a phone toggle button
-    const toggleBtn = page.getByTestId('toggle-phone-visibility').first()
-    await expect(toggleBtn).toBeVisible({ timeout: 5000 })
+    // Find a user row with a phone toggle button — needs time for API response + field decryption
+    const toggleBtn = adminPage.getByTestId('toggle-phone-visibility').first()
+    await expect(toggleBtn).toBeVisible({ timeout: 30000 })
 
     // Click to unmask phone — should trigger PIN challenge
     await toggleBtn.click()
 
     // Verify PIN dialog appears
-    const pinDialog = page.getByTestId('pin-challenge-dialog')
+    const pinDialog = adminPage.getByTestId('pin-challenge-dialog')
     await expect(pinDialog).toBeVisible({ timeout: 5000 })
 
     // Enter correct PIN
-    await enterPin(page, TEST_PIN)
+    await enterPin(adminPage, TEST_PIN)
 
     // Dialog should close
     await expect(pinDialog).not.toBeVisible({ timeout: 5000 })
 
     // Phone should now be visible (unmasked — full E.164 format with +)
-    const phoneText = page.locator('p.font-mono').first()
+    const phoneText = adminPage.locator('p.font-mono').first()
     await expect(phoneText).toContainText('+')
   })
 
-  test('wrong PIN shows error, 3 failures wipes key', async ({ page }) => {
-    await loginAsAdmin(page)
-    await navigateAfterLogin(page, '/volunteers')
+  test('wrong PIN shows error, 3 failures wipes key', async ({ adminPage }) => {
+    await navigateAfterLogin(adminPage, '/users')
 
-    await expect(page.getByRole('heading', { name: 'Volunteers' })).toBeVisible()
+    await expect(adminPage.getByRole('heading', { name: 'Users' })).toBeVisible()
 
-    const toggleBtn = page.getByTestId('toggle-phone-visibility').first()
-    await expect(toggleBtn).toBeVisible({ timeout: 5000 })
+    const toggleBtn = adminPage.getByTestId('toggle-phone-visibility').first()
+    await expect(toggleBtn).toBeVisible({ timeout: 30000 })
 
     // Click to unmask phone
     await toggleBtn.click()
 
-    const pinDialog = page.getByTestId('pin-challenge-dialog')
+    const pinDialog = adminPage.getByTestId('pin-challenge-dialog')
     await expect(pinDialog).toBeVisible({ timeout: 5000 })
 
     // Enter wrong PIN
-    await enterPin(page, '999999')
+    await enterPin(adminPage, '999999')
 
     // Should show error
-    const errorMsg = page.getByTestId('pin-challenge-error')
+    const errorMsg = adminPage.getByTestId('pin-challenge-error')
     await expect(errorMsg).toBeVisible({ timeout: 5000 })
 
     // Enter wrong PIN again
-    await enterPin(page, '888888')
+    await enterPin(adminPage, '888888')
     await expect(errorMsg).toBeVisible({ timeout: 5000 })
 
     // Third wrong PIN — should trigger wipe and close dialog
-    await enterPin(page, '777777')
+    await enterPin(adminPage, '777777')
 
     // Dialog should close after max attempts (CI Chromium needs extra time for wipe + redirect)
     await expect(pinDialog).not.toBeVisible({ timeout: 15000 })
 
     // Key should be wiped — redirected to login
-    await page.waitForURL('**/login', { timeout: 15000 })
+    await adminPage.waitForURL('**/login', { timeout: 15000 })
   })
 
-  test('cancel PIN challenge closes dialog without action', async ({ page }) => {
-    await loginAsAdmin(page)
-    await navigateAfterLogin(page, '/volunteers')
+  test('cancel PIN challenge closes dialog without action', async ({ adminPage }) => {
+    await navigateAfterLogin(adminPage, '/users')
 
-    await expect(page.getByRole('heading', { name: 'Volunteers' })).toBeVisible()
+    await expect(adminPage.getByRole('heading', { name: 'Users' })).toBeVisible()
 
-    const toggleBtn = page.getByTestId('toggle-phone-visibility').first()
-    await expect(toggleBtn).toBeVisible({ timeout: 5000 })
+    const toggleBtn = adminPage.getByTestId('toggle-phone-visibility').first()
+    await expect(toggleBtn).toBeVisible({ timeout: 30000 })
 
     // Click to unmask phone
     await toggleBtn.click()
 
-    const pinDialog = page.getByTestId('pin-challenge-dialog')
+    const pinDialog = adminPage.getByTestId('pin-challenge-dialog')
     await expect(pinDialog).toBeVisible({ timeout: 5000 })
 
     // Click cancel
-    await page.getByRole('button', { name: /cancel/i }).click()
+    await adminPage.getByRole('button', { name: /cancel/i }).click()
 
     // Dialog should close
     await expect(pinDialog).not.toBeVisible({ timeout: 5000 })
 
-    // Should still be on volunteers page
-    await expect(page.getByRole('heading', { name: 'Volunteers' })).toBeVisible()
+    // Should still be on users page
+    await expect(adminPage.getByRole('heading', { name: 'Users' })).toBeVisible()
   })
 })

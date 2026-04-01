@@ -7,12 +7,9 @@
 
 import {
   type CallSettings,
-  type CustomFieldDefinition,
-  type GeocodingConfigAdmin,
   type IvrAudioRecording,
   type SpamSettings,
   type TelephonyProviderConfig,
-  type WebAuthnSettings,
   getCallSettings,
   getCustomFields,
   getGeocodingSettings,
@@ -36,10 +33,18 @@ import {
   updateWebAuthnSettings,
 } from '@/lib/api'
 import { decryptArrayFields } from '@/lib/decrypt-fields'
+import { decryptHubField } from '@/lib/hub-field-crypto'
 import * as keyManager from '@/lib/key-manager'
 import { type WebAuthnCredentialInfo, listCredentials } from '@/lib/webauthn'
-import { LABEL_VOLUNTEER_PII } from '@shared/crypto-labels'
-import type { MessagingConfig, RetentionSettings, TelephonyProviderDraft } from '@shared/types'
+import { LABEL_USER_PII } from '@shared/crypto-labels'
+import type { WebAuthnSettings } from '@shared/schemas'
+import type {
+  CustomFieldDefinition,
+  GeocodingConfigAdmin,
+  MessagingConfig,
+  RetentionSettings,
+  TelephonyProviderDraft,
+} from '@shared/types'
 import { queryOptions, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { queryKeys } from './keys'
 
@@ -101,7 +106,7 @@ export function useUpdateCallSettings() {
 
 interface TranscriptionSettings {
   globalEnabled: boolean
-  allowVolunteerOptOut: boolean
+  allowUserOptOut: boolean
 }
 
 export const transcriptionSettingsOptions = () =>
@@ -118,7 +123,7 @@ export function useTranscriptionSettings() {
 export function useUpdateTranscriptionSettings() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: (data: { globalEnabled?: boolean; allowVolunteerOptOut?: boolean }) =>
+    mutationFn: (data: { globalEnabled?: boolean; allowUserOptOut?: boolean }) =>
       updateTranscriptionSettings(data),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.settings.transcription() })
@@ -201,18 +206,34 @@ export function useUpdateWebAuthnSettings() {
 // customFieldsOptions / useCustomFields
 // ---------------------------------------------------------------------------
 
-export const customFieldsOptions = () =>
+export const customFieldsOptions = (hubId = 'global') =>
   queryOptions({
     queryKey: queryKeys.settings.customFields(),
     queryFn: async (): Promise<CustomFieldDefinition[]> => {
       const res = await getCustomFields()
-      return res.fields
+      return res.fields.map((field) => {
+        const decryptedOptions = decryptHubField(field.encryptedOptions, hubId, '')
+        return {
+          ...field,
+          name: decryptHubField(field.encryptedFieldName, hubId, field.name),
+          label: decryptHubField(field.encryptedLabel, hubId, field.label),
+          options: decryptedOptions
+            ? (() => {
+                try {
+                  return JSON.parse(decryptedOptions) as string[]
+                } catch {
+                  return field.options
+                }
+              })()
+            : field.options,
+        }
+      })
     },
     staleTime: STALE_10_MIN,
   })
 
-export function useCustomFields() {
-  return useQuery(customFieldsOptions())
+export function useCustomFields(hubId = 'global') {
+  return useQuery(customFieldsOptions(hubId))
 }
 
 export function useUpdateCustomFields() {
@@ -332,7 +353,7 @@ export function useUpdateRetentionSettings() {
 
 /**
  * Fetch and decrypt the current user's WebAuthn credentials.
- * Label names (encryptedLabel → label) are encrypted with LABEL_VOLUNTEER_PII.
+ * Label names (encryptedLabel → label) are encrypted with LABEL_USER_PII.
  */
 export const webAuthnCredsOptions = () =>
   queryOptions({
@@ -344,7 +365,7 @@ export const webAuthnCredsOptions = () =>
         await decryptArrayFields(
           creds as unknown as Record<string, unknown>[],
           pubkey,
-          LABEL_VOLUNTEER_PII
+          LABEL_USER_PII
         )
       }
       return creds

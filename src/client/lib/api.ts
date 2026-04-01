@@ -1,4 +1,5 @@
 import type { Ciphertext } from '@shared/crypto-types'
+import type { Permission, PermissionMeta } from '@shared/permissions'
 import type { EncryptedMetaItem, KeyEnvelope, RecipientEnvelope } from '@shared/types'
 import { authFacadeClient } from './auth-facade-client'
 import * as keyManager from './key-manager'
@@ -114,7 +115,12 @@ export async function bootstrapAdmin(pubkey: string, timestamp: number, token: s
     const body = await res.text()
     throw new ApiError(res.status, body)
   }
-  return res.json() as Promise<{ ok: true; roles: string[]; nsecSecret: string }>
+  return res.json() as Promise<{
+    ok: true
+    roles: string[]
+    nsecSecret: string
+    accessToken: string
+  }>
 }
 
 export async function logout() {
@@ -127,7 +133,7 @@ export async function getMe() {
     roles: string[]
     hubRoles: { hubId: string; roleIds: string[] }[]
     permissions: string[]
-    primaryRole: { id: string; name: string; slug: string } | null
+    primaryRole: { id: string; name: string } | null
     name: string
     encryptedName?: Ciphertext
     nameEnvelopes?: RecipientEnvelope[]
@@ -144,25 +150,25 @@ export async function getMe() {
   }>('/auth/me')
 }
 
-// --- Volunteers (admin only) ---
+// --- Users (admin only) ---
 
-export async function listVolunteers() {
-  return request<{ volunteers: Volunteer[] }>('/volunteers')
+export async function listUsers() {
+  return request<{ users: User[] }>('/users')
 }
 
-export async function createVolunteer(data: {
+export async function createUser(data: {
   name: string
   phone: string
   roleIds: string[]
   pubkey: string
 }) {
-  return request<{ volunteer: Volunteer }>('/volunteers', {
+  return request<{ user: User }>('/users', {
     method: 'POST',
     body: JSON.stringify(data),
   })
 }
 
-export async function updateVolunteer(
+export async function updateUser(
   pubkey: string,
   data: Partial<{
     name: string
@@ -173,14 +179,14 @@ export async function updateVolunteer(
     messagingEnabled: boolean
   }>
 ) {
-  return request<{ volunteer: Volunteer }>(`/volunteers/${pubkey}`, {
+  return request<{ user: User }>(`/users/${pubkey}`, {
     method: 'PATCH',
     body: JSON.stringify(data),
   })
 }
 
-export async function deleteVolunteer(pubkey: string) {
-  return request<{ ok: true }>(`/volunteers/${pubkey}`, { method: 'DELETE' })
+export async function deleteUser(pubkey: string) {
+  return request<{ ok: true }>(`/users/${pubkey}`, { method: 'DELETE' })
 }
 
 // --- Shift Status (all users) ---
@@ -220,13 +226,13 @@ export async function deleteShift(id: string) {
 }
 
 export async function getFallbackGroup() {
-  return request<{ volunteers: string[] }>(hp('/shifts/fallback'))
+  return request<{ users: string[] }>(hp('/shifts/fallback'))
 }
 
-export async function setFallbackGroup(volunteers: string[]) {
+export async function setFallbackGroup(users: string[]) {
   return request<{ ok: true }>(hp('/shifts/fallback'), {
     method: 'PUT',
-    body: JSON.stringify({ volunteers }),
+    body: JSON.stringify({ users }),
   })
 }
 
@@ -355,10 +361,10 @@ export async function getCallRecording(callId: string): Promise<ArrayBuffer> {
   return res.arrayBuffer()
 }
 
-// --- Volunteer Presence (admin only) ---
+// --- User Presence (admin only) ---
 
-export async function getVolunteerPresence() {
-  return request<{ volunteers: VolunteerPresence[] }>(hp('/calls/presence'))
+export async function getUserPresence() {
+  return request<{ users: UserPresence[] }>(hp('/calls/presence'))
 }
 
 // --- Audit Log (admin only) ---
@@ -434,22 +440,17 @@ export async function updateIvrLanguages(data: { enabledLanguages: string[] }) {
 // --- Transcription Settings ---
 
 export async function getTranscriptionSettings() {
-  return request<{ globalEnabled: boolean; allowVolunteerOptOut: boolean }>(
-    '/settings/transcription'
-  )
+  return request<{ globalEnabled: boolean; allowUserOptOut: boolean }>('/settings/transcription')
 }
 
 export async function updateTranscriptionSettings(data: {
   globalEnabled?: boolean
-  allowVolunteerOptOut?: boolean
+  allowUserOptOut?: boolean
 }) {
-  return request<{ globalEnabled: boolean; allowVolunteerOptOut: boolean }>(
-    '/settings/transcription',
-    {
-      method: 'PATCH',
-      body: JSON.stringify(data),
-    }
-  )
+  return request<{ globalEnabled: boolean; allowUserOptOut: boolean }>('/settings/transcription', {
+    method: 'PATCH',
+    body: JSON.stringify(data),
+  })
 }
 
 export async function updateMyTranscriptionPreference(enabled: boolean) {
@@ -518,7 +519,7 @@ export async function redeemInvite(code: string, pubkey: string) {
     const body = await res.text()
     throw new ApiError(res.status, body)
   }
-  return res.json() as Promise<{ volunteer: Volunteer; nsecSecret?: string; accessToken?: string }>
+  return res.json() as Promise<{ user: User; nsecSecret?: string; accessToken?: string }>
 }
 
 // --- IVR Audio ---
@@ -603,8 +604,10 @@ export async function getProviderHealth() {
 
 // --- Telephony Provider Settings ---
 
-export type { TelephonyProviderConfig, TelephonyProviderType } from '@shared/types'
-import type { TelephonyProviderConfig, TelephonyProviderType } from '@shared/types'
+export type { TelephonyProviderConfig } from '@shared/schemas'
+export type { TelephonyProviderType } from '@shared/types'
+import type { TelephonyProviderConfig } from '@shared/schemas'
+import type { TelephonyProviderType } from '@shared/types'
 
 export async function getTelephonyProvider() {
   return request<TelephonyProviderConfig | null>('/settings/telephony-provider')
@@ -642,7 +645,7 @@ export async function getWebRtcStatus() {
 
 export interface WebAuthnSettings {
   requireForAdmins: boolean
-  requireForVolunteers: boolean
+  requireForUsers: boolean
 }
 
 export async function getWebAuthnSettings() {
@@ -661,7 +664,6 @@ export async function updateWebAuthnSettings(data: Partial<WebAuthnSettings>) {
 export interface RoleDefinition {
   id: string
   name: string
-  slug: string
   permissions: string[]
   isDefault: boolean
   isSystem: boolean
@@ -680,7 +682,6 @@ export async function listRoles() {
 
 export async function createRole(data: {
   name: string
-  slug: string
   permissions: string[]
   description: string
   encryptedName?: Ciphertext
@@ -714,9 +715,147 @@ export async function deleteRole(id: string) {
 
 export async function getPermissionsCatalog() {
   return request<{
-    permissions: Record<string, string>
-    byDomain: Record<string, { key: string; label: string }[]>
+    permissions: Record<Permission, PermissionMeta>
+    byDomain: Record<string, { key: Permission; meta: PermissionMeta }[]>
   }>('/settings/permissions')
+}
+
+// --- Teams ---
+
+export interface Team {
+  id: string
+  hubId: string
+  encryptedName: Ciphertext
+  encryptedDescription: Ciphertext | null
+  createdBy: string
+  createdAt: string
+  updatedAt: string
+  memberCount: number
+  contactCount: number
+}
+
+export interface TeamMember {
+  teamId: string
+  userPubkey: string
+  addedBy: string
+  createdAt: string
+}
+
+export interface ContactTeamAssignment {
+  id: string
+  contactId: string
+  teamId: string
+  hubId: string
+  assignedBy: string
+  createdAt: string
+}
+
+export async function listTeams() {
+  return request<{ teams: Team[] }>('/teams')
+}
+
+export async function createTeam(data: {
+  encryptedName: Ciphertext
+  encryptedDescription?: Ciphertext
+}) {
+  return request<{ team: Team }>('/teams', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  })
+}
+
+export async function updateTeam(
+  id: string,
+  data: {
+    encryptedName?: Ciphertext
+    encryptedDescription?: Ciphertext | null
+  }
+) {
+  return request<{ team: Team }>(`/teams/${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify(data),
+  })
+}
+
+export async function deleteTeam(id: string) {
+  return request<{ ok: true }>(`/teams/${id}`, { method: 'DELETE' })
+}
+
+export async function listTeamMembers(teamId: string) {
+  return request<{ members: TeamMember[] }>(`/teams/${teamId}/members`)
+}
+
+export async function addTeamMembers(teamId: string, pubkeys: string[]) {
+  return request<{ members: TeamMember[]; added: number }>(`/teams/${teamId}/members`, {
+    method: 'POST',
+    body: JSON.stringify({ pubkeys }),
+  })
+}
+
+export async function removeTeamMember(teamId: string, pubkey: string) {
+  return request<{ ok: true }>(`/teams/${teamId}/members/${pubkey}`, { method: 'DELETE' })
+}
+
+export async function listTeamContacts(teamId: string) {
+  return request<{ assignments: ContactTeamAssignment[] }>(`/teams/${teamId}/contacts`)
+}
+
+export async function assignTeamContacts(teamId: string, contactIds: string[]) {
+  return request<{ assigned: number }>(`/teams/${teamId}/contacts`, {
+    method: 'POST',
+    body: JSON.stringify({ contactIds }),
+  })
+}
+
+export async function unassignTeamContact(teamId: string, contactId: string) {
+  return request<{ ok: true }>(`/teams/${teamId}/contacts/${contactId}`, { method: 'DELETE' })
+}
+
+// --- Tags ---
+
+export interface Tag {
+  id: string
+  hubId: string
+  name: string
+  encryptedLabel: Ciphertext
+  color: string
+  encryptedCategory: Ciphertext | null
+  createdBy: string
+  createdAt: string
+}
+
+export async function listTags() {
+  return request<{ tags: Tag[] }>('/tags')
+}
+
+export async function createTag(data: {
+  name: string
+  encryptedLabel: Ciphertext
+  color?: string
+  encryptedCategory?: Ciphertext
+}) {
+  return request<{ tag: Tag }>('/tags', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  })
+}
+
+export async function updateTag(
+  id: string,
+  data: {
+    encryptedLabel?: Ciphertext
+    color?: string
+    encryptedCategory?: Ciphertext | null
+  }
+) {
+  return request<{ tag: Tag }>(`/tags/${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify(data),
+  })
+}
+
+export async function deleteTag(id: string) {
+  return request<{ ok: true; removedFromContacts: number }>(`/tags/${id}`, { method: 'DELETE' })
 }
 
 // --- Types ---
@@ -724,7 +863,7 @@ export async function getPermissionsCatalog() {
 /** @deprecated Use roles array + permissions */
 export type UserRole = 'volunteer' | 'admin' | 'reporter'
 
-export interface Volunteer {
+export interface User {
   pubkey: string
   name: string
   phone: string
@@ -736,10 +875,12 @@ export interface Volunteer {
   callPreference: 'phone' | 'browser' | 'both'
   // Messaging capabilities (Epic 68)
   supportedMessagingChannels?: string[] // SMS, WhatsApp, Signal, RCS (empty = all)
-  messagingEnabled?: boolean // Whether volunteer can handle messaging conversations
-  // E2EE envelope-encrypted name (Phase 2D)
+  messagingEnabled?: boolean // Whether user can handle messaging conversations
+  // E2EE envelope-encrypted fields (Phase 2D)
   encryptedName?: Ciphertext
   nameEnvelopes?: RecipientEnvelope[]
+  encryptedPhone?: Ciphertext
+  phoneEnvelopes?: RecipientEnvelope[]
 }
 
 export interface Shift {
@@ -750,7 +891,7 @@ export interface Shift {
   startTime: string // HH:mm
   endTime: string // HH:mm
   days: number[] // 0=Sunday, 1=Monday, ..., 6=Saturday
-  volunteerPubkeys: string[]
+  userPubkeys: string[]
   createdAt: string
 }
 
@@ -824,7 +965,7 @@ export interface AuditLogEntry {
   entryHash?: string
 }
 
-export interface VolunteerPresence {
+export interface UserPresence {
   pubkey: string
   status: 'available' | 'on-call' | 'online'
 }
@@ -848,9 +989,11 @@ export interface InviteCode {
   usedAt?: string
   deliveryChannel?: string
   deliverySentAt?: string
-  // E2EE envelope-encrypted name (Phase 2D)
+  // E2EE envelope-encrypted fields (Phase 2D)
   encryptedName?: Ciphertext
   nameEnvelopes?: RecipientEnvelope[]
+  encryptedPhone?: Ciphertext
+  phoneEnvelopes?: RecipientEnvelope[]
 }
 
 // --- Conversations ---
@@ -979,13 +1122,14 @@ export async function getConversationStats() {
   )
 }
 
-export async function getVolunteerLoads() {
+export async function getUserLoads() {
   return request<{ loads: Record<string, number> }>(hp('/conversations/load'))
 }
 
 // --- Messaging Config ---
 
-export type { MessagingConfig, EnabledChannels } from '@shared/types'
+export type { EnabledChannels } from '@shared/schemas'
+export type { MessagingConfig } from '@shared/types'
 import type { MessagingConfig } from '@shared/types'
 
 export async function getMessagingConfig() {
@@ -1008,8 +1152,8 @@ export async function testMessagingChannel(channel: string) {
 
 // --- Setup State ---
 
-export type { SetupState } from '@shared/types'
-import type { SetupState } from '@shared/types'
+export type { SetupState } from '@shared/schemas'
+import type { SetupState } from '@shared/schemas'
 
 export async function getSetupState() {
   return request<SetupState>('/setup/state')
@@ -1398,11 +1542,11 @@ export async function shareFile(
 export async function seedDemoData() {
   const { DEMO_ACCOUNTS } = await import('@shared/demo-accounts')
 
-  // Create demo volunteers (admin is already created via ADMIN_PUBKEY)
+  // Create demo users (admin is already created via ADMIN_PUBKEY)
   const nonAdminAccounts = DEMO_ACCOUNTS.filter((a) => !a.roleIds.includes('role-super-admin'))
   for (const account of nonAdminAccounts) {
     try {
-      await createVolunteer({
+      await createUser({
         name: account.name,
         phone: account.phone,
         roleIds: account.roleIds,
@@ -1413,11 +1557,11 @@ export async function seedDemoData() {
     }
   }
 
-  // Deactivate Fatima (inactive volunteer demo)
+  // Deactivate Fatima (inactive user demo)
   const fatima = DEMO_ACCOUNTS.find((a) => a.name === 'Fatima Al-Rashid')
   if (fatima) {
     try {
-      await request(`/volunteers/${fatima.pubkey}`, {
+      await request(`/users/${fatima.pubkey}`, {
         method: 'PATCH',
         body: JSON.stringify({ active: false }),
       })
@@ -1429,7 +1573,7 @@ export async function seedDemoData() {
   // Mark all demo profiles as completed and set browser call preference
   for (const account of nonAdminAccounts) {
     try {
-      await request(`/volunteers/${account.pubkey}`, {
+      await request(`/users/${account.pubkey}`, {
         method: 'PATCH',
         body: JSON.stringify({
           profileCompleted: true,
@@ -1451,7 +1595,7 @@ export async function seedDemoData() {
       startTime: '08:00',
       endTime: '16:00',
       days: [1, 2, 3, 4, 5],
-      volunteerPubkeys: [maria.pubkey, james.pubkey],
+      userPubkeys: [maria.pubkey, james.pubkey],
       createdAt: new Date().toISOString(),
     },
     {
@@ -1459,7 +1603,7 @@ export async function seedDemoData() {
       startTime: '16:00',
       endTime: '23:59',
       days: [1, 2, 3, 4, 5],
-      volunteerPubkeys: [maria.pubkey],
+      userPubkeys: [maria.pubkey],
       createdAt: new Date().toISOString(),
     },
     {
@@ -1467,7 +1611,7 @@ export async function seedDemoData() {
       startTime: '10:00',
       endTime: '18:00',
       days: [0, 6],
-      volunteerPubkeys: [james.pubkey],
+      userPubkeys: [james.pubkey],
       createdAt: new Date().toISOString(),
     },
   ]
@@ -1482,7 +1626,7 @@ export async function seedDemoData() {
   // Add sample bans
   const bans = [
     { phone: '+15559999001', reason: 'Repeated prank calls' },
-    { phone: '+15559999002', reason: 'Threatening language towards volunteers' },
+    { phone: '+15559999002', reason: 'Threatening language towards users' },
   ]
   for (const ban of bans) {
     try {
@@ -1495,8 +1639,10 @@ export async function seedDemoData() {
 
 // --- Blasts ---
 
-import type { Blast, BlastContent, BlastSettings, Subscriber } from '@shared/types'
-export type { Subscriber, Blast, BlastContent, BlastSettings }
+import type { BlastContent, BlastSettings } from '@shared/schemas'
+import type { Blast, Subscriber } from '@shared/types'
+export type { BlastContent, BlastSettings }
+export type { Subscriber, Blast }
 
 export async function listSubscribers(params?: {
   tag?: string
@@ -1590,8 +1736,8 @@ export async function updateBlastSettings(data: Partial<BlastSettings>) {
 
 // --- Hub Management ---
 
-export type { Hub } from '@shared/types'
-import type { Hub } from '@shared/types'
+export type { Hub } from '@shared/schemas'
+import type { Hub } from '@shared/schemas'
 
 export async function listHubs() {
   return request<{ hubs: Hub[] }>('/hubs')
@@ -1633,8 +1779,10 @@ export async function removeHubMember(hubId: string, pubkey: string) {
 
 // --- Geocoding ---
 
-import type { GeocodingConfig, GeocodingConfigAdmin, LocationResult } from '@shared/types'
-export type { GeocodingConfig, GeocodingConfigAdmin, LocationResult } from '@shared/types'
+import type { GeocodingConfig } from '@shared/schemas'
+import type { GeocodingConfigAdmin, LocationResult } from '@shared/types'
+export type { GeocodingConfig } from '@shared/schemas'
+export type { GeocodingConfigAdmin, LocationResult } from '@shared/types'
 
 export async function geocodingAutocomplete(query: string, limit = 5) {
   return request<LocationResult[]>('/geocoding/autocomplete', {
@@ -1678,7 +1826,7 @@ export async function testGeocodingProvider() {
 
 // --- Retention Settings (GDPR) ---
 
-import type { RetentionSettings } from '@shared/types'
+import type { RetentionSettings } from '@shared/schemas'
 export type { RetentionSettings }
 
 export async function getRetentionSettings() {
@@ -1706,7 +1854,7 @@ export interface CallVolumeDay {
   voicemail: number
 }
 
-export interface VolunteerStatEntry {
+export interface UserStatEntry {
   pubkey: string
   name: string
   callsAnswered: number
@@ -1724,8 +1872,8 @@ export async function getCallHoursAnalytics() {
   return request<{ data: CallHourBucket[] }>(hp('/analytics/call-hours'))
 }
 
-export async function getVolunteerStats() {
-  return request<{ data: VolunteerStatEntry[] }>(hp('/analytics/volunteer-stats'))
+export async function getUserStats() {
+  return request<{ data: UserStatEntry[] }>(hp('/analytics/user-stats'))
 }
 
 // --- Consent (GDPR) ---
@@ -1836,10 +1984,10 @@ export async function sendInvite(
   })
 }
 
-// --- Volunteer Admin (unmasked) ---
+// --- User Admin (unmasked) ---
 
-export async function getVolunteerUnmasked(pubkey: string) {
-  return request<{ volunteer: Volunteer & { phone: string } }>(`/volunteers/${pubkey}/unmasked`)
+export async function getUserUnmasked(pubkey: string) {
+  return request<{ user: User & { phone: string } }>(`/users/${pubkey}/unmasked`)
 }
 
 // --- Hub Archive & Delete ---
@@ -1974,6 +2122,24 @@ export async function deleteContact(id: string): Promise<void> {
   return request(hp(`/contacts/${id}`), { method: 'DELETE' })
 }
 
+export async function bulkUpdateContacts(data: {
+  contactIds: string[]
+  addTags?: string[]
+  removeTags?: string[]
+  riskLevel?: string
+}): Promise<{ updated: number; skipped: number }> {
+  return request(hp('/contacts/bulk'), { method: 'PATCH', body: JSON.stringify(data) })
+}
+
+export async function bulkDeleteContacts(
+  contactIds: string[]
+): Promise<{ deleted: number; skipped: number }> {
+  return request(hp('/contacts/bulk'), {
+    method: 'DELETE',
+    body: JSON.stringify({ contactIds }),
+  })
+}
+
 export async function getContactTimeline(id: string): Promise<{
   calls: unknown[]
   conversations: unknown[]
@@ -2033,4 +2199,127 @@ export async function createContactRelationship(data: {
 
 export async function deleteContactRelationship(id: string): Promise<void> {
   return request(hp(`/contacts/relationships/${id}`), { method: 'DELETE' })
+}
+
+export async function createContactFromCall(
+  callId: string,
+  data: {
+    contactType: string
+    riskLevel: string
+    tags?: string[]
+    encryptedDisplayName: string
+    displayNameEnvelopes: RecipientEnvelope[]
+    encryptedPhone?: string
+    phoneEnvelopes?: RecipientEnvelope[]
+    identifierHash?: string
+    encryptedFullName?: string
+    fullNameEnvelopes?: RecipientEnvelope[]
+    encryptedPII?: string
+    piiEnvelopes?: RecipientEnvelope[]
+  }
+): Promise<{ contact: ContactRecord; linked: boolean }> {
+  return request(hp(`/contacts/from-call/${callId}`), {
+    method: 'POST',
+    body: JSON.stringify(data),
+  })
+}
+
+export interface ContactNotification {
+  contactId: string
+  channel: { type: string; identifier: string }
+  message: string
+}
+
+export interface NotifyResult {
+  contactId: string
+  status: 'sent' | 'failed'
+  error?: string
+}
+
+// --- Intakes ---
+
+export interface IntakeRecord {
+  id: string
+  hubId: string
+  contactId: string | null
+  callId: string | null
+  encryptedPayload: string
+  payloadEnvelopes: RecipientEnvelope[]
+  status: string
+  reviewedBy: string | null
+  reviewedAt: string | null
+  submittedBy: string
+  createdAt: string
+}
+
+export async function listIntakes(filters?: {
+  status?: string
+  contactId?: string
+}): Promise<{ intakes: IntakeRecord[] }> {
+  const params = new URLSearchParams()
+  if (filters?.status) params.set('status', filters.status)
+  if (filters?.contactId) params.set('contactId', filters.contactId)
+  const qs = params.toString()
+  return request(hp(`/intakes${qs ? `?${qs}` : ''}`))
+}
+
+export async function submitIntake(data: {
+  contactId?: string
+  callId?: string
+  encryptedPayload: string
+  payloadEnvelopes: RecipientEnvelope[]
+}): Promise<{ intake: IntakeRecord }> {
+  return request(hp('/intakes'), { method: 'POST', body: JSON.stringify(data) })
+}
+
+export async function updateIntakeStatus(
+  id: string,
+  status: 'reviewed' | 'merged' | 'dismissed'
+): Promise<{ intake: IntakeRecord }> {
+  return request(hp(`/intakes/${id}`), {
+    method: 'PATCH',
+    body: JSON.stringify({ status }),
+  })
+}
+
+export async function notifyContacts(
+  contactId: string,
+  notifications: ContactNotification[]
+): Promise<{ results: NotifyResult[] }> {
+  return request(hp(`/contacts/${contactId}/notify`), {
+    method: 'POST',
+    body: JSON.stringify({ notifications }),
+  })
+}
+
+export async function importContacts(data: {
+  contacts: Array<{
+    contactType: string
+    riskLevel: string
+    tags?: string[]
+    encryptedDisplayName: string
+    displayNameEnvelopes: RecipientEnvelope[]
+    encryptedFullName?: string
+    fullNameEnvelopes?: RecipientEnvelope[]
+    encryptedPhone?: string
+    phoneEnvelopes?: RecipientEnvelope[]
+    identifierHash?: string
+    encryptedPII?: string
+    piiEnvelopes?: RecipientEnvelope[]
+  }>
+}): Promise<{ created: number; errors: Array<{ index: number; error: string }> }> {
+  return request(hp('/contacts/import'), {
+    method: 'POST',
+    body: JSON.stringify(data),
+  })
+}
+
+export async function mergeContacts(
+  primaryId: string,
+  secondaryId: string
+): Promise<{ ok: true; primaryId: string; mergedTags: string[] }> {
+  return request(hp(`/contacts/${primaryId}/merge`), {
+    method: 'POST',
+    body: JSON.stringify({ secondaryId }),
+  })
 }

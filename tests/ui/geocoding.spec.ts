@@ -1,5 +1,4 @@
-import { type Page, expect, test } from '@playwright/test'
-import { loginAsAdmin } from '../helpers'
+import { type Page, expect, test } from '../fixtures/auth'
 
 /** Navigate to admin settings and expand geocoding section */
 async function expandGeocoding(page: Page) {
@@ -31,21 +30,19 @@ async function expandCustomFields(page: Page) {
 }
 
 test.describe('Geocoding & Location Fields', () => {
-  test.beforeEach(async ({ page }) => {
-    await loginAsAdmin(page)
+  test('geocoding settings section visible in admin settings', async ({ adminPage }) => {
+    await adminPage.getByRole('link', { name: 'Hub Settings' }).click()
+    await expect(
+      adminPage.getByRole('heading', { name: 'Hub Settings', exact: true })
+    ).toBeVisible()
+    await expect(adminPage.getByRole('heading', { name: /geocoding|location/i })).toBeVisible()
   })
 
-  test('geocoding settings section visible in admin settings', async ({ page }) => {
-    await page.getByRole('link', { name: 'Hub Settings' }).click()
-    await expect(page.getByRole('heading', { name: 'Hub Settings', exact: true })).toBeVisible()
-    await expect(page.getByRole('heading', { name: /geocoding|location/i })).toBeVisible()
-  })
-
-  test('admin can select geocoding provider', async ({ page }) => {
-    await expandGeocoding(page)
+  test('admin can select geocoding provider', async ({ adminPage }) => {
+    await expandGeocoding(adminPage)
 
     // Provider should default to disabled
-    const select = page.getByTestId('geocoding-provider-select')
+    const select = adminPage.getByTestId('geocoding-provider-select')
     await expect(select).toHaveValue('')
 
     // Select OpenCage
@@ -53,97 +50,97 @@ test.describe('Geocoding & Location Fields', () => {
     await expect(select).toHaveValue('opencage')
 
     // API key field should appear
-    const apiKeyInput = page.getByTestId('geocoding-api-key-input')
+    const apiKeyInput = adminPage.getByTestId('geocoding-api-key-input')
     await expect(apiKeyInput).toBeVisible()
 
     // Countries field should appear
-    const countriesInput = page.getByTestId('geocoding-countries-input')
+    const countriesInput = adminPage.getByTestId('geocoding-countries-input')
     await expect(countriesInput).toBeVisible()
   })
 
-  test('admin can switch to Geoapify provider', async ({ page }) => {
-    await expandGeocoding(page)
+  test('admin can switch to Geoapify provider', async ({ adminPage }) => {
+    await expandGeocoding(adminPage)
 
-    const select = page.getByTestId('geocoding-provider-select')
+    const select = adminPage.getByTestId('geocoding-provider-select')
     await select.selectOption('geoapify')
     await expect(select).toHaveValue('geoapify')
 
     // API key field should still be visible
-    await expect(page.getByTestId('geocoding-api-key-input')).toBeVisible()
+    await expect(adminPage.getByTestId('geocoding-api-key-input')).toBeVisible()
   })
 
-  test('admin can save geocoding config', async ({ page }) => {
-    await expandGeocoding(page)
+  test('admin can save geocoding config', async ({ adminPage }) => {
+    await expandGeocoding(adminPage)
 
     // Select provider and fill key
-    await page.getByTestId('geocoding-provider-select').selectOption('opencage')
-    await page.getByTestId('geocoding-api-key-input').fill('test-api-key-12345')
-    await page.getByTestId('geocoding-countries-input').fill('us, ca')
+    await adminPage.getByTestId('geocoding-provider-select').selectOption('opencage')
+    await adminPage.getByTestId('geocoding-api-key-input').fill('test-api-key-12345')
+    await adminPage.getByTestId('geocoding-countries-input').fill('us, ca')
 
     // Save
-    await page.getByTestId('geocoding-save-btn').click()
-    await expect(page.getByText(/success/i)).toBeVisible({ timeout: 5000 })
+    await adminPage.getByTestId('geocoding-save-btn').click()
+    await expect(adminPage.getByText(/success/i)).toBeVisible({ timeout: 5000 })
   })
 
-  test('admin can disable geocoding', async ({ page }) => {
-    await expandGeocoding(page)
+  test('admin can disable geocoding', async ({ adminPage }) => {
+    await expandGeocoding(adminPage)
 
     // First enable it, then disable
-    await page.getByTestId('geocoding-provider-select').selectOption('opencage')
-    await page.getByTestId('geocoding-api-key-input').fill('test-key')
-    await page.getByTestId('geocoding-save-btn').click()
-    await expect(page.getByText(/success/i).first()).toBeVisible({ timeout: 5000 })
+    await adminPage.getByTestId('geocoding-provider-select').selectOption('opencage')
+    await adminPage.getByTestId('geocoding-api-key-input').fill('test-key')
+    await adminPage.getByTestId('geocoding-save-btn').click()
+    await expect(adminPage.getByText(/success/i).first()).toBeVisible({ timeout: 5000 })
 
     // Wait for first toast to dismiss before triggering another
-    await page.waitForTimeout(1500)
+    await adminPage.waitForTimeout(1500)
 
     // Now disable
-    await page.getByTestId('geocoding-provider-select').selectOption('')
-    await page.getByTestId('geocoding-save-btn').click()
-    await expect(page.getByText(/success/i).first()).toBeVisible({ timeout: 5000 })
+    await adminPage.getByTestId('geocoding-provider-select').selectOption('')
+    await adminPage.getByTestId('geocoding-save-btn').click()
+    await expect(adminPage.getByText(/success/i).first()).toBeVisible({ timeout: 5000 })
   })
 
-  test('admin can add a location custom field', async ({ page }) => {
-    await expandCustomFields(page)
+  test('admin can add a location custom field', async ({ adminPage }) => {
+    await expandCustomFields(adminPage)
 
     // Click Add Field
-    await page.getByRole('button', { name: /add field/i }).click()
+    await adminPage.getByRole('button', { name: /add field/i }).click()
 
     // Fill in field details
     const fieldLabel = `Caller Location ${Date.now()}`
-    await page.getByPlaceholder('e.g. Severity Rating').fill(fieldLabel)
+    await adminPage.getByPlaceholder('e.g. Severity Rating').fill(fieldLabel)
 
     // Change type to Location
-    await page.locator('select').first().selectOption('location')
+    await adminPage.locator('select').first().selectOption('location')
 
     // Location settings should appear
-    await expect(page.getByText(/location settings/i)).toBeVisible()
-    await expect(page.getByText(/maximum precision/i)).toBeVisible()
+    await expect(adminPage.getByText(/location settings/i)).toBeVisible()
+    await expect(adminPage.getByText(/maximum precision/i)).toBeVisible()
 
     // Save
-    await page.getByRole('button', { name: /save/i }).last().click()
-    await expect(page.getByText(/success/i)).toBeVisible({ timeout: 5000 })
+    await adminPage.getByRole('button', { name: /save/i }).last().click()
+    await expect(adminPage.getByText(/success/i)).toBeVisible({ timeout: 5000 })
 
     // Field should appear in the list with Location type badge
-    await expect(page.getByText(fieldLabel).first()).toBeVisible()
-    await expect(page.getByText('Location').first()).toBeVisible()
+    await expect(adminPage.getByText(fieldLabel).first()).toBeVisible()
+    await expect(adminPage.getByText('Location').first()).toBeVisible()
   })
 
-  test('location field appears in note creation form', async ({ page }) => {
+  test('location field appears in note creation form', async ({ adminPage }) => {
     // First create a location custom field
-    await expandCustomFields(page)
-    await page.getByRole('button', { name: /add field/i }).click()
-    await page.getByPlaceholder('e.g. Severity Rating').fill(`Location Field ${Date.now()}`)
-    await page.locator('select').first().selectOption('location')
-    await page.getByRole('button', { name: /save/i }).last().click()
-    await expect(page.getByText(/success/i)).toBeVisible({ timeout: 5000 })
+    await expandCustomFields(adminPage)
+    await adminPage.getByRole('button', { name: /add field/i }).click()
+    await adminPage.getByPlaceholder('e.g. Severity Rating').fill(`Location Field ${Date.now()}`)
+    await adminPage.locator('select').first().selectOption('location')
+    await adminPage.getByRole('button', { name: /save/i }).last().click()
+    await expect(adminPage.getByText(/success/i)).toBeVisible({ timeout: 5000 })
 
     // Navigate to notes page
-    await page.getByRole('link', { name: /notes/i }).first().click()
-    await expect(page.getByRole('heading', { name: /notes/i })).toBeVisible({ timeout: 10000 })
+    await adminPage.getByRole('link', { name: /notes/i }).first().click()
+    await expect(adminPage.getByRole('heading', { name: /notes/i })).toBeVisible({ timeout: 10000 })
 
     // Open new note form
-    const newNoteBtn = page.getByRole('button', { name: /new note|add note/i })
+    const newNoteBtn = adminPage.getByRole('button', { name: /new note|add note/i })
     if (await newNoteBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
       await newNoteBtn.click()
     }

@@ -17,7 +17,7 @@ import {
 } from '@/lib/api'
 import { decryptArrayFields } from '@/lib/decrypt-fields'
 import * as keyManager from '@/lib/key-manager'
-import { LABEL_VOLUNTEER_PII } from '@shared/crypto-labels'
+import { LABEL_USER_PII } from '@shared/crypto-labels'
 import { queryOptions, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { queryKeys } from './keys'
 
@@ -27,7 +27,7 @@ import { queryKeys } from './keys'
 
 /**
  * Fetch and decrypt the full pending invite list.
- * Invite name/phone fields are encrypted with LABEL_VOLUNTEER_PII.
+ * Invite name/phone fields are encrypted with LABEL_USER_PII.
  */
 export const invitesListOptions = () =>
   queryOptions({
@@ -39,7 +39,7 @@ export const invitesListOptions = () =>
         await decryptArrayFields(
           invites as unknown as Record<string, unknown>[],
           pubkey,
-          LABEL_VOLUNTEER_PII
+          LABEL_USER_PII
         )
       }
       return invites

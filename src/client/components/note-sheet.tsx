@@ -1,4 +1,5 @@
 import { useAuth } from '@/lib/auth'
+import { useConfig } from '@/lib/config'
 import { encryptNoteV2 } from '@/lib/crypto'
 import { useNoteSheet } from '@/lib/note-sheet-context'
 import { useDraft } from '@/lib/use-draft'
@@ -27,7 +28,9 @@ import {
 import { Switch } from '@/components/ui/switch'
 import { type CustomFieldDefinition, createNote, updateNote } from '@/lib/api'
 import { useCallHistory } from '@/lib/queries/calls'
+import { queryKeys } from '@/lib/queries/keys'
 import { useCustomFields } from '@/lib/queries/notes'
+import { queryClient } from '@/lib/query-client'
 import { useToast } from '@/lib/toast'
 import type { NotePayload } from '@shared/types'
 import { Clock, Lock, Save } from 'lucide-react'
@@ -35,13 +38,15 @@ import { Clock, Lock, Save } from 'lucide-react'
 export function NoteSheet() {
   const { t } = useTranslation()
   const { hasNsec, publicKey, isAdmin, adminDecryptionPubkey } = useAuth()
+  const { currentHubId } = useConfig()
+  const hubId = currentHubId ?? 'global'
   const { isOpen, mode, editNoteId, initialCallId, initialText, initialFields, close, onSaved } =
     useNoteSheet()
   const { toast } = useToast()
   const [saving, setSaving] = useState(false)
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({})
 
-  const { data: customFieldsData } = useCustomFields()
+  const { data: customFieldsData } = useCustomFields(hubId)
   const { data: callHistoryData } = useCallHistory(isAdmin && isOpen ? { limit: 20 } : undefined)
   const customFields = customFieldsData ?? []
   const recentCalls = callHistoryData?.calls ?? []
@@ -71,10 +76,8 @@ export function NoteSheet() {
   function validateFields(): boolean {
     const errors: Record<string, string> = {}
     for (const field of customFields) {
-      // Volunteers can only see visible fields
-      if (!isAdmin && !field.visibleToVolunteers) continue
-      // Read-only fields for volunteers shouldn't be validated
-      if (!isAdmin && !field.editableByVolunteers) continue
+      // Volunteers can only see fields they have permission for
+      if (!isAdmin && field.visibleTo !== 'contacts:envelope-summary') continue
 
       const value = draft.fields[field.id]
       if (field.required && (value === undefined || value === '' || value === false)) {
@@ -135,6 +138,7 @@ export function NoteSheet() {
       } else {
         await createNote({ callId: draft.callId, encryptedContent, authorEnvelope, adminEnvelopes })
       }
+      void queryClient.invalidateQueries({ queryKey: queryKeys.notes.all })
       draft.clearDraft()
       close()
       onSaved?.()
@@ -156,7 +160,9 @@ export function NoteSheet() {
   const modKey = isMac ? '\u2318' : 'Ctrl'
 
   // Filter fields based on role visibility
-  const visibleFields = customFields.filter((f) => isAdmin || f.visibleToVolunteers)
+  const visibleFields = customFields.filter(
+    (f) => isAdmin || f.visibleTo === 'contacts:envelope-summary'
+  )
 
   return (
     <Sheet
@@ -225,7 +231,7 @@ export function NoteSheet() {
             <div className="space-y-3 rounded-lg border border-border p-3">
               <p className="text-xs font-medium text-muted-foreground">{t('customFields.title')}</p>
               {visibleFields.map((field) => {
-                const disabled = !isAdmin && !field.editableByVolunteers
+                const disabled = !isAdmin && field.visibleTo !== 'contacts:envelope-summary'
                 const error = validationErrors[field.id]
                 const value = draft.fields[field.id]
                 return (

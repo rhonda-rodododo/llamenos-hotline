@@ -3,7 +3,7 @@ import type { RecipientEnvelope } from '../../../shared/types'
 import { jsonb } from '../bun-jsonb'
 import { ciphertext, hmacHashed } from '../crypto-columns'
 
-export const volunteers = pgTable('volunteers', {
+export const users = pgTable('users', {
   pubkey: text('pubkey').primaryKey(),
   roles: jsonb<string[]>()('roles').notNull().default([]),
   hubRoles: jsonb<Array<{ hubId: string; roleIds: string[] }>>()('hub_roles').notNull().default([]),
@@ -20,6 +20,7 @@ export const volunteers = pgTable('volunteers', {
   encryptedName: ciphertext('encrypted_name').notNull(),
   nameEnvelopes: jsonb<RecipientEnvelope[]>()('name_envelopes').notNull().default([]),
   encryptedPhone: ciphertext('encrypted_phone').notNull(),
+  phoneEnvelopes: jsonb<RecipientEnvelope[]>()('phone_envelopes').notNull().default([]),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 })
 
@@ -66,6 +67,7 @@ export const inviteCodes = pgTable('invite_codes', {
   encryptedName: ciphertext('encrypted_name').notNull(),
   nameEnvelopes: jsonb<RecipientEnvelope[]>()('name_envelopes').notNull().default([]),
   encryptedPhone: ciphertext('encrypted_phone').notNull(),
+  phoneEnvelopes: jsonb<RecipientEnvelope[]>()('phone_envelopes').notNull().default([]),
   recipientPhoneHash: hmacHashed('recipient_phone_hash'),
   deliveryChannel: varchar('delivery_channel', { length: 16 }),
   deliverySentAt: timestamp('delivery_sent_at', { withTimezone: true }),
@@ -85,5 +87,5 @@ export const provisionRooms = pgTable('provision_rooms', {
 export const webauthnSettings = pgTable('webauthn_settings', {
   id: text('id').primaryKey().default('global'),
   requireForAdmins: boolean('require_for_admins').notNull().default(false),
-  requireForVolunteers: boolean('require_for_volunteers').notNull().default(false),
+  requireForUsers: boolean('require_for_users').notNull().default(false),
 })

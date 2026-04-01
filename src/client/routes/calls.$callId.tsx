@@ -1,25 +1,37 @@
+import { ContactSelect } from '@/components/contacts/contact-select'
+import { CreateContactDialog } from '@/components/contacts/create-contact-dialog'
 import { RecordingPlayer } from '@/components/recording-player'
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { type AuditLogEntry, type CallRecord, type EncryptedNote, getCallDetail } from '@/lib/api'
+import {
+  type AuditLogEntry,
+  type CallRecord,
+  type ContactRecord,
+  type EncryptedNote,
+  getCallDetail,
+  linkToContact,
+} from '@/lib/api'
 import { useAuth } from '@/lib/auth'
 import { decryptCallRecord, decryptNoteV2, decryptTranscription } from '@/lib/crypto'
 import { decryptObjectFields } from '@/lib/decrypt-fields'
 import * as keyManager from '@/lib/key-manager'
-import { useVolunteers } from '@/lib/queries/volunteers'
+import { useUsers } from '@/lib/queries/users'
 import { useToast } from '@/lib/toast'
-import { LABEL_VOLUNTEER_PII } from '@shared/crypto-labels'
+import { LABEL_USER_PII } from '@shared/crypto-labels'
 import type { NotePayload } from '@shared/types'
 import { Link, createFileRoute, useNavigate } from '@tanstack/react-router'
 import {
   ArrowLeft,
   Clock,
+  LinkIcon,
   Mic,
   Phone,
   PhoneIncoming,
   PhoneMissed,
   ScrollText,
   StickyNote,
+  UserPlus,
 } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -43,17 +55,24 @@ function formatDuration(seconds: number) {
 function CallDetailPage() {
   const { t } = useTranslation()
   const { callId } = Route.useParams()
-  const { isAdmin, hasNsec, publicKey } = useAuth()
+  const { isAdmin, hasNsec, publicKey, hasPermission } = useAuth()
   const { toast } = useToast()
   const navigate = useNavigate()
+  const canCreateContacts = hasPermission('contacts:create')
+  const canLinkContacts = hasPermission('contacts:link')
 
   const [call, setCall] = useState<CallRecord | null>(null)
   const [notes, setNotes] = useState<DecryptedNote[]>([])
   const [auditEntries, setAuditEntries] = useState<AuditLogEntry[]>([])
   const [loading, setLoading] = useState(true)
 
-  // useVolunteers decrypts PII fields (name) in the query fn
-  const { data: volunteers = [] } = useVolunteers()
+  // Contact linking state
+  const [showCreateContact, setShowCreateContact] = useState(false)
+  const [showLinkExisting, setShowLinkExisting] = useState(false)
+  const [linkingContact, setLinkingContact] = useState(false)
+
+  // useUsers decrypts PII fields (name) in the query fn
+  const { data: users = [] } = useUsers()
 
   useEffect(() => {
     setLoading(true)
@@ -127,7 +146,7 @@ function CallDetailPage() {
         await decryptObjectFields(
           result as unknown as Record<string, unknown>,
           publicKey,
-          LABEL_VOLUNTEER_PII
+          LABEL_USER_PII
         )
       }
 
@@ -135,12 +154,32 @@ function CallDetailPage() {
     })()
   }, [call, hasNsec, publicKey])
 
-  // useVolunteers already decrypts name/phone in the query fn
+  // useUsers already decrypts name/phone in the query fn
   const nameMap = useMemo(() => {
     const map = new Map<string, string>()
-    for (const v of volunteers) map.set(v.pubkey, v.name)
+    for (const v of users) map.set(v.pubkey, v.name)
     return map
-  }, [volunteers])
+  }, [users])
+
+  async function handleLinkExisting(contactId: string | string[]) {
+    const id = Array.isArray(contactId) ? contactId[0] : contactId
+    if (!id) return
+    setLinkingContact(true)
+    try {
+      await linkToContact(id, 'call', callId)
+      toast(t('calls.detail.contactLinked', 'Contact linked to call'), 'success')
+      setShowLinkExisting(false)
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err)
+      toast(msg, 'error')
+    } finally {
+      setLinkingContact(false)
+    }
+  }
+
+  function handleContactCreated(_contact: ContactRecord) {
+    toast(t('calls.detail.contactCreated', 'Contact created and linked to call'), 'success')
+  }
 
   if (loading) {
     return (
@@ -158,7 +197,7 @@ function CallDetailPage() {
     )
   }
 
-  const volunteerName = decryptedCallWithFields.answeredBy
+  const answeredByName = decryptedCallWithFields.answeredBy
     ? nameMap.get(decryptedCallWithFields.answeredBy) ||
       decryptedCallWithFields.answeredBy.slice(0, 8)
     : null
@@ -204,7 +243,7 @@ function CallDetailPage() {
                 <>
                   <PhoneIncoming className="h-4 w-4 text-muted-foreground" />
                   <span className="text-sm">
-                    {t('callHistory.answeredBy')}: {volunteerName || '-'}
+                    {t('callHistory.answeredBy')}: {answeredByName || '-'}
                   </span>
                 </>
               )}
@@ -299,6 +338,60 @@ function CallDetailPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Contact actions */}
+      {(canCreateContacts || canLinkContacts) && (
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <UserPlus className="h-4 w-4" />
+              {t('calls.detail.contactActions', 'Contact Actions')}
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex flex-wrap gap-2">
+              {canCreateContacts && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowCreateContact(true)}
+                  data-testid="call-add-contact"
+                >
+                  <UserPlus className="mr-2 h-4 w-4" />
+                  {t('calls.detail.addAsContact', 'Add as Contact')}
+                </Button>
+              )}
+              {canLinkContacts && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowLinkExisting(!showLinkExisting)}
+                  data-testid="call-link-contact"
+                >
+                  <LinkIcon className="mr-2 h-4 w-4" />
+                  {t('calls.detail.linkToExisting', 'Link to Existing')}
+                </Button>
+              )}
+            </div>
+            {showLinkExisting && (
+              <div className="mt-3 max-w-sm">
+                <ContactSelect
+                  value={undefined}
+                  onChange={handleLinkExisting}
+                  disabled={linkingContact}
+                />
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Create Contact Dialog */}
+      <CreateContactDialog
+        open={showCreateContact}
+        onOpenChange={setShowCreateContact}
+        onCreated={handleContactCreated}
+      />
 
       {/* Audit timeline (admin only) */}
       {isAdmin && auditEntries.length > 0 && (

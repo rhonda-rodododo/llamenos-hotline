@@ -1,39 +1,38 @@
-import { expect, test } from '@playwright/test'
-import { loginAsAdmin, navigateAfterLogin } from '../helpers'
+import { expect, test } from '../fixtures/auth'
+import { navigateAfterLogin } from '../helpers'
 
 test.describe('Client-side transcription settings', () => {
-  test('can enable and configure client-side transcription', async ({ page }) => {
-    await loginAsAdmin(page)
-    await navigateAfterLogin(page, '/settings?section=transcription')
+  test('can enable and configure client-side transcription', async ({ adminPage }) => {
+    await navigateAfterLogin(adminPage, '/settings?section=transcription')
 
     // The transcription section card should be visible (deep-linked via ?section=transcription)
-    const section = page.locator('#transcription')
+    const section = adminPage.locator('#transcription')
     await expect(section).toBeVisible()
 
     // Check for the "In-Browser Transcription" sub-section heading
-    await expect(page.getByRole('heading', { name: 'In-Browser Transcription' })).toBeVisible()
-    await expect(page.getByText('Transcribe calls locally in your browser')).toBeVisible()
+    await expect(adminPage.getByRole('heading', { name: 'In-Browser Transcription' })).toBeVisible()
+    await expect(adminPage.getByText('Transcribe calls locally in your browser')).toBeVisible()
 
     // Toggle should be visible and initially off
-    const toggle = page.getByTestId('client-transcription-toggle')
+    const toggle = adminPage.getByTestId('client-transcription-toggle')
     await expect(toggle).toBeVisible()
 
     // Enable client-side transcription
     await toggle.click()
 
     // Model selection should appear
-    await expect(page.getByText('Transcription Model')).toBeVisible()
-    await expect(page.getByText(/Tiny \(English\).*fastest/)).toBeVisible()
-    await expect(page.getByText(/Base \(English\).*better accuracy/)).toBeVisible()
+    await expect(adminPage.getByText('Transcription Model')).toBeVisible()
+    await expect(adminPage.getByText(/Tiny \(English\).*fastest/)).toBeVisible()
+    await expect(adminPage.getByText(/Base \(English\).*better accuracy/)).toBeVisible()
 
     // "Transcribes your speech only" notice should appear
-    await expect(page.getByText('Transcribes your speech only')).toBeVisible()
+    await expect(adminPage.getByText('Transcribes your speech only')).toBeVisible()
 
     // Select a different model
-    await page.getByText(/Base \(English\).*better accuracy/).click()
+    await adminPage.getByText(/Base \(English\).*better accuracy/).click()
 
     // Setting persists in localStorage
-    const settings = await page.evaluate(() =>
+    const settings = await adminPage.evaluate(() =>
       JSON.parse(localStorage.getItem('llamenos:client-transcription') || '{}')
     )
     expect(settings.enabled).toBe(true)
@@ -41,20 +40,18 @@ test.describe('Client-side transcription settings', () => {
 
     // Disable and verify model selection hides
     await toggle.click()
-    await expect(page.getByText('Transcription Model')).not.toBeVisible()
+    await expect(adminPage.getByText('Transcription Model')).not.toBeVisible()
 
     // Verify persisted state
-    const updatedSettings = await page.evaluate(() =>
+    const updatedSettings = await adminPage.evaluate(() =>
       JSON.parse(localStorage.getItem('llamenos:client-transcription') || '{}')
     )
     expect(updatedSettings.enabled).toBe(false)
   })
 
-  test('settings persist across page reload', async ({ page }) => {
-    await loginAsAdmin(page)
-
+  test('settings persist across page reload', async ({ adminPage }) => {
     // Pre-set localStorage before navigating to settings
-    await page.evaluate(() => {
+    await adminPage.evaluate(() => {
       localStorage.setItem(
         'llamenos:client-transcription',
         JSON.stringify({
@@ -65,55 +62,54 @@ test.describe('Client-side transcription settings', () => {
       )
     })
 
-    await navigateAfterLogin(page, '/settings?section=transcription')
+    await navigateAfterLogin(adminPage, '/settings?section=transcription')
 
     // The transcription section should be visible
-    await expect(page.locator('#transcription')).toBeVisible()
+    await expect(adminPage.locator('#transcription')).toBeVisible()
 
     // Toggle should be checked
-    const toggle = page.getByTestId('client-transcription-toggle')
+    const toggle = adminPage.getByTestId('client-transcription-toggle')
     await expect(toggle).toBeChecked()
 
     // Base (Multilingual) model should be selected
-    await expect(page.getByText('Transcription Model')).toBeVisible()
+    await expect(adminPage.getByText('Transcription Model')).toBeVisible()
     // The base model button should have the selection indicator
-    const baseButton = page.getByText('Base (Multilingual)').locator('..')
+    const baseButton = adminPage.getByText('Base (Multilingual)').locator('..')
     await expect(baseButton).toHaveClass(/border-primary/)
   })
 })
 
 test.describe('Transcribe recording button', () => {
-  test('call history page shows transcribe button alongside recording player', async ({ page }) => {
-    await loginAsAdmin(page)
-    await navigateAfterLogin(page, '/calls')
-    await expect(page.getByRole('heading', { name: 'Call History' })).toBeVisible()
+  test('call history page shows transcribe button alongside recording player', async ({
+    adminPage,
+  }) => {
+    await navigateAfterLogin(adminPage, '/calls')
+    await expect(adminPage.getByRole('heading', { name: 'Call History' })).toBeVisible()
 
     // If recording players exist, they should have transcribe buttons
-    const playerCount = await page.getByTestId('recording-player').count()
+    const playerCount = await adminPage.getByTestId('recording-player').count()
     if (playerCount > 0) {
-      const transcribeBtn = page.getByTestId('transcribe-recording-btn').first()
+      const transcribeBtn = adminPage.getByTestId('transcribe-recording-btn').first()
       await expect(transcribeBtn).toBeVisible()
       await expect(transcribeBtn).toContainText('Transcribe Recording')
     }
   })
 
-  test('no network requests to CF AI during transcription flow', async ({ page }) => {
-    await loginAsAdmin(page)
-
+  test('no network requests to CF AI during transcription flow', async ({ adminPage }) => {
     // Monitor network requests for CF AI calls
     const cfAiRequests: string[] = []
-    page.on('request', (request) => {
+    adminPage.on('request', (request) => {
       const url = request.url()
       if (url.includes('ai.cloudflare') || url.includes('@cf/openai/whisper')) {
         cfAiRequests.push(url)
       }
     })
 
-    await navigateAfterLogin(page, '/calls')
-    await expect(page.getByRole('heading', { name: 'Call History' })).toBeVisible()
+    await navigateAfterLogin(adminPage, '/calls')
+    await expect(adminPage.getByRole('heading', { name: 'Call History' })).toBeVisible()
 
     // Wait a moment for any lazy requests
-    await page.waitForTimeout(1000)
+    await adminPage.waitForTimeout(1000)
 
     // No requests should have been made to CF AI
     expect(cfAiRequests).toHaveLength(0)

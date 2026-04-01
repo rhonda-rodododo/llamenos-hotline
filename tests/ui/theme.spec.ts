@@ -1,91 +1,96 @@
-import { expect, test } from '@playwright/test'
-import { TEST_PIN, enterPin, loginAsAdmin } from '../helpers'
+import { expect, test } from '../fixtures/auth'
+import { reenterPinAfterReload } from '../helpers'
 
 test.describe('Theme', () => {
-  test.beforeEach(async ({ page, request }) => {
-    await loginAsAdmin(page)
+  test('can switch to dark theme', async ({ adminPage }) => {
+    await adminPage.getByRole('button', { name: /dark theme/i }).click()
+    await expect(adminPage.locator('html')).toHaveClass(/dark/)
   })
 
-  test('can switch to dark theme', async ({ page }) => {
-    await page.getByRole('button', { name: /dark theme/i }).click()
-    await expect(page.locator('html')).toHaveClass(/dark/)
+  test('can switch to light theme', async ({ adminPage }) => {
+    await adminPage.getByRole('button', { name: /light theme/i }).click()
+    await expect(adminPage.locator('html')).not.toHaveClass(/dark/)
   })
 
-  test('can switch to light theme', async ({ page }) => {
-    await page.getByRole('button', { name: /light theme/i }).click()
-    await expect(page.locator('html')).not.toHaveClass(/dark/)
-  })
-
-  test('can switch to system theme', async ({ page }) => {
+  test('can switch to system theme', async ({ adminPage }) => {
     // First force dark so we know the state changed
-    await page.getByRole('button', { name: /dark theme/i }).click()
-    await expect(page.locator('html')).toHaveClass(/dark/)
+    await adminPage.getByRole('button', { name: /dark theme/i }).click()
+    await expect(adminPage.locator('html')).toHaveClass(/dark/)
 
     // Switch to system — should remove the forced class and follow OS preference
-    await page.getByRole('button', { name: /system theme/i }).click()
+    await adminPage.getByRole('button', { name: /system theme/i }).click()
 
     // In system mode the html element gets dark/light based on OS preference,
     // but the stored value should be "system" (not "dark" or "light")
-    const storedTheme = await page.evaluate(() => localStorage.getItem('llamenos-theme'))
+    const storedTheme = await adminPage.evaluate(() => localStorage.getItem('llamenos-theme'))
     expect(storedTheme).toBe('system')
 
     // The html element should still have a valid theme applied (either dark or light from OS)
-    const htmlClasses = await page.locator('html').getAttribute('class')
+    const htmlClasses = await adminPage.locator('html').getAttribute('class')
     // It should NOT have both dark and light simultaneously — sanity check
     expect(htmlClasses).toBeDefined()
   })
 
-  test('theme persists across page reload', async ({ page }) => {
-    await page.getByRole('button', { name: /dark theme/i }).click()
-    await expect(page.locator('html')).toHaveClass(/dark/)
+  test('theme persists across page reload', async ({ adminPage }) => {
+    await adminPage.getByRole('button', { name: /dark theme/i }).click()
+    await expect(adminPage.locator('html')).toHaveClass(/dark/)
 
-    await page.reload()
-    await enterPin(page, TEST_PIN)
-    await expect(page.getByRole('heading', { name: 'Dashboard', exact: true })).toBeVisible()
-    await expect(page.locator('html')).toHaveClass(/dark/)
+    await adminPage.reload()
+    await reenterPinAfterReload(adminPage)
+    // PIN unlock may redirect to profile-setup — handle it
+    if (adminPage.url().includes('profile-setup')) {
+      await adminPage.getByRole('button', { name: /complete setup/i }).click()
+      await adminPage.waitForURL((u) => !u.toString().includes('profile-setup'), { timeout: 15000 })
+    }
+    await expect(adminPage.getByRole('heading', { name: 'Dashboard', exact: true })).toBeVisible({
+      timeout: 15000,
+    })
+    // Theme is stored in localStorage and applied by the ThemeProvider before React renders,
+    // so the dark class should persist across reload regardless of the PIN/profile-setup flow.
+    await expect(adminPage.locator('html')).toHaveClass(/dark/)
   })
 
-  test('theme preference is stored in localStorage', async ({ page }) => {
+  test('theme preference is stored in localStorage', async ({ adminPage }) => {
     // Switch to dark and verify localStorage
-    await page.getByRole('button', { name: /dark theme/i }).click()
-    let stored = await page.evaluate(() => localStorage.getItem('llamenos-theme'))
+    await adminPage.getByRole('button', { name: /dark theme/i }).click()
+    let stored = await adminPage.evaluate(() => localStorage.getItem('llamenos-theme'))
     expect(stored).toBe('dark')
 
     // Switch to light and verify localStorage
-    await page.getByRole('button', { name: /light theme/i }).click()
-    stored = await page.evaluate(() => localStorage.getItem('llamenos-theme'))
+    await adminPage.getByRole('button', { name: /light theme/i }).click()
+    stored = await adminPage.evaluate(() => localStorage.getItem('llamenos-theme'))
     expect(stored).toBe('light')
 
     // Switch to system and verify localStorage
-    await page.getByRole('button', { name: /system theme/i }).click()
-    stored = await page.evaluate(() => localStorage.getItem('llamenos-theme'))
+    await adminPage.getByRole('button', { name: /system theme/i }).click()
+    stored = await adminPage.evaluate(() => localStorage.getItem('llamenos-theme'))
     expect(stored).toBe('system')
   })
 
-  test('login page has theme toggle', async ({ page }) => {
+  test('login page has theme toggle', async ({ adminPage }) => {
     // Logout first
-    await page.getByRole('button', { name: /log out/i }).click()
-    await expect(page.getByRole('heading', { name: /sign in/i })).toBeVisible()
+    await adminPage.getByRole('button', { name: /log out/i }).click()
+    await expect(adminPage.getByRole('heading', { name: /sign in/i })).toBeVisible()
 
     // Theme buttons should be visible on login
-    await expect(page.getByRole('button', { name: /dark theme/i })).toBeVisible()
-    await expect(page.getByRole('button', { name: /light theme/i })).toBeVisible()
-    await expect(page.getByRole('button', { name: /system theme/i })).toBeVisible()
+    await expect(adminPage.getByRole('button', { name: /dark theme/i })).toBeVisible()
+    await expect(adminPage.getByRole('button', { name: /light theme/i })).toBeVisible()
+    await expect(adminPage.getByRole('button', { name: /system theme/i })).toBeVisible()
   })
 
-  test('dark theme persists across SPA navigation', async ({ page }) => {
+  test('dark theme persists across SPA navigation', async ({ adminPage }) => {
     // Switch to dark
-    await page.getByRole('button', { name: /dark theme/i }).click()
-    await expect(page.locator('html')).toHaveClass(/dark/)
+    await adminPage.getByRole('button', { name: /dark theme/i }).click()
+    await expect(adminPage.locator('html')).toHaveClass(/dark/)
 
-    // Navigate to Volunteers page
-    await page.getByRole('link', { name: 'Volunteers' }).click()
-    await page.waitForURL(/\/volunteers/)
-    await expect(page.locator('html')).toHaveClass(/dark/)
+    // Navigate to Users page
+    await adminPage.getByRole('link', { name: 'Users' }).click()
+    await adminPage.waitForURL(/\/users/)
+    await expect(adminPage.locator('html')).toHaveClass(/dark/)
 
     // Navigate back to Dashboard
-    await page.getByRole('link', { name: 'Dashboard' }).click()
-    await page.waitForURL((u) => u.pathname === '/' || u.pathname === '/index')
-    await expect(page.locator('html')).toHaveClass(/dark/)
+    await adminPage.getByRole('link', { name: 'Dashboard' }).click()
+    await adminPage.waitForURL((u) => u.pathname === '/' || u.pathname === '/index')
+    await expect(adminPage.locator('html')).toHaveClass(/dark/)
   })
 })

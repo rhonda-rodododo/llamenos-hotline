@@ -1,50 +1,49 @@
-import { expect, test } from '@playwright/test'
-import { Timeouts, loginAsAdmin, navigateAfterLogin } from '../helpers'
+import { expect, test } from '../fixtures/auth'
+import { Timeouts, navigateAfterLogin } from '../helpers'
 
 test.describe('Contact Directory', () => {
   test.describe.configure({ mode: 'serial' })
 
-  test.beforeEach(async ({ page }) => {
-    await loginAsAdmin(page)
-    await navigateAfterLogin(page, '/contacts')
+  test.beforeEach(async ({ adminPage }) => {
+    await navigateAfterLogin(adminPage, '/contacts')
   })
 
   // Group 1: Contact Directory Page
   test.describe('directory page', () => {
-    test('loads with heading', async ({ page }) => {
-      await expect(page.getByRole('heading', { level: 1 })).toBeVisible({
+    test('loads with heading', async ({ adminPage }) => {
+      await expect(adminPage.getByRole('heading', { level: 1 })).toBeVisible({
         timeout: Timeouts.ELEMENT,
       })
     })
 
-    test('shows search input', async ({ page }) => {
-      await expect(page.getByTestId('contact-search')).toBeVisible()
+    test('shows search input', async ({ adminPage }) => {
+      await expect(adminPage.getByTestId('contact-search')).toBeVisible()
     })
 
-    test('shows contact type filter', async ({ page }) => {
-      await expect(page.getByTestId('contact-type-filter')).toBeVisible()
+    test('shows contact type filter', async ({ adminPage }) => {
+      await expect(adminPage.getByTestId('contact-type-filter')).toBeVisible()
     })
 
-    test('shows risk level filter', async ({ page }) => {
-      await expect(page.getByTestId('risk-level-filter')).toBeVisible()
+    test('shows risk level filter', async ({ adminPage }) => {
+      await expect(adminPage.getByTestId('risk-level-filter')).toBeVisible()
     })
 
-    test('shows New Contact button', async ({ page }) => {
-      await expect(page.getByTestId('new-contact-btn')).toBeVisible()
+    test('shows New Contact button', async ({ adminPage }) => {
+      await expect(adminPage.getByTestId('new-contact-btn')).toBeVisible()
     })
 
-    test('shows empty state or contact list', async ({ page }) => {
-      const hasRows = await page
+    test('shows empty state or contact list', async ({ adminPage }) => {
+      const hasRows = await adminPage
         .getByTestId('contact-row')
         .first()
         .isVisible({ timeout: 5000 })
         .catch(() => false)
-      const hasEmpty = await page
+      const hasEmpty = await adminPage
         .getByRole('img', { hidden: true })
         .isVisible({ timeout: 1000 })
         .catch(() => false)
       // Either rows or empty state icon should be visible — loading must have resolved
-      const loadingGone = await page
+      const loadingGone = await adminPage
         .locator('[data-testid="contact-search"]')
         .isVisible({ timeout: Timeouts.API })
       expect(loadingGone || hasRows || hasEmpty).toBeTruthy()
@@ -53,90 +52,89 @@ test.describe('Contact Directory', () => {
 
   // Group 2: Create Contact Flow
   test.describe('create contact flow', () => {
-    test('opens dialog when New Contact button clicked', async ({ page }) => {
-      await page.getByTestId('new-contact-btn').click()
-      await expect(page.getByTestId('create-contact-dialog')).toBeVisible({
+    test('opens dialog when New Contact button clicked', async ({ adminPage }) => {
+      await adminPage.getByTestId('new-contact-btn').click()
+      await expect(adminPage.getByTestId('create-contact-dialog')).toBeVisible({
         timeout: Timeouts.ELEMENT,
       })
-      await expect(page.getByTestId('create-contact-title')).toBeVisible()
+      await expect(adminPage.getByTestId('create-contact-title')).toBeVisible()
     })
 
-    test('dialog contains display name input', async ({ page }) => {
-      await page.getByTestId('new-contact-btn').click()
-      await expect(page.locator('#displayName')).toBeVisible()
+    test('dialog contains display name input', async ({ adminPage }) => {
+      await adminPage.getByTestId('new-contact-btn').click()
+      await expect(adminPage.locator('#displayName')).toBeVisible()
     })
 
-    test('dialog contains contact type select', async ({ page }) => {
-      await page.getByTestId('new-contact-btn').click()
-      await expect(page.locator('#contactType')).toBeVisible()
+    test('dialog contains contact type select', async ({ adminPage }) => {
+      await adminPage.getByTestId('new-contact-btn').click()
+      await expect(adminPage.locator('#contactType')).toBeVisible()
     })
 
-    test('dialog contains risk level select', async ({ page }) => {
-      await page.getByTestId('new-contact-btn').click()
-      await expect(page.locator('#riskLevel')).toBeVisible()
+    test('dialog contains risk level select', async ({ adminPage }) => {
+      await adminPage.getByTestId('new-contact-btn').click()
+      await expect(adminPage.locator('#riskLevel')).toBeVisible()
     })
 
-    test('dialog contains tags input', async ({ page }) => {
-      await page.getByTestId('new-contact-btn').click()
-      await expect(page.locator('#tags')).toBeVisible()
+    test('dialog contains tags input', async ({ adminPage }) => {
+      await adminPage.getByTestId('new-contact-btn').click()
+      await expect(adminPage.getByTestId('tag-input')).toBeVisible()
     })
 
-    test('dialog can be cancelled', async ({ page }) => {
-      await page.getByTestId('new-contact-btn').click()
-      await expect(page.getByTestId('create-contact-dialog')).toBeVisible()
-      await page.getByRole('button', { name: /cancel/i }).click()
-      await expect(page.getByTestId('create-contact-dialog')).not.toBeVisible({
+    test('dialog can be cancelled', async ({ adminPage }) => {
+      await adminPage.getByTestId('new-contact-btn').click()
+      await expect(adminPage.getByTestId('create-contact-dialog')).toBeVisible()
+      await adminPage.getByRole('button', { name: /cancel/i }).click()
+      await expect(adminPage.getByTestId('create-contact-dialog')).not.toBeVisible({
         timeout: Timeouts.ELEMENT,
       })
     })
 
-    test('display name field accepts input', async ({ page }) => {
-      await page.getByTestId('new-contact-btn').click()
-      await page.locator('#displayName').fill('Test Caller E2E')
-      await expect(page.locator('#displayName')).toHaveValue('Test Caller E2E')
+    test('display name field accepts input', async ({ adminPage }) => {
+      await adminPage.getByTestId('new-contact-btn').click()
+      await adminPage.locator('#displayName').fill('Test Caller E2E')
+      await expect(adminPage.locator('#displayName')).toHaveValue('Test Caller E2E')
     })
 
-    test('contact type dropdown works', async ({ page }) => {
-      await page.getByTestId('new-contact-btn').click()
+    test('contact type dropdown works', async ({ adminPage }) => {
+      await adminPage.getByTestId('new-contact-btn').click()
       // Click the SelectTrigger for contactType
-      await page.locator('#contactType').click()
+      await adminPage.locator('#contactType').click()
       // Options should be visible in the popover
-      const orgOption = page.getByRole('option', { name: /organization/i })
+      const orgOption = adminPage.getByRole('option', { name: /organization/i })
       await expect(orgOption).toBeVisible({ timeout: Timeouts.ELEMENT })
       await orgOption.click()
       // Trigger should now show selected value
-      await expect(page.locator('#contactType')).toContainText(/organization/i)
+      await expect(adminPage.locator('#contactType')).toContainText(/organization/i)
     })
 
-    test('risk level dropdown works', async ({ page }) => {
-      await page.getByTestId('new-contact-btn').click()
-      await page.locator('#riskLevel').click()
-      const highOption = page.getByRole('option', { name: /high/i })
+    test('risk level dropdown works', async ({ adminPage }) => {
+      await adminPage.getByTestId('new-contact-btn').click()
+      await adminPage.locator('#riskLevel').click()
+      const highOption = adminPage.getByRole('option', { name: /high/i })
       await expect(highOption).toBeVisible({ timeout: Timeouts.ELEMENT })
       await highOption.click()
-      await expect(page.locator('#riskLevel')).toContainText(/high/i)
+      await expect(adminPage.locator('#riskLevel')).toContainText(/high/i)
     })
 
-    test('creates a contact and closes dialog', async ({ page }) => {
+    test('creates a contact and closes dialog', async ({ adminPage }) => {
       const displayName = `E2E Contact ${Date.now()}`
-      await page.getByTestId('new-contact-btn').click()
+      await adminPage.getByTestId('new-contact-btn').click()
 
-      await page.locator('#displayName').fill(displayName)
+      await adminPage.locator('#displayName').fill(displayName)
 
       // Select medium risk
-      await page.locator('#riskLevel').click()
-      const mediumOption = page.getByRole('option', { name: /medium/i })
+      await adminPage.locator('#riskLevel').click()
+      const mediumOption = adminPage.getByRole('option', { name: /medium/i })
       await expect(mediumOption).toBeVisible({ timeout: Timeouts.ELEMENT })
       await mediumOption.click()
 
-      // Add tags
-      await page.locator('#tags').fill('e2e, test')
+      // Tags are now a Command+Popover multi-select (TagInput), skip for this test
 
       // Submit
-      await page.getByRole('button', { name: /create contact/i }).click()
+      await adminPage.getByRole('button', { name: /create contact/i }).click()
 
       // Dialog should close on success
-      await expect(page.getByTestId('create-contact-dialog')).not.toBeVisible({
+      await expect(adminPage.getByTestId('create-contact-dialog')).not.toBeVisible({
         timeout: Timeouts.API,
       })
     })
@@ -146,78 +144,78 @@ test.describe('Contact Directory', () => {
   test.describe('contact profile', () => {
     let createdContactName: string
 
-    test.beforeEach(async ({ page }) => {
+    test.beforeEach(async ({ adminPage }) => {
       // Create a contact to click into
       createdContactName = `Profile Test ${Date.now()}`
-      await page.getByTestId('new-contact-btn').click()
-      await page.locator('#displayName').fill(createdContactName)
-      await page.getByRole('button', { name: /create contact/i }).click()
+      await adminPage.getByTestId('new-contact-btn').click()
+      await adminPage.locator('#displayName').fill(createdContactName)
+      await adminPage.getByRole('button', { name: /create contact/i }).click()
       // Wait for create-contact dialog to close and list to refresh
-      await expect(page.getByTestId('create-contact-dialog')).not.toBeVisible({
+      await expect(adminPage.getByTestId('create-contact-dialog')).not.toBeVisible({
         timeout: Timeouts.API,
       })
-      await page.waitForTimeout(Timeouts.ASYNC_SETTLE)
+      await adminPage.waitForTimeout(Timeouts.ASYNC_SETTLE)
     })
 
-    test('clicking contact row navigates to profile', async ({ page }) => {
-      const row = page.getByTestId('contact-row').first()
+    test('clicking contact row navigates to profile', async ({ adminPage }) => {
+      const row = adminPage.getByTestId('contact-row').first()
       await expect(row).toBeVisible({ timeout: Timeouts.API })
       await row.click()
-      await expect(page).toHaveURL(/\/contacts\/[^/]+$/, { timeout: Timeouts.NAVIGATION })
+      await expect(adminPage).toHaveURL(/\/contacts\/[^/]+$/, { timeout: Timeouts.NAVIGATION })
     })
 
-    test('profile page shows summary section', async ({ page }) => {
-      const row = page.getByTestId('contact-row').first()
+    test('profile page shows summary section', async ({ adminPage }) => {
+      const row = adminPage.getByTestId('contact-row').first()
       await expect(row).toBeVisible({ timeout: Timeouts.API })
       await row.click()
-      await page.waitForURL(/\/contacts\/[^/]+$/, { timeout: Timeouts.NAVIGATION })
-      await page.waitForTimeout(Timeouts.ASYNC_SETTLE)
-      await expect(page.getByTestId('contact-summary-card')).toBeVisible({
+      await adminPage.waitForURL(/\/contacts\/[^/]+$/, { timeout: Timeouts.NAVIGATION })
+      await adminPage.waitForTimeout(Timeouts.ASYNC_SETTLE)
+      await expect(adminPage.getByTestId('contact-summary-card')).toBeVisible({
         timeout: Timeouts.ELEMENT,
       })
     })
 
-    test('profile page shows PII section', async ({ page }) => {
-      const row = page.getByTestId('contact-row').first()
+    test('profile page shows PII section', async ({ adminPage }) => {
+      const row = adminPage.getByTestId('contact-row').first()
       await expect(row).toBeVisible({ timeout: Timeouts.API })
       await row.click()
-      await page.waitForURL(/\/contacts\/[^/]+$/, { timeout: Timeouts.NAVIGATION })
-      await page.waitForTimeout(Timeouts.ASYNC_SETTLE)
-      await expect(page.getByTestId('contact-pii-card')).toBeVisible({
+      await adminPage.waitForURL(/\/contacts\/[^/]+$/, { timeout: Timeouts.NAVIGATION })
+      await adminPage.waitForTimeout(Timeouts.ASYNC_SETTLE)
+      await expect(adminPage.getByTestId('contact-pii-card')).toBeVisible({
         timeout: Timeouts.ELEMENT,
       })
     })
 
-    test('profile page shows timeline section', async ({ page }) => {
-      const row = page.getByTestId('contact-row').first()
+    test('profile page shows timeline section', async ({ adminPage }) => {
+      const row = adminPage.getByTestId('contact-row').first()
       await expect(row).toBeVisible({ timeout: Timeouts.API })
       await row.click()
-      await page.waitForURL(/\/contacts\/[^/]+$/, { timeout: Timeouts.NAVIGATION })
-      await page.waitForTimeout(Timeouts.ASYNC_SETTLE)
-      await expect(page.getByTestId('contact-timeline-card')).toBeVisible({
+      await adminPage.waitForURL(/\/contacts\/[^/]+$/, { timeout: Timeouts.NAVIGATION })
+      await adminPage.waitForTimeout(Timeouts.ASYNC_SETTLE)
+      await expect(adminPage.getByTestId('contact-timeline-card')).toBeVisible({
         timeout: Timeouts.ELEMENT,
       })
     })
 
-    test('back button navigates to directory', async ({ page }) => {
-      const row = page.getByTestId('contact-row').first()
+    test('back button navigates to directory', async ({ adminPage }) => {
+      const row = adminPage.getByTestId('contact-row').first()
       await expect(row).toBeVisible({ timeout: Timeouts.API })
       await row.click()
-      await page.waitForURL(/\/contacts\/[^/]+$/, { timeout: Timeouts.NAVIGATION })
-      await page.waitForTimeout(Timeouts.ASYNC_SETTLE)
+      await adminPage.waitForURL(/\/contacts\/[^/]+$/, { timeout: Timeouts.NAVIGATION })
+      await adminPage.waitForTimeout(Timeouts.ASYNC_SETTLE)
 
-      await page.getByTestId('contact-back-btn').click()
-      await expect(page).toHaveURL(/\/contacts(\?|$)/, { timeout: Timeouts.NAVIGATION })
+      await adminPage.getByTestId('contact-back-btn').click()
+      await expect(adminPage).toHaveURL(/\/contacts(\?|$)/, { timeout: Timeouts.NAVIGATION })
     })
 
-    test('delete button visible on profile for admin', async ({ page }) => {
-      const row = page.getByTestId('contact-row').first()
+    test('delete button visible on profile for admin', async ({ adminPage }) => {
+      const row = adminPage.getByTestId('contact-row').first()
       await expect(row).toBeVisible({ timeout: Timeouts.API })
       await row.click()
-      await page.waitForURL(/\/contacts\/[^/]+$/, { timeout: Timeouts.NAVIGATION })
-      await page.waitForTimeout(Timeouts.ASYNC_SETTLE)
+      await adminPage.waitForURL(/\/contacts\/[^/]+$/, { timeout: Timeouts.NAVIGATION })
+      await adminPage.waitForTimeout(Timeouts.ASYNC_SETTLE)
 
-      await expect(page.getByTestId('contact-delete-btn')).toBeVisible({
+      await expect(adminPage.getByTestId('contact-delete-btn')).toBeVisible({
         timeout: Timeouts.ELEMENT,
       })
     })
@@ -225,29 +223,29 @@ test.describe('Contact Directory', () => {
 
   // Group 4: Search and Filtering
   test.describe('search and filtering', () => {
-    test('search input submits on form submit', async ({ page }) => {
-      await page.getByTestId('contact-search').fill('test query')
-      await page.getByTestId('contact-search-btn').click()
+    test('search input submits on form submit', async ({ adminPage }) => {
+      await adminPage.getByTestId('contact-search').fill('test query')
+      await adminPage.getByTestId('contact-search-btn').click()
       // URL should update with q param
-      await expect(page).toHaveURL(/q=test\+query|q=test%20query/, {
+      await expect(adminPage).toHaveURL(/q=test\+query|q=test%20query/, {
         timeout: Timeouts.NAVIGATION,
       })
     })
 
-    test('contact type filter updates URL', async ({ page }) => {
-      await page.getByTestId('contact-type-filter').click()
-      const callerOption = page.getByRole('option', { name: /caller/i })
+    test('contact type filter updates URL', async ({ adminPage }) => {
+      await adminPage.getByTestId('contact-type-filter').click()
+      const callerOption = adminPage.getByRole('option', { name: /caller/i })
       await expect(callerOption).toBeVisible({ timeout: Timeouts.ELEMENT })
       await callerOption.click()
-      await expect(page).toHaveURL(/contactType=caller/, { timeout: Timeouts.NAVIGATION })
+      await expect(adminPage).toHaveURL(/contactType=caller/, { timeout: Timeouts.NAVIGATION })
     })
 
-    test('risk level filter updates URL', async ({ page }) => {
-      await page.getByTestId('risk-level-filter').click()
-      const highOption = page.getByRole('option', { name: /high/i })
+    test('risk level filter updates URL', async ({ adminPage }) => {
+      await adminPage.getByTestId('risk-level-filter').click()
+      const highOption = adminPage.getByRole('option', { name: /high/i })
       await expect(highOption).toBeVisible({ timeout: Timeouts.ELEMENT })
       await highOption.click()
-      await expect(page).toHaveURL(/riskLevel=high/, { timeout: Timeouts.NAVIGATION })
+      await expect(adminPage).toHaveURL(/riskLevel=high/, { timeout: Timeouts.NAVIGATION })
     })
   })
 })

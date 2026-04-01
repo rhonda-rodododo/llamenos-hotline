@@ -14,3 +14,6 @@ export {
   contactCallLinks,
   contactConversationLinks,
 } from './contacts'
+export * from './teams'
+export * from './tags'
+export * from './intakes'

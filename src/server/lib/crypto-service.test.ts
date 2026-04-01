@@ -9,8 +9,8 @@ import {
   LABEL_MESSAGE,
   LABEL_SERVER_NOSTR_KEY,
   LABEL_SERVER_NOSTR_KEY_INFO,
+  LABEL_USER_PII,
   LABEL_VOICEMAIL_WRAP,
-  LABEL_VOLUNTEER_PII,
 } from '@shared/crypto-labels'
 import { eciesWrapKey, hkdfDerive } from '@shared/crypto-primitives'
 import { CryptoService } from './crypto-service'
@@ -32,25 +32,25 @@ describe('CryptoService', () => {
 
   describe('serverEncrypt / serverDecrypt', () => {
     test('round-trip', () => {
-      const ct = crypto.serverEncrypt('hello', LABEL_VOLUNTEER_PII)
-      const pt = crypto.serverDecrypt(ct, LABEL_VOLUNTEER_PII)
+      const ct = crypto.serverEncrypt('hello', LABEL_USER_PII)
+      const pt = crypto.serverDecrypt(ct, LABEL_USER_PII)
       expect(pt).toBe('hello')
     })
 
     test('different nonce each time', () => {
-      const a = crypto.serverEncrypt('same', LABEL_VOLUNTEER_PII)
-      const b = crypto.serverEncrypt('same', LABEL_VOLUNTEER_PII)
+      const a = crypto.serverEncrypt('same', LABEL_USER_PII)
+      const b = crypto.serverEncrypt('same', LABEL_USER_PII)
       expect(a).not.toBe(b)
     })
 
     test('wrong label fails', () => {
-      const ct = crypto.serverEncrypt('secret', LABEL_VOLUNTEER_PII)
+      const ct = crypto.serverEncrypt('secret', LABEL_USER_PII)
       expect(() => crypto.serverDecrypt(ct, 'wrong:label')).toThrow()
     })
 
     test('empty string round-trip', () => {
-      const ct = crypto.serverEncrypt('', LABEL_VOLUNTEER_PII)
-      const pt = crypto.serverDecrypt(ct, LABEL_VOLUNTEER_PII)
+      const ct = crypto.serverEncrypt('', LABEL_USER_PII)
+      const pt = crypto.serverDecrypt(ct, LABEL_USER_PII)
       expect(pt).toBe('')
     })
   })
@@ -98,13 +98,13 @@ describe('CryptoService', () => {
       const { encrypted, envelopes } = crypto.envelopeEncrypt(
         'secret message',
         [pubkey],
-        LABEL_VOLUNTEER_PII
+        LABEL_USER_PII
       )
 
       expect(envelopes).toHaveLength(1)
       expect(envelopes[0].pubkey).toBe(pubkey)
 
-      const pt = crypto.envelopeDecrypt(encrypted, envelopes[0], secret, LABEL_VOLUNTEER_PII)
+      const pt = crypto.envelopeDecrypt(encrypted, envelopes[0], secret, LABEL_USER_PII)
       expect(pt).toBe('secret message')
     })
 
@@ -115,7 +115,7 @@ describe('CryptoService', () => {
       const { encrypted, envelopes } = crypto.envelopeEncrypt(
         'shared secret',
         [r1.pubkey, r2.pubkey],
-        LABEL_VOLUNTEER_PII
+        LABEL_USER_PII
       )
 
       expect(envelopes).toHaveLength(2)
@@ -123,10 +123,10 @@ describe('CryptoService', () => {
       const env1 = envelopes.find((e) => e.pubkey === r1.pubkey)!
       const env2 = envelopes.find((e) => e.pubkey === r2.pubkey)!
 
-      expect(crypto.envelopeDecrypt(encrypted, env1, r1.secret, LABEL_VOLUNTEER_PII)).toBe(
+      expect(crypto.envelopeDecrypt(encrypted, env1, r1.secret, LABEL_USER_PII)).toBe(
         'shared secret'
       )
-      expect(crypto.envelopeDecrypt(encrypted, env2, r2.secret, LABEL_VOLUNTEER_PII)).toBe(
+      expect(crypto.envelopeDecrypt(encrypted, env2, r2.secret, LABEL_USER_PII)).toBe(
         'shared secret'
       )
     })
@@ -152,19 +152,19 @@ describe('CryptoService', () => {
       const { encrypted, envelopes } = crypto.envelopeEncrypt(
         'test message',
         [pubkey],
-        LABEL_VOLUNTEER_PII
+        LABEL_USER_PII
       )
 
       expect(() =>
-        crypto.envelopeDecrypt(encrypted, envelopes[0], wrongKey.secret, LABEL_VOLUNTEER_PII)
+        crypto.envelopeDecrypt(encrypted, envelopes[0], wrongKey.secret, LABEL_USER_PII)
       ).toThrow()
     })
 
     test('nonce uniqueness — same plaintext produces different ciphertext', () => {
       const { pubkey } = randomKeypair()
 
-      const a = crypto.envelopeEncrypt('same text', [pubkey], LABEL_VOLUNTEER_PII)
-      const b = crypto.envelopeEncrypt('same text', [pubkey], LABEL_VOLUNTEER_PII)
+      const a = crypto.envelopeEncrypt('same text', [pubkey], LABEL_USER_PII)
+      const b = crypto.envelopeEncrypt('same text', [pubkey], LABEL_USER_PII)
       expect(a.encrypted).not.toBe(b.encrypted)
     })
   })
@@ -292,7 +292,7 @@ describe('CryptoService', () => {
       globalThis.crypto.getRandomValues(hubKey)
 
       const ct = crypto.hubEncrypt('hub-encrypted data', hubKey)
-      const result = crypto.decryptField(ct, hubKey, LABEL_VOLUNTEER_PII)
+      const result = crypto.decryptField(ct, hubKey, LABEL_USER_PII)
       expect(result).toBe('hub-encrypted data')
     })
 
@@ -300,14 +300,14 @@ describe('CryptoService', () => {
       const wrongHubKey = new Uint8Array(32)
       globalThis.crypto.getRandomValues(wrongHubKey)
 
-      const ct = crypto.serverEncrypt('server-encrypted data', LABEL_VOLUNTEER_PII)
-      const result = crypto.decryptField(ct, wrongHubKey, LABEL_VOLUNTEER_PII)
+      const ct = crypto.serverEncrypt('server-encrypted data', LABEL_USER_PII)
+      const result = crypto.decryptField(ct, wrongHubKey, LABEL_USER_PII)
       expect(result).toBe('server-encrypted data')
     })
 
     test('falls back to server key when hub key is null', () => {
-      const ct = crypto.serverEncrypt('server-only data', LABEL_VOLUNTEER_PII)
-      const result = crypto.decryptField(ct, null, LABEL_VOLUNTEER_PII)
+      const ct = crypto.serverEncrypt('server-only data', LABEL_USER_PII)
+      const result = crypto.decryptField(ct, null, LABEL_USER_PII)
       expect(result).toBe('server-only data')
     })
   })

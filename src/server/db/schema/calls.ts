@@ -24,7 +24,7 @@ export const callLegs = pgTable(
     legSid: text('leg_sid').primaryKey(),
     callSid: text('call_sid').notNull(),
     hubId: text('hub_id').notNull().default('global'),
-    volunteerPubkey: text('volunteer_pubkey').notNull(),
+    userPubkey: text('user_pubkey').notNull(),
     encryptedPhone: ciphertext('encrypted_phone'),
     type: callLegTypeEnum('type').notNull().default('phone'),
     status: text('status').notNull().default('ringing'),

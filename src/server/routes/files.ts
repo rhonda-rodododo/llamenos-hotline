@@ -1,11 +1,18 @@
-import { Hono } from 'hono'
+import { createRoute, z } from '@hono/zod-openapi'
 import type { EncryptedMetaItem, FileKeyEnvelope } from '../../shared/types'
+import { createRouter } from '../lib/openapi'
 import { checkPermission, requirePermission } from '../middleware/permission-guard'
 import type { AppEnv } from '../types'
 
-const files = new Hono<AppEnv>()
+const files = createRouter()
 
-// Download encrypted file content
+const FileIdParamSchema = z.object({
+  id: z.string().openapi({ param: { name: 'id', in: 'path' }, example: 'file-abc123' }),
+})
+
+// ── GET /{id}/content — Download encrypted file content ──
+// Binary response — kept as standard Hono route (not OpenAPI) since it returns raw binary
+
 files.get('/:id/content', requirePermission('files:download-own'), async (c) => {
   const fileId = c.req.param('id')
   const pubkey = c.get('pubkey')
@@ -44,9 +51,33 @@ files.get('/:id/content', requirePermission('files:download-own'), async (c) => 
   })
 })
 
-// Get file envelopes (recipient key wrappers)
-files.get('/:id/envelopes', requirePermission('files:download-own'), async (c) => {
-  const fileId = c.req.param('id')
+// ── GET /{id}/envelopes — Get file envelopes (recipient key wrappers) ──
+
+const getEnvelopesRoute = createRoute({
+  method: 'get',
+  path: '/{id}/envelopes',
+  tags: ['Files'],
+  summary: 'Get file key envelopes',
+  middleware: [requirePermission('files:download-own')],
+  request: { params: FileIdParamSchema },
+  responses: {
+    200: {
+      description: 'File key envelopes',
+      content: { 'application/json': { schema: z.array(z.object({}).passthrough()) } },
+    },
+    403: {
+      description: 'Forbidden',
+      content: { 'application/json': { schema: z.object({ error: z.string() }) } },
+    },
+    404: {
+      description: 'File not found',
+      content: { 'application/json': { schema: z.object({ error: z.string() }) } },
+    },
+  },
+})
+
+files.openapi(getEnvelopesRoute, async (c) => {
+  const { id: fileId } = c.req.valid('param')
   const pubkey = c.get('pubkey')
   const permissions = c.get('permissions')
   const services = c.get('services')
@@ -63,12 +94,36 @@ files.get('/:id/envelopes', requirePermission('files:download-own'), async (c) =
     return c.json({ error: 'Forbidden' }, 403)
   }
 
-  return c.json(record.recipientEnvelopes)
+  return c.json(record.recipientEnvelopes, 200)
 })
 
-// Get encrypted file metadata
-files.get('/:id/metadata', requirePermission('files:download-own'), async (c) => {
-  const fileId = c.req.param('id')
+// ── GET /{id}/metadata — Get encrypted file metadata ──
+
+const getMetadataRoute = createRoute({
+  method: 'get',
+  path: '/{id}/metadata',
+  tags: ['Files'],
+  summary: 'Get encrypted file metadata',
+  middleware: [requirePermission('files:download-own')],
+  request: { params: FileIdParamSchema },
+  responses: {
+    200: {
+      description: 'Encrypted file metadata',
+      content: { 'application/json': { schema: z.array(z.object({}).passthrough()) } },
+    },
+    403: {
+      description: 'Forbidden',
+      content: { 'application/json': { schema: z.object({ error: z.string() }) } },
+    },
+    404: {
+      description: 'File not found',
+      content: { 'application/json': { schema: z.object({ error: z.string() }) } },
+    },
+  },
+})
+
+files.openapi(getMetadataRoute, async (c) => {
+  const { id: fileId } = c.req.valid('param')
   const pubkey = c.get('pubkey')
   const permissions = c.get('permissions')
   const services = c.get('services')
@@ -85,21 +140,65 @@ files.get('/:id/metadata', requirePermission('files:download-own'), async (c) =>
     return c.json({ error: 'Forbidden' }, 403)
   }
 
-  return c.json(record.encryptedMetadata)
+  return c.json(record.encryptedMetadata, 200)
 })
 
-// Share file with a new recipient
-files.post('/:id/share', requirePermission('files:share'), async (c) => {
-  const fileId = c.req.param('id')
+// ── POST /{id}/share — Share file with a new recipient ──
+
+const shareFileRoute = createRoute({
+  method: 'post',
+  path: '/{id}/share',
+  tags: ['Files'],
+  summary: 'Share file with a new recipient',
+  middleware: [requirePermission('files:share')],
+  request: {
+    params: FileIdParamSchema,
+    body: {
+      content: {
+        'application/json': {
+          schema: z.object({
+            envelope: z.object({
+              pubkey: z.string(),
+              encryptedFileKey: z.string(),
+              ephemeralPubkey: z.string(),
+            }),
+            encryptedMetadata: z.object({
+              pubkey: z.string(),
+              encryptedContent: z.string(),
+            }),
+          }),
+        },
+      },
+    },
+  },
+  responses: {
+    200: {
+      description: 'File shared',
+      content: { 'application/json': { schema: z.object({ success: z.boolean() }) } },
+    },
+    400: {
+      description: 'Invalid envelope or metadata',
+      content: { 'application/json': { schema: z.object({ error: z.string() }) } },
+    },
+    403: {
+      description: 'Forbidden',
+      content: { 'application/json': { schema: z.object({ error: z.string() }) } },
+    },
+    404: {
+      description: 'File not found',
+      content: { 'application/json': { schema: z.object({ error: z.string() }) } },
+    },
+  },
+})
+
+files.openapi(shareFileRoute, async (c) => {
+  const { id: fileId } = c.req.valid('param')
   const pubkey = c.get('pubkey')
   const hubId = c.get('hubId')
   const permissions = c.get('permissions')
   const services = c.get('services')
 
-  const body = (await c.req.json()) as {
-    envelope: FileKeyEnvelope
-    encryptedMetadata: EncryptedMetaItem
-  }
+  const body = c.req.valid('json')
 
   if (
     !body.envelope?.pubkey ||
@@ -125,14 +224,18 @@ files.post('/:id/share', requirePermission('files:share'), async (c) => {
     return c.json({ error: 'Forbidden' }, 403)
   }
 
-  await services.files.addRecipientEnvelope(fileId, body.envelope, body.encryptedMetadata)
+  await services.files.addRecipientEnvelope(
+    fileId,
+    body.envelope as FileKeyEnvelope,
+    body.encryptedMetadata as EncryptedMetaItem
+  )
 
   await services.records.addAuditEntry(hubId ?? 'global', 'fileShared', pubkey, {
     fileId,
     sharedWith: body.envelope.pubkey,
   })
 
-  return c.json({ success: true })
+  return c.json({ success: true }, 200)
 })
 
 export default files

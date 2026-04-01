@@ -80,8 +80,7 @@ export function validateCustomFields(
 ): Record<string, string> {
   const errors: Record<string, string> = {}
   for (const field of fields) {
-    if (!opts?.isAdmin && !field.visibleToVolunteers) continue
-    if (!opts?.isAdmin && !field.editableByVolunteers) continue
+    if (!opts?.isAdmin && field.visibleTo !== 'contacts:envelope-summary') continue
 
     const value = values[field.id]
     if (field.required && (value === undefined || value === '' || value === false)) {

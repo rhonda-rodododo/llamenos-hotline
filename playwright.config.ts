@@ -15,7 +15,7 @@ export default defineConfig({
         ["list"],
       ]
     : [["html"], ["list"]],
-  timeout: 60_000,
+  timeout: 90_000,
   expect: {
     timeout: 10_000,
   },
@@ -28,17 +28,35 @@ export default defineConfig({
   },
   projects: [
     {
+      // UI setup — real browser bootstrap. Calls test-reset-no-admin, then runs
+      // full admin bootstrap + invite onboarding flow.
+      // Runs BEFORE api-setup to avoid DB race conditions (both reset the DB).
       name: "setup",
       testMatch: /global-setup\.ts/,
+      timeout: 300_000, // 5 min for real bootstrap + 4 invite onboardings
+      use: { trace: "off" }, // Disable trace for setup — avoids ENOENT on trace artifacts
     },
     {
-      // API integration tests — no browser, request fixture only
+      // API setup — seeds admin from ADMIN_PUBKEY via test-reset (no browser needed).
+      // Runs AFTER UI setup completes to avoid test-reset re-creating the admin
+      // that test-reset-no-admin just deleted.
+      name: "api-setup",
+      testMatch: /api-global-setup\.ts/,
+      timeout: 60_000,
+      use: { trace: "off" },
+      dependencies: ["setup"],
+    },
+    {
+      // API integration tests — no browser, request fixture only.
+      // Depends on api-setup (NOT the UI setup which does real browser bootstrap).
       name: "api",
       testDir: "./tests/api",
       use: {
-        /* no device — request fixture only */
+        // API requests need longer timeouts when running in parallel with UI tests
+        // (3 workers + PBKDF2 + DB queries compete for CPU/IO)
+        actionTimeout: 30_000,
       },
-      dependencies: ["setup"],
+      dependencies: ["api-setup"],
     },
     {
       // UI E2E tests — full browser
@@ -59,6 +77,8 @@ export default defineConfig({
     {
       name: "mobile",
       testDir: "./tests/ui",
+      // Mobile tests run in parallel with UI tests — PBKDF2 under 3 workers needs more time
+      timeout: 120_000,
       use: { ...devices["Pixel 7"] },
       testMatch: /responsive\.spec\.ts/,
       dependencies: ["setup"],

@@ -15,6 +15,8 @@ import {
 } from '@/lib/api'
 import { useConfig } from '@/lib/config'
 import { decryptHubField, encryptHubField } from '@/lib/hub-field-crypto'
+import { queryKeys } from '@/lib/queries/keys'
+import { queryClient } from '@/lib/query-client'
 import { useToast } from '@/lib/toast'
 import type { ReportType } from '@shared/types'
 import { Archive, ArchiveRestore, Plus, Save, Star, Tags } from 'lucide-react'
@@ -108,6 +110,7 @@ export function ReportTypesSection({
           : [...reportTypes, created]
         onChange(newList)
       }
+      void queryClient.invalidateQueries({ queryKey: queryKeys.settings.reportTypes() })
       setEditing(null)
       toast(t('common.success'), 'success')
     } catch {
@@ -131,6 +134,7 @@ export function ReportTypesSection({
           rt.id === id ? { ...rt, archivedAt: new Date().toISOString(), isDefault: false } : rt
         )
       )
+      void queryClient.invalidateQueries({ queryKey: queryKeys.settings.reportTypes() })
       toast(t('settings.reportTypes.archived'), 'success')
     } catch {
       toast(t('common.error'), 'error')
@@ -141,6 +145,7 @@ export function ReportTypesSection({
     try {
       const { reportType: updated } = await unarchiveReportType(id)
       onChange(reportTypes.map((rt) => (rt.id === id ? updated : rt)))
+      void queryClient.invalidateQueries({ queryKey: queryKeys.settings.reportTypes() })
       toast(t('common.success'), 'success')
     } catch {
       toast(t('common.error'), 'error')

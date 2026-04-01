@@ -1,12 +1,30 @@
-import { Hono } from 'hono'
+import { createRoute, z } from '@hono/zod-openapi'
 import type { Hub } from '../../shared/types'
 import { BUILD_COMMIT, BUILD_TIME, BUILD_VERSION } from '../lib/build-constants'
 import { deriveServerKeypair } from '../lib/nostr-publisher'
+import { createRouter } from '../lib/openapi'
 import type { AppEnv } from '../types'
 
-const config = new Hono<AppEnv>()
+const config = createRouter()
 
-config.get('/', async (c) => {
+// ── GET / — Public config for the client app ──
+
+const getConfigRoute = createRoute({
+  method: 'get',
+  path: '/',
+  tags: ['Config'],
+  summary: 'Get public app configuration',
+  responses: {
+    200: {
+      description: 'App configuration',
+      content: { 'application/json': { schema: z.object({}).passthrough() } },
+    },
+  },
+})
+
+config.openapi(getConfigRoute, async (c) => {
+  // Prevent browser from caching config — setup state must always be fresh
+  c.header('Cache-Control', 'no-store')
   const services = c.get('services')
 
   // Fetch enabled channels to include in config
@@ -69,31 +87,60 @@ config.get('/', async (c) => {
   const nostrRelayUrl =
     c.env.NOSTR_RELAY_PUBLIC_URL || (c.env.NOSTR_RELAY_URL ? '/nostr' : undefined)
 
-  return c.json({
-    hotlineName: c.env.HOTLINE_NAME || 'Hotline',
-    hotlineNumber,
-    channels,
-    setupCompleted,
-    demoMode,
-    demoResetSchedule: envDemoMode ? c.env.DEMO_RESET_CRON || null : null,
-    needsBootstrap,
-    hubs,
-    defaultHubId,
-    serverNostrPubkey,
-    nostrRelayUrl,
-  })
+  return c.json(
+    {
+      hotlineName: c.env.HOTLINE_NAME || 'Hotline',
+      hotlineNumber,
+      channels,
+      setupCompleted,
+      demoMode,
+      demoResetSchedule: envDemoMode ? c.env.DEMO_RESET_CRON || null : null,
+      needsBootstrap,
+      hubs,
+      defaultHubId: defaultHubId ?? null,
+      serverNostrPubkey: serverNostrPubkey ?? null,
+      nostrRelayUrl: nostrRelayUrl ?? null,
+    },
+    200
+  )
 })
 
-// Build verification endpoint (Epic 79: Reproducible Builds)
-// Informational only — trust anchor is CHECKSUMS.txt in GitHub Releases
-config.get('/verify', (c) => {
-  return c.json({
-    version: BUILD_VERSION,
-    commit: BUILD_COMMIT,
-    buildTime: BUILD_TIME,
-    verificationUrl: 'https://github.com/rhonda-rodododo/llamenos/releases',
-    trustAnchor: 'GitHub Release checksums + SLSA provenance',
-  })
+// ── GET /verify — Build verification endpoint (Epic 79: Reproducible Builds) ──
+
+const verifyRoute = createRoute({
+  method: 'get',
+  path: '/verify',
+  tags: ['Config'],
+  summary: 'Get build verification info',
+  responses: {
+    200: {
+      description: 'Build verification details',
+      content: {
+        'application/json': {
+          schema: z.object({
+            version: z.string(),
+            commit: z.string(),
+            buildTime: z.string(),
+            verificationUrl: z.string(),
+            trustAnchor: z.string(),
+          }),
+        },
+      },
+    },
+  },
+})
+
+config.openapi(verifyRoute, (c) => {
+  return c.json(
+    {
+      version: BUILD_VERSION,
+      commit: BUILD_COMMIT,
+      buildTime: BUILD_TIME,
+      verificationUrl: 'https://github.com/rhonda-rodododo/llamenos/releases',
+      trustAnchor: 'GitHub Release checksums + SLSA provenance',
+    },
+    200
+  )
 })
 
 export default config

@@ -6,7 +6,7 @@ import { getTelephony } from './adapters'
 export async function maybeTranscribe(
   parentCallSid: string,
   recordingSid: string,
-  volunteerPubkey: string,
+  userPubkey: string,
   hubId: string,
   env: Env,
   services: Services
@@ -15,9 +15,9 @@ export async function maybeTranscribe(
   const transSettings = await services.settings.getTranscriptionSettings()
   if (!transSettings.globalEnabled) return
 
-  // Check if volunteer has transcription enabled
-  const volunteer = await services.identity.getVolunteer(volunteerPubkey)
-  if (!volunteer?.transcriptionEnabled) return
+  // Check if user has transcription enabled
+  const user = await services.identity.getUser(userPubkey)
+  if (!user?.transcriptionEnabled) return
 
   // Get recording audio directly by recording SID
   const adapter = await getTelephony(services.settings, undefined, {
@@ -36,14 +36,14 @@ export async function maybeTranscribe(
     })
 
     if (result.text) {
-      // Envelope encryption: single ciphertext, wrapped key for volunteer + admin
+      // Envelope encryption: single ciphertext, wrapped key for user + admin
       const adminPubkey = env.ADMIN_DECRYPTION_PUBKEY || env.ADMIN_PUBKEY
       if (!adminPubkey) {
         console.error('[transcription] ADMIN_PUBKEY not configured — cannot encrypt transcription')
         return
       }
-      const readerPubkeys = [volunteerPubkey]
-      if (adminPubkey !== volunteerPubkey) readerPubkeys.push(adminPubkey)
+      const readerPubkeys = [userPubkey]
+      if (adminPubkey !== userPubkey) readerPubkeys.push(adminPubkey)
 
       const { encrypted, envelopes } = services.crypto.envelopeEncrypt(
         result.text,

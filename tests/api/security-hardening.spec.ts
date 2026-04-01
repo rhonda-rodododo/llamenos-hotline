@@ -6,7 +6,7 @@
  *   HIGH-W3: Phone hash in audit log (not plaintext)
  *   HIGH-W5: Twilio account SID format validation
  *   MED-W1:  Non-super-admin blocked from global resource routes
- *   MED-W2:  Volunteer cannot ban by phone directly (no bans:create)
+ *   MED-W2:  User cannot ban by phone directly (no bans:create)
  */
 
 import { expect, test } from '@playwright/test'
@@ -111,48 +111,48 @@ test.describe('Security hardening', () => {
 
   // ─── MED-W1: Non-super-admin blocked from global resource routes ───────────
 
-  test('MED-W1: Non-admin volunteer cannot access global resource routes', async ({ request }) => {
-    // Create a volunteer via the admin-authenticated API
+  test('MED-W1: Non-admin user cannot access global resource routes', async ({ request }) => {
+    // Create a user via the admin-authenticated API
     const sk = generateSecretKey()
     const pubkey = getPublicKey(sk)
 
-    await adminApi.post('/api/volunteers', {
-      name: 'SecTest Volunteer',
+    await adminApi.post('/api/users', {
+      name: 'SecTest User',
       phone: uniquePhone(),
       roleIds: ['role-volunteer'],
       pubkey,
     })
 
-    // Create an authed request as the volunteer
-    const volunteerApi = createAuthedRequest(request, sk)
+    // Create an authed request as the user
+    const userApi = createAuthedRequest(request, sk)
 
     // Global bans endpoint should return 400 (no hub context for non-super-admin)
-    const bansRes = await volunteerApi.get('/api/bans')
+    const bansRes = await userApi.get('/api/bans')
     expect(bansRes.status()).toBe(400)
 
     // Global calls endpoint should return 400
-    const callsRes = await volunteerApi.get('/api/calls/active')
+    const callsRes = await userApi.get('/api/calls/active')
     expect(callsRes.status()).toBe(400)
 
     // Global notes endpoint should return 400
-    const notesRes = await volunteerApi.get('/api/notes')
+    const notesRes = await userApi.get('/api/notes')
     expect(notesRes.status()).toBe(400)
   })
 
-  // ─── MED-W2: Volunteer cannot create bans directly ────────────────────────
+  // ─── MED-W2: User cannot create bans directly ────────────────────────
 
-  test('MED-W2: Volunteer gets 403 when attempting to ban via hub-scoped endpoint', async ({
+  test('MED-W2: User gets 403 when attempting to ban via hub-scoped endpoint', async ({
     request,
   }) => {
-    // Create a hub and a volunteer via admin API
+    // Create a hub and a user via admin API
     const hubRes = await adminApi.post('/api/hubs', { name: 'Ban Permission Test Hub' })
     const { hub } = await hubRes.json()
 
     const sk = generateSecretKey()
     const pubkey = getPublicKey(sk)
 
-    await adminApi.post('/api/volunteers', {
-      name: 'NoBan Volunteer',
+    await adminApi.post('/api/users', {
+      name: 'NoBan User',
       phone: uniquePhone(),
       roleIds: ['role-volunteer'],
       pubkey,
@@ -162,11 +162,11 @@ test.describe('Security hardening', () => {
       roleIds: ['role-volunteer'],
     })
 
-    // Create an authed request as the volunteer
-    const volunteerApi = createAuthedRequest(request, sk)
+    // Create an authed request as the user
+    const userApi = createAuthedRequest(request, sk)
 
-    // Volunteer trying to create a ban via hub-scoped route should get 403 (no bans:create)
-    const banRes = await volunteerApi.post(`/api/hubs/${hub.id}/bans`, {
+    // User trying to create a ban via hub-scoped route should get 403 (no bans:create)
+    const banRes = await userApi.post(`/api/hubs/${hub.id}/bans`, {
       phone: '+15551234567',
       reason: 'test',
     })

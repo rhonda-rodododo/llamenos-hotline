@@ -51,6 +51,12 @@ dev.post('/test-reset', async (c) => {
     return c.json({ error: 'Forbidden' }, 403)
   }
   const services = c.get('services')
+  await services.tags.resetForTest('default-hub')
+  await services.tags.resetForTest('global')
+  await services.teams.resetForTest('default-hub')
+  await services.intakes.resetForTest('default-hub')
+  await services.blasts.resetForTest()
+  await services.reportTypes.resetForTest()
   await services.contacts.resetForTest('default-hub')
   await services.identity.resetForTest()
   await services.records.resetForTest()
@@ -66,7 +72,7 @@ dev.post('/test-reset', async (c) => {
   if (c.env.ADMIN_PUBKEY) {
     try {
       await services.identity.bootstrapAdmin(c.env.ADMIN_PUBKEY)
-      await services.identity.updateVolunteer(c.env.ADMIN_PUBKEY, { profileCompleted: true })
+      await services.identity.updateUser(c.env.ADMIN_PUBKEY, { profileCompleted: true })
     } catch {
       // Admin may already exist
     }
@@ -119,6 +125,12 @@ dev.post('/test-reset-no-admin', async (c) => {
     return c.json({ error: 'Forbidden' }, 403)
   }
   const services = c.get('services')
+  await services.tags.resetForTest('default-hub')
+  await services.tags.resetForTest('global')
+  await services.teams.resetForTest('default-hub')
+  await services.intakes.resetForTest('default-hub')
+  await services.blasts.resetForTest()
+  await services.reportTypes.resetForTest()
   await services.contacts.resetForTest('default-hub')
   await services.identity.resetForTest()
   await services.records.resetForTest()
@@ -127,10 +139,10 @@ dev.post('/test-reset-no-admin', async (c) => {
   await services.conversations.resetForTest()
   await services.files.resetForTest('global')
   await services.settings.resetForTest()
-  // Delete the admin volunteer so bootstrap tests see needsBootstrap=true
+  // Delete the admin user so bootstrap tests see needsBootstrap=true
   if (c.env.ADMIN_PUBKEY) {
     try {
-      await services.identity.deleteVolunteer(c.env.ADMIN_PUBKEY)
+      await services.identity.deleteUser(c.env.ADMIN_PUBKEY)
     } catch {
       // May not exist
     }
@@ -163,6 +175,22 @@ dev.post('/test-reset-records', async (c) => {
   await services.calls.resetForTest()
   await services.conversations.resetForTest()
   await services.files.resetForTest('global')
+  return c.json({ ok: true })
+})
+
+// Light reset: only clears setup completion state
+// Used by setup wizard E2E tests that need setupCompleted=false
+dev.post('/test-reset-setup', async (c) => {
+  if (c.env.ENVIRONMENT !== 'development' && c.env.ENVIRONMENT !== 'demo') {
+    return c.json({ error: 'Not Found' }, 404)
+  }
+  const secret = c.env.DEV_RESET_SECRET || c.env.E2E_TEST_SECRET
+  if (!secret) return c.json({ error: 'Not Found' }, 404)
+  if (c.req.header('X-Test-Secret') !== secret) {
+    return c.json({ error: 'Forbidden' }, 403)
+  }
+  const services = c.get('services')
+  await services.settings.updateSetupState({ setupCompleted: false })
   return c.json({ ok: true })
 })
 

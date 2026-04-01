@@ -17,9 +17,8 @@
  *   - CDP session fails to set up virtual authenticator
  */
 
-import { type CDPSession, type Page, expect, test } from '@playwright/test'
-import { ADMIN_NSEC, TEST_PIN, loginAsAdmin, navigateAfterLogin } from '../helpers'
-import { preloadEncryptedKey } from '../helpers/crypto'
+import { type CDPSession, type Page, expect, test } from '../fixtures/auth'
+import { navigateAfterLogin } from '../helpers'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Helper: Virtual Authenticator
@@ -90,21 +89,17 @@ async function openPasskeysSection(page: Page): Promise<void> {
 test.describe('Passkey registration', () => {
   test.describe.configure({ mode: 'serial' })
 
-  test.beforeEach(async ({ page }) => {
-    await loginAsAdmin(page)
-  })
-
-  test('admin can register a passkey — credential appears in list', async ({ page }) => {
-    const auth = await setupVirtualAuthenticator(page)
+  test('admin can register a passkey — credential appears in list', async ({ adminPage }) => {
+    const auth = await setupVirtualAuthenticator(adminPage)
     if (!auth) {
       test.skip(true, 'Virtual authenticator not supported (non-Chromium)')
       return
     }
 
-    await openPasskeysSection(page)
+    await openPasskeysSection(adminPage)
 
-    const labelInput = page.getByTestId('passkey-label-input')
-    const registerBtn = page.getByTestId('passkey-register-btn')
+    const labelInput = adminPage.getByTestId('passkey-label-input')
+    const registerBtn = adminPage.getByTestId('passkey-register-btn')
 
     // Register button should be disabled until label is entered
     await expect(registerBtn).toBeDisabled()
@@ -116,26 +111,26 @@ test.describe('Passkey registration', () => {
 
     // Virtual authenticator auto-confirms — credential should appear
     await expect(
-      page.getByTestId('passkey-credential-row').filter({ hasText: 'My Test Key' })
+      adminPage.getByTestId('passkey-credential-row').filter({ hasText: 'My Test Key' })
     ).toBeVisible({ timeout: 10_000 })
 
     // Success toast
-    await expect(page.getByText(/passkey registered/i)).toBeVisible({ timeout: 5000 })
+    await expect(adminPage.getByText(/passkey registered/i)).toBeVisible({ timeout: 5000 })
 
     await teardownVirtualAuthenticator(auth.cdp, auth.authenticatorId)
   })
 
-  test('register button is disabled when label is empty', async ({ page }) => {
-    const auth = await setupVirtualAuthenticator(page)
+  test('register button is disabled when label is empty', async ({ adminPage }) => {
+    const auth = await setupVirtualAuthenticator(adminPage)
     if (!auth) {
       test.skip(true, 'Virtual authenticator not supported')
       return
     }
 
-    await openPasskeysSection(page)
+    await openPasskeysSection(adminPage)
 
-    const registerBtn = page.getByTestId('passkey-register-btn')
-    const labelInput = page.getByTestId('passkey-label-input')
+    const registerBtn = adminPage.getByTestId('passkey-register-btn')
+    const labelInput = adminPage.getByTestId('passkey-label-input')
 
     // Empty label → disabled
     await expect(registerBtn).toBeDisabled()
@@ -149,23 +144,23 @@ test.describe('Passkey registration', () => {
     await teardownVirtualAuthenticator(auth.cdp, auth.authenticatorId)
   })
 
-  test('multiple passkeys can be registered', async ({ page }) => {
-    const auth1 = await setupVirtualAuthenticator(page)
+  test('multiple passkeys can be registered', async ({ adminPage }) => {
+    const auth1 = await setupVirtualAuthenticator(adminPage)
     if (!auth1) {
       test.skip(true, 'Virtual authenticator not supported')
       return
     }
 
-    await openPasskeysSection(page)
+    await openPasskeysSection(adminPage)
 
-    const labelInput = page.getByTestId('passkey-label-input')
-    const registerBtn = page.getByTestId('passkey-register-btn')
+    const labelInput = adminPage.getByTestId('passkey-label-input')
+    const registerBtn = adminPage.getByTestId('passkey-register-btn')
 
     // Register first passkey using first virtual authenticator
     await labelInput.fill('Device Alpha')
     await registerBtn.click()
     await expect(
-      page.getByTestId('passkey-credential-row').filter({ hasText: 'Device Alpha' })
+      adminPage.getByTestId('passkey-credential-row').filter({ hasText: 'Device Alpha' })
     ).toBeVisible({ timeout: 10_000 })
 
     // Remove first authenticator and add a second one on the same CDP session.
@@ -190,11 +185,11 @@ test.describe('Passkey registration', () => {
     await expect(registerBtn).toBeEnabled({ timeout: 5_000 })
     await registerBtn.click()
     await expect(
-      page.getByTestId('passkey-credential-row').filter({ hasText: 'Device Beta' })
+      adminPage.getByTestId('passkey-credential-row').filter({ hasText: 'Device Beta' })
     ).toBeVisible({ timeout: 10_000 })
 
     // Both credentials should be present
-    const rows = page.getByTestId('passkey-credential-row')
+    const rows = adminPage.getByTestId('passkey-credential-row')
     const count = await rows.count()
     expect(count, 'Expected at least 2 credentials registered').toBeGreaterThanOrEqual(2)
 
@@ -209,80 +204,127 @@ test.describe('Passkey registration', () => {
 test.describe('Passkey authentication', () => {
   test.describe.configure({ mode: 'serial' })
 
-  test('login with passkey succeeds without entering nsec', async ({ page }) => {
-    // First register a passkey while logged in with nsec
-    await loginAsAdmin(page)
-
-    const auth = await setupVirtualAuthenticator(page)
+  test('login with passkey succeeds without entering nsec', async ({ adminPage }) => {
+    const auth = await setupVirtualAuthenticator(adminPage)
     if (!auth) {
       test.skip(true, 'Virtual authenticator not supported')
       return
     }
 
-    await openPasskeysSection(page)
-    const labelInput = page.getByTestId('passkey-label-input')
-    const registerBtn = page.getByTestId('passkey-register-btn')
+    await openPasskeysSection(adminPage)
+    const labelInput = adminPage.getByTestId('passkey-label-input')
+    const registerBtn = adminPage.getByTestId('passkey-register-btn')
     await labelInput.fill('Login Test Key')
     await registerBtn.click()
     await expect(
-      page.getByTestId('passkey-credential-row').filter({ hasText: 'Login Test Key' })
+      adminPage.getByTestId('passkey-credential-row').filter({ hasText: 'Login Test Key' })
     ).toBeVisible({ timeout: 10_000 })
 
     // Now log out and attempt passkey login — clear both storages to simulate a
-    // fresh device so the login page shows the passkey button instead of PIN entry
-    await page.evaluate(() => {
+    // fresh device so the login page shows the passkey button instead of PIN entry.
+    // Block the token refresh endpoint to prevent restoreSession from auto-redirecting
+    // via the httpOnly cookie (which survives storage clears).
+    await adminPage.route('**/api/auth/token/refresh', (route) =>
+      route.fulfill({ status: 401, contentType: 'application/json', body: '{"error":"blocked"}' })
+    )
+    await adminPage.evaluate(() => {
       sessionStorage.clear()
       localStorage.clear()
     })
-    await page.goto('/login')
-    await page.waitForLoadState('networkidle')
+    await adminPage.goto('/login')
+    await adminPage.waitForLoadState('domcontentloaded')
 
-    const passkeyBtn = page.getByTestId('passkey-login-btn')
-    await expect(passkeyBtn).toBeVisible({ timeout: 10_000 })
+    const passkeyBtn = adminPage.getByTestId('passkey-login-btn')
+    await expect(passkeyBtn).toBeVisible({ timeout: 15_000 })
+
+    // Unblock refresh before clicking — the passkey flow needs it for getUserInfo
+    await adminPage.unroute('**/api/auth/token/refresh')
 
     await passkeyBtn.click()
 
-    // Virtual authenticator auto-selects the registered credential
-    // Login should succeed → dashboard visible (or PIN prompt for key unlock)
-    await page.waitForURL((url) => !url.toString().includes('/login'), { timeout: 15_000 })
+    // Virtual authenticator auto-selects the registered credential.
+    // Since localStorage was cleared (no stored key), the app shows a PIN setup
+    // flow to provision the key on this "new device".
+    const pinSetup = adminPage.getByTestId('passkey-pin-setup')
+    await expect(pinSetup).toBeVisible({ timeout: 30_000 })
+
+    // Create a PIN (6 digits) and confirm it
+    const TEST_PIN = '123456'
+    const pinDigit1 = adminPage.locator('input[aria-label="PIN digit 1"]')
+    await pinDigit1.waitFor({ state: 'visible', timeout: 10_000 })
+    await pinDigit1.focus()
+    await adminPage.keyboard.type(TEST_PIN, { delay: 80 })
+    await adminPage.keyboard.press('Enter')
+
+    // Confirm step — enter the same PIN
+    await pinDigit1.waitFor({ state: 'visible', timeout: 10_000 })
+    await pinDigit1.focus()
+    await adminPage.keyboard.type(TEST_PIN, { delay: 80 })
+    await adminPage.keyboard.press('Enter')
+
+    // After PIN setup, the app should navigate away from /login
+    await adminPage.waitForURL((url) => !url.toString().includes('/login'), { timeout: 30_000 })
 
     await teardownVirtualAuthenticator(auth.cdp, auth.authenticatorId)
   })
 
-  test('session from passkey auth is valid for API calls', async ({ page }) => {
-    await loginAsAdmin(page)
-
-    const auth = await setupVirtualAuthenticator(page)
+  test('session from passkey auth is valid for API calls', async ({ adminPage }) => {
+    const auth = await setupVirtualAuthenticator(adminPage)
     if (!auth) {
       test.skip(true, 'Virtual authenticator not supported')
       return
     }
 
-    await openPasskeysSection(page)
-    const labelInput = page.getByTestId('passkey-label-input')
-    const registerBtn = page.getByTestId('passkey-register-btn')
+    await openPasskeysSection(adminPage)
+    const labelInput = adminPage.getByTestId('passkey-label-input')
+    const registerBtn = adminPage.getByTestId('passkey-register-btn')
     await labelInput.fill('API Session Key')
     await registerBtn.click()
     await expect(
-      page.getByTestId('passkey-credential-row').filter({ hasText: 'API Session Key' })
+      adminPage.getByTestId('passkey-credential-row').filter({ hasText: 'API Session Key' })
     ).toBeVisible({ timeout: 10_000 })
 
-    // Log out, log back in via passkey — clear all storage to get the full login form
-    await page.evaluate(() => {
+    // Log out, log back in via passkey — clear all storage to get the full login form.
+    // Block refresh to prevent restoreSession from auto-redirecting via httpOnly cookie.
+    await adminPage.route('**/api/auth/token/refresh', (route) =>
+      route.fulfill({ status: 401, contentType: 'application/json', body: '{"error":"blocked"}' })
+    )
+    await adminPage.evaluate(() => {
       sessionStorage.clear()
       localStorage.clear()
     })
-    await page.goto('/login')
-    await page.waitForLoadState('networkidle')
+    await adminPage.goto('/login')
+    await adminPage.waitForLoadState('domcontentloaded')
 
-    const passkeyBtn = page.getByTestId('passkey-login-btn')
+    const passkeyBtn = adminPage.getByTestId('passkey-login-btn')
     await expect(passkeyBtn).toBeVisible({ timeout: 10_000 })
 
+    // Unblock refresh before clicking — the passkey flow needs it for getUserInfo
+    await adminPage.unroute('**/api/auth/token/refresh')
+
     await passkeyBtn.click()
-    await page.waitForURL((url) => !url.toString().includes('/login'), { timeout: 15_000 })
+
+    // Passkey login on a fresh device shows PIN setup to provision the key
+    const pinSetup = adminPage.getByTestId('passkey-pin-setup')
+    await expect(pinSetup).toBeVisible({ timeout: 30_000 })
+
+    const SESSION_PIN = '654321'
+    const pinDigit1 = adminPage.locator('input[aria-label="PIN digit 1"]')
+    await pinDigit1.waitFor({ state: 'visible', timeout: 10_000 })
+    await pinDigit1.focus()
+    await adminPage.keyboard.type(SESSION_PIN, { delay: 80 })
+    await adminPage.keyboard.press('Enter')
+
+    // Confirm PIN
+    await pinDigit1.waitFor({ state: 'visible', timeout: 10_000 })
+    await pinDigit1.focus()
+    await adminPage.keyboard.type(SESSION_PIN, { delay: 80 })
+    await adminPage.keyboard.press('Enter')
+
+    await adminPage.waitForURL((url) => !url.toString().includes('/login'), { timeout: 15_000 })
 
     // Verify the facade client holds a JWT access token after passkey login
-    const accessToken = await page.evaluate(
+    const accessToken = await adminPage.evaluate(
       () =>
         (window as Record<string, unknown>).__TEST_AUTH_FACADE &&
         (
@@ -297,14 +339,14 @@ test.describe('Passkey authentication', () => {
     expect(jwtParts, 'access_token must be a JWT (3 segments)').toHaveLength(3)
 
     // Verify API calls work (check health endpoint)
-    const healthStatus = await page.evaluate(async () => {
+    const healthStatus = await adminPage.evaluate(async () => {
       const res = await fetch('/api/health/ready')
       return res.status
     })
     expect(healthStatus, 'API should be reachable after passkey login').toBe(200)
 
     // Verify authenticated call to /api/auth/userinfo returns nsecSecret
-    const userinfoResult = await page.evaluate(async (token: string) => {
+    const userinfoResult = await adminPage.evaluate(async (token: string) => {
       const res = await fetch('/api/auth/userinfo', {
         headers: { Authorization: `Bearer ${token}` },
       })
@@ -333,32 +375,28 @@ test.describe('Passkey authentication', () => {
 test.describe('Credential management', () => {
   test.describe.configure({ mode: 'serial' })
 
-  test.beforeEach(async ({ page }) => {
-    await loginAsAdmin(page)
-  })
-
-  test('deleting a passkey removes it from the list', async ({ page }) => {
-    const auth = await setupVirtualAuthenticator(page)
+  test('deleting a passkey removes it from the list', async ({ adminPage }) => {
+    const auth = await setupVirtualAuthenticator(adminPage)
     if (!auth) {
       test.skip(true, 'Virtual authenticator not supported')
       return
     }
 
-    await openPasskeysSection(page)
-    const labelInput = page.getByTestId('passkey-label-input')
-    const registerBtn = page.getByTestId('passkey-register-btn')
+    await openPasskeysSection(adminPage)
+    const labelInput = adminPage.getByTestId('passkey-label-input')
+    const registerBtn = adminPage.getByTestId('passkey-register-btn')
 
     // Register a credential to delete
     await labelInput.fill('To Be Deleted')
     await registerBtn.click()
     await expect(
-      page.getByTestId('passkey-credential-row').filter({ hasText: 'To Be Deleted' })
+      adminPage.getByTestId('passkey-credential-row').filter({ hasText: 'To Be Deleted' })
     ).toBeVisible({ timeout: 10_000 })
 
-    const rowsBefore = await page.getByTestId('passkey-credential-row').count()
+    const rowsBefore = await adminPage.getByTestId('passkey-credential-row').count()
 
     // Delete the credential
-    const targetRow = page
+    const targetRow = adminPage
       .getByTestId('passkey-credential-row')
       .filter({ hasText: 'To Be Deleted' })
     const deleteBtn = targetRow.getByTestId('passkey-delete-btn')
@@ -366,26 +404,26 @@ test.describe('Credential management', () => {
 
     // Row should disappear
     await expect(
-      page.getByTestId('passkey-credential-row').filter({ hasText: 'To Be Deleted' })
+      adminPage.getByTestId('passkey-credential-row').filter({ hasText: 'To Be Deleted' })
     ).not.toBeVisible({ timeout: 5000 })
 
-    const rowsAfter = await page.getByTestId('passkey-credential-row').count()
+    const rowsAfter = await adminPage.getByTestId('passkey-credential-row').count()
     expect(rowsAfter, 'Credential count should decrease by 1 after deletion').toBe(rowsBefore - 1)
 
     await teardownVirtualAuthenticator(auth.cdp, auth.authenticatorId)
   })
 
-  test('passkey section only shows when WebAuthn is supported', async ({ page }) => {
-    await navigateAfterLogin(page, '/settings')
+  test('passkey section only shows when WebAuthn is supported', async ({ adminPage }) => {
+    await navigateAfterLogin(adminPage, '/settings')
 
-    const webauthnSupported = await page.evaluate(
+    const webauthnSupported = await adminPage.evaluate(
       () =>
         typeof window !== 'undefined' &&
         'credentials' in navigator &&
         'PublicKeyCredential' in window
     )
 
-    const passkeySection = page.locator('#passkeys')
+    const passkeySection = adminPage.locator('#passkeys')
 
     if (webauthnSupported) {
       await expect(passkeySection).toBeVisible({ timeout: 5000 })
@@ -401,7 +439,9 @@ test.describe('Credential management', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 test.describe('Virtual authenticator setup', () => {
-  test('WebAuthn API is available in test browser', async ({ page }) => {
+  test('WebAuthn API is available in test browser', async ({ browser }) => {
+    const ctx = await browser.newContext()
+    const page = await ctx.newPage()
     await page.goto('/login')
     const supported = await page.evaluate(
       () => 'credentials' in navigator && 'PublicKeyCredential' in window
@@ -411,5 +451,6 @@ test.describe('Virtual authenticator setup', () => {
       console.log('[webauthn] WebAuthn not available in this browser — passkey tests will skip')
     }
     expect(typeof supported).toBe('boolean')
+    await ctx.close()
   })
 })

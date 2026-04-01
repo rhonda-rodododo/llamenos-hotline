@@ -2,14 +2,15 @@
  * React Query hooks for audit log resource management.
  *
  * Audit log entries may contain encrypted volunteer names (actorName field).
- * Uses decryptArrayFields with LABEL_VOLUNTEER_PII to decrypt them.
+ * Uses decryptArrayFields with LABEL_USER_PII to decrypt them.
  * Cache is short-lived (60s stale) since audit logs update frequently.
  */
 
-import { type AuditLogEntry, listAuditLog } from '@/lib/api'
+import { listAuditLog } from '@/lib/api'
 import { decryptArrayFields } from '@/lib/decrypt-fields'
 import * as keyManager from '@/lib/key-manager'
-import { LABEL_VOLUNTEER_PII } from '@shared/crypto-labels'
+import { LABEL_USER_PII } from '@shared/crypto-labels'
+import type { AuditLogEntry } from '@shared/schemas'
 import { queryOptions, useQuery } from '@tanstack/react-query'
 import { queryKeys } from './keys'
 
@@ -41,7 +42,7 @@ export const auditLogOptions = (filters?: AuditLogFilters) =>
         await decryptArrayFields(
           entries as unknown as Record<string, unknown>[],
           pubkey,
-          LABEL_VOLUNTEER_PII
+          LABEL_USER_PII
         )
       }
       return { entries, total }

@@ -133,7 +133,7 @@ export interface Env {
 /** @deprecated Use roles array + permission system instead */
 export type UserRole = 'volunteer' | 'admin' | 'reporter'
 
-export interface Volunteer {
+export interface User {
   pubkey: string
   name: string
   phone: string
@@ -141,19 +141,21 @@ export interface Volunteer {
   hubRoles?: { hubId: string; roleIds: string[] }[] // Per-hub role assignments
   active: boolean
   createdAt: string
-  encryptedSecretKey: string // Admin-encrypted copy of the volunteer's nsec
+  encryptedSecretKey: string // Admin-encrypted copy of the user's nsec
   transcriptionEnabled: boolean
-  spokenLanguages: string[] // Languages volunteer can take calls in (e.g. ['en', 'es'])
+  spokenLanguages: string[] // Languages user can take calls in (e.g. ['en', 'es'])
   uiLanguage: string // Preferred UI language
   profileCompleted: boolean // Whether first-login setup is done
   onBreak: boolean // Temporarily unavailable (still on shift)
   callPreference: 'phone' | 'browser' | 'both' // How to receive calls (default: 'phone')
   // Messaging channel capabilities (Epic 68)
   supportedMessagingChannels?: MessagingChannelType[] // SMS, WhatsApp, Signal, RCS (empty = all)
-  messagingEnabled?: boolean // Whether volunteer can handle messaging conversations
-  // E2EE envelope-encrypted name (Phase 2D)
+  messagingEnabled?: boolean // Whether user can handle messaging conversations
+  // E2EE envelope-encrypted fields (Phase 2D)
   encryptedName?: string // ECIES ciphertext
   nameEnvelopes?: RecipientEnvelope[] // Per-recipient wrapped keys
+  encryptedPhone?: string // ECIES ciphertext (when envelope-encrypted)
+  phoneEnvelopes?: RecipientEnvelope[] // Per-recipient wrapped keys for phone
 }
 
 export interface Shift {
@@ -162,7 +164,7 @@ export interface Shift {
   startTime: string
   endTime: string
   days: number[]
-  volunteerPubkeys: string[]
+  userPubkeys: string[]
   createdAt: string
 }
 
@@ -229,7 +231,7 @@ export interface EncryptedCallRecord {
  * Only visible after admin decryption.
  */
 export interface CallRecordMetadata {
-  answeredBy: string | null // Volunteer pubkey
+  answeredBy: string | null // User pubkey
   callerNumber: string // HMAC-hashed phone number
 }
 
@@ -290,9 +292,11 @@ export interface InviteCode {
   recipientPhoneHash?: string
   deliveryChannel?: string
   deliverySentAt?: string
-  // E2EE envelope-encrypted name (Phase 2D)
+  // E2EE envelope-encrypted fields (Phase 2D)
   encryptedName?: string
   nameEnvelopes?: RecipientEnvelope[]
+  encryptedPhone?: string
+  phoneEnvelopes?: RecipientEnvelope[]
 }
 
 export interface WebAuthnCredential {
@@ -311,7 +315,7 @@ export interface WebAuthnCredential {
 
 export interface WebAuthnSettings {
   requireForAdmins: boolean
-  requireForVolunteers: boolean
+  requireForUsers: boolean
 }
 
 export interface ServerSession {
@@ -426,7 +430,7 @@ export interface WakePayload {
   startsAt?: string
 }
 
-/** Full-tier payload — decryptable only with volunteer's nsec */
+/** Full-tier payload — decryptable only with user's nsec */
 export interface FullPushPayload extends WakePayload {
   senderLast4?: string
   previewText?: string
@@ -441,7 +445,7 @@ export type AppEnv = {
   Bindings: Env
   Variables: {
     pubkey: string
-    volunteer: Volunteer
+    user: User
     /** Effective permissions resolved from all roles */
     permissions: string[]
     /** All role definitions (loaded once per request) */
@@ -459,7 +463,7 @@ export type AppEnv = {
 // Identity service input types
 // -------------------------------------------------------------------
 
-export interface CreateVolunteerData {
+export interface CreateUserData {
   pubkey: string
   name: string
   phone: string
@@ -468,7 +472,7 @@ export interface CreateVolunteerData {
   encryptedSecretKey: string
 }
 
-export interface UpdateVolunteerData {
+export interface UpdateUserData {
   name?: string
   phone?: string
   spokenLanguages?: string[]
@@ -549,7 +553,7 @@ export interface SetHubRoleData {
 
 export interface TranscriptionSettings {
   globalEnabled: boolean
-  allowVolunteerOptOut: boolean
+  allowUserOptOut: boolean
 }
 
 export interface IvrAudioEntry {
@@ -568,25 +572,37 @@ export interface IvrAudioMeta {
 
 export interface CreateRoleData {
   name: string
-  slug: string
   permissions: string[]
   description: string
   hubId?: string
+  /** Hub-key encrypted name (client provides). */
+  encryptedName?: string
+  /** Hub-key encrypted description (client provides). */
+  encryptedDescription?: string
 }
 
 export interface UpdateRoleData {
   name?: string
   description?: string
   permissions?: string[]
+  /** Hub-key encrypted name (client provides). */
+  encryptedName?: string
+  /** Hub-key encrypted description (client provides). */
+  encryptedDescription?: string
 }
 
 export interface CreateHubData {
   id: string
-  name: string
+  /** Plaintext name (legacy / server-side fallback). Prefer encryptedName for new clients. */
+  name?: string
   description?: string
   status?: 'active' | 'suspended' | 'archived'
   phoneNumber?: string
   createdBy: string
+  /** Hub-key encrypted name (client provides). */
+  encryptedName?: string
+  /** Hub-key encrypted description (client provides). */
+  encryptedDescription?: string
 }
 
 export interface HubKeyEntry {
@@ -708,19 +724,22 @@ export interface ShiftSchedule {
   startTime: string
   endTime: string
   days: number[]
-  volunteerPubkeys: string[]
+  userPubkeys: string[]
   ringGroupId?: string | null
   createdAt: Date
 }
 
 export interface CreateScheduleData {
   hubId?: string
-  name: string
+  /** Plaintext name (legacy / server-side fallback). Prefer encryptedName for new clients. */
+  name?: string
   startTime: string
   endTime: string
   days: number[]
-  volunteerPubkeys: string[]
+  userPubkeys: string[]
   ringGroupId?: string
+  /** Hub-key encrypted name (client provides). */
+  encryptedName?: string
 }
 
 export interface ShiftOverride {
@@ -729,7 +748,7 @@ export interface ShiftOverride {
   scheduleId?: string | null
   date: string
   type: string
-  volunteerPubkeys?: string[] | null
+  userPubkeys?: string[] | null
   createdAt: Date
 }
 
@@ -738,7 +757,7 @@ export interface CreateOverrideData {
   scheduleId?: string
   date: string
   type: 'cancel' | 'substitute'
-  volunteerPubkeys?: string[]
+  userPubkeys?: string[]
 }
 
 export interface RingGroup {
@@ -746,14 +765,16 @@ export interface RingGroup {
   hubId: string
   name: string
   encryptedName?: string
-  volunteerPubkeys: string[]
+  userPubkeys: string[]
   createdAt: Date
 }
 
 export interface CreateRingGroupData {
   hubId?: string
   name: string
-  volunteerPubkeys: string[]
+  userPubkeys: string[]
+  /** Hub-key encrypted name (client provides). */
+  encryptedName?: string
 }
 
 export interface ActiveShift {
@@ -795,7 +816,7 @@ export interface CallLeg {
   legSid: string
   callSid: string
   hubId: string
-  volunteerPubkey: string
+  userPubkey: string
   phone?: string | null
   type: 'phone' | 'browser'
   status: string
@@ -806,7 +827,7 @@ export interface CreateCallLegData {
   legSid: string
   callSid: string
   hubId?: string
-  volunteerPubkey: string
+  userPubkey: string
   phone?: string
   type?: 'phone' | 'browser'
   status?: string
@@ -917,6 +938,8 @@ export interface CreateBlastData {
   contentEnvelopes?: RecipientEnvelope[]
   status?: string
   scheduledAt?: Date
+  /** Hub-key encrypted name (client provides). */
+  encryptedName?: string
 }
 
 export interface Subscriber {

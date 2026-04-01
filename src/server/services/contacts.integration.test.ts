@@ -54,7 +54,7 @@ describe('ContactService', () => {
       tags: ['first-time'],
       encryptedDisplayName: fakeCiphertext('enc-display'),
       displayNameEnvelopes: [],
-      createdBy: 'volunteer-pubkey-abc',
+      createdBy: 'user-pubkey-abc',
     })
 
     expect(contact.id).toBeString()
@@ -65,7 +65,7 @@ describe('ContactService', () => {
     expect(contact.encryptedDisplayName).toBe(fakeCiphertext('enc-display'))
     expect(contact.encryptedPhone).toBeNull()
     expect(contact.identifierHash).toBeNull()
-    expect(contact.createdBy).toBe('volunteer-pubkey-abc')
+    expect(contact.createdBy).toBe('user-pubkey-abc')
     expect(contact.lastInteractionAt).toBeNull()
   })
 
@@ -297,7 +297,7 @@ describe('ContactService', () => {
     const callId2 = 'call-id-002'
 
     await service.linkCall(contact.id, callId1, hub, 'auto')
-    await service.linkCall(contact.id, callId2, hub, 'volunteer-pk')
+    await service.linkCall(contact.id, callId2, hub, 'user-pk')
 
     const ids = await service.getLinkedCallIds(contact.id)
     expect(ids).toContain(callId1)

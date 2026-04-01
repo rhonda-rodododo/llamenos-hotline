@@ -21,7 +21,7 @@ import {
   provisionRooms,
   retentionSettings,
   shiftSchedules,
-  volunteers,
+  users,
   webauthnCredentials,
 } from '../db/schema'
 import type { CryptoService } from '../lib/crypto-service'
@@ -91,15 +91,11 @@ export class GdprService {
 
   // ------------------------------------------------------------------ Export
 
-  async exportForVolunteer(pubkey: string): Promise<GdprExport> {
+  async exportForUser(pubkey: string): Promise<GdprExport> {
     const now = new Date().toISOString()
 
     // Profile
-    const volRows = await this.db
-      .select()
-      .from(volunteers)
-      .where(eq(volunteers.pubkey, pubkey))
-      .limit(1)
+    const volRows = await this.db.select().from(users).where(eq(users.pubkey, pubkey)).limit(1)
     const vol = volRows[0]
     const profile: Record<string, unknown> | null = vol
       ? {
@@ -188,7 +184,7 @@ export class GdprService {
       encryptedContent: r.encryptedContent,
     }))
 
-    // Messages (encrypted, assigned to volunteer)
+    // Messages (encrypted, assigned to user)
     const msgRows = await this.db
       .select({
         id: messageEnvelopes.id,
@@ -203,7 +199,7 @@ export class GdprService {
       encryptedContent: r.encryptedContent,
     }))
 
-    // Audit log entries where actor = this volunteer
+    // Audit log entries where actor = this user
     const auditRows = await this.db
       .select({
         id: auditLog.id,
@@ -299,7 +295,7 @@ export class GdprService {
       .where(eq(gdprErasureRequests.pubkey, pubkey))
   }
 
-  async eraseVolunteer(pubkey: string): Promise<void> {
+  async eraseUser(pubkey: string): Promise<void> {
     await this.db.transaction(async (tx) => {
       // Delete WebAuthn credentials
       await tx.delete(webauthnCredentials).where(eq(webauthnCredentials.pubkey, pubkey))
@@ -310,22 +306,22 @@ export class GdprService {
       // Delete provision rooms
       await tx.delete(provisionRooms).where(eq(provisionRooms.primaryPubkey, pubkey))
 
-      // Remove volunteer from shift schedules (jsonb array)
+      // Remove user from shift schedules (jsonb array)
       const schedules = await tx.select().from(shiftSchedules)
       for (const schedule of schedules) {
-        const existing = (schedule.volunteerPubkeys as string[]) ?? []
+        const existing = (schedule.userPubkeys as string[]) ?? []
         if (existing.includes(pubkey)) {
           await tx
             .update(shiftSchedules)
-            .set({ volunteerPubkeys: existing.filter((p: string) => p !== pubkey) })
+            .set({ userPubkeys: existing.filter((p: string) => p !== pubkey) })
             .where(eq(shiftSchedules.id, schedule.id))
         }
       }
 
-      // Remove volunteer from active shifts
+      // Remove user from active shifts
       await tx.delete(activeShifts).where(eq(activeShifts.pubkey, pubkey))
 
-      // Delete note author envelopes (delete notes authored by this volunteer)
+      // Delete note author envelopes (delete notes authored by this user)
       await tx.delete(noteEnvelopes).where(eq(noteEnvelopes.authorPubkey, pubkey))
 
       // Replace actorPubkey in audit log
@@ -334,19 +330,20 @@ export class GdprService {
         .set({ actorPubkey: '[erased]' })
         .where(eq(auditLog.actorPubkey, pubkey))
 
-      // Anonymize the volunteer record (clear encrypted PII, keep the row for relational integrity)
+      // Anonymize the user record (clear encrypted PII, keep the row for relational integrity)
       await tx
-        .update(volunteers)
+        .update(users)
         .set({
           active: false,
           encryptedSecretKey: '',
           encryptedName: '' as import('@shared/crypto-types').Ciphertext,
           encryptedPhone: '' as import('@shared/crypto-types').Ciphertext,
           nameEnvelopes: [],
+          phoneEnvelopes: [],
           spokenLanguages: [],
           hubRoles: [],
         })
-        .where(eq(volunteers.pubkey, pubkey))
+        .where(eq(users.pubkey, pubkey))
 
       // Mark erasure request as executed
       await tx
@@ -365,7 +362,7 @@ export class GdprService {
 
     let count = 0
     for (const req of pending) {
-      await this.eraseVolunteer(req.pubkey)
+      await this.eraseUser(req.pubkey)
       count++
     }
     return count

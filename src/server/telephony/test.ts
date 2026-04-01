@@ -5,7 +5,7 @@ import type {
   CaptchaResponseParams,
   IncomingCallParams,
   LanguageMenuParams,
-  RingVolunteersParams,
+  RingUsersParams,
   TelephonyAdapter,
   TelephonyResponse,
   VoicemailParams,
@@ -140,7 +140,7 @@ export class TestAdapter implements TelephonyAdapter {
     const hp = params.hubId ? `&amp;hub=${encodeURIComponent(params.hubId)}` : ''
     return this.twiml(`
       <Response>
-        <Dial record="record-from-answer" recordingStatusCallback="${params.callbackUrl}/api/telephony/call-recording?parentCallSid=${params.parentCallSid}&amp;pubkey=${params.volunteerPubkey}${hp}" recordingStatusCallbackEvent="completed">
+        <Dial record="record-from-answer" recordingStatusCallback="${params.callbackUrl}/api/telephony/call-recording?parentCallSid=${params.parentCallSid}&amp;pubkey=${params.userPubkey}${hp}" recordingStatusCallbackEvent="completed">
           <Queue>${params.parentCallSid}</Queue>
         </Dial>
       </Response>
@@ -204,7 +204,7 @@ export class TestAdapter implements TelephonyAdapter {
   // --- Call Control (no-ops for test) ---
 
   async hangupCall(_callSid: string): Promise<void> {}
-  async ringVolunteers(_params: RingVolunteersParams): Promise<string[]> {
+  async ringUsers(_params: RingUsersParams): Promise<string[]> {
     return []
   }
   async cancelRinging(_callSids: string[], _exceptSid?: string): Promise<void> {}

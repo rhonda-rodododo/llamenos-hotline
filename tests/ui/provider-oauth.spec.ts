@@ -1,6 +1,5 @@
 import { expect, test } from '@playwright/test'
-import { ADMIN_NSEC } from '../helpers'
-import { type AuthedRequest, createAuthedRequestFromNsec } from '../helpers/authed-request'
+import { type AuthedRequest, createAdminApiFromStorageState } from '../helpers/authed-request'
 
 /**
  * E2E tests for Provider OAuth Auto-Config (Epic 48).
@@ -24,7 +23,7 @@ test.describe('Provider OAuth Auto-Config', () => {
   let adminApi: AuthedRequest
 
   test.beforeEach(async ({ request }) => {
-    adminApi = createAuthedRequestFromNsec(request, ADMIN_NSEC)
+    adminApi = createAdminApiFromStorageState(request)
   })
 
   // --- Twilio OAuth Happy Path ---

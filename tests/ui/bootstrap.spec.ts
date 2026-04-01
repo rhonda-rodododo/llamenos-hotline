@@ -1,5 +1,4 @@
 import { expect, test } from '@playwright/test'
-import { enterPin, loginAsAdmin } from '../helpers'
 
 // Tests depend on each other's server-side state (bootstrap creates admin for later tests)
 test.describe.configure({ mode: 'serial' })

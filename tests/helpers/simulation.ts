@@ -1,4 +1,23 @@
 import type { APIRequestContext } from '@playwright/test'
+import type { AsteriskBridgeWebhook } from '@shared/schemas/external/asterisk-bridge'
+import type { PlivoInboundSMS } from '@shared/schemas/external/plivo-sms'
+import type {
+  PlivoCallStatusCallback,
+  PlivoIncomingCall,
+  PlivoRecordingCallback,
+} from '@shared/schemas/external/plivo-voice'
+import type { TwilioInboundSMS, TwilioStatusCallback } from '@shared/schemas/external/twilio-sms'
+import type {
+  TwilioCallStatusCallback,
+  TwilioIncomingCall,
+  TwilioRecordingStatusCallback,
+} from '@shared/schemas/external/twilio-voice'
+import type { VonageInboundSMS } from '@shared/schemas/external/vonage-sms'
+import type {
+  VonageCallStatusEvent,
+  VonageIncomingCall,
+  VonageRecordingEvent,
+} from '@shared/schemas/external/vonage-voice'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
@@ -11,7 +30,7 @@ export interface SimulateCallParams {
   digits?: string
   status?: string
   parentCallSid?: string
-  volunteerPubkey?: string
+  userPubkey?: string
   recordingSid?: string
   hubId?: string
 }
@@ -61,7 +80,7 @@ function buildIncomingCallPayload(
           To: to,
           CallStatus: 'ringing',
           Direction: 'inbound',
-        }),
+        } satisfies Partial<TwilioIncomingCall>),
       }
     case 'plivo':
       return {
@@ -72,7 +91,7 @@ function buildIncomingCallPayload(
           To: to,
           CallStatus: 'ringing',
           Direction: 'inbound',
-        }),
+        } satisfies Partial<PlivoIncomingCall>),
       }
     case 'vonage':
       return {
@@ -84,7 +103,7 @@ function buildIncomingCallPayload(
           to: to,
           status: 'started',
           direction: 'inbound',
-        }),
+        } satisfies Partial<VonageIncomingCall>),
       }
     case 'asterisk':
       return {
@@ -96,8 +115,8 @@ function buildIncomingCallPayload(
           from: from,
           calledNumber: to,
           to: to,
-          state: 'ringing',
-        }),
+          state: 'Ring',
+        } satisfies AsteriskBridgeWebhook),
       }
   }
 }
@@ -116,18 +135,18 @@ function buildCallStatusPayload(
         contentType: 'application/x-www-form-urlencoded',
         body: formEncode({
           CallSid: callSid,
-          CallStatus: status,
+          CallStatus: status as TwilioCallStatusCallback['CallStatus'],
           CallDuration: '30',
-        }),
+        } satisfies Partial<TwilioCallStatusCallback>),
       }
     case 'plivo':
       return {
         contentType: 'application/x-www-form-urlencoded',
         body: formEncode({
           CallUUID: callSid,
-          CallStatus: status,
+          CallStatus: status as PlivoCallStatusCallback['CallStatus'],
           Duration: '30',
-        }),
+        } satisfies Partial<PlivoCallStatusCallback>),
       }
     case 'vonage':
       return {
@@ -135,9 +154,9 @@ function buildCallStatusPayload(
         body: JSON.stringify({
           uuid: callSid,
           conversation_uuid: callSid,
-          status: status,
+          status: status as VonageCallStatusEvent['status'],
           duration: '30',
-        }),
+        } satisfies Partial<VonageCallStatusEvent>),
       }
     case 'asterisk':
       return {
@@ -145,10 +164,10 @@ function buildCallStatusPayload(
         body: JSON.stringify({
           channelId: callSid,
           callSid: callSid,
-          state: status,
+          state: status as AsteriskBridgeWebhook['state'],
           status: status,
           duration: 30,
-        }),
+        } satisfies AsteriskBridgeWebhook),
       }
   }
 }
@@ -170,7 +189,7 @@ function buildRecordingPayload(
           RecordingStatus: 'completed',
           RecordingSid: recordingSid,
           RecordingUrl: `https://api.twilio.com/recordings/${recordingSid}`,
-        }),
+        } satisfies Partial<TwilioRecordingStatusCallback>),
       }
     case 'plivo':
       return {
@@ -179,7 +198,7 @@ function buildRecordingPayload(
           CallUUID: callSid,
           RecordUrl: `https://api.plivo.com/recordings/${recordingSid}`,
           RecordingID: recordingSid,
-        }),
+        } satisfies Partial<PlivoRecordingCallback>),
       }
     case 'vonage':
       return {
@@ -187,8 +206,9 @@ function buildRecordingPayload(
         body: JSON.stringify({
           conversation_uuid: callSid,
           recording_url: `https://api.vonage.com/recordings/${recordingSid}`,
-          status: 'completed',
-        }),
+          start_time: new Date().toISOString(),
+          end_time: new Date().toISOString(),
+        } satisfies Partial<VonageRecordingEvent>),
       }
     case 'asterisk':
       return {
@@ -199,7 +219,7 @@ function buildRecordingPayload(
           recordingStatus: 'done',
           recordingName: recordingSid,
           recordingSid: recordingSid,
-        }),
+        } satisfies AsteriskBridgeWebhook),
       }
   }
 }
@@ -226,11 +246,13 @@ function buildIncomingMessagePayload(
         return {
           contentType: 'application/x-www-form-urlencoded',
           body: formEncode({
-            MessageSid: messageSid,
-            From: from,
-            To: '+15559998888',
-            Body: messageBody,
-            NumMedia: params.mediaUrl ? '1' : '0',
+            ...({
+              MessageSid: messageSid,
+              From: from,
+              To: '+15559998888',
+              Body: messageBody,
+              NumMedia: params.mediaUrl ? '1' : '0',
+            } satisfies Partial<TwilioInboundSMS>),
             ...(params.mediaUrl ? { MediaUrl0: params.mediaUrl } : {}),
             ...(params.mediaType ? { MediaContentType0: params.mediaType } : {}),
           }),
@@ -239,11 +261,13 @@ function buildIncomingMessagePayload(
         return {
           contentType: 'application/x-www-form-urlencoded',
           body: formEncode({
-            MessageUUID: messageSid,
-            From: from,
-            To: '+15559998888',
-            Text: messageBody,
-            Type: 'sms',
+            ...({
+              MessageUUID: messageSid,
+              From: from,
+              To: '+15559998888',
+              Text: messageBody,
+              Type: 'sms',
+            } satisfies Partial<PlivoInboundSMS>),
             ...(params.mediaUrl ? { Media0: params.mediaUrl } : {}),
           }),
         }
@@ -257,7 +281,7 @@ function buildIncomingMessagePayload(
             text: messageBody,
             type: 'text',
             'message-timestamp': new Date().toISOString(),
-          }),
+          } satisfies Partial<VonageInboundSMS>),
         }
       case 'meta':
         // Meta doesn't do SMS
@@ -276,11 +300,13 @@ function buildIncomingMessagePayload(
         return {
           contentType: 'application/x-www-form-urlencoded',
           body: formEncode({
-            MessageSid: messageSid,
-            From: `whatsapp:${from}`,
-            To: 'whatsapp:+15559998888',
-            Body: messageBody,
-            NumMedia: params.mediaUrl ? '1' : '0',
+            ...({
+              MessageSid: messageSid,
+              From: `whatsapp:${from}`,
+              To: 'whatsapp:+15559998888',
+              Body: messageBody,
+              NumMedia: params.mediaUrl ? '1' : '0',
+            } satisfies Partial<TwilioInboundSMS>),
             ...(params.mediaUrl ? { MediaUrl0: params.mediaUrl } : {}),
             ...(params.mediaType ? { MediaContentType0: params.mediaType } : {}),
           }),
@@ -406,8 +432,10 @@ function buildDeliveryStatusPayload(
         return {
           contentType: 'application/x-www-form-urlencoded',
           body: formEncode({
-            MessageSid: messageSid,
-            MessageStatus: status,
+            ...({
+              MessageSid: messageSid,
+              MessageStatus: status as TwilioStatusCallback['MessageStatus'],
+            } satisfies Partial<TwilioStatusCallback>),
             ...(params.errorCode ? { ErrorCode: params.errorCode } : {}),
           }),
         }
@@ -495,8 +523,9 @@ export async function simulateEndCall(
   const resolvedParams = { ...params, status: params.status || 'completed' }
   const { contentType, body } = buildCallStatusPayload(provider, resolvedParams)
   const queryParts: string[] = []
-  if (params.parentCallSid) queryParts.push(`parentCallSid=${encodeURIComponent(params.parentCallSid)}`)
-  if (params.volunteerPubkey) queryParts.push(`pubkey=${encodeURIComponent(params.volunteerPubkey)}`)
+  if (params.parentCallSid)
+    queryParts.push(`parentCallSid=${encodeURIComponent(params.parentCallSid)}`)
+  if (params.userPubkey) queryParts.push(`pubkey=${encodeURIComponent(params.userPubkey)}`)
   if (params.hubId) queryParts.push(`hub=${encodeURIComponent(params.hubId)}`)
   const query = queryParts.length > 0 ? `?${queryParts.join('&')}` : ''
   const res = await request.post(`/telephony/call-status${query}`, {

@@ -1,19 +1,36 @@
+import type { BlastContent, BlastSettings, BlastStats } from '@shared/schemas/blasts'
+import type {
+  CallPreference,
+  ChannelType,
+  ContactType,
+  CustomFieldContext,
+  LocationPrecision,
+  MessageDeliveryStatus,
+  MessagingChannelType,
+  RiskLevel,
+} from '@shared/schemas/common'
+import type { RetentionSettings } from '@shared/schemas/gdpr'
+import type {
+  RCSConfig,
+  SMSConfig,
+  SignalBridgeConfig as SignalConfig,
+  WhatsAppConfig,
+} from '@shared/schemas/providers'
+import type { EnabledChannels, SetupState } from '@shared/schemas/settings'
 import type { Ciphertext } from './crypto-types'
 
 // --- ECIES Key Envelopes ---
-// Used across notes, messages, files, and hub key wrapping.
+// These use the branded Ciphertext type for internal type safety.
+// The schema equivalents in @shared/schemas/records use plain strings (for zod validation).
+// Keep these as the canonical types for app code; schemas are for API validation.
 
 /**
  * Unified ECIES-wrapped symmetric key for one recipient.
  * Used everywhere: notes, messages, call records, hub keys.
- * The same ECIES construction with different domain separation labels.
  */
 export interface RecipientEnvelope {
-  /** Recipient's x-only public key (hex). */
   pubkey: string
-  /** Nonce (24 bytes) + ciphertext: ECIES-wrapped symmetric key (hex). */
   wrappedKey: Ciphertext
-  /** Ephemeral secp256k1 compressed public key used for ECDH (hex). */
   ephemeralPubkey: string
 }
 
@@ -77,16 +94,16 @@ export interface TelephonyProviderDraft {
   texmlAppId?: string
 }
 
-// --- Call Preference ---
+// --- Call Preference (re-exported from schema) ---
 
-export type CallPreference = 'phone' | 'browser' | 'both'
+export type { CallPreference } from '@shared/schemas/common'
 
 // PROVIDER_REQUIRED_FIELDS removed — use ProviderCapabilities.credentialSchema instead
 // See src/server/telephony/capabilities.ts
 
 // --- Geocoding / Location Types ---
 
-export type LocationPrecision = 'none' | 'city' | 'neighborhood' | 'block' | 'exact'
+export type { LocationPrecision } from '@shared/schemas/common'
 
 export type LocationResult = {
   address: string
@@ -135,12 +152,11 @@ export interface LocationFieldSettings {
 
 // --- Custom Fields ---
 
-export type CustomFieldContext = 'call-notes' | 'conversation-notes' | 'reports' | 'all'
+export type { CustomFieldContext } from '@shared/schemas/common'
 
 // --- Contact Directory ---
 
-export type ContactType = 'caller' | 'partner-org' | 'referral-resource' | 'other'
-export type RiskLevel = 'low' | 'medium' | 'high' | 'critical'
+export type { ContactType, RiskLevel } from '@shared/schemas/common'
 
 export const CONTACT_TYPE_LABELS: Record<ContactType, string> = {
   caller: 'Caller',
@@ -164,14 +180,14 @@ export interface RelationshipPayload {
   isEmergency: boolean
 }
 
-/** Contact summary fields (Tier 1 — all members with contacts:read-summary) */
+/** Contact summary fields (Tier 1 — all members with contacts:envelope-summary) */
 export interface ContactSummary {
   displayName: string
   notes: string
   languages: string[]
 }
 
-/** Contact PII fields (Tier 2 — per-field encrypted for contacts:read-pii) */
+/** Contact PII fields (Tier 2 — per-field encrypted for contacts:envelope-full) */
 export interface ContactPIIBlob {
   emailAddresses: string[]
   address: string
@@ -179,11 +195,12 @@ export interface ContactPIIBlob {
   identifiers: { label: string; value: string }[]
 }
 
-/** Custom field definition — stored as config in SessionManager DO */
+/** Custom field definition — uses branded Ciphertext for encrypted fields.
+ * The schema equivalent in @shared/schemas/settings uses plain strings (for API validation). */
 export interface CustomFieldDefinition {
-  id: string // unique UUID
-  name: string // internal key (machine-readable, e.g. "severity")
-  label: string // display label (e.g. "Severity Rating")
+  id: string
+  name: string
+  label: string
   type:
     | 'text'
     | 'number'
@@ -195,32 +212,22 @@ export interface CustomFieldDefinition {
     | 'contact'
     | 'contacts'
   required: boolean
-  options?: string[] // for 'select' type only
-  /** Hub-key encrypted field name (hex ciphertext). */
+  options?: string[]
   encryptedFieldName?: Ciphertext
-  /** Hub-key encrypted label (hex ciphertext). */
   encryptedLabel?: Ciphertext
-  /** Hub-key encrypted JSON.stringify(options) (hex ciphertext). */
   encryptedOptions?: Ciphertext
   validation?: {
-    minLength?: number // text/textarea
-    maxLength?: number // text/textarea
-    min?: number // number
-    max?: number // number
+    minLength?: number
+    maxLength?: number
+    min?: number
+    max?: number
   }
-  visibleToVolunteers: boolean
-  editableByVolunteers: boolean
-  context: CustomFieldContext // where this field appears
-  /**
-   * IDs of report types that display this field.
-   * Empty array (default) means shown for all report types when context includes 'reports'.
-   */
+  visibleTo: string
+  context: CustomFieldContext
   reportTypeIds?: string[]
-  // File field type options
-  maxFileSize?: number // bytes, for file type
-  allowedMimeTypes?: string[] // e.g., ['image/*', 'application/pdf']
-  maxFiles?: number // for multi-file fields (default: 1)
-  // Location field type options
+  maxFileSize?: number
+  allowedMimeTypes?: string[]
+  maxFiles?: number
   locationSettings?: LocationFieldSettings
   order: number
   createdAt: string
@@ -347,14 +354,13 @@ export const CUSTOM_FIELD_CONTEXT_LABELS: Record<CustomFieldContext, string> = {
   all: 'All Record Types',
 }
 
-// --- Messaging Channel Types ---
+// --- Messaging Channel Types (re-exported from schema) ---
 
-export type MessageDeliveryStatus = 'pending' | 'sent' | 'delivered' | 'read' | 'failed'
-
-export type MessagingChannelType = 'sms' | 'whatsapp' | 'signal' | 'rcs'
-
-/** All possible channel types including voice and reports */
-export type ChannelType = 'voice' | MessagingChannelType | 'reports'
+export type {
+  MessageDeliveryStatus,
+  MessagingChannelType,
+  ChannelType,
+} from '@shared/schemas/common'
 
 /** Transport security level for each channel */
 export type TransportSecurity = 'none' | 'provider-encrypted' | 'e2ee-to-bridge' | 'e2ee'
@@ -377,45 +383,16 @@ export const CHANNEL_LABELS: Record<ChannelType, string> = {
   reports: 'Reports',
 }
 
-// --- Messaging Configuration ---
+// --- Messaging Configuration (re-exported from schema) ---
+// SignalConfig is SignalBridgeConfig in the schema — re-exported with alias for compatibility
 
-export interface SMSConfig {
-  // SMS reuses the telephony provider's phone number and credentials
-  enabled: boolean
-  autoResponse?: string // auto-reply on first contact
-  afterHoursResponse?: string // auto-reply outside shift hours
-}
+export type {
+  SMSConfig,
+  WhatsAppConfig,
+  RCSConfig,
+} from '@shared/schemas/providers'
 
-export interface WhatsAppConfig {
-  integrationMode: 'twilio' | 'direct'
-  // Direct Meta API fields
-  phoneNumberId?: string
-  businessAccountId?: string
-  accessToken?: string
-  verifyToken?: string
-  appSecret?: string
-  // Twilio mode uses existing telephony provider credentials
-  autoResponse?: string
-  afterHoursResponse?: string
-}
-
-export interface SignalConfig {
-  bridgeUrl: string // e.g., "https://signal-bridge.internal:8080"
-  bridgeApiKey: string
-  webhookSecret: string
-  registeredNumber: string
-  autoResponse?: string
-  afterHoursResponse?: string
-}
-
-export interface RCSConfig {
-  agentId: string
-  serviceAccountKey: string // JSON string of Google service account key
-  webhookSecret?: string
-  fallbackToSms: boolean
-  autoResponse?: string
-  afterHoursResponse?: string
-}
+export type { SignalBridgeConfig as SignalConfig } from '@shared/schemas/providers'
 
 export interface MessagingConfig {
   enabledChannels: MessagingChannelType[]
@@ -423,9 +400,9 @@ export interface MessagingConfig {
   whatsapp: WhatsAppConfig | null
   signal: SignalConfig | null
   rcs: RCSConfig | null
-  autoAssign: boolean // auto-assign to on-shift volunteers
+  autoAssign: boolean // auto-assign to on-shift users
   inactivityTimeout: number // minutes before auto-close
-  maxConcurrentPerVolunteer: number // conversation limit per volunteer
+  maxConcurrentPerUser: number // conversation limit per user
 }
 
 export const DEFAULT_MESSAGING_CONFIG: MessagingConfig = {
@@ -436,7 +413,7 @@ export const DEFAULT_MESSAGING_CONFIG: MessagingConfig = {
   rcs: null,
   autoAssign: true,
   inactivityTimeout: 60,
-  maxConcurrentPerVolunteer: 3,
+  maxConcurrentPerUser: 3,
 }
 
 // --- Message Blasts ---
@@ -478,34 +455,7 @@ export interface Blast {
   stats: BlastStats
 }
 
-export interface BlastContent {
-  text: string
-  mediaUrl?: string
-  mediaType?: string
-  // Per-channel overrides
-  smsText?: string
-  whatsappTemplateId?: string
-  rcsRichCard?: boolean
-}
-
-export interface BlastStats {
-  totalRecipients: number
-  sent: number
-  delivered: number
-  failed: number
-  optedOut: number
-}
-
-export interface BlastSettings {
-  subscribeKeyword: string // default: "JOIN"
-  unsubscribeKeyword: string // default: "STOP"
-  confirmationMessage: string
-  unsubscribeMessage: string
-  doubleOptIn: boolean
-  optOutFooter: string // appended to every blast message
-  maxBlastsPerDay: number
-  rateLimitPerSecond: number // sending rate
-}
+export type { BlastContent, BlastStats, BlastSettings } from '@shared/schemas/blasts'
 
 export const DEFAULT_BLAST_SETTINGS: BlastSettings = {
   subscribeKeyword: 'JOIN',
@@ -518,15 +468,9 @@ export const DEFAULT_BLAST_SETTINGS: BlastSettings = {
   rateLimitPerSecond: 10,
 }
 
-// --- Setup State ---
+// --- Setup State (re-exported from schema) ---
 
-export interface SetupState {
-  setupCompleted: boolean
-  completedSteps: string[]
-  pendingChannels: ChannelType[]
-  selectedChannels: ChannelType[]
-  demoMode?: boolean
-}
+export type { SetupState, EnabledChannels } from '@shared/schemas/settings'
 
 export const DEFAULT_SETUP_STATE: SetupState = {
   setupCompleted: false,
@@ -536,28 +480,12 @@ export const DEFAULT_SETUP_STATE: SetupState = {
   demoMode: false,
 }
 
-// --- Enabled Channels (computed from settings) ---
-
-export interface EnabledChannels {
-  voice: boolean
-  sms: boolean
-  whatsapp: boolean
-  signal: boolean
-  rcs: boolean
-  reports: boolean
-}
-
 // --- GDPR ---
 
 /** The current platform consent version string. Bump this date to require re-consent. */
 export const CONSENT_VERSION = '2026-03-22'
 
-export interface RetentionSettings {
-  callRecordsDays: number // 30–3650, default 365
-  notesDays: number // 30–3650, default 365
-  messagesDays: number // 30–3650, default 180
-  auditLogDays: number // 365–3650, default 1825
-}
+export type { RetentionSettings } from '@shared/schemas/gdpr'
 
 export const DEFAULT_RETENTION_SETTINGS: RetentionSettings = {
   callRecordsDays: 365,
@@ -580,24 +508,9 @@ export interface GdprErasureRequest {
   status: 'pending' | 'cancelled' | 'executed'
 }
 
-// --- Hub Types ---
+// --- Hub Types (re-exported from schema) ---
 
-export interface Hub {
-  id: string // UUID
-  name: string // Display name (e.g., "NYC Hotline")
-  description?: string
-  /** Hub-key encrypted name (hex ciphertext). Client decrypts when hub key available. */
-  encryptedName?: Ciphertext
-  /** Hub-key encrypted description (hex ciphertext). */
-  encryptedDescription?: Ciphertext
-  status: 'active' | 'suspended' | 'archived'
-  phoneNumber?: string // Primary hotline number (for routing)
-  createdBy: string // Super admin pubkey
-  /** Zero-trust: hub admin must explicitly opt-in to allow super-admin visibility */
-  allowSuperAdminAccess?: boolean
-  createdAt: string
-  updatedAt: string
-}
+export type { Hub } from '@shared/schemas/settings'
 
 export interface HubRoleAssignment {
   hubId: string

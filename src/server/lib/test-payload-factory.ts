@@ -28,7 +28,7 @@ export interface SimulateCallParams {
   digits?: string
   status?: string
   parentCallSid?: string
-  volunteerPubkey?: string
+  userPubkey?: string
   recordingSid?: string
   hubId?: string
 }
@@ -144,13 +144,13 @@ export function buildAsteriskTelephonyPayload(
       const body: AriBody = { event: 'status', channelId: callSid, state: 'up' }
       const qp = new URLSearchParams()
       if (params.parentCallSid) qp.set('parentCallSid', params.parentCallSid)
-      if (params.volunteerPubkey) qp.set('pubkey', params.volunteerPubkey)
+      if (params.userPubkey) qp.set('pubkey', params.userPubkey)
       if (params.hubId) qp.set('hub', params.hubId)
       return {
         body: JSON.stringify(body),
         contentType: 'application/json',
         headers: {},
-        path: `/api/telephony/volunteer-answer${qp.size ? `?${qp}` : ''}`,
+        path: `/api/telephony/user-answer${qp.size ? `?${qp}` : ''}`,
       }
     }
     case 'end-call': {
@@ -267,11 +267,11 @@ export function buildTwilioTelephonyPayload(
     case 'answer-call': {
       const qp = new URLSearchParams()
       if (params.parentCallSid) qp.set('parentCallSid', params.parentCallSid)
-      if (params.volunteerPubkey) qp.set('pubkey', params.volunteerPubkey)
+      if (params.userPubkey) qp.set('pubkey', params.userPubkey)
       if (params.hubId) qp.set('hub', params.hubId)
       return form(
         { CallSid: callSid, CallStatus: 'in-progress' },
-        `/api/telephony/volunteer-answer${qp.size ? `?${qp}` : ''}`
+        `/api/telephony/user-answer${qp.size ? `?${qp}` : ''}`
       )
     }
     case 'end-call':
@@ -350,11 +350,11 @@ export function buildVonageTelephonyPayload(
     case 'answer-call': {
       const qp = new URLSearchParams()
       if (params.parentCallSid) qp.set('parentCallSid', params.parentCallSid)
-      if (params.volunteerPubkey) qp.set('pubkey', params.volunteerPubkey)
+      if (params.userPubkey) qp.set('pubkey', params.userPubkey)
       if (params.hubId) qp.set('hub', params.hubId)
       return json(
         { uuid: callSid, conversation_uuid: callSid, status: 'answered' },
-        `/api/telephony/volunteer-answer${qp.size ? `?${qp}` : ''}`
+        `/api/telephony/user-answer${qp.size ? `?${qp}` : ''}`
       )
     }
     case 'end-call':
@@ -421,11 +421,11 @@ export function buildPlivoTelephonyPayload(
     case 'answer-call': {
       const qp = new URLSearchParams()
       if (params.parentCallSid) qp.set('parentCallSid', params.parentCallSid)
-      if (params.volunteerPubkey) qp.set('pubkey', params.volunteerPubkey)
+      if (params.userPubkey) qp.set('pubkey', params.userPubkey)
       if (params.hubId) qp.set('hub', params.hubId)
       return form(
         { CallUUID: callSid, CallStatus: 'in-progress' },
-        `/api/telephony/volunteer-answer${qp.size ? `?${qp}` : ''}`
+        `/api/telephony/user-answer${qp.size ? `?${qp}` : ''}`
       )
     }
     case 'end-call':

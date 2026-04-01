@@ -8,12 +8,15 @@ import { ConversationService } from './conversations'
 import { FilesService } from './files'
 import { GdprService } from './gdpr'
 import { IdentityService } from './identity'
+import { IntakesService } from './intakes'
 import type { ProviderHealthService } from './provider-health'
 import { PushService } from './push'
 import { RecordsService } from './records'
 import { ReportTypeService } from './report-types'
 import { SettingsService } from './settings'
 import { ShiftService } from './shifts'
+import { TagsService } from './tags'
+import { TeamsService } from './teams'
 
 export type {
   BlastService,
@@ -23,11 +26,14 @@ export type {
   FilesService,
   GdprService,
   IdentityService,
+  IntakesService,
   PushService,
   RecordsService,
   ReportTypeService,
   SettingsService,
   ShiftService,
+  TagsService,
+  TeamsService,
   ProviderHealthService,
 }
 
@@ -44,6 +50,9 @@ export interface Services {
   reportTypes: ReportTypeService
   push: PushService
   contacts: ContactService
+  intakes: IntakesService
+  tags: TagsService
+  teams: TeamsService
   providerHealth?: ProviderHealthService
   storage: StorageManager | null
   crypto: CryptoService
@@ -55,6 +64,12 @@ export function createServices(
   storage: StorageManager | null = null
 ): Services {
   const settings = new SettingsService(db, crypto)
+  const contactService = new ContactService(db, crypto)
+  const teamsService = new TeamsService(db, crypto)
+
+  // Late-bind cross-service dependencies to avoid circular constructor coupling
+  contactService.setTeamsService(teamsService)
+
   return {
     identity: new IdentityService(db, crypto),
     settings,
@@ -67,7 +82,10 @@ export function createServices(
     gdpr: new GdprService(db, crypto),
     reportTypes: new ReportTypeService(db, crypto, settings),
     push: new PushService(db, crypto),
-    contacts: new ContactService(db, crypto),
+    contacts: contactService,
+    intakes: new IntakesService(db, crypto),
+    tags: new TagsService(db, crypto),
+    teams: teamsService,
     storage,
     crypto,
   }

@@ -15,7 +15,7 @@ export const contacts = pgTable(
     tags: jsonb<string[]>()('tags').notNull().default([]),
     identifierHash: hmacHashed('identifier_hash'),
 
-    // Tier 1 — ECIES envelopes (contacts:read-summary recipients)
+    // Tier 1 — ECIES envelopes (contacts:envelope-summary recipients)
     encryptedDisplayName: ciphertext('encrypted_display_name').notNull(),
     displayNameEnvelopes: jsonb<RecipientEnvelope[]>()('display_name_envelopes')
       .notNull()
@@ -23,15 +23,21 @@ export const contacts = pgTable(
     encryptedNotes: ciphertext('encrypted_notes'),
     notesEnvelopes: jsonb<RecipientEnvelope[]>()('notes_envelopes').notNull().default([]),
 
-    // Tier 2 — per-field ECIES (contacts:read-pii recipients)
+    // Tier 2 — per-field ECIES (contacts:envelope-full recipients)
     encryptedFullName: ciphertext('encrypted_full_name'),
     fullNameEnvelopes: jsonb<RecipientEnvelope[]>()('full_name_envelopes').notNull().default([]),
     encryptedPhone: ciphertext('encrypted_phone'),
     phoneEnvelopes: jsonb<RecipientEnvelope[]>()('phone_envelopes').notNull().default([]),
 
-    // Tier 2 — blob ECIES (contacts:read-pii recipients)
+    // Tier 2 — blob ECIES (contacts:envelope-full recipients)
     encryptedPII: ciphertext('encrypted_pii'),
     piiEnvelopes: jsonb<RecipientEnvelope[]>()('pii_envelopes').notNull().default([]),
+
+    // Case manager assignment
+    assignedTo: text('assigned_to'),
+
+    // Merge tracking
+    mergedInto: text('merged_into'), // ID of contact this was merged into
 
     // Metadata
     createdBy: text('created_by').notNull(),
@@ -43,6 +49,7 @@ export const contacts = pgTable(
   (table) => [
     index('contacts_hub_idx').on(table.hubId),
     index('contacts_identifier_hash_idx').on(table.hubId, table.identifierHash),
+    index('contacts_merged_into_idx').on(table.mergedInto),
   ]
 )
 

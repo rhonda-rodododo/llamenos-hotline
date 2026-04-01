@@ -18,7 +18,7 @@ import type { AppEnv, CallSettings } from '../types'
 import type { Env } from '../types'
 
 /**
- * Determine whether the call should go to voicemail, ring volunteers, or play unavailable.
+ * Determine whether the call should go to voicemail, ring users, or play unavailable.
  * Single source of truth for the voicemail mode decision across all call entry points.
  */
 async function checkVoicemailMode(
@@ -26,19 +26,19 @@ async function checkVoicemailMode(
   hubId: string | undefined
 ): Promise<{
   mode: 'auto' | 'always' | 'never'
-  hasAvailableVolunteers: boolean
+  hasAvailableUsers: boolean
   callSettings: CallSettings
 }> {
   const callSettings = await services.settings.getCallSettings(hubId)
   const mode = callSettings.voicemailMode ?? 'auto'
   if (mode === 'always') {
-    return { mode, hasAvailableVolunteers: false, callSettings }
+    return { mode, hasAvailableUsers: false, callSettings }
   }
-  let onShift = await services.shifts.getEffectiveVolunteers(hubId)
+  let onShift = await services.shifts.getEffectiveUsers(hubId)
   if (onShift.length === 0) {
     onShift = await services.settings.getFallbackGroup(hubId)
   }
-  return { mode, hasAvailableVolunteers: onShift.length > 0, callSettings }
+  return { mode, hasAvailableUsers: onShift.length > 0, callSettings }
 }
 
 const telephony = new Hono<AppEnv>()
@@ -230,9 +230,9 @@ telephony.post('/language-selected', async (c) => {
   })
 
   if (!rateLimited && !spamSettings.voiceCaptchaEnabled) {
-    const { mode, hasAvailableVolunteers, callSettings } = await checkVoicemailMode(services, hubId)
+    const { mode, hasAvailableUsers, callSettings } = await checkVoicemailMode(services, hubId)
 
-    if (mode === 'always' || (mode === 'auto' && !hasAvailableVolunteers)) {
+    if (mode === 'always' || (mode === 'auto' && !hasAvailableUsers)) {
       const vmResponse = await adapter.handleVoicemail({
         callSid,
         callerLanguage,
@@ -244,11 +244,11 @@ telephony.post('/language-selected', async (c) => {
       return telephonyResponse(vmResponse)
     }
 
-    if (mode === 'never' && !hasAvailableVolunteers) {
+    if (mode === 'never' && !hasAvailableUsers) {
       return telephonyResponse(adapter.handleUnavailable(callerLanguage, audioUrls))
     }
 
-    // Normal flow — ring volunteers
+    // Normal flow — ring users
     const origin = new URL(c.req.url).origin
     console.log(
       `[telephony] /language-selected starting parallel ringing callSid=${callSid} origin=${origin} hub=${hubId || 'global'}`
@@ -305,9 +305,9 @@ telephony.post('/captcha', async (c) => {
   })
 
   if (match) {
-    const { mode, hasAvailableVolunteers, callSettings } = await checkVoicemailMode(services, hubId)
+    const { mode, hasAvailableUsers, callSettings } = await checkVoicemailMode(services, hubId)
 
-    if (mode === 'always' || (mode === 'auto' && !hasAvailableVolunteers)) {
+    if (mode === 'always' || (mode === 'auto' && !hasAvailableUsers)) {
       const audioUrls = await buildAudioUrlMap(services.settings, new URL(c.req.url).origin, hubId)
       const vmResponse = await adapter.handleVoicemail({
         callSid,
@@ -320,7 +320,7 @@ telephony.post('/captcha', async (c) => {
       return telephonyResponse(vmResponse)
     }
 
-    if (mode === 'never' && !hasAvailableVolunteers) {
+    if (mode === 'never' && !hasAvailableUsers) {
       const audioUrls = await buildAudioUrlMap(services.settings, new URL(c.req.url).origin, hubId)
       return telephonyResponse(adapter.handleUnavailable(callerLang, audioUrls))
     }
@@ -334,8 +334,8 @@ telephony.post('/captcha', async (c) => {
   return telephonyResponse(response)
 })
 
-// --- Step 4: Volunteer answered -> bridge via queue ---
-telephony.post('/volunteer-answer', async (c) => {
+// --- Step 4: User answered -> bridge via queue ---
+telephony.post('/user-answer', async (c) => {
   const url = new URL(c.req.url)
   const hubId = getHubId(url)
   const services = c.get('services')
@@ -355,22 +355,22 @@ telephony.post('/volunteer-answer', async (c) => {
     hubId
   )
 
-  const [volInfo, activeCalls] = await Promise.all([
-    services.identity.getVolunteer(pubkey),
+  const [userInfo, activeCalls] = await Promise.all([
+    services.identity.getUser(pubkey),
     services.calls.getActiveCalls(hubId),
   ])
   const callRecord = activeCalls.find((call) => call.callSid === parentCallSid)
   const callerLast4 = callRecord?.callerNumber?.slice(-4) || ''
   await services.records.addAuditEntry(hubId ?? 'global', 'callAnswered', pubkey, {
     callerLast4,
-    volunteerName: volInfo?.name,
+    userName: userInfo?.name,
   })
 
   const origin = new URL(c.req.url).origin
   const response = await adapter.handleCallAnswered({
     parentCallSid,
     callbackUrl: origin,
-    volunteerPubkey: pubkey,
+    userPubkey: pubkey,
     hubId,
   })
   return telephonyResponse(response)
@@ -629,9 +629,9 @@ telephony.post('/voicemail-recording', async (c) => {
         try {
           const settings = await services.settings.getCallSettings(hubId)
           // Get pubkeys for encryption — filter by voicemail:listen permission
-          const allVolunteers = await services.identity.getVolunteers()
+          const allUsers = await services.identity.getUsers()
           const roleDefs = await services.settings.listRoles(hubId)
-          const adminPubkeys = allVolunteers
+          const adminPubkeys = allUsers
             .filter((v) => {
               const perms = resolvePermissions(v.roles, roleDefs)
               return permissionGranted(perms, 'voicemail:listen')
@@ -668,7 +668,7 @@ telephony.post('/voicemail-recording', async (c) => {
           )
 
           // Send Web Push to users with voicemail:notify permission
-          const notifyPubkeys = allVolunteers
+          const notifyPubkeys = allUsers
             .filter((v) => {
               const perms = resolvePermissions(v.roles, roleDefs)
               return permissionGranted(perms, 'voicemail:notify')
@@ -677,7 +677,7 @@ telephony.post('/voicemail-recording', async (c) => {
 
           if (notifyPubkeys.length > 0) {
             services.push
-              .sendPushToVolunteers(
+              .sendPushToUsers(
                 notifyPubkeys,
                 { type: 'voicemail', callSid, hubId: hubId ?? 'global' },
                 env

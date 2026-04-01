@@ -184,7 +184,7 @@ describe('PushService', () => {
     expect(results.every((r) => r.pubkey === PUBKEY_A || r.pubkey === PUBKEY_B)).toBeTrue()
   })
 
-  describe('sendPushToVolunteers', () => {
+  describe('sendPushToUsers', () => {
     // Real VAPID keys (generated via web-push generateVAPIDKeys) — needed to pass setVapidDetails validation
     const VAPID_PUBLIC_KEY =
       'BIHy2drSLovwE23fZqeFSY64Q09aAckj0IEAaxrrUvz-Q5fPwKQ0a_X5kr5lGy9mwi2wk0YSTqdgkjnbTkbcq9A'
@@ -193,7 +193,7 @@ describe('PushService', () => {
     test('returns early when VAPID keys are missing', async () => {
       // Should not throw or touch the DB — just return silently
       await expect(
-        service.sendPushToVolunteers(
+        service.sendPushToUsers(
           [PUBKEY_A],
           { type: 'call:ring', callSid: 'CA-test', hubId: 'global' },
           {}
@@ -203,7 +203,7 @@ describe('PushService', () => {
 
     test('returns early when only one VAPID key is present', async () => {
       await expect(
-        service.sendPushToVolunteers(
+        service.sendPushToUsers(
           [PUBKEY_A],
           { type: 'call:ring', callSid: 'CA-test', hubId: 'global' },
           { VAPID_PUBLIC_KEY }
@@ -214,7 +214,7 @@ describe('PushService', () => {
     test('returns early with no subscriptions for given pubkeys', async () => {
       const noPubkey = `${RUN_PREFIX}-nobody`
       await expect(
-        service.sendPushToVolunteers(
+        service.sendPushToUsers(
           [noPubkey],
           { type: 'call:ring', callSid: 'CA-nobody', hubId: 'global' },
           { VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY }
@@ -248,7 +248,7 @@ describe('PushService', () => {
         stub410 as typeof webpushModule.default.sendNotification
 
       try {
-        await service.sendPushToVolunteers(
+        await service.sendPushToUsers(
           [PUBKEY_A],
           { type: 'call:ring', callSid: 'CA-410', hubId: 'global' },
           { VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY }
@@ -283,7 +283,7 @@ describe('PushService', () => {
         stub500 as typeof webpushModule.default.sendNotification
 
       try {
-        await service.sendPushToVolunteers(
+        await service.sendPushToUsers(
           [PUBKEY_A],
           { type: 'call:ring', callSid: 'CA-500', hubId: 'global' },
           { VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY }

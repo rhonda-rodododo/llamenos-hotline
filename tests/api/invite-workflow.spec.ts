@@ -119,7 +119,7 @@ test.describe('Invite Workflow', () => {
     })
     expect(res.status()).toBe(200)
     const body = await res.json()
-    // redeemInvite returns the created volunteer, not { ok: true }
+    // redeemInvite returns the created user, not { ok: true }
     expect(body.pubkey || body.ok).toBeTruthy()
 
     // Code should now be consumed
@@ -171,7 +171,7 @@ test.describe('Invite Workflow', () => {
 
   // ─── Permission Enforcement ──────────────────────────────────────────────
 
-  test('volunteer cannot create invites', async () => {
+  test('user cannot create invites', async () => {
     const res = await ctx.api('volunteer').post('/api/invites', {
       name: 'Unauthorized',
       phone: uniquePhone(),
@@ -180,7 +180,7 @@ test.describe('Invite Workflow', () => {
     expect(res.status()).toBe(403)
   })
 
-  test('volunteer cannot list invites', async () => {
+  test('user cannot list invites', async () => {
     const res = await ctx.api('volunteer').get('/api/invites')
     expect(res.status()).toBe(403)
   })
@@ -190,7 +190,7 @@ test.describe('Invite Workflow', () => {
     const adminRes = await adminApi.get('/api/invites/available-channels')
     expect(adminRes.status()).toBe(200)
 
-    // Volunteer: denied
+    // User: denied
     const volRes = await ctx.api('volunteer').get('/api/invites/available-channels')
     expect(volRes.status()).toBe(403)
   })

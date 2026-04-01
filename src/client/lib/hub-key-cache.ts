@@ -70,3 +70,14 @@ export function clearHubKeyCache(): void {
   cacheGeneration++ // Invalidate any in-flight loadHubKeysForUser calls
   hubKeyCache.clear()
 }
+
+/**
+ * Inject a hub key directly into the cache.
+ *
+ * For E2E tests only — allows Playwright to provision a known hub key so that
+ * encrypted org metadata can be decrypted in the browser without going through
+ * the full ECIES envelope unwrap flow.
+ */
+export function setHubKeyForTest(hubId: string, key: Uint8Array): void {
+  hubKeyCache.set(hubId, key)
+}

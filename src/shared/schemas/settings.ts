@@ -1,10 +1,14 @@
 import { z } from 'zod/v4'
+import { ChannelTypeSchema, CustomFieldContextSchema } from './common'
 import { TelephonyProviderConfigSchema } from './providers'
+export type { ChannelType } from './common'
 
 export const HubSchema = z.object({
   id: z.string(),
   name: z.string(),
   description: z.string().optional(),
+  encryptedName: z.string().optional(),
+  encryptedDescription: z.string().optional(),
   status: z.enum(['active', 'suspended', 'archived']),
   phoneNumber: z.string().optional(),
   createdBy: z.string(),
@@ -33,7 +37,6 @@ export const RoleSchema = z.object({
   id: z.uuid(),
   hubId: z.string().optional(),
   name: z.string(),
-  slug: z.string(),
   permissions: z.array(z.string()),
   isDefault: z.boolean(),
   createdAt: z.iso.datetime(),
@@ -42,7 +45,6 @@ export type Role = z.infer<typeof RoleSchema>
 
 export const CreateRoleSchema = z.object({
   name: z.string().min(1).max(100),
-  slug: z.string().min(1).max(100),
   permissions: z.array(z.string()),
   isDefault: z.boolean().optional(),
   hubId: z.string().optional(),
@@ -55,17 +57,48 @@ export const UpdateRoleSchema = z.object({
 })
 export type UpdateRoleInput = z.infer<typeof UpdateRoleSchema>
 
+const LocationFieldSettingsSchema = z.object({
+  maxPrecision: z.enum(['none', 'city', 'neighborhood', 'block', 'exact']),
+  allowGps: z.boolean(),
+})
+
+const CustomFieldValidationSchema = z.object({
+  minLength: z.number().int().optional(),
+  maxLength: z.number().int().optional(),
+  min: z.number().optional(),
+  max: z.number().optional(),
+})
+
 export const CustomFieldDefinitionSchema = z.object({
   id: z.uuid(),
-  hubId: z.string().optional(),
-  fieldName: z.string(),
+  name: z.string(),
   label: z.string(),
-  fieldType: z.enum(['text', 'number', 'select', 'checkbox', 'textarea', 'file']),
-  options: z.array(z.string()).optional(),
+  type: z.enum([
+    'text',
+    'number',
+    'select',
+    'checkbox',
+    'textarea',
+    'file',
+    'location',
+    'contact',
+    'contacts',
+  ]),
   required: z.boolean(),
-  showInVolunteerView: z.boolean(),
+  options: z.array(z.string()).optional(),
+  encryptedFieldName: z.string().optional(),
+  encryptedLabel: z.string().optional(),
+  encryptedOptions: z.string().optional(),
+  validation: CustomFieldValidationSchema.optional(),
+  visibleTo: z.string(),
+  context: CustomFieldContextSchema,
+  reportTypeIds: z.array(z.string()).optional(),
+  maxFileSize: z.number().int().optional(),
+  allowedMimeTypes: z.array(z.string()).optional(),
+  maxFiles: z.number().int().optional(),
+  locationSettings: LocationFieldSettingsSchema.optional(),
   order: z.number().int(),
-  createdAt: z.iso.datetime(),
+  createdAt: z.string(),
 })
 export type CustomFieldDefinition = z.infer<typeof CustomFieldDefinitionSchema>
 
@@ -110,3 +143,35 @@ export const MessagingConfigSchema = z.object({
   channels: z.array(MessagingChannelConfigSchema),
 })
 export type MessagingConfig = z.infer<typeof MessagingConfigSchema>
+
+export const WebAuthnSettingsSchema = z.object({
+  requireForAdmins: z.boolean(),
+  requireForUsers: z.boolean(),
+})
+export type WebAuthnSettings = z.infer<typeof WebAuthnSettingsSchema>
+
+export const GeocodingConfigSchema = z.object({
+  provider: z.enum(['opencage', 'geoapify']).nullable(),
+  countries: z.array(z.string()),
+  enabled: z.boolean(),
+})
+export type GeocodingConfig = z.infer<typeof GeocodingConfigSchema>
+
+export const SetupStateSchema = z.object({
+  setupCompleted: z.boolean(),
+  completedSteps: z.array(z.string()),
+  pendingChannels: z.array(ChannelTypeSchema),
+  selectedChannels: z.array(ChannelTypeSchema),
+  demoMode: z.boolean().optional(),
+})
+export type SetupState = z.infer<typeof SetupStateSchema>
+
+export const EnabledChannelsSchema = z.object({
+  voice: z.boolean(),
+  sms: z.boolean(),
+  whatsapp: z.boolean(),
+  signal: z.boolean(),
+  rcs: z.boolean(),
+  reports: z.boolean(),
+})
+export type EnabledChannels = z.infer<typeof EnabledChannelsSchema>

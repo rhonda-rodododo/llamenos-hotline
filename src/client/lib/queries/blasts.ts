@@ -6,9 +6,6 @@
  */
 
 import {
-  type Blast,
-  type BlastSettings,
-  type Subscriber,
   cancelBlast,
   deleteBlast,
   getBlastSettings,
@@ -19,8 +16,9 @@ import {
   updateBlastSettings,
 } from '@/lib/api'
 import { decryptBlastContent } from '@/lib/crypto'
+import { decryptHubField } from '@/lib/hub-field-crypto'
 import * as keyManager from '@/lib/key-manager'
-import type { BlastContent } from '@shared/types'
+import type { Blast, BlastContent, BlastSettings, Subscriber } from '@shared/types'
 import { queryOptions, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { queryKeys } from './keys'
 
@@ -45,12 +43,15 @@ interface SubscriberStatsData {
  * Fetch all blasts and decrypt their content when the key manager is unlocked.
  * Returns both the raw blast array and a map of decrypted content keyed by blast id.
  */
-export const blastsListOptions = () =>
+export const blastsListOptions = (hubId = 'global') =>
   queryOptions({
     queryKey: queryKeys.blasts.list(),
     queryFn: async (): Promise<{ blasts: Blast[]; decryptedContent: DecryptedBlastContent }> => {
       const res = await listBlasts()
-      const blasts = res.blasts
+      const blasts = res.blasts.map((blast) => ({
+        ...blast,
+        name: decryptHubField(blast.encryptedName, hubId, blast.name),
+      }))
 
       const unlocked = await keyManager.isUnlocked()
       if (!unlocked) return { blasts, decryptedContent: {} }
@@ -77,8 +78,8 @@ export const blastsListOptions = () =>
 // useBlasts
 // ---------------------------------------------------------------------------
 
-export function useBlasts() {
-  return useQuery(blastsListOptions())
+export function useBlasts(hubId = 'global') {
+  return useQuery(blastsListOptions(hubId))
 }
 
 // ---------------------------------------------------------------------------

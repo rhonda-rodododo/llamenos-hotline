@@ -24,7 +24,8 @@ test.describe('Multi-hub architecture — API', () => {
     expect(createRes.ok()).toBe(true)
     const created = await createRes.json()
     expect(created).toHaveProperty('hub')
-    expect(created.hub.name).toBe('Test Hub')
+    // Hub names are E2EE — server stores encryptedName, returns name as empty string
+    expect(created.hub.encryptedName).toBeTruthy()
     expect(created.hub.status).toBe('active')
     expect(created.hub.id).toBeTruthy()
 
@@ -38,13 +39,13 @@ test.describe('Multi-hub architecture — API', () => {
     const getRes = await authedApi.get(`/api/hubs/${created.hub.id}`)
     expect(getRes.ok()).toBe(true)
     const fetched = await getRes.json()
-    expect(fetched.hub.name).toBe('Test Hub')
+    expect(fetched.hub.encryptedName).toBeTruthy()
 
     // Update hub
     const updateRes = await authedApi.patch(`/api/hubs/${created.hub.id}`, { name: 'Updated Hub' })
     expect(updateRes.ok()).toBe(true)
     const updated = await updateRes.json()
-    expect(updated.hub.name).toBe('Updated Hub')
+    expect(updated.hub.encryptedName).toBeTruthy()
   })
 
   test('hub-scoped routes use per-hub DOs', async ({ request }) => {

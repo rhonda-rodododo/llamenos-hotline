@@ -1,6 +1,6 @@
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { listShifts, listVolunteers } from '@/lib/api'
+import { listShifts, listUsers } from '@/lib/api'
 import { useConfig } from '@/lib/config'
 import { useNavigate } from '@tanstack/react-router'
 import {
@@ -46,8 +46,8 @@ export function GettingStartedChecklist() {
       let hasShifts = false
 
       try {
-        const [volRes, shiftRes] = await Promise.all([listVolunteers(), listShifts()])
-        hasVolunteers = volRes.volunteers.length > 1 // > 1 because admin counts as a volunteer
+        const [usersRes, shiftRes] = await Promise.all([listUsers(), listShifts()])
+        hasVolunteers = usersRes.users.length > 1 // > 1 because admin counts as a user
         hasShifts = shiftRes.shifts.length > 0
       } catch {
         // API might fail if not authed yet

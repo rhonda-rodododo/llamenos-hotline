@@ -293,7 +293,7 @@ async function tryAutoAssign(
     const messagingConfig = await services.settings.getMessagingConfig(hubId)
     if (!messagingConfig?.autoAssign) return
 
-    const maxConcurrent = messagingConfig.maxConcurrentPerVolunteer || 3
+    const maxConcurrent = messagingConfig.maxConcurrentPerUser || 3
 
     // 2. Get current on-shift volunteers
     const onShiftShifts = await services.shifts.getActiveShifts(hubId)
@@ -301,14 +301,14 @@ async function tryAutoAssign(
     const onShiftPubkeys = onShiftShifts.map((s) => s.pubkey)
 
     // 3. Get volunteer details to filter by channel capability
-    const allVolunteers = await services.identity.getVolunteers()
-    const onShiftVolunteers = allVolunteers.filter(
+    const allUsers = await services.identity.getUsers()
+    const onShiftUsers = allUsers.filter(
       (v) =>
         onShiftPubkeys.includes(v.pubkey) && v.active && !v.onBreak && v.messagingEnabled !== false
     )
 
     // Filter by channel capability
-    const eligibleVolunteers = onShiftVolunteers.filter((v) => {
+    const eligibleUsers = onShiftUsers.filter((v) => {
       // If no channels specified, volunteer can handle all
       if (!v.supportedMessagingChannels || v.supportedMessagingChannels.length === 0) {
         return true
@@ -316,7 +316,7 @@ async function tryAutoAssign(
       return v.supportedMessagingChannels.includes(channelType)
     })
 
-    if (eligibleVolunteers.length === 0) return
+    if (eligibleUsers.length === 0) return
 
     // 4. Get volunteer load counts (active conversations per volunteer)
     const { conversations: activeConvs } = await services.conversations.listConversations({
@@ -335,7 +335,7 @@ async function tryAutoAssign(
     let bestCandidate: string | null = null
     let lowestLoad = Number.POSITIVE_INFINITY
 
-    for (const vol of eligibleVolunteers) {
+    for (const vol of eligibleUsers) {
       const currentLoad = loads[vol.pubkey] || 0
       if (currentLoad < maxConcurrent && currentLoad < lowestLoad) {
         lowestLoad = currentLoad

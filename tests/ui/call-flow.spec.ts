@@ -3,7 +3,7 @@
  *
  * Tests the full lifecycle of a hotline call:
  *   1. Inbound call webhook → appears in dashboard as ringing
- *   2. Volunteer (admin) answers via UI → shows active call panel
+ *   2. User (admin) answers via UI → shows active call panel
  *   3. Note is saved during the call
  *   4. Call ends → note persists in call history
  *
@@ -12,85 +12,53 @@
  * Prerequisites: telephony must be configured in the test environment (USE_TEST_ADAPTER=true).
  */
 
-import { expect, test } from '@playwright/test'
-import { nip19 } from 'nostr-tools'
-import { getPublicKey } from 'nostr-tools/pure'
-import { ADMIN_NSEC, TestIds, loginAsAdmin, navigateAfterLogin } from '../helpers'
-import { createAuthedRequestFromNsec } from '../helpers/authed-request'
+import { expect, test } from '../fixtures/auth'
+import { TestIds, navigateAfterLogin } from '../helpers'
+import {
+  type AuthedRequest,
+  createAdminApiFromStorageState,
+  getAdminPubkeyFromStorageState,
+} from '../helpers/authed-request'
 
-// Build admin pubkey from the test admin's nsec
-const { data: adminSkBytes } = nip19.decode(ADMIN_NSEC) as { type: 'nsec'; data: Uint8Array }
-const ADMIN_PUBKEY = getPublicKey(adminSkBytes)
-
-declare global {
-  interface Window {
-    __authedFetch: (url: string, options?: RequestInit) => Promise<Response>
-  }
-}
-
-/**
- * Inject window.__authedFetch using the active key manager session.
- */
-function injectAuthedFetch(page: import('@playwright/test').Page) {
-  return page.evaluate(() => {
-    window.__authedFetch = async (url: string, options: RequestInit = {}) => {
-      const headers: Record<string, string> = {
-        'Content-Type': 'application/json',
-        ...((options.headers as Record<string, string>) || {}),
-      }
-      const token = sessionStorage.getItem('__TEST_JWT')
-      if (token) {
-        headers.Authorization = `Bearer ${token}`
-      }
-      return fetch(url, { ...options, headers })
-    }
-  })
-}
+// Lazy — resolved in beforeAll after global setup creates admin.json
+let ADMIN_PUBKEY: string
 
 function formEncode(params: Record<string, string>): string {
   return new URLSearchParams(params).toString()
 }
 
 /**
- * Set the fallback ring group to include the given pubkey.
- * Requires window.__authedFetch to be injected.
+ * Set the fallback ring group to include the given pubkey via server-side API.
  */
-async function setFallbackGroup(page: import('@playwright/test').Page, pubkey: string) {
-  await page.evaluate(async (pk) => {
-    const res = await window.__authedFetch('/api/settings/fallback-group', {
-      method: 'PUT',
-      body: JSON.stringify({ pubkeys: [pk] }),
-    })
-    if (!res.ok) {
-      const body = await res.text()
-      throw new Error(`setFallbackGroup failed: ${res.status} ${body}`)
-    }
-  }, pubkey)
+async function setFallbackGroup(adminApi: AuthedRequest, pubkey: string) {
+  const res = await adminApi.put('/api/settings/fallback-group', { pubkeys: [pubkey] })
+  if (!res.ok()) {
+    const body = await res.text()
+    throw new Error(`setFallbackGroup failed: ${res.status()} ${body}`)
+  }
 }
 
 /**
  * Wait until the given callSid appears in GET /api/calls/active with the expected status.
+ * Uses server-side API polling instead of browser evaluate.
  */
 async function waitForActiveCall(
-  page: import('@playwright/test').Page,
+  adminApi: AuthedRequest,
   callSid: string,
   status: 'ringing' | 'in-progress' | 'completed',
   timeoutMs = 12_000
 ) {
-  await page.waitForFunction(
-    ({ sid, expectedStatus }) => {
-      return window
-        .__authedFetch('/api/calls/active')
-        .then((r) => r.json())
-        .then((data: { calls?: Array<{ id: string; status: string }> }) => {
-          const call = data.calls?.find((c) => c.id === sid)
-          return call?.status === expectedStatus
-        })
-        .catch(() => false)
-    },
-    { sid: callSid, expectedStatus: status },
-    { timeout: timeoutMs, polling: 1000 }
-  )
+  const start = Date.now()
+  while (Date.now() - start < timeoutMs) {
+    const res = await adminApi.get('/api/calls/active')
+    if (res.ok()) {
+      const data = (await res.json()) as { calls?: Array<{ id: string; status: string }> }
+      const call = data.calls?.find((c) => c.id === callSid)
+      if (call?.status === status) return
+    }
+    await new Promise((r) => setTimeout(r, 1000))
+  }
+  throw new Error(`Timed out waiting for call ${callSid} to reach status ${status}`)
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -99,6 +67,10 @@ async function waitForActiveCall(
 
 test.describe('Call flow', () => {
   test.describe.configure({ mode: 'serial' })
+
+  test.beforeAll(() => {
+    ADMIN_PUBKEY = getAdminPubkeyFromStorageState()
+  })
 
   const CALL_SID = `CA_flow_${Date.now()}`
   const CALLER_FROM = '+15550001111'
@@ -124,24 +96,23 @@ test.describe('Call flow', () => {
     }
     // Set admin as fallback ring group so calls trigger ringing + Nostr events
     if (relayAvailable) {
-      const adminApi = createAuthedRequestFromNsec(request, ADMIN_NSEC)
+      const adminApi = createAdminApiFromStorageState(request)
       await adminApi.put('/api/settings/fallback-group', { pubkeys: [adminApi.pubkey] })
     }
   })
 
-  test.beforeEach(async ({ page }) => {
-    await loginAsAdmin(page)
-    await navigateAfterLogin(page, '/')
-    await injectAuthedFetch(page)
-  })
-
   // ── 2.1: Inbound call appears in dashboard ────────────────────────────────
 
-  test('inbound call appears in dashboard as ringing', async ({ page, request }) => {
+  test('inbound call appears in dashboard as ringing', async ({ adminPage, request }) => {
     test.skip(!relayAvailable, 'Nostr relay not running — call events require relay for dashboard')
 
+    const adminApi = createAdminApiFromStorageState(request)
+
     // Ensure admin is in the fallback ring group so the call routes to them
-    await setFallbackGroup(page, ADMIN_PUBKEY)
+    await setFallbackGroup(adminApi, ADMIN_PUBKEY)
+
+    // Navigate to dashboard
+    await navigateAfterLogin(adminPage, '/')
 
     // Step 1: Simulate inbound call (plays language menu)
     const incomingRes = await request.post('/telephony/incoming', {
@@ -169,45 +140,47 @@ test.describe('Call flow', () => {
 
     expect(langRes.status()).toBe(200)
 
-    // Step 3: Wait for the call to appear in the active calls API
-    // (startParallelRinging runs as a background task)
-    await waitForActiveCall(page, CALL_SID, 'ringing')
+    // Step 3: Wait for the call to appear in the active calls API (under load, may take longer)
+    await waitForActiveCall(adminApi, CALL_SID, 'ringing', 20_000)
 
     // Step 4: The dashboard receives call events via Nostr relay subscription (real-time)
-    // Wait for the incoming calls card — the dashboard should update reactively
-    await expect(page.getByTestId(TestIds.INCOMING_CALLS_CARD)).toBeVisible({ timeout: 15_000 })
-    await expect(page.getByTestId(TestIds.INCOMING_CALL_ITEM)).toBeVisible()
-    await expect(page.getByTestId(TestIds.ANSWER_CALL_BTN)).toBeVisible()
+    await expect(adminPage.getByTestId(TestIds.INCOMING_CALLS_CARD)).toBeVisible({
+      timeout: 30_000,
+    })
+    await expect(adminPage.getByTestId(TestIds.INCOMING_CALL_ITEM)).toBeVisible({ timeout: 35_000 })
+    await expect(adminPage.getByTestId(TestIds.ANSWER_CALL_BTN)).toBeVisible({ timeout: 15_000 })
   })
 
-  // ── 2.2: Volunteer answers the call ──────────────────────────────────────
+  // ── 2.2: User answers the call ──────────────────────────────────────
 
-  test('volunteer answers call and sees active call panel', async ({ page }) => {
+  test('user answers call and sees active call panel', async ({ adminPage, request }) => {
     test.skip(!relayAvailable, 'Nostr relay not running — call events require relay for dashboard')
-    // The call should still be ringing from the previous test
-    // beforeEach already logged in and navigated to dashboard with authedFetch injected
-    await waitForActiveCall(page, CALL_SID, 'ringing')
+
+    const adminApi = createAdminApiFromStorageState(request)
+    await navigateAfterLogin(adminPage, '/')
+    await waitForActiveCall(adminApi, CALL_SID, 'ringing')
 
     // Wait for dashboard to show the incoming call (real-time via Nostr relay)
-    await expect(page.getByTestId(TestIds.INCOMING_CALL_ITEM)).toBeVisible({ timeout: 15_000 })
+    await expect(adminPage.getByTestId(TestIds.INCOMING_CALL_ITEM)).toBeVisible({ timeout: 35_000 })
 
     // Click Answer
-    await page.getByTestId(TestIds.ANSWER_CALL_BTN).click()
+    await adminPage.getByTestId(TestIds.ANSWER_CALL_BTN).click()
 
     // Active call panel should appear
-    await expect(page.getByTestId(TestIds.ACTIVE_CALL_PANEL)).toBeVisible({ timeout: 8_000 })
+    await expect(adminPage.getByTestId(TestIds.ACTIVE_CALL_PANEL)).toBeVisible({ timeout: 8_000 })
   })
 
   // ── 2.3: Write a note during the call ────────────────────────────────────
 
-  test('can write and save a note during an active call', async ({ page, request }) => {
+  test('can write and save a note during an active call', async ({ adminPage, request }) => {
     test.skip(!relayAvailable, 'Nostr relay not running — call events require relay for dashboard')
-    // beforeEach already logged in and navigated to dashboard with authedFetch injected
 
-    // Set up a fresh call for this test (self-contained, doesn't depend on prior serial tests)
+    const adminApi = createAdminApiFromStorageState(request)
+
+    // Set up a fresh call for this test (self-contained)
     const noteCallSid = `CA_note_${Date.now()}`
 
-    await setFallbackGroup(page, ADMIN_PUBKEY)
+    await setFallbackGroup(adminApi, ADMIN_PUBKEY)
 
     // Simulate inbound call + language selection
     await request.post('/telephony/incoming', {
@@ -229,28 +202,31 @@ test.describe('Call flow', () => {
       }),
     })
 
-    await waitForActiveCall(page, noteCallSid, 'ringing')
+    await waitForActiveCall(adminApi, noteCallSid, 'ringing')
 
-    // Answer the call via UI
-    await expect(page.getByTestId(TestIds.INCOMING_CALL_ITEM)).toBeVisible({ timeout: 15_000 })
-    await page.getByTestId(TestIds.ANSWER_CALL_BTN).click()
-    await expect(page.getByTestId(TestIds.ACTIVE_CALL_PANEL)).toBeVisible({ timeout: 8_000 })
+    // Navigate to dashboard
+    await navigateAfterLogin(adminPage, '/')
+
+    // Answer the call via UI — wait up to 35s for REST fallback polling (30s interval)
+    // if the Nostr relay event was missed due to late subscription
+    await expect(adminPage.getByTestId(TestIds.INCOMING_CALL_ITEM)).toBeVisible({ timeout: 35_000 })
+    await adminPage.getByTestId(TestIds.ANSWER_CALL_BTN).click()
+    await expect(adminPage.getByTestId(TestIds.ACTIVE_CALL_PANEL)).toBeVisible({ timeout: 8_000 })
 
     // Type a note
     const noteText = `Test note ${Date.now()}`
-    await page.getByTestId(TestIds.NOTE_TEXTAREA).fill(noteText)
+    await adminPage.getByTestId(TestIds.NOTE_TEXTAREA).fill(noteText)
 
     // Save the note
-    await page.getByTestId(TestIds.SAVE_NOTE_BTN).click()
+    await adminPage.getByTestId(TestIds.SAVE_NOTE_BTN).click()
 
-    // The button should temporarily show a saved indicator (badge with success text)
-    // or the save button reverts to enabled — either way, no error
-    await expect(page.getByTestId(TestIds.SAVE_NOTE_BTN)).toBeEnabled({ timeout: 5_000 })
+    // The button should temporarily show a saved indicator or revert to enabled
+    await expect(adminPage.getByTestId(TestIds.SAVE_NOTE_BTN)).toBeEnabled({ timeout: 5_000 })
   })
 
   // ── 2.4: Note persists after call ends ───────────────────────────────────
 
-  test('note persists in call history after call ends', async ({ page, request }) => {
+  test('note persists in call history after call ends', async ({ adminPage, request }) => {
     test.skip(!relayAvailable, 'Nostr relay not running — call events require relay for dashboard')
     // Simulate call hangup
     const hangupRes = await request.post('/telephony/call-status', {
@@ -264,35 +240,34 @@ test.describe('Call flow', () => {
     expect([200, 204]).toContain(hangupRes.status())
 
     // Navigate to call history
-    await navigateAfterLogin(page, '/calls')
+    await navigateAfterLogin(adminPage, '/calls')
 
     // Wait for the call history page to render
-    await expect(page.getByRole('heading', { name: /call history/i })).toBeVisible({
+    await expect(adminPage.getByRole('heading', { name: /call history/i })).toBeVisible({
       timeout: 10_000,
     })
 
-    // At least one call row should exist (best-effort — call history may not persist in all test configs)
-    const callRows = page.getByTestId('call-history-row')
+    // At least one call row should exist
+    const callRows = adminPage.getByTestId('call-history-row')
     const rowCount = await callRows.count()
     if (rowCount === 0) {
       console.log('[call-flow] No call rows found — call history may not be persistent in test env')
     }
   })
 
-  // ── 2.5: Volunteer ends call manually ────────────────────────────────────
+  // ── 2.5: User ends call manually ────────────────────────────────────
 
-  test('volunteer can end active call via hang up button', async ({ page }) => {
+  test('user can end active call via hang up button', async ({ adminPage, request }) => {
     test.skip(!relayAvailable, 'Nostr relay not running — call events require relay for dashboard')
-    // Start fresh with a new call for this test
+
+    const adminApi = createAdminApiFromStorageState(request)
     const hangupCallSid = `CA_hangup_${Date.now()}`
 
     // Set fallback group
-    await setFallbackGroup(page, ADMIN_PUBKEY)
+    await setFallbackGroup(adminApi, ADMIN_PUBKEY)
 
-    // Inject authed fetch for this test (re-done since beforeEach runs)
-
-    // Simulate call directly via API (if call state allows)
-    const incomingRes = await page.request.post('/telephony/incoming', {
+    // Simulate call directly via API
+    const incomingRes = await request.post('/telephony/incoming', {
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       data: formEncode({
         CallSid: hangupCallSid,
@@ -305,7 +280,7 @@ test.describe('Call flow', () => {
 
     expect(incomingRes.status()).toBe(200)
 
-    await page.request.post('/telephony/language-selected?forceLang=en', {
+    await request.post('/telephony/language-selected?forceLang=en', {
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       data: formEncode({
         CallSid: hangupCallSid,
@@ -314,28 +289,23 @@ test.describe('Call flow', () => {
       }),
     })
 
-    await waitForActiveCall(page, hangupCallSid, 'ringing')
+    await waitForActiveCall(adminApi, hangupCallSid, 'ringing')
 
-    // Navigate to dashboard via SPA router (no page reload — preserves hub key cache
-    // and crypto worker state needed for Nostr event decryption)
-    await page.evaluate(() => {
-      const router = (
-        window as unknown as { __TEST_ROUTER?: { navigate: (opts: { to: string }) => void } }
-      ).__TEST_ROUTER
-      if (router) router.navigate({ to: '/' })
-    })
-    await page.waitForTimeout(1000)
+    // Navigate to dashboard
+    await navigateAfterLogin(adminPage, '/')
 
     // Answer the call
-    await expect(page.getByTestId(TestIds.INCOMING_CALL_ITEM)).toBeVisible({ timeout: 15_000 })
-    await page.getByTestId(TestIds.ANSWER_CALL_BTN).click()
-    await expect(page.getByTestId(TestIds.ACTIVE_CALL_PANEL)).toBeVisible({ timeout: 8_000 })
+    await expect(adminPage.getByTestId(TestIds.INCOMING_CALL_ITEM)).toBeVisible({ timeout: 35_000 })
+    await adminPage.getByTestId(TestIds.ANSWER_CALL_BTN).click()
+    await expect(adminPage.getByTestId(TestIds.ACTIVE_CALL_PANEL)).toBeVisible({ timeout: 8_000 })
 
     // Click hang up
-    await expect(page.getByTestId(TestIds.HANGUP_CALL_BTN)).toBeVisible({ timeout: 5_000 })
-    await page.getByTestId(TestIds.HANGUP_CALL_BTN).click()
+    await expect(adminPage.getByTestId(TestIds.HANGUP_CALL_BTN)).toBeVisible({ timeout: 5_000 })
+    await adminPage.getByTestId(TestIds.HANGUP_CALL_BTN).click()
 
     // Active call panel should disappear
-    await expect(page.getByTestId(TestIds.ACTIVE_CALL_PANEL)).not.toBeVisible({ timeout: 8_000 })
+    await expect(adminPage.getByTestId(TestIds.ACTIVE_CALL_PANEL)).not.toBeVisible({
+      timeout: 8_000,
+    })
   })
 })

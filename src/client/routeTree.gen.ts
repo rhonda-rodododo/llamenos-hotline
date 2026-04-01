@@ -9,7 +9,7 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as VolunteersRouteImport } from './routes/volunteers'
+import { Route as UsersRouteImport } from './routes/users'
 import { Route as ShiftsRouteImport } from './routes/shifts'
 import { Route as SetupRouteImport } from './routes/setup'
 import { Route as SettingsRouteImport } from './routes/settings'
@@ -20,6 +20,7 @@ import { Route as OnboardingRouteImport } from './routes/onboarding'
 import { Route as NotesRouteImport } from './routes/notes'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as LinkDeviceRouteImport } from './routes/link-device'
+import { Route as IntakesRouteImport } from './routes/intakes'
 import { Route as HelpRouteImport } from './routes/help'
 import { Route as ConversationsRouteImport } from './routes/conversations'
 import { Route as ContactsRouteImport } from './routes/contacts'
@@ -28,16 +29,16 @@ import { Route as BlastsRouteImport } from './routes/blasts'
 import { Route as BansRouteImport } from './routes/bans'
 import { Route as AuditRouteImport } from './routes/audit'
 import { Route as IndexRouteImport } from './routes/index'
-import { Route as VolunteersPubkeyRouteImport } from './routes/volunteers_.$pubkey'
+import { Route as UsersPubkeyRouteImport } from './routes/users_.$pubkey'
 import { Route as NotesNoteIdRouteImport } from './routes/notes.$noteId'
 import { Route as ContactsContactIdRouteImport } from './routes/contacts_.$contactId'
 import { Route as CallsCallIdRouteImport } from './routes/calls.$callId'
 import { Route as AdminSettingsRouteImport } from './routes/admin/settings'
 import { Route as AdminHubsRouteImport } from './routes/admin/hubs'
 
-const VolunteersRoute = VolunteersRouteImport.update({
-  id: '/volunteers',
-  path: '/volunteers',
+const UsersRoute = UsersRouteImport.update({
+  id: '/users',
+  path: '/users',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ShiftsRoute = ShiftsRouteImport.update({
@@ -90,6 +91,11 @@ const LinkDeviceRoute = LinkDeviceRouteImport.update({
   path: '/link-device',
   getParentRoute: () => rootRouteImport,
 } as any)
+const IntakesRoute = IntakesRouteImport.update({
+  id: '/intakes',
+  path: '/intakes',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const HelpRoute = HelpRouteImport.update({
   id: '/help',
   path: '/help',
@@ -130,9 +136,9 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const VolunteersPubkeyRoute = VolunteersPubkeyRouteImport.update({
-  id: '/volunteers_/$pubkey',
-  path: '/volunteers/$pubkey',
+const UsersPubkeyRoute = UsersPubkeyRouteImport.update({
+  id: '/users_/$pubkey',
+  path: '/users/$pubkey',
   getParentRoute: () => rootRouteImport,
 } as any)
 const NotesNoteIdRoute = NotesNoteIdRouteImport.update({
@@ -170,6 +176,7 @@ export interface FileRoutesByFullPath {
   '/contacts': typeof ContactsRoute
   '/conversations': typeof ConversationsRoute
   '/help': typeof HelpRoute
+  '/intakes': typeof IntakesRoute
   '/link-device': typeof LinkDeviceRoute
   '/login': typeof LoginRoute
   '/notes': typeof NotesRouteWithChildren
@@ -180,13 +187,13 @@ export interface FileRoutesByFullPath {
   '/settings': typeof SettingsRoute
   '/setup': typeof SetupRoute
   '/shifts': typeof ShiftsRoute
-  '/volunteers': typeof VolunteersRoute
+  '/users': typeof UsersRoute
   '/admin/hubs': typeof AdminHubsRoute
   '/admin/settings': typeof AdminSettingsRoute
   '/calls/$callId': typeof CallsCallIdRoute
   '/contacts/$contactId': typeof ContactsContactIdRoute
   '/notes/$noteId': typeof NotesNoteIdRoute
-  '/volunteers/$pubkey': typeof VolunteersPubkeyRoute
+  '/users/$pubkey': typeof UsersPubkeyRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -197,6 +204,7 @@ export interface FileRoutesByTo {
   '/contacts': typeof ContactsRoute
   '/conversations': typeof ConversationsRoute
   '/help': typeof HelpRoute
+  '/intakes': typeof IntakesRoute
   '/link-device': typeof LinkDeviceRoute
   '/login': typeof LoginRoute
   '/notes': typeof NotesRouteWithChildren
@@ -207,13 +215,13 @@ export interface FileRoutesByTo {
   '/settings': typeof SettingsRoute
   '/setup': typeof SetupRoute
   '/shifts': typeof ShiftsRoute
-  '/volunteers': typeof VolunteersRoute
+  '/users': typeof UsersRoute
   '/admin/hubs': typeof AdminHubsRoute
   '/admin/settings': typeof AdminSettingsRoute
   '/calls/$callId': typeof CallsCallIdRoute
   '/contacts/$contactId': typeof ContactsContactIdRoute
   '/notes/$noteId': typeof NotesNoteIdRoute
-  '/volunteers/$pubkey': typeof VolunteersPubkeyRoute
+  '/users/$pubkey': typeof UsersPubkeyRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -225,6 +233,7 @@ export interface FileRoutesById {
   '/contacts': typeof ContactsRoute
   '/conversations': typeof ConversationsRoute
   '/help': typeof HelpRoute
+  '/intakes': typeof IntakesRoute
   '/link-device': typeof LinkDeviceRoute
   '/login': typeof LoginRoute
   '/notes': typeof NotesRouteWithChildren
@@ -235,13 +244,13 @@ export interface FileRoutesById {
   '/settings': typeof SettingsRoute
   '/setup': typeof SetupRoute
   '/shifts': typeof ShiftsRoute
-  '/volunteers': typeof VolunteersRoute
+  '/users': typeof UsersRoute
   '/admin/hubs': typeof AdminHubsRoute
   '/admin/settings': typeof AdminSettingsRoute
   '/calls/$callId': typeof CallsCallIdRoute
   '/contacts_/$contactId': typeof ContactsContactIdRoute
   '/notes/$noteId': typeof NotesNoteIdRoute
-  '/volunteers_/$pubkey': typeof VolunteersPubkeyRoute
+  '/users_/$pubkey': typeof UsersPubkeyRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -254,6 +263,7 @@ export interface FileRouteTypes {
     | '/contacts'
     | '/conversations'
     | '/help'
+    | '/intakes'
     | '/link-device'
     | '/login'
     | '/notes'
@@ -264,13 +274,13 @@ export interface FileRouteTypes {
     | '/settings'
     | '/setup'
     | '/shifts'
-    | '/volunteers'
+    | '/users'
     | '/admin/hubs'
     | '/admin/settings'
     | '/calls/$callId'
     | '/contacts/$contactId'
     | '/notes/$noteId'
-    | '/volunteers/$pubkey'
+    | '/users/$pubkey'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -281,6 +291,7 @@ export interface FileRouteTypes {
     | '/contacts'
     | '/conversations'
     | '/help'
+    | '/intakes'
     | '/link-device'
     | '/login'
     | '/notes'
@@ -291,13 +302,13 @@ export interface FileRouteTypes {
     | '/settings'
     | '/setup'
     | '/shifts'
-    | '/volunteers'
+    | '/users'
     | '/admin/hubs'
     | '/admin/settings'
     | '/calls/$callId'
     | '/contacts/$contactId'
     | '/notes/$noteId'
-    | '/volunteers/$pubkey'
+    | '/users/$pubkey'
   id:
     | '__root__'
     | '/'
@@ -308,6 +319,7 @@ export interface FileRouteTypes {
     | '/contacts'
     | '/conversations'
     | '/help'
+    | '/intakes'
     | '/link-device'
     | '/login'
     | '/notes'
@@ -318,13 +330,13 @@ export interface FileRouteTypes {
     | '/settings'
     | '/setup'
     | '/shifts'
-    | '/volunteers'
+    | '/users'
     | '/admin/hubs'
     | '/admin/settings'
     | '/calls/$callId'
     | '/contacts_/$contactId'
     | '/notes/$noteId'
-    | '/volunteers_/$pubkey'
+    | '/users_/$pubkey'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -336,6 +348,7 @@ export interface RootRouteChildren {
   ContactsRoute: typeof ContactsRoute
   ConversationsRoute: typeof ConversationsRoute
   HelpRoute: typeof HelpRoute
+  IntakesRoute: typeof IntakesRoute
   LinkDeviceRoute: typeof LinkDeviceRoute
   LoginRoute: typeof LoginRoute
   NotesRoute: typeof NotesRouteWithChildren
@@ -346,20 +359,20 @@ export interface RootRouteChildren {
   SettingsRoute: typeof SettingsRoute
   SetupRoute: typeof SetupRoute
   ShiftsRoute: typeof ShiftsRoute
-  VolunteersRoute: typeof VolunteersRoute
+  UsersRoute: typeof UsersRoute
   AdminHubsRoute: typeof AdminHubsRoute
   AdminSettingsRoute: typeof AdminSettingsRoute
   ContactsContactIdRoute: typeof ContactsContactIdRoute
-  VolunteersPubkeyRoute: typeof VolunteersPubkeyRoute
+  UsersPubkeyRoute: typeof UsersPubkeyRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/volunteers': {
-      id: '/volunteers'
-      path: '/volunteers'
-      fullPath: '/volunteers'
-      preLoaderRoute: typeof VolunteersRouteImport
+    '/users': {
+      id: '/users'
+      path: '/users'
+      fullPath: '/users'
+      preLoaderRoute: typeof UsersRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/shifts': {
@@ -432,6 +445,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LinkDeviceRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/intakes': {
+      id: '/intakes'
+      path: '/intakes'
+      fullPath: '/intakes'
+      preLoaderRoute: typeof IntakesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/help': {
       id: '/help'
       path: '/help'
@@ -488,11 +508,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/volunteers_/$pubkey': {
-      id: '/volunteers_/$pubkey'
-      path: '/volunteers/$pubkey'
-      fullPath: '/volunteers/$pubkey'
-      preLoaderRoute: typeof VolunteersPubkeyRouteImport
+    '/users_/$pubkey': {
+      id: '/users_/$pubkey'
+      path: '/users/$pubkey'
+      fullPath: '/users/$pubkey'
+      preLoaderRoute: typeof UsersPubkeyRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/notes/$noteId': {
@@ -562,6 +582,7 @@ const rootRouteChildren: RootRouteChildren = {
   ContactsRoute: ContactsRoute,
   ConversationsRoute: ConversationsRoute,
   HelpRoute: HelpRoute,
+  IntakesRoute: IntakesRoute,
   LinkDeviceRoute: LinkDeviceRoute,
   LoginRoute: LoginRoute,
   NotesRoute: NotesRouteWithChildren,
@@ -572,11 +593,11 @@ const rootRouteChildren: RootRouteChildren = {
   SettingsRoute: SettingsRoute,
   SetupRoute: SetupRoute,
   ShiftsRoute: ShiftsRoute,
-  VolunteersRoute: VolunteersRoute,
+  UsersRoute: UsersRoute,
   AdminHubsRoute: AdminHubsRoute,
   AdminSettingsRoute: AdminSettingsRoute,
   ContactsContactIdRoute: ContactsContactIdRoute,
-  VolunteersPubkeyRoute: VolunteersPubkeyRoute,
+  UsersPubkeyRoute: UsersPubkeyRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

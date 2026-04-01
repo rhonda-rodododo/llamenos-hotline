@@ -77,6 +77,13 @@ export function SetupWizard({ needsBootstrap = false }: { needsBootstrap?: boole
   const [pinLoading, setPinLoading] = useState(false)
   const stepHeadingRef = useRef<HTMLHeadingElement>(null)
 
+  // Sync bootstrapComplete when needsBootstrap prop changes (e.g. after config fetch)
+  useEffect(() => {
+    if (needsBootstrap && sessionStorage.getItem('bootstrapComplete') !== '1') {
+      setBootstrapComplete(false)
+    }
+  }, [needsBootstrap])
+
   // Focus step heading on step change
   useEffect(() => {
     // Short delay to let the new step render before focusing
@@ -170,9 +177,9 @@ export function SetupWizard({ needsBootstrap = false }: { needsBootstrap?: boole
             setActiveHub(hubId)
           }
           await seedDemoData()
-          // Invalidate volunteers and shifts caches so newly-created demo data
+          // Invalidate users and shifts caches so newly-created demo data
           // is immediately visible when navigating to those pages.
-          void queryClient.invalidateQueries({ queryKey: queryKeys.volunteers.all })
+          void queryClient.invalidateQueries({ queryKey: queryKeys.users.all })
           void queryClient.invalidateQueries({ queryKey: queryKeys.shifts.all })
         } catch {
           toast(

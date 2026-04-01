@@ -1,12 +1,32 @@
-import { expect, test } from '@playwright/test'
-import { loginAsAdmin, navigateAfterLogin } from '../helpers'
+import { expect, test } from '../fixtures/auth'
+import { navigateAfterLogin } from '../helpers'
+
+const BASE_URL = process.env.PLAYWRIGHT_BASE_URL || 'http://localhost:3000'
+const TEST_SECRET =
+  process.env.DEV_RESET_SECRET || process.env.E2E_TEST_SECRET || 'test-reset-secret'
 
 test.describe('Demo Mode', () => {
+  test.beforeAll(async () => {
+    const res = await fetch(`${BASE_URL}/api/test-reset-setup`, {
+      method: 'POST',
+      headers: { 'X-Test-Secret': TEST_SECRET },
+    })
+    if (!res.ok) throw new Error(`Failed to reset setup state: ${res.status}`)
+  })
   // --- Helpers ---
 
   async function goToSetup(page: import('@playwright/test').Page) {
     await navigateAfterLogin(page, '/setup')
     await expect(page.getByText('Setup Wizard')).toBeVisible({ timeout: 10000 })
+    // The setup wizard has its own PIN gate when the key-manager is locked
+    const pinInput = page.locator('input[aria-label="PIN digit 1"]')
+    const hasPinGate = await pinInput.isVisible({ timeout: 1000 }).catch(() => false)
+    if (hasPinGate) {
+      await pinInput.focus()
+      await page.keyboard.type('123456', { delay: 80 })
+      await page.keyboard.press('Enter')
+      await expect(page.locator('#hotline-name')).toBeVisible({ timeout: 30000 })
+    }
   }
 
   async function clickNext(page: import('@playwright/test').Page) {
@@ -71,47 +91,49 @@ test.describe('Demo Mode', () => {
   // =====================================================================
   // Test 1: Demo mode toggle appears on summary step
   // =====================================================================
-  test('summary step shows demo mode toggle', async ({ page }) => {
-    await loginAsAdmin(page)
-    await navigateToSummaryWithDemoMode(page)
+  test('summary step shows demo mode toggle', async ({ adminPage }) => {
+    await navigateToSummaryWithDemoMode(adminPage)
 
     // The demo toggle should be visible
-    await expect(page.getByText('Populate with sample data')).toBeVisible()
-    await expect(page.getByText('Creates sample volunteer accounts')).toBeVisible()
+    await expect(adminPage.getByText('Populate with sample data')).toBeVisible()
+    await expect(adminPage.getByText('Creates sample volunteer accounts')).toBeVisible()
 
     // Toggle should be off by default
-    const toggle = page.getByRole('switch')
+    const toggle = adminPage.getByRole('switch')
     await expect(toggle).not.toBeChecked()
   })
 
   // =====================================================================
   // Test 2: Complete setup with demo mode enabled
   // =====================================================================
-  test('complete setup with demo mode creates demo accounts', async ({ page }) => {
-    await loginAsAdmin(page)
-    await completeSetupWithDemoMode(page)
+  test('complete setup with demo mode creates demo accounts', async ({ adminPage }) => {
+    await completeSetupWithDemoMode(adminPage)
 
-    // Verify demo volunteers were created
-    await page.getByRole('link', { name: 'Volunteers' }).click()
-    await expect(page.getByRole('heading', { name: 'Volunteers' })).toBeVisible({ timeout: 10000 })
+    // Verify demo users were created
+    await adminPage.getByRole('link', { name: 'Users' }).click()
+    await expect(adminPage.getByRole('heading', { name: 'Users' })).toBeVisible({ timeout: 10000 })
 
-    // Check for demo volunteer names (use .first() in case of duplicate entries from parallel resets)
-    await expect(page.getByText('Maria Santos').first()).toBeVisible({ timeout: 10000 })
-    await expect(page.getByText('James Chen').first()).toBeVisible()
-    await expect(page.getByText('Community Reporter').first()).toBeVisible()
+    // Check for demo user names (use .first() in case of duplicate entries from parallel resets)
+    await expect(adminPage.getByText('Maria Santos').first()).toBeVisible({ timeout: 10000 })
+    await expect(adminPage.getByText('James Chen').first()).toBeVisible()
+    await expect(adminPage.getByText('Community Reporter').first()).toBeVisible()
 
     // Fatima should be visible but deactivated
-    await expect(page.getByText('Fatima Al-Rashid').first()).toBeVisible()
+    await expect(adminPage.getByText('Fatima Al-Rashid').first()).toBeVisible()
   })
 
   // =====================================================================
   // Test 3: Demo account picker visible on login page
   // =====================================================================
-  test('login page shows demo account picker when demo mode is enabled', async ({ page }) => {
-    await loginAsAdmin(page)
-    await completeSetupWithDemoMode(page)
+  test('login page shows demo account picker when demo mode is enabled', async ({
+    adminPage,
+    browser,
+  }) => {
+    await completeSetupWithDemoMode(adminPage)
 
-    // Go to login page (demo mode should be enabled from setup above)
+    // Use a fresh incognito context to test the login page as a new visitor
+    const context = await browser.newContext()
+    const page = await context.newPage()
     await page.goto('/login')
     await page.waitForLoadState('domcontentloaded')
 
@@ -127,21 +149,29 @@ test.describe('Demo Mode', () => {
 
     // Should show reset notice
     await expect(page.getByText('Demo data resets daily')).toBeVisible()
+
+    await context.close()
   })
 
   // =====================================================================
   // Test 4: One-click demo login works
   // =====================================================================
-  test('clicking demo account logs in and redirects to dashboard', async ({ page }) => {
-    await loginAsAdmin(page)
-    await completeSetupWithDemoMode(page)
+  test('clicking demo account logs in and redirects to dashboard', async ({
+    adminPage,
+    browser,
+  }) => {
+    await completeSetupWithDemoMode(adminPage)
 
-    // Go to login page
+    // Use a fresh incognito context to test the login page as a new visitor
+    const context = await browser.newContext()
+    const page = await context.newPage()
     await page.goto('/login')
     await page.waitForLoadState('domcontentloaded')
 
     // Wait for demo accounts to appear
-    await expect(page.getByText('Pick a demo account to explore')).toBeVisible({ timeout: 10000 })
+    await expect(page.getByText('Pick a demo account to explore')).toBeVisible({
+      timeout: 10000,
+    })
 
     // Click the Maria Santos demo account
     const mariaRow = page.locator('button').filter({ hasText: 'Maria Santos' })
@@ -154,66 +184,69 @@ test.describe('Demo Mode', () => {
     await expect(page.getByRole('navigation').getByText('Maria Santos')).toBeVisible({
       timeout: 10000,
     })
+
+    await context.close()
   })
 
   // =====================================================================
   // Test 5: Demo banner appears for authenticated users
   // =====================================================================
-  test('demo banner shows when logged in', async ({ page }) => {
-    await loginAsAdmin(page)
-    await completeSetupWithDemoMode(page)
+  test('demo banner shows when logged in', async ({ adminPage }) => {
+    await completeSetupWithDemoMode(adminPage)
 
-    // Re-login to see the banner
-    await loginAsAdmin(page)
+    // Navigate to dashboard to see the banner
+    await navigateAfterLogin(adminPage, '/')
 
     // Wait for config to load — the hotline name in the sidebar confirms config loaded
-    await expect(page.getByRole('navigation')).toBeVisible({ timeout: 10000 })
+    await expect(adminPage.getByRole('navigation')).toBeVisible({ timeout: 10000 })
 
     // Demo banner should be visible
-    await expect(page.getByText("You're exploring")).toBeVisible({ timeout: 10000 })
-    await expect(page.getByText('Deploy your own')).toBeVisible()
+    await expect(adminPage.getByText("You're exploring")).toBeVisible({ timeout: 10000 })
+    await expect(adminPage.getByText('Deploy your own')).toBeVisible()
 
     // Banner should be dismissible
-    const dismissBtn = page.locator('button[aria-label="Dismiss"]')
+    const dismissBtn = adminPage.locator('button[aria-label="Dismiss"]').first()
     await dismissBtn.click()
 
     // Banner should disappear
-    await expect(page.getByText("You're exploring")).not.toBeVisible()
+    await expect(adminPage.getByText("You're exploring")).not.toBeVisible()
   })
 
   // =====================================================================
   // Test 6: Demo shifts were created
   // =====================================================================
-  test('demo shifts are populated', async ({ page }) => {
-    await loginAsAdmin(page)
-    await completeSetupWithDemoMode(page)
+  test('demo shifts are populated', async ({ adminPage }) => {
+    await completeSetupWithDemoMode(adminPage)
 
-    await page.getByRole('link', { name: 'Shifts' }).click()
-    await expect(page.getByRole('heading', { name: 'Shift Schedule' })).toBeVisible({
+    await adminPage.getByRole('link', { name: 'Shifts' }).click()
+    await expect(adminPage.getByRole('heading', { name: 'Shift Schedule' })).toBeVisible({
       timeout: 10000,
     })
 
     // Check for demo shift names (use .first() as there may be multiple recurring instances)
-    await expect(page.getByText('Morning Team').first()).toBeVisible({ timeout: 10000 })
-    await expect(page.getByText('Evening Team').first()).toBeVisible()
-    await expect(page.getByText('Weekend Coverage').first()).toBeVisible()
+    await expect(adminPage.getByText('Morning Team').first()).toBeVisible({ timeout: 10000 })
+    await expect(adminPage.getByText('Evening Team').first()).toBeVisible()
+    await expect(adminPage.getByText('Weekend Coverage').first()).toBeVisible()
   })
 
   // =====================================================================
   // Test 7: Demo bans were created
   // =====================================================================
-  test('demo bans are populated', async ({ page }) => {
-    await loginAsAdmin(page)
-    await completeSetupWithDemoMode(page)
+  test('demo bans are populated', async ({ adminPage }) => {
+    await completeSetupWithDemoMode(adminPage)
 
     // Wait for async demo data seeding to complete before navigating
-    await page.waitForTimeout(2000)
+    await adminPage.waitForTimeout(2000)
 
-    await page.getByRole('link', { name: 'Ban List' }).click()
-    await expect(page.getByRole('heading', { name: 'Ban List' })).toBeVisible({ timeout: 10000 })
+    await adminPage.getByRole('link', { name: 'Ban List' }).click()
+    await expect(adminPage.getByRole('heading', { name: 'Ban List' })).toBeVisible({
+      timeout: 10000,
+    })
 
     // Check for demo ban reasons (use .first() as resets may accumulate entries)
-    await expect(page.getByText('Repeated prank calls').first()).toBeVisible({ timeout: 10000 })
-    await expect(page.getByText('Threatening language').first()).toBeVisible()
+    await expect(adminPage.getByText('Repeated prank calls').first()).toBeVisible({
+      timeout: 10000,
+    })
+    await expect(adminPage.getByText('Threatening language').first()).toBeVisible()
   })
 })

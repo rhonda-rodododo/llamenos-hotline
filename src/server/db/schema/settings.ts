@@ -11,6 +11,8 @@ export const hubs = pgTable('hubs', {
   createdBy: text('created_by').notNull().default(''),
   /** Allow super-admin visibility into this hub's data (zero-trust opt-in per hub) */
   allowSuperAdminAccess: boolean('allow_super_admin_access').notNull().default(false),
+  /** When true, volunteers can only use pre-defined tags (no free-text tag creation) */
+  strictTags: boolean('strict_tags').notNull().default(true),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 })
@@ -32,7 +34,6 @@ export const hubKeys = pgTable(
 export const roles = pgTable('roles', {
   id: text('id').primaryKey(),
   hubId: text('hub_id'), // null = global role
-  slug: text('slug').notNull(),
   encryptedName: ciphertext('encrypted_name').notNull(),
   encryptedDescription: ciphertext('encrypted_description'),
   permissions: jsonb<string[]>()('permissions').notNull().default([]),
@@ -45,7 +46,7 @@ export const customFieldDefinitions = pgTable('custom_field_definitions', {
   hubId: text('hub_id'), // null = global
   fieldType: text('field_type').notNull(), // 'text' | 'select' | 'multiselect' | 'checkbox' | 'date'
   required: boolean('required').notNull().default(false),
-  showInVolunteerView: boolean('show_in_volunteer_view').notNull().default(false),
+  visibleTo: text('visible_to').notNull().default('contacts:envelope-summary'),
   /** Context distinguishes where this field appears */
   context: text('context').notNull().default('notes'), // 'notes' | 'conversations' | 'reports' | 'all'
   /** IDs of report types that show this field. Empty array = shown for all types (when context includes 'reports'). */
@@ -91,7 +92,7 @@ export const callSettings = pgTable('call_settings', {
 export const transcriptionSettings = pgTable('transcription_settings', {
   hubId: text('hub_id').primaryKey().default('global'),
   globalEnabled: boolean('global_enabled').notNull().default(false),
-  allowVolunteerOptOut: boolean('allow_volunteer_opt_out').notNull().default(true),
+  allowUserOptOut: boolean('allow_user_opt_out').notNull().default(true),
 })
 
 export const ivrLanguages = pgTable('ivr_languages', {
@@ -101,7 +102,7 @@ export const ivrLanguages = pgTable('ivr_languages', {
 
 export const fallbackGroup = pgTable('fallback_group', {
   hubId: text('hub_id').primaryKey().default('global'),
-  volunteerPubkeys: jsonb<string[]>()('volunteer_pubkeys').notNull().default([]),
+  userPubkeys: jsonb<string[]>()('user_pubkeys').notNull().default([]),
 })
 
 export const rateLimitCounters = pgTable('rate_limit_counters', {
@@ -143,7 +144,7 @@ export const reportCategories = pgTable('report_categories', {
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 })
 
-/** GDPR consent records — one row per volunteer per consent version */
+/** GDPR consent records — one row per user per consent version */
 export const gdprConsents = pgTable('gdpr_consents', {
   pubkey: text('pubkey').notNull(),
   consentVersion: text('consent_version').notNull().default('1.0'),

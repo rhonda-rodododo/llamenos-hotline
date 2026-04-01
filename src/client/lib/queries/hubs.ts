@@ -12,7 +12,9 @@
  * the immediate cache update, the hub would reappear after the invalidation refetch.
  */
 
-import { type Hub, archiveHub, createHub, deleteHub, listHubs, updateHub } from '@/lib/api'
+import { archiveHub, createHub, deleteHub, listHubs, updateHub } from '@/lib/api'
+import { decryptHubField } from '@/lib/hub-field-crypto'
+import type { Hub } from '@shared/schemas'
 import { queryOptions, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { queryKeys } from './keys'
 
@@ -20,12 +22,16 @@ import { queryKeys } from './keys'
 // hubsListOptions
 // ---------------------------------------------------------------------------
 
-export const hubsListOptions = () =>
+export const hubsListOptions = (hubId = 'global') =>
   queryOptions({
     queryKey: queryKeys.hubs.list(),
     queryFn: async () => {
       const { hubs } = await listHubs()
-      return hubs
+      return hubs.map((hub) => ({
+        ...hub,
+        name: decryptHubField(hub.encryptedName, hubId, hub.name),
+        description: decryptHubField(hub.encryptedDescription, hubId, hub.description),
+      }))
     },
     staleTime: 10 * 60 * 1000,
   })
@@ -34,8 +40,8 @@ export const hubsListOptions = () =>
 // useHubs
 // ---------------------------------------------------------------------------
 
-export function useHubs() {
-  return useQuery(hubsListOptions())
+export function useHubs(hubId = 'global') {
+  return useQuery(hubsListOptions(hubId))
 }
 
 // ---------------------------------------------------------------------------

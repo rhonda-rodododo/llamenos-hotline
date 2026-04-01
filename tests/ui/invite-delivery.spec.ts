@@ -10,8 +10,8 @@
  * WhatsApp gateway, etc.) that is not available in the test environment.
  */
 
-import { expect, test } from '@playwright/test'
-import { loginAsAdmin, uniquePhone } from '../helpers'
+import { expect, test } from '../fixtures/auth'
+import { uniquePhone } from '../helpers'
 
 test.describe('Invite delivery', () => {
   test('available-channels endpoint returns channel availability', async ({ request }) => {
@@ -23,190 +23,185 @@ test.describe('Invite delivery', () => {
     expect([200, 401]).toContain(res.status())
   })
 
-  test('admin creates invite and sees send invite button', async ({ page }) => {
-    await loginAsAdmin(page)
-    await page.getByRole('link', { name: 'Volunteers' }).click()
-    await expect(page.getByRole('heading', { name: 'Volunteers' })).toBeVisible()
+  test('admin creates invite and sees send invite button', async ({ adminPage }) => {
+    await adminPage.getByRole('link', { name: 'Users' }).click()
+    await expect(adminPage.getByRole('heading', { name: 'Users' })).toBeVisible()
 
-    const volName = `SendTest ${Date.now()}`
-    const volPhone = uniquePhone()
+    const userName = `SendTest ${Date.now()}`
+    const userPhone = uniquePhone()
 
     // Create invite
-    await page.getByRole('button', { name: /invite volunteer/i }).click()
-    await page.getByLabel('Name').fill(volName)
-    await page.getByLabel('Phone Number').fill(volPhone)
-    await page.getByLabel('Phone Number').blur()
-    await page.getByRole('button', { name: /create invite/i }).click()
+    await adminPage.getByRole('button', { name: /invite user/i }).click()
+    await adminPage.getByLabel('Name').fill(userName)
+    await adminPage.getByLabel('Phone Number').fill(userPhone)
+    await adminPage.getByLabel('Phone Number').blur()
+    await adminPage.getByRole('button', { name: /create invite/i }).click()
 
     // Send invite dialog opens automatically after invite creation
-    await expect(page.getByRole('dialog')).toBeVisible({ timeout: 15000 })
-    await expect(page.getByText(/send invite link/i)).toBeVisible()
+    await expect(adminPage.getByRole('dialog')).toBeVisible({ timeout: 15000 })
+    await expect(adminPage.getByText(/send invite link/i)).toBeVisible()
 
     // Invite link code exists in the DOM (may be behind dialog overlay)
-    await expect(page.getByTestId('invite-link-code')).toBeAttached({ timeout: 5000 })
+    await expect(adminPage.getByTestId('invite-link-code')).toBeAttached({ timeout: 5000 })
   })
 
-  test('send invite dialog shows copy link fallback', async ({ page }) => {
-    await loginAsAdmin(page)
-    await page.getByRole('link', { name: 'Volunteers' }).click()
-    await expect(page.getByRole('heading', { name: 'Volunteers' })).toBeVisible()
+  test('send invite dialog shows copy link fallback', async ({ adminPage }) => {
+    await adminPage.getByRole('link', { name: 'Users' }).click()
+    await expect(adminPage.getByRole('heading', { name: 'Users' })).toBeVisible()
 
-    const volName = `CopyLink ${Date.now()}`
-    const volPhone = uniquePhone()
+    const userName = `CopyLink ${Date.now()}`
+    const userPhone = uniquePhone()
 
-    await page.getByRole('button', { name: /invite volunteer/i }).click()
-    await page.getByLabel('Name').fill(volName)
-    await page.getByLabel('Phone Number').fill(volPhone)
-    await page.getByLabel('Phone Number').blur()
-    await page.getByRole('button', { name: /create invite/i }).click()
+    await adminPage.getByRole('button', { name: /invite user/i }).click()
+    await adminPage.getByLabel('Name').fill(userName)
+    await adminPage.getByLabel('Phone Number').fill(userPhone)
+    await adminPage.getByLabel('Phone Number').blur()
+    await adminPage.getByRole('button', { name: /create invite/i }).click()
 
     // Wait for dialog
-    await expect(page.getByRole('dialog')).toBeVisible({ timeout: 10000 })
+    await expect(adminPage.getByRole('dialog')).toBeVisible({ timeout: 10000 })
 
     // Copy link button should always be present
-    const copyBtn = page.getByTestId('copy-invite-link-btn')
+    const copyBtn = adminPage.getByTestId('copy-invite-link-btn')
     await expect(copyBtn).toBeVisible()
   })
 
-  test('send invite dialog closes on cancel', async ({ page }) => {
-    await loginAsAdmin(page)
-    await page.getByRole('link', { name: 'Volunteers' }).click()
-    await expect(page.getByRole('heading', { name: 'Volunteers' })).toBeVisible()
+  test('send invite dialog closes on cancel', async ({ adminPage }) => {
+    await adminPage.getByRole('link', { name: 'Users' }).click()
+    await expect(adminPage.getByRole('heading', { name: 'Users' })).toBeVisible()
 
-    const volName = `Cancel ${Date.now()}`
-    const volPhone = uniquePhone()
+    const userName = `Cancel ${Date.now()}`
+    const userPhone = uniquePhone()
 
-    await page.getByRole('button', { name: /invite volunteer/i }).click()
-    await page.getByLabel('Name').fill(volName)
-    await page.getByLabel('Phone Number').fill(volPhone)
-    await page.getByLabel('Phone Number').blur()
-    await page.getByRole('button', { name: /create invite/i }).click()
+    await adminPage.getByRole('button', { name: /invite user/i }).click()
+    await adminPage.getByLabel('Name').fill(userName)
+    await adminPage.getByLabel('Phone Number').fill(userPhone)
+    await adminPage.getByLabel('Phone Number').blur()
+    await adminPage.getByRole('button', { name: /create invite/i }).click()
 
-    await expect(page.getByRole('dialog')).toBeVisible({ timeout: 10000 })
+    await expect(adminPage.getByRole('dialog')).toBeVisible({ timeout: 10000 })
 
     // Close dialog
-    await page.getByRole('button', { name: /close/i }).last().click()
-    await expect(page.getByRole('dialog')).not.toBeVisible({ timeout: 5000 })
+    await adminPage.getByRole('button', { name: /close/i }).last().click()
+    await expect(adminPage.getByRole('dialog')).not.toBeVisible({ timeout: 5000 })
   })
 
-  test('pending invite shows "Not sent" status before delivery', async ({ page }) => {
-    await loginAsAdmin(page)
-    await page.getByRole('link', { name: 'Volunteers' }).click()
-    await expect(page.getByRole('heading', { name: 'Volunteers' })).toBeVisible()
+  test('pending invite shows "Not sent" status before delivery', async ({ adminPage }) => {
+    await adminPage.getByRole('link', { name: 'Users' }).click()
+    await expect(adminPage.getByRole('heading', { name: 'Users' })).toBeVisible()
 
-    const volName = `NotSent ${Date.now()}`
-    const volPhone = uniquePhone()
+    const userName = `NotSent ${Date.now()}`
+    const userPhone = uniquePhone()
 
-    await page.getByRole('button', { name: /invite volunteer/i }).click()
-    await page.getByLabel('Name').fill(volName)
-    await page.getByLabel('Phone Number').fill(volPhone)
-    await page.getByLabel('Phone Number').blur()
-    await page.getByRole('button', { name: /create invite/i }).click()
+    await adminPage.getByRole('button', { name: /invite user/i }).click()
+    await adminPage.getByLabel('Name').fill(userName)
+    await adminPage.getByLabel('Phone Number').fill(userPhone)
+    await adminPage.getByLabel('Phone Number').blur()
+    await adminPage.getByRole('button', { name: /create invite/i }).click()
 
     // Close the send dialog
-    await expect(page.getByRole('dialog')).toBeVisible({ timeout: 10000 })
-    await page.getByRole('button', { name: /close/i }).last().click()
+    await expect(adminPage.getByRole('dialog')).toBeVisible({ timeout: 10000 })
+    await adminPage.getByRole('button', { name: /close/i }).last().click()
 
     // Dismiss invite link card
-    await page.getByTestId('dismiss-invite').click()
+    await adminPage.getByTestId('dismiss-invite').click()
 
     // Wait for pending invites section to render with the new invite
-    await expect(page.getByText(volName)).toBeVisible({ timeout: 10000 })
+    await expect(adminPage.getByText(userName)).toBeVisible({ timeout: 10000 })
 
     // Pending invite section should show "Not sent" for the created invite
-    await expect(page.getByText(/not sent/i).first()).toBeVisible({ timeout: 10000 })
+    await expect(adminPage.getByText(/not sent/i).first()).toBeVisible({ timeout: 10000 })
   })
 
-  test('send button opens dialog for an existing pending invite', async ({ page }) => {
-    await loginAsAdmin(page)
-    await page.getByRole('link', { name: 'Volunteers' }).click()
-    await expect(page.getByRole('heading', { name: 'Volunteers' })).toBeVisible()
+  test('send button opens dialog for an existing pending invite', async ({ adminPage }) => {
+    await adminPage.getByRole('link', { name: 'Users' }).click()
+    await expect(adminPage.getByRole('heading', { name: 'Users' })).toBeVisible()
 
-    const volName = `ExistInvite ${Date.now()}`
-    const volPhone = uniquePhone()
+    const userName = `ExistInvite ${Date.now()}`
+    const userPhone = uniquePhone()
 
-    await page.getByRole('button', { name: /invite volunteer/i }).click()
-    await page.getByLabel('Name').fill(volName)
-    await page.getByLabel('Phone Number').fill(volPhone)
-    await page.getByLabel('Phone Number').blur()
-    await page.getByRole('button', { name: /create invite/i }).click()
+    await adminPage.getByRole('button', { name: /invite user/i }).click()
+    await adminPage.getByLabel('Name').fill(userName)
+    await adminPage.getByLabel('Phone Number').fill(userPhone)
+    await adminPage.getByLabel('Phone Number').blur()
+    await adminPage.getByRole('button', { name: /create invite/i }).click()
 
     // Close auto-opened dialog
-    await expect(page.getByRole('dialog')).toBeVisible({ timeout: 10000 })
-    await page.getByRole('button', { name: /close/i }).last().click()
-    await expect(page.getByRole('dialog')).not.toBeVisible()
+    await expect(adminPage.getByRole('dialog')).toBeVisible({ timeout: 10000 })
+    await adminPage.getByRole('button', { name: /close/i }).last().click()
+    await expect(adminPage.getByRole('dialog')).not.toBeVisible()
 
     // Dismiss invite link card
-    await page.getByTestId('dismiss-invite').click()
+    await adminPage.getByTestId('dismiss-invite').click()
 
     // "Send invite" button in pending invites list should open dialog
-    const sendBtn = page.getByRole('button', { name: /send invite/i }).first()
+    const sendBtn = adminPage.getByRole('button', { name: /send invite/i }).first()
     await expect(sendBtn).toBeVisible({ timeout: 5000 })
     await sendBtn.click()
 
-    await expect(page.getByRole('dialog')).toBeVisible({ timeout: 5000 })
-    await expect(page.getByText(/send invite link/i)).toBeVisible()
+    await expect(adminPage.getByRole('dialog')).toBeVisible({ timeout: 5000 })
+    await expect(adminPage.getByText(/send invite link/i)).toBeVisible()
   })
 
-  test('invalid phone format rejected in send dialog', async ({ page }) => {
-    await loginAsAdmin(page)
-    await page.getByRole('link', { name: 'Volunteers' }).click()
-    await expect(page.getByRole('heading', { name: 'Volunteers' })).toBeVisible()
+  test('invalid phone format rejected in send dialog', async ({ adminPage }) => {
+    await adminPage.getByRole('link', { name: 'Users' }).click()
+    await expect(adminPage.getByRole('heading', { name: 'Users' })).toBeVisible()
 
-    await page.getByRole('button', { name: /invite volunteer/i }).click()
-    await page.getByLabel('Name').fill(`PhoneVal ${Date.now()}`)
-    await page.getByLabel('Phone Number').fill(uniquePhone())
-    await page.getByLabel('Phone Number').blur()
-    await page.getByRole('button', { name: /create invite/i }).click()
+    await adminPage.getByRole('button', { name: /invite user/i }).click()
+    await adminPage.getByLabel('Name').fill(`PhoneVal ${Date.now()}`)
+    await adminPage.getByLabel('Phone Number').fill(uniquePhone())
+    await adminPage.getByLabel('Phone Number').blur()
+    await adminPage.getByRole('button', { name: /create invite/i }).click()
 
     // Wait for send dialog to appear
-    await expect(page.getByRole('dialog')).toBeVisible({ timeout: 10000 })
+    await expect(adminPage.getByRole('dialog')).toBeVisible({ timeout: 10000 })
 
     // If channels are configured, submit button exists — enter invalid phone
-    const phoneInput = page.getByTestId('send-invite-phone')
+    const phoneInput = adminPage.getByTestId('send-invite-phone')
     const isPhoneVisible = await phoneInput.isVisible({ timeout: 2000 }).catch(() => false)
     if (isPhoneVisible) {
       await phoneInput.fill('not-a-phone')
-      const submitBtn = page.getByTestId('send-invite-submit')
+      const submitBtn = adminPage.getByTestId('send-invite-submit')
       if (await submitBtn.isVisible({ timeout: 1000 }).catch(() => false)) {
         await submitBtn.click()
         // Should show error toast or validation message (not navigate away)
-        await expect(page.getByRole('dialog')).toBeVisible({ timeout: 3000 })
+        await expect(adminPage.getByRole('dialog')).toBeVisible({ timeout: 3000 })
       }
     }
     // Fallback: copy link should always work
-    await expect(page.getByTestId('copy-invite-link-btn')).toBeVisible()
+    await expect(adminPage.getByTestId('copy-invite-link-btn')).toBeVisible()
   })
 
-  test('SMS channel shows insecure warning', async ({ page }) => {
-    await loginAsAdmin(page)
-    await page.getByRole('link', { name: 'Volunteers' }).click()
-    await expect(page.getByRole('heading', { name: 'Volunteers' })).toBeVisible()
+  test('SMS channel shows insecure warning', async ({ adminPage }) => {
+    await adminPage.getByRole('link', { name: 'Users' }).click()
+    await expect(adminPage.getByRole('heading', { name: 'Users' })).toBeVisible()
 
-    await page.getByRole('button', { name: /invite volunteer/i }).click()
-    await page.getByLabel('Name').fill(`SMSWarn ${Date.now()}`)
-    await page.getByLabel('Phone Number').fill(uniquePhone())
-    await page.getByLabel('Phone Number').blur()
-    await page.getByRole('button', { name: /create invite/i }).click()
+    await adminPage.getByRole('button', { name: /invite user/i }).click()
+    await adminPage.getByLabel('Name').fill(`SMSWarn ${Date.now()}`)
+    await adminPage.getByLabel('Phone Number').fill(uniquePhone())
+    await adminPage.getByLabel('Phone Number').blur()
+    await adminPage.getByRole('button', { name: /create invite/i }).click()
 
-    await expect(page.getByRole('dialog')).toBeVisible({ timeout: 10000 })
+    await expect(adminPage.getByRole('dialog')).toBeVisible({ timeout: 10000 })
 
     // Check if SMS channel selector is available
-    const channelSelect = page.getByTestId('send-invite-channel')
+    const channelSelect = adminPage.getByTestId('send-invite-channel')
     const isChannelVisible = await channelSelect.isVisible({ timeout: 2000 }).catch(() => false)
 
     if (isChannelVisible) {
       // Try to select SMS
-      const smsOption = page.getByRole('option', { name: 'SMS' })
+      const smsOption = adminPage.getByRole('option', { name: 'SMS' })
       const hasSms = await smsOption.isVisible({ timeout: 1000 }).catch(() => false)
 
       if (hasSms) {
         await channelSelect.click()
         await smsOption.click()
         // Warning should appear
-        await expect(page.getByText(/not end-to-end encrypted/i)).toBeVisible({ timeout: 2000 })
+        await expect(adminPage.getByText(/not end-to-end encrypted/i)).toBeVisible({
+          timeout: 2000,
+        })
         // Checkbox should be required
-        await expect(page.getByTestId('sms-acknowledge-checkbox')).toBeVisible()
+        await expect(adminPage.getByTestId('sms-acknowledge-checkbox')).toBeVisible()
       }
     }
     // Test passes regardless — SMS channel may not be configured in test env
@@ -233,14 +228,14 @@ test.describe('Invite delivery', () => {
     }
   })
 
-  test('onboarding route handles invite code from URL', async ({ page }) => {
+  test('onboarding route handles invite code from URL', async ({ adminPage }) => {
     // Navigate to onboarding with an invalid code — should show error
-    await page.goto('/onboarding?code=invalid-test-code-xyz')
-    await expect(page.getByText(/invalid invite|invite code/i)).toBeVisible({ timeout: 15000 })
+    await adminPage.goto('/onboarding?code=invalid-test-code-xyz')
+    await expect(adminPage.getByText(/invalid invite|invite code/i)).toBeVisible({ timeout: 15000 })
   })
 
-  test('onboarding without code shows error', async ({ page }) => {
-    await page.goto('/onboarding')
-    await expect(page.getByText(/no invite code/i)).toBeVisible({ timeout: 10000 })
+  test('onboarding without code shows error', async ({ adminPage }) => {
+    await adminPage.goto('/onboarding')
+    await expect(adminPage.getByText(/no invite code/i)).toBeVisible({ timeout: 10000 })
   })
 })

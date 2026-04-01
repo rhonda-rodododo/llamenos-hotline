@@ -26,8 +26,19 @@ function BlastsPage() {
   const hubId = currentHubId ?? 'global'
   const { toast } = useToast()
 
+  // Access control — require blasts:read permission
+  if (!hasPermission('blasts:read')) {
+    return (
+      <div className="flex h-full items-center justify-center p-8">
+        <p className="text-muted-foreground" data-testid="access-denied">
+          {t('common.accessDenied', { defaultValue: 'Access denied' })}
+        </p>
+      </div>
+    )
+  }
+
   // React Query
-  const { data, isLoading } = useBlasts()
+  const { data, isLoading } = useBlasts(hubId)
   const blasts = data?.blasts ?? []
   const decryptedContent = data?.decryptedContent ?? {}
 

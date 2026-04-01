@@ -6,7 +6,7 @@ import type {
   CaptchaResponseParams,
   IncomingCallParams,
   LanguageMenuParams,
-  RingVolunteersParams,
+  RingUsersParams,
   TelephonyAdapter,
   TelephonyResponse,
   VoicemailParams,
@@ -218,7 +218,7 @@ export class TwilioAdapter implements TelephonyAdapter {
     const hp = hubXmlParam(params.hubId)
     return this.twiml(`
       <Response>
-        <Dial record="record-from-answer" recordingStatusCallback="${params.callbackUrl}/api/telephony/call-recording?parentCallSid=${params.parentCallSid}&amp;pubkey=${params.volunteerPubkey}${hp}" recordingStatusCallbackEvent="completed">
+        <Dial record="record-from-answer" recordingStatusCallback="${params.callbackUrl}/api/telephony/call-recording?parentCallSid=${params.parentCallSid}&amp;pubkey=${params.userPubkey}${hp}" recordingStatusCallbackEvent="completed">
           <Queue>${params.parentCallSid}</Queue>
         </Dial>
       </Response>
@@ -269,7 +269,7 @@ export class TwilioAdapter implements TelephonyAdapter {
     })
   }
 
-  async ringVolunteers(params: RingVolunteersParams): Promise<string[]> {
+  async ringUsers(params: RingUsersParams): Promise<string[]> {
     const callSids: string[] = []
     const hubParam = params.hubId ? `&hub=${encodeURIComponent(params.hubId)}` : ''
 
@@ -289,7 +289,7 @@ export class TwilioAdapter implements TelephonyAdapter {
         const body = new URLSearchParams({
           To: target.to,
           From: this.phoneNumber,
-          Url: `${params.callbackUrl}/api/telephony/volunteer-answer?parentCallSid=${params.callSid}&pubkey=${target.pubkey}${hubParam}`,
+          Url: `${params.callbackUrl}/api/telephony/user-answer?parentCallSid=${params.callSid}&pubkey=${target.pubkey}${hubParam}`,
           StatusCallback: `${params.callbackUrl}/api/telephony/call-status?parentCallSid=${params.callSid}&pubkey=${target.pubkey}${hubParam}`,
           Timeout: '30',
         })

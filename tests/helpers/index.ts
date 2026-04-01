@@ -3,8 +3,6 @@ import { TestIds } from '../test-ids'
 
 export const ADMIN_NSEC = 'nsec174zsa94n3e7t0ugfldh9tgkkzmaxhalr78uxt9phjq3mmn6d6xas5jdffh'
 export const TEST_PIN = '123456'
-const TEST_JWT_SECRET =
-  process.env.JWT_SECRET || '0000000000000000000000000000000000000000000000000000000000000003'
 
 /**
  * Default timeout values for common operations.
@@ -30,57 +28,6 @@ export { TestIds } from '../test-ids'
 
 // Re-export page object utilities
 export * from '../pages/index'
-
-/**
- * Encrypt an nsec with a PIN and store in the browser's localStorage.
- *
- * Runs the PBKDF2 key derivation + XChaCha20-Poly1305 encryption inside
- * the browser via the app's own key-manager module. This avoids cross-platform
- * crypto divergence between Node.js and Chromium's WebCrypto implementations
- * (which caused test failures on macOS ARM64).
- */
-async function preloadEncryptedKey(page: Page, nsec: string, pin: string): Promise<void> {
-  // Wait for the key-manager module to be loaded (page must already be on the app)
-  await page.waitForFunction(() => window.__TEST_KEY_MANAGER, { timeout: 10000 })
-
-  // Derive pubkey and hex secret key from nsec in Node so we can pass them to the browser
-  const { nip19, getPublicKey } = await import('nostr-tools')
-  const { bytesToHex } = await import('@noble/hashes/utils.js')
-  const decoded = nip19.decode(nsec)
-  if (decoded.type !== 'nsec') throw new Error('Expected nsec')
-  const pubkey = getPublicKey(decoded.data)
-  const nsecHex = bytesToHex(decoded.data)
-
-  // Run encryption entirely in the browser using the app's own crypto.
-  // This avoids cross-platform divergence between Node.js and Chromium PBKDF2.
-  // importKey requires IdP value — use synthetic 'device-link' value (same as recovery flow).
-  // Real IdP value rotation happens on first unlock.
-  await page.evaluate(
-    async ({ nsecHex, pin, pubkey }) => {
-      // Derive synthetic IdP value in-browser using SubtleCrypto (same as key-store-v2.syntheticIdpValue)
-      const encoder = new TextEncoder()
-      const data = encoder.encode('llamenos:synthetic:device-link')
-      const hashBuffer = await crypto.subtle.digest('SHA-256', data)
-      const syntheticValue = new Uint8Array(hashBuffer)
-      await window.__TEST_KEY_MANAGER.importKey(
-        nsecHex,
-        pin,
-        pubkey,
-        syntheticValue,
-        undefined,
-        'device-link'
-      )
-    },
-    { nsecHex, pin, pubkey }
-  )
-
-  // Verify the key was actually stored before allowing reload.
-  // Under load, the localStorage write from importKey can be lost if the page
-  // reloads too quickly after evaluate() resolves.
-  await page.waitForFunction(() => localStorage.getItem('llamenos-encrypted-key-v2') !== null, {
-    timeout: 5000,
-  })
-}
 
 /**
  * Enter a PIN into the PinInput component.
@@ -190,105 +137,58 @@ export async function reenterPinAfterReload(page: Page): Promise<void> {
   }
 
   const pinInput = page.locator('input[aria-label="PIN digit 1"]')
-  const pinVisible = await pinInput.isVisible({ timeout: 5000 }).catch(() => false)
 
-  if (pinVisible) {
-    await enterPin(page, TEST_PIN)
-    await page.waitForURL((u) => !u.toString().includes('/login'), { timeout: 15000 })
-  }
-}
+  // After reload, the refresh cookie may restore the API session without
+  // showing a PIN prompt (user stays on dashboard with locked keys).
+  // Use waitFor (NOT isVisible) — isVisible resolves immediately for absent elements.
+  let pinVisible = await pinInput
+    .waitFor({ state: 'visible', timeout: 10000 })
+    .then(() => true)
+    .catch(() => false)
 
-/**
- * Login as admin: pre-loads encrypted key into localStorage, then enters PIN.
- * Also installs a handler to auto-dismiss the session expired modal if it appears.
- */
-export async function loginAsAdmin(page: Page) {
-  await page.goto('/login', { waitUntil: 'domcontentloaded' })
-  await page.evaluate(() => sessionStorage.clear())
-  await preloadEncryptedKey(page, ADMIN_NSEC, TEST_PIN)
-
-  // Generate JWT for the admin and inject into the auth facade client.
-  // The PIN unlock flow calls getMe() which requires a valid JWT.
-  const { signAccessToken } = await import('../../src/server/lib/jwt')
-  const { nip19, getPublicKey } = await import('nostr-tools')
-  const decoded = nip19.decode(ADMIN_NSEC) as { type: 'nsec'; data: Uint8Array }
-  const adminPubkey = getPublicKey(decoded.data)
-  const jwtSecret = TEST_JWT_SECRET
-  const jwt = await signAccessToken({ pubkey: adminPubkey, permissions: ['*'] }, jwtSecret)
-
-  await page.reload({ waitUntil: 'domcontentloaded' })
-
-  // Store JWT in sessionStorage (survives reloads) and inject into facade client
-  await page.waitForFunction(() => window.__TEST_AUTH_FACADE, { timeout: 10000 })
-  await page.evaluate((token) => {
-    sessionStorage.setItem('__TEST_JWT', token)
-    window.__TEST_AUTH_FACADE.setAccessToken(token)
-  }, jwt)
-
-  await enterPin(page, TEST_PIN)
-  await expect(page.getByRole('heading', { name: 'Dashboard', exact: true })).toBeVisible({
-    timeout: 60000,
-  })
-
-  // Auto-dismiss session expired modal if it appears during the test.
-  // The modal overlays the entire page and blocks all pointer events.
-  // Use noWaitAfter to prevent Playwright from waiting for navigations triggered by the click.
-  await page.addLocatorHandler(page.getByText('Session Expired'), async () => {
-    const reconnectBtn = page.getByRole('button', { name: /reconnect/i })
-    if (await reconnectBtn.isVisible({ timeout: 1000 }).catch(() => false)) {
-      await reconnectBtn.click({ timeout: 3000 }).catch(() => {
-        // If click fails (e.g., modal dismissed by another action), ignore
+  if (!pinVisible) {
+    // Block refresh endpoint and reload to force the login/PIN screen
+    await page.route('**/api/auth/token/refresh', async (route) => {
+      await route.fulfill({
+        status: 401,
+        contentType: 'application/json',
+        body: '{"error":"blocked"}',
       })
-    }
-  })
-}
+    })
+    await page.reload({ waitUntil: 'domcontentloaded' })
+    // Wait for the login/PIN screen to appear (the blocked refresh triggers redirect)
+    pinVisible = await pinInput
+      .waitFor({ state: 'visible', timeout: 15000 })
+      .then(() => true)
+      .catch(() => false)
+    // Unblock refresh so the PIN unlock flow can complete
+    await page.unroute('**/api/auth/token/refresh')
+  }
 
-/**
- * Login as volunteer: pre-loads encrypted key into localStorage, then enters PIN.
- */
-export async function loginAsVolunteer(page: Page, nsec: string) {
-  await page.goto('/login', { waitUntil: 'domcontentloaded' })
-  await page.evaluate(() => sessionStorage.clear())
-  await preloadEncryptedKey(page, nsec, TEST_PIN)
+  if (!pinVisible) {
+    // Last resort: navigate directly to /login to force PIN screen
+    await page.goto('/login', { waitUntil: 'domcontentloaded' })
+    pinVisible = await pinInput
+      .waitFor({ state: 'visible', timeout: 10000 })
+      .then(() => true)
+      .catch(() => false)
+  }
 
-  // Generate JWT for the volunteer and inject into the auth facade client
-  const { signAccessToken } = await import('../../src/server/lib/jwt')
-  const { nip19, getPublicKey } = await import('nostr-tools')
-  const decoded = nip19.decode(nsec) as { type: 'nsec'; data: Uint8Array }
-  const volPubkey = getPublicKey(decoded.data)
-  const jwtSecret = TEST_JWT_SECRET
-  const jwt = await signAccessToken({ pubkey: volPubkey, permissions: [] }, jwtSecret)
-
-  await page.reload({ waitUntil: 'domcontentloaded' })
-
-  await page.waitForFunction(() => window.__TEST_AUTH_FACADE, { timeout: 10000 })
-  await page.evaluate((token) => {
-    sessionStorage.setItem('__TEST_JWT', token)
-    window.__TEST_AUTH_FACADE.setAccessToken(token)
-  }, jwt)
+  if (!pinVisible) {
+    throw new Error(
+      'reenterPinAfterReload: PIN screen never appeared after reload + blocked refresh + goto /login'
+    )
+  }
 
   await enterPin(page, TEST_PIN)
-  await page.waitForURL((url) => !url.toString().includes('/login'), { timeout: Timeouts.AUTH })
-  // Wait for potential client-side redirect to profile-setup (async auth guard)
-  await page.waitForTimeout(1500)
-  // Complete profile setup if redirected there (first-time volunteer login)
-  if (page.url().includes('profile-setup')) {
-    await completeProfileSetup(page)
-  }
-  // Short delay for initial API calls to complete
-  await page.waitForTimeout(Timeouts.UI_SETTLE)
-}
-
-/**
- * Login using direct nsec entry (recovery path).
- * Useful for first-time login tests when no stored key exists.
- */
-export async function loginWithNsec(page: Page, nsec: string) {
-  await page.goto('/login')
-  await page.evaluate(() => sessionStorage.clear())
-  await page.locator('#nsec').fill(nsec)
-  await page.getByRole('button', { name: /log in/i }).click()
-  await page.waitForURL((url) => !url.toString().includes('/login'), { timeout: 15000 })
+  // PBKDF2 600K + unlockWithPin + loadHubKeys + invalidateQueries can take 60s+
+  // under parallel worker load (3 workers each doing PBKDF2 simultaneously)
+  await page.waitForURL((u) => !u.toString().includes('/login'), { timeout: 90000 })
+  // Wait for the authenticated layout to render (sidebar, dashboard heading)
+  const dashHeading = page.getByRole('heading', { name: 'Dashboard', exact: true })
+  await dashHeading.waitFor({ state: 'visible', timeout: 30000 }).catch(() => {
+    // May have gone to profile-setup instead — that's OK
+  })
 }
 
 export async function logout(page: Page) {
@@ -296,28 +196,28 @@ export async function logout(page: Page) {
   await expect(page.getByRole('heading', { name: /sign in/i })).toBeVisible()
 }
 
-export async function createVolunteerAndGetNsec(
+export async function createUserAndGetNsec(
   page: Page,
   name: string,
   phone: string
 ): Promise<string> {
-  await page.getByRole('link', { name: 'Volunteers' }).click()
-  await expect(page.getByRole('heading', { name: 'Volunteers' })).toBeVisible()
+  await page.getByRole('link', { name: 'Users' }).click()
+  await expect(page.getByRole('heading', { name: 'Users' })).toBeVisible()
 
-  await page.getByTestId(TestIds.VOLUNTEER_ADD_BTN).click()
+  await page.getByTestId(TestIds.USER_ADD_BTN).click()
   await page.getByLabel('Name').fill(name)
   await page.getByLabel('Phone Number').fill(phone)
   await page.getByLabel('Phone Number').blur()
   await page.getByTestId(TestIds.FORM_SAVE_BTN).click()
 
-  const nsecCode = page.getByTestId(TestIds.VOLUNTEER_NSEC_CODE)
+  const nsecCode = page.getByTestId(TestIds.USER_NSEC_CODE)
   await expect(nsecCode).toBeVisible({ timeout: Timeouts.API })
   const nsec = await nsecCode.textContent()
   if (!nsec) throw new Error('Failed to get nsec')
   return nsec
 }
 
-/** Dismiss the nsec card shown after volunteer creation. */
+/** Dismiss the nsec card shown after user creation. */
 export async function dismissNsecCard(page: Page): Promise<void> {
   await page.getByTestId('dismiss-nsec').click()
   await expect(page.getByTestId('dismiss-nsec')).not.toBeVisible()

@@ -1,177 +1,196 @@
-import { expect, test } from '@playwright/test'
-import { TEST_PIN, enterPin, loginAsAdmin, navigateAfterLogin } from '../helpers'
+import { expect, test } from '../fixtures/auth'
+import { navigateAfterLogin, reenterPinAfterReload } from '../helpers'
 
 test.describe('WebRTC & Call Preference Settings', () => {
-  test.beforeEach(async ({ page, request }) => {
-    await loginAsAdmin(page)
-  })
+  // --- User Settings: Call Preference ---
 
-  // --- Volunteer Settings: Call Preference ---
-
-  test('call preference section is visible in volunteer settings', async ({ page }) => {
-    await page.getByRole('link', { name: 'Settings', exact: true }).click()
-    await expect(page.getByRole('heading', { name: 'Account Settings', exact: true })).toBeVisible()
+  test('call preference section is visible in user settings', async ({ adminPage }) => {
+    await adminPage.getByRole('link', { name: 'Settings', exact: true }).click()
+    await expect(
+      adminPage.getByRole('heading', { name: 'Account Settings', exact: true })
+    ).toBeVisible()
 
     // Click to expand the Call Preference section
-    await page.getByText('Call Preference').first().click()
-    await expect(page.getByText('Phone Only')).toBeVisible()
-    await expect(page.getByText('Browser Only')).toBeVisible()
-    await expect(page.getByText('Phone + Browser')).toBeVisible()
+    await adminPage.getByText('Call Preference').first().click()
+    await expect(adminPage.getByText('Phone Only')).toBeVisible()
+    await expect(adminPage.getByText('Browser Only')).toBeVisible()
+    await expect(adminPage.getByText('Phone + Browser')).toBeVisible()
   })
 
-  test('phone only is selected by default', async ({ page }) => {
-    await page.getByRole('link', { name: 'Settings', exact: true }).click()
-    await page.getByText('Call Preference').first().click()
+  test('phone only is selected by default', async ({ adminPage }) => {
+    await adminPage.getByRole('link', { name: 'Settings', exact: true }).click()
+    await adminPage.getByText('Call Preference').first().click()
 
     // Phone Only should be the active option (has the indicator dot)
-    const phoneOption = page.locator('button').filter({ hasText: 'Phone Only' })
+    const phoneOption = adminPage.locator('button').filter({ hasText: 'Phone Only' })
     await expect(phoneOption).toHaveClass(/border-primary/)
   })
 
-  test('browser and both options are disabled when WebRTC not configured', async ({ page }) => {
-    await page.getByRole('link', { name: 'Settings', exact: true }).click()
-    await page.getByText('Call Preference').first().click()
+  test('browser and both options are disabled when WebRTC not configured', async ({
+    adminPage,
+  }) => {
+    await adminPage.getByRole('link', { name: 'Settings', exact: true }).click()
+    await adminPage.getByText('Call Preference').first().click()
 
     // WebRTC not configured message should be visible
-    await expect(page.getByText(/browser calling is not available/i)).toBeVisible()
+    await expect(adminPage.getByText(/browser calling is not available/i)).toBeVisible()
 
     // Browser and Both options should be disabled
-    const browserOption = page.locator('button').filter({ hasText: 'Browser Only' })
-    const bothOption = page.locator('button').filter({ hasText: 'Phone + Browser' })
+    const browserOption = adminPage.locator('button').filter({ hasText: 'Browser Only' })
+    const bothOption = adminPage.locator('button').filter({ hasText: 'Phone + Browser' })
     await expect(browserOption).toBeDisabled()
     await expect(bothOption).toBeDisabled()
   })
 
-  test('deep link to call-preference section auto-expands it', async ({ page }) => {
-    await navigateAfterLogin(page, '/settings?section=call-preference')
-    await expect(page.getByRole('heading', { name: 'Account Settings', exact: true })).toBeVisible({
+  test('deep link to call-preference section auto-expands it', async ({ adminPage }) => {
+    await navigateAfterLogin(adminPage, '/settings?section=call-preference')
+    await expect(
+      adminPage.getByRole('heading', { name: 'Account Settings', exact: true })
+    ).toBeVisible({
       timeout: 10000,
     })
 
     // The section should be expanded — we should see the preference options
-    await expect(page.getByText('Phone Only')).toBeVisible({ timeout: 10000 })
+    await expect(adminPage.getByText('Phone Only')).toBeVisible({ timeout: 10000 })
   })
 
   // --- Hub Settings: WebRTC Configuration ---
 
-  test('WebRTC config section appears in telephony provider settings', async ({ page }) => {
-    await page.getByRole('link', { name: 'Hub Settings' }).click()
-    await expect(page.getByRole('heading', { name: 'Hub Settings', exact: true })).toBeVisible()
+  test('WebRTC config section appears in telephony provider settings', async ({ adminPage }) => {
+    await adminPage.getByRole('link', { name: 'Hub Settings' }).click()
+    await expect(
+      adminPage.getByRole('heading', { name: 'Hub Settings', exact: true })
+    ).toBeVisible()
 
     // Expand the Telephony Provider section
-    await page.getByText('Telephony Provider').first().click()
+    await adminPage.getByText('Telephony Provider').first().click()
 
     // WebRTC Configuration section should be visible
-    await expect(page.getByText('WebRTC Configuration')).toBeVisible()
+    await expect(adminPage.getByText('WebRTC Configuration')).toBeVisible()
   })
 
-  test('WebRTC toggle enables API key fields for Twilio', async ({ page }) => {
-    await page.getByRole('link', { name: 'Hub Settings' }).click()
-    await page.getByText('Telephony Provider').first().click()
+  test('WebRTC toggle enables API key fields for Twilio', async ({ adminPage }) => {
+    await adminPage.getByRole('link', { name: 'Hub Settings' }).click()
+    await adminPage.getByText('Telephony Provider').first().click()
 
     // Initially, WebRTC fields should not be visible (toggle is off)
-    await expect(page.getByText('API Key SID')).not.toBeVisible()
+    await expect(adminPage.getByText('API Key SID')).not.toBeVisible()
 
     // Enable WebRTC toggle
-    const webrtcSection = page
+    const webrtcSection = adminPage
       .locator('div')
       .filter({ hasText: /WebRTC Configuration/ })
-      .filter({ has: page.getByRole('switch') })
+      .filter({ has: adminPage.getByRole('switch') })
       .last()
     const toggle = webrtcSection.getByRole('switch')
     await toggle.click()
 
     // Now API Key fields should be visible
-    await expect(page.getByText('API Key SID')).toBeVisible()
-    await expect(page.getByText('API Key Secret')).toBeVisible()
-    await expect(page.getByText('TwiML App SID')).toBeVisible()
+    await expect(adminPage.getByText('API Key SID')).toBeVisible()
+    await expect(adminPage.getByText('API Key Secret')).toBeVisible()
+    await expect(adminPage.getByText('TwiML App SID')).toBeVisible()
   })
 
-  test('WebRTC fields not shown for Asterisk provider', async ({ page }) => {
-    await page.getByRole('link', { name: 'Hub Settings' }).click()
-    await page.getByText('Telephony Provider').first().click()
+  test('WebRTC fields not shown for Asterisk provider', async ({ adminPage }) => {
+    await adminPage.getByRole('link', { name: 'Hub Settings' }).click()
+    await adminPage.getByText('Telephony Provider').first().click()
 
     // Switch to Asterisk
-    const select = page.locator('select').first()
+    const select = adminPage.locator('select').first()
     await select.selectOption('asterisk')
 
     // WebRTC Configuration should NOT be visible for Asterisk
-    await expect(page.getByText('WebRTC Configuration')).not.toBeVisible()
+    await expect(adminPage.getByText('WebRTC Configuration')).not.toBeVisible()
   })
 
-  test('WebRTC toggle shown for SignalWire provider', async ({ page }) => {
-    await page.getByRole('link', { name: 'Hub Settings' }).click()
-    await page.getByText('Telephony Provider').first().click()
+  test('WebRTC toggle shown for SignalWire provider', async ({ adminPage }) => {
+    await adminPage.getByRole('link', { name: 'Hub Settings' }).click()
+    await adminPage.getByText('Telephony Provider').first().click()
 
     // Switch to SignalWire
-    const select = page.locator('select').first()
+    const select = adminPage.locator('select').first()
     await select.selectOption('signalwire')
 
     // WebRTC Configuration should still be visible
-    await expect(page.getByText('WebRTC Configuration')).toBeVisible()
+    await expect(adminPage.getByText('WebRTC Configuration')).toBeVisible()
   })
 
-  test('WebRTC toggle shown for Vonage without extra fields', async ({ page }) => {
-    await page.getByRole('link', { name: 'Hub Settings' }).click()
-    await page.getByText('Telephony Provider').first().click()
+  test('WebRTC toggle shown for Vonage without extra fields', async ({ adminPage }) => {
+    await adminPage.getByRole('link', { name: 'Hub Settings' }).click()
+    await adminPage.getByText('Telephony Provider').first().click()
 
     // Switch to Vonage
-    const select = page.locator('select').first()
+    const select = adminPage.locator('select').first()
     await select.selectOption('vonage')
 
     // WebRTC Configuration should be visible
-    await expect(page.getByText('WebRTC Configuration')).toBeVisible()
+    await expect(adminPage.getByText('WebRTC Configuration')).toBeVisible()
 
     // Enable WebRTC
-    const webrtcSection = page
+    const webrtcSection = adminPage
       .locator('div')
       .filter({ hasText: /WebRTC Configuration/ })
-      .filter({ has: page.getByRole('switch') })
+      .filter({ has: adminPage.getByRole('switch') })
       .last()
     const toggle = webrtcSection.getByRole('switch')
     await toggle.click()
 
     // Vonage doesn't need API Key SID — should NOT show Twilio-specific fields
-    await expect(page.getByText('API Key SID')).not.toBeVisible()
-    await expect(page.getByText('TwiML App SID')).not.toBeVisible()
+    await expect(adminPage.getByText('API Key SID')).not.toBeVisible()
+    await expect(adminPage.getByText('TwiML App SID')).not.toBeVisible()
   })
 
-  test('WebRTC config persists with provider save', async ({ page }) => {
-    await page.getByRole('link', { name: 'Hub Settings' }).click()
-    await page.getByText('Telephony Provider').first().click()
+  test('WebRTC config persists with provider save', async ({ adminPage }) => {
+    await adminPage.getByRole('link', { name: 'Hub Settings' }).click()
+    await adminPage.getByText('Telephony Provider').first().click()
 
-    // Fill in basic Twilio credentials
-    await page.getByTestId('account-sid').fill('ACwebrtctest123')
-    await page.getByTestId('auth-token').fill('webrtc-auth-token')
+    // Fill in basic Twilio credentials (phone number required to enable save).
+    // PhoneInput wraps react-phone-number-input — fill() triggers onChange properly
+    // but the value must include country code. Clear first, then fill.
+    const phoneInput = adminPage.locator('#provider-phone')
+    await phoneInput.click()
+    await phoneInput.clear()
+    await phoneInput.pressSequentially('5551234567', { delay: 30 })
+    await phoneInput.press('Tab')
+    await adminPage.waitForTimeout(500)
+    await adminPage.getByTestId('account-sid').fill('ACwebrtctest123')
+    await adminPage.getByTestId('auth-token').fill('webrtc-auth-token')
 
     // Enable WebRTC and fill API Key fields
-    const webrtcSection = page
+    const webrtcSection = adminPage
       .locator('div')
       .filter({ hasText: /WebRTC Configuration/ })
-      .filter({ has: page.getByRole('switch') })
+      .filter({ has: adminPage.getByRole('switch') })
       .last()
     const toggle = webrtcSection.getByRole('switch')
     await toggle.click()
 
-    await page.getByTestId('api-key-sid').fill('SKtestkey123')
-    await page.getByTestId('twiml-app-sid').fill('APtestapp456')
+    await adminPage.getByTestId('api-key-sid').fill('SKtestkey123')
+    await adminPage.getByTestId('twiml-app-sid').fill('APtestapp456')
 
     // Save
-    await page.getByRole('button', { name: /save provider/i }).click()
-    await expect(page.getByText(/telephony provider saved/i)).toBeVisible({ timeout: 5000 })
+    await adminPage.getByRole('button', { name: /save provider/i }).click()
+    await expect(adminPage.getByText(/telephony provider saved/i)).toBeVisible({ timeout: 5000 })
 
     // Reload the page — clears keyManager, PIN re-entry needed
-    await page.reload()
-    await enterPin(page, TEST_PIN)
-    // PIN unlock redirects to dashboard — navigate back to Hub Settings
-    await page.getByRole('link', { name: 'Hub Settings' }).click()
-    await expect(page.getByRole('heading', { name: 'Hub Settings', exact: true })).toBeVisible()
+    await adminPage.reload()
+    await reenterPinAfterReload(adminPage)
+    // PIN unlock may redirect to profile-setup — handle it
+    if (adminPage.url().includes('profile-setup')) {
+      await adminPage.getByRole('button', { name: /complete setup/i }).click()
+      await adminPage.waitForURL((u) => !u.toString().includes('profile-setup'), { timeout: 15000 })
+    }
+    // Navigate back to Hub Settings
+    await adminPage.getByRole('link', { name: 'Hub Settings' }).click()
+    await expect(
+      adminPage.getByRole('heading', { name: 'Hub Settings', exact: true })
+    ).toBeVisible()
 
     // Expand the section
-    await page.getByText('Telephony Provider').first().click()
+    await adminPage.getByText('Telephony Provider').first().click()
 
     // Verify WebRTC fields are populated
-    await expect(page.getByTestId('api-key-sid')).toHaveValue('SKtestkey123')
-    await expect(page.getByTestId('twiml-app-sid')).toHaveValue('APtestapp456')
+    await expect(adminPage.getByTestId('api-key-sid')).toHaveValue('SKtestkey123')
+    await expect(adminPage.getByTestId('twiml-app-sid')).toHaveValue('APtestapp456')
   })
 })

@@ -15,10 +15,10 @@ export const auth = createMiddleware<AppEnv>(async (c, next) => {
   const allRoles: Role[] = await services.settings.listRoles()
 
   // Resolve effective permissions from user's role IDs
-  const permissions = resolvePermissions(authResult.volunteer.roles, allRoles)
+  const permissions = resolvePermissions(authResult.user.roles, allRoles)
 
   c.set('pubkey', authResult.pubkey)
-  c.set('volunteer', authResult.volunteer)
+  c.set('user', authResult.user)
   c.set('permissions', permissions)
   c.set('allRoles', allRoles)
   await next()

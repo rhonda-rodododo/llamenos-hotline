@@ -116,7 +116,7 @@ export class CallService {
         legSid: data.legSid,
         callSid: data.callSid,
         hubId: data.hubId ?? 'global',
-        volunteerPubkey: data.volunteerPubkey,
+        userPubkey: data.userPubkey,
         type: data.type ?? 'phone',
         status: data.status ?? 'ringing',
         ...(encryptedPhone ? { encryptedPhone } : {}),
@@ -151,7 +151,7 @@ export class CallService {
   ): Promise<string[]> {
     const legs = await this.getCallLegs(callSid, hubId)
     const toCancel = legs.filter((leg) => {
-      if (leg.volunteerPubkey === answeredPubkey && (!answeredType || leg.type === answeredType))
+      if (leg.userPubkey === answeredPubkey && (!answeredType || leg.type === answeredType))
         return false
       return leg.status === 'ringing'
     })
@@ -232,7 +232,7 @@ export class CallService {
       legSid: r.legSid,
       callSid: r.callSid,
       hubId: r.hubId,
-      volunteerPubkey: r.volunteerPubkey,
+      userPubkey: r.userPubkey,
       phone,
       type: r.type,
       status: r.status,

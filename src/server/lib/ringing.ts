@@ -14,8 +14,8 @@ export async function startParallelRinging(
   hubId?: string
 ) {
   try {
-    // Get on-shift volunteers
-    let onShiftPubkeys = await services.shifts.getEffectiveVolunteers(hubId)
+    // Get on-shift users
+    let onShiftPubkeys = await services.shifts.getEffectiveUsers(hubId)
 
     // If no one is on shift, use fallback group
     if (onShiftPubkeys.length === 0) {
@@ -25,19 +25,19 @@ export async function startParallelRinging(
     console.log(`[ringing] callSid=${callSid} onShift=${onShiftPubkeys.length}`)
 
     if (onShiftPubkeys.length === 0) {
-      console.log('[ringing] no volunteers on shift or in fallback — skipping')
+      console.log('[ringing] no users on shift or in fallback — skipping')
       return
     }
 
-    // Get volunteer details (including call preference)
-    const allVolunteers = await services.identity.getVolunteers()
+    // Get user details (including call preference)
+    const allUsers = await services.identity.getUsers()
 
-    // All available on-shift volunteers (for WebSocket notification)
-    const available = allVolunteers.filter(
+    // All available on-shift users (for WebSocket notification)
+    const available = allUsers.filter(
       (v) => onShiftPubkeys.includes(v.pubkey) && v.active && !v.onBreak
     )
 
-    // Build unified volunteer list with phone and/or browser identity per volunteer
+    // Build unified user list with phone and/or browser identity per user
     const toRing = available
       .filter((v) => {
         const pref = v.callPreference ?? 'phone'
@@ -62,7 +62,7 @@ export async function startParallelRinging(
     const browserCount = toRing.filter((v) => v.browserIdentity).length
 
     if (available.length === 0) {
-      console.log('[ringing] no available volunteers — skipping')
+      console.log('[ringing] no available users — skipping')
       return
     }
 
@@ -70,7 +70,7 @@ export async function startParallelRinging(
       `[ringing] callSid=${callSid} total=${available.length} phone=${phoneCount} browser=${browserCount}`
     )
 
-    // Record incoming call in the call service (includes all available volunteers for WebSocket)
+    // Record incoming call in the call service (includes all available users for WebSocket)
     await services.calls.createActiveCall({
       callSid,
       hubId: hubId ?? 'global',
@@ -106,28 +106,28 @@ export async function startParallelRinging(
       hubId
     )
 
-    // Send Web Push notifications to all available volunteers (fire-and-forget)
+    // Send Web Push notifications to all available users (fire-and-forget)
     const availablePubkeys = available.map((v) => v.pubkey)
     services.push
-      .sendPushToVolunteers(
+      .sendPushToUsers(
         availablePubkeys,
         { type: 'call:ring', callSid, hubId: hubId ?? 'global' },
         env
       )
       .catch((err) => console.warn('[ringing] push notification failed:', err))
 
-    // Create browser call legs for volunteers with browser identity
-    for (const vol of toRing.filter((v) => v.browserIdentity)) {
+    // Create browser call legs for users with browser identity
+    for (const usr of toRing.filter((v) => v.browserIdentity)) {
       await services.calls.createCallLeg({
-        legSid: `browser_${callSid}_${vol.pubkey.slice(0, 8)}`,
+        legSid: `browser_${callSid}_${usr.pubkey.slice(0, 8)}`,
         callSid,
         hubId: hubId ?? 'global',
-        volunteerPubkey: vol.pubkey,
+        userPubkey: usr.pubkey,
         type: 'browser',
       })
     }
 
-    // Ring volunteers via telephony adapter (handles both phone and browser legs)
+    // Ring users via telephony adapter (handles both phone and browser legs)
     if (toRing.length > 0) {
       const adapter = await getTelephony(services.settings, hubId, {
         TWILIO_ACCOUNT_SID: env.TWILIO_ACCOUNT_SID,
@@ -135,10 +135,10 @@ export async function startParallelRinging(
         TWILIO_PHONE_NUMBER: env.TWILIO_PHONE_NUMBER,
       })
       if (!adapter) {
-        console.warn('[ringing] no telephony adapter configured — phone volunteers cannot be rung')
-        // Don't return — browser-only volunteers can still handle the call via WebSocket
+        console.warn('[ringing] no telephony adapter configured — phone users cannot be rung')
+        // Don't return — browser-only users can still handle the call via WebSocket
       } else {
-        await adapter.ringVolunteers({
+        await adapter.ringUsers({
           callSid,
           callerNumber,
           volunteers: toRing,

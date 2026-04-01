@@ -9,7 +9,7 @@ interface UseConsentResult {
 }
 
 /**
- * Hook to check and record data processing consent for the authenticated volunteer.
+ * Hook to check and record data processing consent for the authenticated user.
  * Used by ConsentGate to show/hide the consent overlay.
  */
 export function useConsent(): UseConsentResult {

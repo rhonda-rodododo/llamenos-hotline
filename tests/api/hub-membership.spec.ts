@@ -1,16 +1,16 @@
 import { expect, test } from '@playwright/test'
-import { createVolunteerViaApi } from '../api-helpers'
+import { createUserViaApi } from '../api-helpers'
 import { ADMIN_NSEC } from '../helpers'
 import { createAuthedRequestFromNsec } from '../helpers/authed-request'
 
 test.describe('Hub membership management', () => {
   test.describe.configure({ mode: 'serial' })
 
-  test('add a volunteer as hub member and then remove them', async ({ request }) => {
+  test('add a user as hub member and then remove them', async ({ request }) => {
     const authedApi = createAuthedRequestFromNsec(request, ADMIN_NSEC)
 
-    // Create a volunteer via API
-    const vol = await createVolunteerViaApi(request)
+    // Create a user via API
+    const vol = await createUserViaApi(request)
 
     // Create a hub
     const hubRes = await authedApi.post('/api/hubs', {
@@ -22,14 +22,14 @@ test.describe('Hub membership management', () => {
     expect(hubResult).toHaveProperty('hub')
     const hubId = hubResult.hub.id
 
-    // Add the volunteer as a hub member with role-volunteer
+    // Add the user as a hub member with role-volunteer
     const addRes = await authedApi.post(`/api/hubs/${hubId}/members`, {
       pubkey: vol.pubkey,
       roleIds: ['role-volunteer'],
     })
     expect(addRes.ok()).toBe(true)
 
-    // Remove the volunteer from the hub
+    // Remove the user from the hub
     const removeRes = await authedApi.delete(`/api/hubs/${hubId}/members/${vol.pubkey}`)
     expect(removeRes.ok()).toBe(true)
   })
@@ -48,13 +48,13 @@ test.describe('Hub membership management', () => {
     expect([400, 422, 500]).toContain(addRes.status())
   })
 
-  test('hub membership is isolated across hubs (volunteer added to hub1 not in hub2)', async ({
+  test('hub membership is isolated across hubs (user added to hub1 not in hub2)', async ({
     request,
   }) => {
     const authedApi = createAuthedRequestFromNsec(request, ADMIN_NSEC)
 
-    // Create a volunteer
-    const vol = await createVolunteerViaApi(request)
+    // Create a user
+    const vol = await createUserViaApi(request)
 
     // Create two hubs
     const hub1Res = await authedApi.post('/api/hubs', { name: 'Isolation Hub 1' })
@@ -62,17 +62,17 @@ test.describe('Hub membership management', () => {
     const hub1 = (await hub1Res.json()).hub
     const hub2 = (await hub2Res.json()).hub
 
-    // Add volunteer to hub1 only
+    // Add user to hub1 only
     await authedApi.post(`/api/hubs/${hub1.id}/members`, {
       pubkey: vol.pubkey,
       roleIds: ['role-volunteer'],
     })
 
-    // Fetch volunteer record and verify hub roles
-    const volRes = await authedApi.get(`/api/volunteers/${vol.pubkey}`)
+    // Fetch user record and verify hub roles
+    const volRes = await authedApi.get(`/api/users/${vol.pubkey}`)
     const volRecord = await volRes.json()
 
-    // Single volunteer endpoint returns projected volunteer directly (not wrapped in {volunteer: ...})
+    // Single user endpoint returns projected user directly (not wrapped in {volunteer: ...})
     const hubIds: string[] = (volRecord.hubRoles ?? []).map((r: { hubId: string }) => r.hubId)
     expect(hubIds).toContain(hub1.id)
     expect(hubIds).not.toContain(hub2.id)
@@ -81,7 +81,7 @@ test.describe('Hub membership management', () => {
   test('hub member add is idempotent (adding same member twice is safe)', async ({ request }) => {
     const authedApi = createAuthedRequestFromNsec(request, ADMIN_NSEC)
 
-    const vol = await createVolunteerViaApi(request)
+    const vol = await createUserViaApi(request)
 
     const hubRes = await authedApi.post('/api/hubs', { name: 'Idempotency Hub' })
     const hubId = (await hubRes.json()).hub.id

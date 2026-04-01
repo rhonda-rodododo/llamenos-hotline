@@ -1,6 +1,6 @@
 import type { HmacHash } from '@shared/crypto-types'
 import type { Ciphertext } from '@shared/crypto-types'
-import { and, desc, eq, isNull } from 'drizzle-orm'
+import { and, desc, eq, inArray, isNull, sql } from 'drizzle-orm'
 import type { RecipientEnvelope } from '../../shared/types'
 import type { Database } from '../db'
 import {
@@ -9,7 +9,9 @@ import {
   contactRelationships,
   contacts,
 } from '../db/schema/contacts'
+import { ContactsAssignmentResolver } from '../lib/assignment-resolver'
 import type { CryptoService } from '../lib/crypto-service'
+import type { TeamsService } from './teams'
 
 // ------------------------------------------------------------------ Input/Output types
 
@@ -30,6 +32,7 @@ export interface CreateContactInput {
   encryptedPII?: Ciphertext
   piiEnvelopes?: RecipientEnvelope[]
   createdBy: string
+  assignedTo?: string
 }
 
 export interface UpdateContactInput {
@@ -47,6 +50,7 @@ export interface UpdateContactInput {
   phoneEnvelopes?: RecipientEnvelope[]
   encryptedPII?: Ciphertext
   piiEnvelopes?: RecipientEnvelope[]
+  assignedTo?: string | null
 }
 
 export interface ListContactsFilters {
@@ -54,6 +58,8 @@ export interface ListContactsFilters {
   contactType?: string
   riskLevel?: string
   tag?: string
+  tags?: string[] // multiple tags, any match
+  assignedTo?: string
 }
 
 export interface CreateRelationshipInput {
@@ -71,10 +77,16 @@ export type ContactConversationLinkRow = typeof contactConversationLinks.$inferS
 // ------------------------------------------------------------------ Service
 
 export class ContactService {
+  private teamsService?: TeamsService
+
   constructor(
     protected readonly db: Database,
     protected readonly crypto: CryptoService
   ) {}
+
+  setTeamsService(teamsService: TeamsService): void {
+    this.teamsService = teamsService
+  }
 
   // ------------------------------------------------------------------ CRUD
 
@@ -100,6 +112,7 @@ export class ContactService {
         phoneEnvelopes: (input.phoneEnvelopes ?? []) as RecipientEnvelope[],
         encryptedPII: input.encryptedPII ?? null,
         piiEnvelopes: (input.piiEnvelopes ?? []) as RecipientEnvelope[],
+        assignedTo: input.assignedTo ?? null,
         createdBy: input.createdBy,
         createdAt: now,
         updatedAt: now,
@@ -127,20 +140,117 @@ export class ContactService {
     if (filters.riskLevel) {
       conditions.push(eq(contacts.riskLevel, filters.riskLevel))
     }
+    if (filters.assignedTo) {
+      conditions.push(eq(contacts.assignedTo, filters.assignedTo))
+    }
+    // GIN-indexed single tag containment check (@> operator)
+    if (filters.tag) {
+      conditions.push(sql`${contacts.tags} @> ${JSON.stringify([filters.tag])}::jsonb`)
+    }
+    // GIN-indexed multi-tag any-match (?| operator)
+    if (filters.tags && filters.tags.length > 0) {
+      conditions.push(
+        sql`${contacts.tags} ?| array[${sql.join(
+          filters.tags.map((t) => sql`${t}`),
+          sql`, `
+        )}]`
+      )
+    }
 
-    const rows = await this.db
+    return this.db
       .select()
       .from(contacts)
       .where(and(...conditions))
       .orderBy(desc(contacts.createdAt))
+  }
 
-    // Tag filter in-memory (jsonb array contains check)
-    if (filters.tag) {
-      const tag = filters.tag
-      return rows.filter((r) => (r.tags as string[]).includes(tag))
+  async listContactsByScope(
+    filters: ListContactsFilters,
+    scope: 'own' | 'assigned' | 'all',
+    userPubkey: string
+  ): Promise<ContactRow[]> {
+    if (scope === 'all') {
+      return this.listContacts(filters)
     }
 
-    return rows
+    if (scope === 'own') {
+      const conditions = [
+        eq(contacts.hubId, filters.hubId),
+        isNull(contacts.deletedAt),
+        eq(contacts.createdBy, userPubkey),
+      ]
+      if (filters.contactType) conditions.push(eq(contacts.contactType, filters.contactType))
+      if (filters.riskLevel) conditions.push(eq(contacts.riskLevel, filters.riskLevel))
+      if (filters.assignedTo) conditions.push(eq(contacts.assignedTo, filters.assignedTo))
+      if (filters.tag) {
+        conditions.push(sql`${contacts.tags} @> ${JSON.stringify([filters.tag])}::jsonb`)
+      }
+      if (filters.tags && filters.tags.length > 0) {
+        conditions.push(
+          sql`${contacts.tags} ?| array[${sql.join(
+            filters.tags.map((t) => sql`${t}`),
+            sql`, `
+          )}]`
+        )
+      }
+
+      return this.db
+        .select()
+        .from(contacts)
+        .where(and(...conditions))
+        .orderBy(desc(contacts.createdAt))
+    }
+
+    // scope === 'assigned'
+    const resolver = new ContactsAssignmentResolver(this.db)
+    const assignedIds = await resolver.listAssignedIds(userPubkey, filters.hubId)
+    if (assignedIds.length === 0) return []
+
+    const conditions = [
+      eq(contacts.hubId, filters.hubId),
+      isNull(contacts.deletedAt),
+      inArray(contacts.id, assignedIds),
+    ]
+    if (filters.contactType) conditions.push(eq(contacts.contactType, filters.contactType))
+    if (filters.riskLevel) conditions.push(eq(contacts.riskLevel, filters.riskLevel))
+    if (filters.assignedTo) conditions.push(eq(contacts.assignedTo, filters.assignedTo))
+    if (filters.tag) {
+      conditions.push(sql`${contacts.tags} @> ${JSON.stringify([filters.tag])}::jsonb`)
+    }
+    if (filters.tags && filters.tags.length > 0) {
+      conditions.push(
+        sql`${contacts.tags} ?| array[${sql.join(
+          filters.tags.map((t) => sql`${t}`),
+          sql`, `
+        )}]`
+      )
+    }
+
+    return this.db
+      .select()
+      .from(contacts)
+      .where(and(...conditions))
+      .orderBy(desc(contacts.createdAt))
+  }
+
+  async isContactAccessible(
+    contactId: string,
+    hubId: string,
+    scope: 'own' | 'assigned' | 'all',
+    userPubkey: string
+  ): Promise<boolean> {
+    if (scope === 'all') return true
+
+    const contact = await this.getContact(contactId, hubId)
+    if (!contact) return false
+
+    if (scope === 'own') {
+      return contact.createdBy === userPubkey
+    }
+
+    // scope === 'assigned'
+    const resolver = new ContactsAssignmentResolver(this.db)
+    return resolver.isAssigned({ resourceId: contactId, userPubkey, hubId })
   }
 
   async updateContact(
@@ -179,6 +289,7 @@ export class ContactService {
         ...(input.piiEnvelopes !== undefined
           ? { piiEnvelopes: input.piiEnvelopes as RecipientEnvelope[] }
           : {}),
+        ...(input.assignedTo !== undefined ? { assignedTo: input.assignedTo } : {}),
         updatedAt: new Date(),
       })
       .where(and(eq(contacts.id, id), eq(contacts.hubId, hubId), isNull(contacts.deletedAt)))
@@ -190,6 +301,15 @@ export class ContactService {
     const [row] = await this.db
       .update(contacts)
       .set({ deletedAt: new Date() })
+      .where(and(eq(contacts.id, id), eq(contacts.hubId, hubId), isNull(contacts.deletedAt)))
+      .returning({ id: contacts.id })
+    return !!row
+  }
+
+  async mergeContact(id: string, hubId: string, mergedIntoId: string): Promise<boolean> {
+    const [row] = await this.db
+      .update(contacts)
+      .set({ deletedAt: new Date(), mergedInto: mergedIntoId })
       .where(and(eq(contacts.id, id), eq(contacts.hubId, hubId), isNull(contacts.deletedAt)))
       .returning({ id: contacts.id })
     return !!row
@@ -243,6 +363,11 @@ export class ContactService {
       .set({ lastInteractionAt: new Date(), updatedAt: new Date() })
       .where(and(eq(contacts.id, contactId), eq(contacts.hubId, hubId)))
 
+    // Auto-assign contact to handler's teams (skip for system-generated links)
+    if (this.teamsService && linkedBy !== 'auto') {
+      await this.teamsService.autoAssignForUser(contactId, linkedBy, hubId)
+    }
+
     return row
   }
 
@@ -276,6 +401,11 @@ export class ContactService {
       .update(contacts)
       .set({ lastInteractionAt: new Date(), updatedAt: new Date() })
       .where(and(eq(contacts.id, contactId), eq(contacts.hubId, hubId)))
+
+    // Auto-assign contact to handler's teams (skip for system-generated links)
+    if (this.teamsService && linkedBy !== 'auto') {
+      await this.teamsService.autoAssignForUser(contactId, linkedBy, hubId)
+    }
 
     return row
   }

@@ -1,8 +1,8 @@
-import { LABEL_VOLUNTEER_PII } from '@shared/crypto-labels'
+import { LABEL_USER_PII } from '@shared/crypto-labels'
 import { and, count, desc, eq, inArray, sql } from 'drizzle-orm'
 import type { MessageDeliveryStatus, RecipientEnvelope } from '../../shared/types'
 import type { Database } from '../db'
-import { conversations, messageEnvelopes, volunteers } from '../db/schema'
+import { conversations, messageEnvelopes, users } from '../db/schema'
 import type { CryptoService } from '../lib/crypto-service'
 import { AppError } from '../lib/errors'
 import type {
@@ -76,7 +76,7 @@ export class ConversationService {
         const envelope = this.crypto.envelopeEncrypt(
           data.contactLast4,
           recipientPubkeys,
-          LABEL_VOLUNTEER_PII
+          LABEL_USER_PII
         )
         encryptedContactFields = {
           encryptedContactLast4: envelope.encrypted,
@@ -309,12 +309,12 @@ export class ConversationService {
 
   // ------------------------------------------------------------------ Admin Pubkey Helper
 
-  /** Return pubkeys of all active super-admin volunteers for E2EE envelope recipients */
+  /** Return pubkeys of all active super-admin users for E2EE envelope recipients */
   async #getSuperAdminPubkeys(): Promise<string[]> {
     const rows = await this.db
-      .select({ pubkey: volunteers.pubkey, roles: volunteers.roles })
-      .from(volunteers)
-      .where(eq(volunteers.active, true))
+      .select({ pubkey: users.pubkey, roles: users.roles })
+      .from(users)
+      .where(eq(users.active, true))
     return rows
       .filter((r) => (r.roles as string[]).includes('role-super-admin'))
       .map((r) => r.pubkey)

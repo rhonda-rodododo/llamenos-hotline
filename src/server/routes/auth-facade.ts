@@ -88,19 +88,19 @@ const jwtAuth = createMiddleware<AuthFacadeEnv>(async (c, next) => {
 })
 
 // ---------------------------------------------------------------------------
-// Helper: resolve permissions for a volunteer
+// Helper: resolve permissions for a user
 // ---------------------------------------------------------------------------
 
-async function resolveVolunteerPermissions(
+async function resolveUserPermissions(
   pubkey: string,
   identity: IdentityService,
   settings: SettingsService
 ): Promise<string[]> {
-  const vol = await identity.getVolunteer(pubkey)
-  if (!vol || !vol.active) return []
+  const user = await identity.getUser(pubkey)
+  if (!user || !user.active) return []
   const { resolvePermissions } = await import('../../shared/permissions')
   const allRoles = await settings.listRoles()
-  return resolvePermissions(vol.roles, allRoles)
+  return resolvePermissions(user.roles, allRoles)
 }
 
 // ---------------------------------------------------------------------------
@@ -206,7 +206,7 @@ authFacade.post('/webauthn/login-verify', async (c) => {
     })
 
     const settings = c.get('settings')
-    const permissions = await resolveVolunteerPermissions(matched.ownerPubkey, identity, settings)
+    const permissions = await resolveUserPermissions(matched.ownerPubkey, identity, settings)
     const accessToken = await signAccessToken(
       { pubkey: matched.ownerPubkey, permissions },
       c.env.JWT_SECRET
@@ -217,7 +217,7 @@ authFacade.post('/webauthn/login-verify', async (c) => {
       httpOnly: true,
       secure: true,
       sameSite: 'Strict',
-      path: '/auth/token',
+      path: '/api/auth/token',
       maxAge: 30 * 24 * 60 * 60, // 30 days in seconds
     })
 
@@ -261,13 +261,13 @@ authFacade.post('/demo-login', async (c) => {
   if (!body.pubkey) return c.json({ error: 'Missing pubkey' }, 400)
 
   const identity = c.get('identity')
-  const volunteer = await identity.getVolunteer(body.pubkey)
-  if (!volunteer) return c.json({ error: 'Demo account not found' }, 404)
+  const user = await identity.getUser(body.pubkey)
+  if (!user) return c.json({ error: 'Demo account not found' }, 404)
 
   // Resolve permissions from roles
   const settings = c.get('settings')
   const allRoles = await settings.listRoles()
-  const permissions = resolvePermissions(volunteer.roles, allRoles)
+  const permissions = resolvePermissions(user.roles, allRoles)
 
   const token = await signAccessToken(
     { pubkey: body.pubkey, permissions: [...new Set(permissions)] },
@@ -292,13 +292,13 @@ authFacade.use('/admin/*', jwtAuth)
 authFacade.post('/webauthn/register-options', async (c) => {
   const identity = c.get('identity')
   const pubkey = c.get('pubkey')
-  const volunteer = await identity.getVolunteer(pubkey)
-  if (!volunteer) return c.json({ error: 'Volunteer not found' }, 404)
+  const user = await identity.getUser(pubkey)
+  if (!user) return c.json({ error: 'User not found' }, 404)
 
   const rpID = c.env.AUTH_WEBAUTHN_RP_ID
   const rpName = c.env.AUTH_WEBAUTHN_RP_NAME || c.env.HOTLINE_NAME || 'Hotline'
   const existing: WebAuthnCredential[] = await identity.getWebAuthnCredentials(pubkey)
-  const options = await generateRegOptions({ pubkey, name: volunteer.name }, existing, rpID, rpName)
+  const options = await generateRegOptions({ pubkey, name: user.name }, existing, rpID, rpName)
   const challengeId = crypto.randomUUID()
   await identity.storeWebAuthnChallenge({ id: challengeId, challenge: options.challenge })
   return c.json({ ...options, challengeId })
@@ -380,7 +380,7 @@ authFacade.post('/token/refresh', async (c) => {
   }
 
   const settings = c.get('settings')
-  const permissions = await resolveVolunteerPermissions(pubkey, identity, settings)
+  const permissions = await resolveUserPermissions(pubkey, identity, settings)
   const accessToken = await signAccessToken({ pubkey, permissions }, c.env.JWT_SECRET)
   return c.json({ accessToken })
 })
@@ -421,7 +421,7 @@ authFacade.post('/session/revoke', async (c) => {
     httpOnly: true,
     secure: true,
     sameSite: 'Strict',
-    path: '/auth/token',
+    path: '/api/auth/token',
     maxAge: 0,
   })
 
@@ -452,7 +452,7 @@ authFacade.get('/devices', async (c) => {
 // POST /admin/re-enroll/:pubkey — admin-only: revoke all sessions + delete all WebAuthn credentials
 authFacade.post('/admin/re-enroll/:pubkey', async (c) => {
   const permissions = c.get('permissions')
-  if (!permissions.includes('volunteers:update') && !permissions.includes('*')) {
+  if (!permissions.includes('users:update') && !permissions.includes('*')) {
     return c.json({ error: 'Forbidden' }, 403)
   }
 
@@ -460,8 +460,8 @@ authFacade.post('/admin/re-enroll/:pubkey', async (c) => {
   const idpAdapter = c.get('idpAdapter')
   const identity = c.get('identity')
 
-  const volunteer = await identity.getVolunteer(targetPubkey)
-  if (!volunteer) return c.json({ error: 'Volunteer not found' }, 404)
+  const user = await identity.getUser(targetPubkey)
+  if (!user) return c.json({ error: 'User not found' }, 404)
 
   await idpAdapter.revokeAllSessions(targetPubkey)
 
@@ -476,7 +476,7 @@ authFacade.post('/admin/re-enroll/:pubkey', async (c) => {
 // POST /enroll — admin-only: create IdP user for a pubkey and return nsecSecret
 authFacade.post('/enroll', jwtAuth, async (c) => {
   const permissions = c.get('permissions')
-  if (!permissions.includes('volunteers:create') && !permissions.includes('*')) {
+  if (!permissions.includes('users:create') && !permissions.includes('*')) {
     return c.json({ error: 'Forbidden' }, 403)
   }
 

@@ -12,7 +12,7 @@ export async function hubContext(c: Context<AppEnv>, next: Next): Promise<Respon
     return c.json({ error: 'Hub ID required' }, 400)
   }
 
-  const volunteer = c.get('volunteer')
+  const user = c.get('user')
   const allRoles = c.get('allRoles')
 
   // Verify hub exists
@@ -23,12 +23,7 @@ export async function hubContext(c: Context<AppEnv>, next: Next): Promise<Respon
   }
 
   // Resolve hub-scoped permissions
-  const hubPermissions = resolveHubPermissions(
-    volunteer.roles,
-    volunteer.hubRoles || [],
-    allRoles,
-    hubId
-  )
+  const hubPermissions = resolveHubPermissions(user.roles, user.hubRoles || [], allRoles, hubId)
 
   // Must have at least one permission in this hub (or be super admin)
   if (hubPermissions.length === 0) {

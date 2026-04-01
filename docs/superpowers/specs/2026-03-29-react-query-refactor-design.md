@@ -1,7 +1,7 @@
 # React Query Refactor — Design Spec
 
 **Date:** 2026-03-29
-**Status:** Approved
+**Status:** Completed
 **Branch:** `feat/react-query-refactor` (based on `feat/idp-auth-hardening`)
 
 ## Problem

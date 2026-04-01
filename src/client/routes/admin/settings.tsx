@@ -9,6 +9,8 @@ import { ReportTypesSection } from '@/components/admin-settings/report-types-sec
 import { RolesSection } from '@/components/admin-settings/roles-section'
 import { SignalChannelSection } from '@/components/admin-settings/signal-channel-section'
 import { SpamSection } from '@/components/admin-settings/spam-section'
+import { TagsSection } from '@/components/admin-settings/tags-section'
+import { TeamsSection } from '@/components/admin-settings/teams-section'
 import { TelephonyProviderSection } from '@/components/admin-settings/telephony-provider-section'
 import { TranscriptionSection } from '@/components/admin-settings/transcription-section'
 import { VoicePromptsSection } from '@/components/admin-settings/voice-prompts-section'
@@ -26,6 +28,7 @@ import {
   updateTranscriptionSettings,
 } from '@/lib/api'
 import { useAuth } from '@/lib/auth'
+import { useConfig } from '@/lib/config'
 import { queryKeys } from '@/lib/queries/keys'
 import { useReportTypes } from '@/lib/queries/reports'
 import {
@@ -65,6 +68,8 @@ function AdminSettingsPage() {
   const { t } = useTranslation()
   const { section } = useSearch({ from: '/admin/settings' })
   const { isAdmin } = useAuth()
+  const { currentHubId } = useConfig()
+  const hubId = currentHubId ?? 'global'
   const { toast } = useToast()
   const queryClient = useQueryClient()
 
@@ -82,15 +87,15 @@ function AdminSettingsPage() {
   const { data: ivrEnabledData } = useIvrLanguages()
   const { data: ivrAudio = [] } = useIvrAudio()
   const { data: webauthnSettings } = useWebAuthnSettings()
-  const { data: customFieldDefs = [] } = useCustomFields()
+  const { data: customFieldDefs = [] } = useCustomFields(hubId)
   const { data: providerConfig } = useProviderConfig()
   const { data: messagingConfig } = useMessagingConfig()
   const { data: geocodingConfig } = useGeocodingConfig()
-  const { data: reportTypesData } = useReportTypes()
+  const { data: reportTypesData } = useReportTypes(hubId)
 
   const ivrEnabled = ivrEnabledData ?? [...IVR_LANGUAGES]
   const globalTranscription = transcriptionSettings?.globalEnabled ?? false
-  const allowVolunteerOptOut = transcriptionSettings?.allowVolunteerOptOut ?? false
+  const allowUserOptOut = transcriptionSettings?.allowUserOptOut ?? false
   const reportTypes = reportTypesData ?? []
 
   // Sync provider draft when config loads
@@ -161,12 +166,12 @@ function AdminSettingsPage() {
 
   // Compute status summaries for collapsed sections
   const passkeyStatus = webauthnSettings
-    ? webauthnSettings.requireForAdmins && webauthnSettings.requireForVolunteers
+    ? webauthnSettings.requireForAdmins && webauthnSettings.requireForUsers
       ? t('webauthn.requiredAll', { defaultValue: 'Required for all' })
       : webauthnSettings.requireForAdmins
         ? t('webauthn.requiredAdmins', { defaultValue: 'Required for admins' })
-        : webauthnSettings.requireForVolunteers
-          ? t('webauthn.requiredVolunteers', { defaultValue: 'Required for volunteers' })
+        : webauthnSettings.requireForUsers
+          ? t('webauthn.requiredUsers', { defaultValue: 'Required for users' })
           : t('webauthn.notRequired', { defaultValue: 'Not required' })
     : undefined
 
@@ -233,6 +238,18 @@ function AdminSettingsPage() {
         statusSummary={t('roles.summary', { defaultValue: 'Manage roles' })}
       />
 
+      <TeamsSection
+        expanded={expanded.has('teams')}
+        onToggle={(open) => toggleSection('teams', open)}
+        statusSummary={t('teams.summary', { defaultValue: 'Manage teams' })}
+      />
+
+      <TagsSection
+        expanded={expanded.has('tags')}
+        onToggle={(open) => toggleSection('tags', open)}
+        statusSummary={t('tags.summary', { defaultValue: 'Manage tags' })}
+      />
+
       <TelephonyProviderSection
         config={providerConfig ?? null}
         draft={providerDraft}
@@ -247,7 +264,7 @@ function AdminSettingsPage() {
 
       <TranscriptionSection
         globalEnabled={globalTranscription}
-        allowOptOut={allowVolunteerOptOut}
+        allowOptOut={allowUserOptOut}
         onGlobalChange={(enabled: boolean) =>
           queryClient.setQueryData(queryKeys.settings.transcription(), {
             ...transcriptionSettings,
@@ -257,7 +274,7 @@ function AdminSettingsPage() {
         onOptOutChange={(enabled: boolean) =>
           queryClient.setQueryData(queryKeys.settings.transcription(), {
             ...transcriptionSettings,
-            allowVolunteerOptOut: enabled,
+            allowUserOptOut: enabled,
           })
         }
         onConfirmToggle={handleConfirmToggle}

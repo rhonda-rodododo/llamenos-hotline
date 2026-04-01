@@ -71,7 +71,7 @@ export async function simulateInboundCall(
 }
 
 /**
- * Simulate a volunteer answering a call.
+ * Simulate a user answering a call.
  * Posts an answer webhook indicating the call is now in-progress.
  */
 export async function simulateCallAnswered(
@@ -79,7 +79,7 @@ export async function simulateCallAnswered(
   callSid: string,
   answeredByPhone?: string
 ): Promise<void> {
-  const res = await request.post('/telephony/volunteer-answer', {
+  const res = await request.post('/telephony/user-answer', {
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     data: formEncode({
       CallSid: callSid,

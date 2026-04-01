@@ -1,4 +1,5 @@
 import { PhoneInput } from '@/components/phone-input'
+import { TagInput } from '@/components/tag-input'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -65,7 +66,7 @@ interface FormState {
   displayName: string
   contactType: string
   riskLevel: string
-  tags: string
+  tags: string[]
   notes: string
   // PII fields
   fullName: string
@@ -76,7 +77,7 @@ const INITIAL_FORM: FormState = {
   displayName: '',
   contactType: 'caller',
   riskLevel: 'low',
-  tags: '',
+  tags: [],
   notes: '',
   fullName: '',
   phone: '',
@@ -87,7 +88,7 @@ export function CreateContactDialog({ open, onOpenChange, onCreated }: Props) {
   const { toast } = useToast()
   const { hasPermission } = useAuth()
 
-  const canViewPii = hasPermission('contacts:read-pii')
+  const canViewPii = hasPermission('contacts:envelope-full')
 
   const [form, setForm] = useState<FormState>(INITIAL_FORM)
   const [submitting, setSubmitting] = useState(false)
@@ -152,9 +153,6 @@ export function CreateContactDialog({ open, onOpenChange, onCreated }: Props) {
       if (!piiPubkeys.includes(pk)) piiPubkeys.push(pk)
 
       const tags = form.tags
-        .split(',')
-        .map((t) => t.trim())
-        .filter(Boolean)
 
       // Encrypt Tier 1: display name (required)
       const { encrypted: encryptedDisplayName, envelopes: displayNameEnvelopes } = envelopeEncrypt(
@@ -293,12 +291,12 @@ export function CreateContactDialog({ open, onOpenChange, onCreated }: Props) {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="tags">{t('contacts.fields.tags', 'Tags')}</Label>
-            <Input
-              id="tags"
+            <Label>{t('contacts.fields.tags', 'Tags')}</Label>
+            <TagInput
               value={form.tags}
-              onChange={(e) => setField('tags', e.target.value)}
-              placeholder={t('contacts.placeholders.tags', 'Comma-separated, e.g. repeat, urgent')}
+              onChange={(tags) => setField('tags', tags)}
+              allowCreate
+              placeholder={t('contacts.placeholders.tags', 'Select or create tags...')}
             />
           </div>
 

@@ -11,140 +11,436 @@ import type { Ciphertext } from './crypto-types'
 
 // --- Permission Catalog ---
 
+export interface PermissionMeta {
+  label: string
+  group: string
+  subgroup: 'scope' | 'actions' | 'tiers'
+}
+
+export const PERMISSION_GROUP_LABELS: Record<string, string> = {
+  contacts: 'Contact Directory',
+  tags: 'Tags',
+  notes: 'Notes',
+  calls: 'Calls',
+  reports: 'Reports',
+  conversations: 'Conversations',
+  users: 'User Management',
+  shifts: 'Shifts',
+  files: 'Files',
+  bans: 'Ban List',
+  invites: 'Invites',
+  settings: 'Settings',
+  audit: 'Audit Log',
+  blasts: 'Blasts',
+  voicemail: 'Voicemail',
+  gdpr: 'GDPR / Privacy',
+  system: 'System',
+}
+
 export const PERMISSION_CATALOG = {
-  // Calls
-  'calls:answer': 'Answer incoming calls',
-  'calls:read-active': 'See active calls (caller info redacted)',
-  'calls:read-active-full': 'See active calls with full caller info',
-  'calls:read-history': 'View call history',
-  'calls:read-presence': 'View volunteer presence',
-  'calls:read-recording': 'Listen to call recordings',
-  'calls:debug': 'Debug call state',
+  // --- Contacts ---
+  //
+  // Contact permissions compose three orthogonal dimensions:
+  //   1. Scope (whose contacts):   read-own / read-assigned / read-all
+  //                                update-own / update-assigned / update-all
+  //   2. Tier (what fields):       envelope-summary (display name, tags, notes)
+  //                                envelope-full (legal name, phone, address, channels)
+  //   3. Actions (what ops):       create, update-summary, update-pii, delete, link
+  //
+  // A full auth check composes all three. Example: "can this user edit this contact's PII?"
+  // requires scope (update-own/assigned/all) + tier (envelope-full) + action (update-pii).
 
-  // Notes
-  'notes:create': 'Create call notes',
-  'notes:read-own': 'Read own notes',
-  'notes:read-all': 'Read all notes',
-  'notes:read-assigned': 'Read notes from assigned volunteers',
-  'notes:update-own': 'Update own notes',
-  'notes:reply': 'Reply to notes',
+  // --- Contacts: Scope ---
+  'contacts:read-own': {
+    label: 'View contacts they created or handled',
+    group: 'contacts',
+    subgroup: 'scope',
+  },
+  'contacts:read-assigned': {
+    label: 'View contacts assigned to them',
+    group: 'contacts',
+    subgroup: 'scope',
+  },
+  'contacts:read-all': {
+    label: 'View all contacts in this hub',
+    group: 'contacts',
+    subgroup: 'scope',
+  },
+  'contacts:update-own': {
+    label: 'Edit contacts they created',
+    group: 'contacts',
+    subgroup: 'scope',
+  },
+  'contacts:update-assigned': {
+    label: 'Edit contacts assigned to them',
+    group: 'contacts',
+    subgroup: 'scope',
+  },
+  'contacts:update-all': { label: 'Edit any contact', group: 'contacts', subgroup: 'scope' },
 
-  // Contacts
-  'contacts:create': 'Create new contacts and relationships',
-  'contacts:read-summary': 'View contact summaries (display name, notes, tags)',
-  'contacts:read-pii': 'View contact PII (full name, phone, email, address)',
-  'contacts:update-summary': 'Edit contact summary fields',
-  'contacts:update-pii': 'Edit contact PII fields',
-  'contacts:delete': 'Delete contacts',
-  'contacts:link': 'Link/unlink calls and conversations to contacts',
+  // --- Contacts: Tiers ---
+  'contacts:envelope-summary': {
+    label: 'Access display name, tags, risk level, notes',
+    group: 'contacts',
+    subgroup: 'tiers',
+  },
+  'contacts:envelope-full': {
+    label: 'Access full details (legal name, phone, address, channels)',
+    group: 'contacts',
+    subgroup: 'tiers',
+  },
 
-  // Reports
-  'reports:create': 'Submit reports',
-  'reports:read-own': 'Read own reports',
-  'reports:read-all': 'Read all reports',
-  'reports:read-assigned': 'Read assigned reports',
-  'reports:assign': 'Assign reports to reviewers/volunteers',
-  'reports:update': 'Update report status',
-  'reports:send-message-own': 'Send messages in own reports',
-  'reports:send-message': 'Send messages in any report',
+  // --- Contacts: Actions ---
+  'contacts:create': {
+    label: 'Create new contacts and relationships',
+    group: 'contacts',
+    subgroup: 'actions',
+  },
+  'contacts:update-summary': {
+    label: 'Edit contact summary fields (display name, notes, tags)',
+    group: 'contacts',
+    subgroup: 'actions',
+  },
+  'contacts:update-pii': {
+    label: 'Edit contact PII fields (legal name, phone, address)',
+    group: 'contacts',
+    subgroup: 'actions',
+  },
+  'contacts:delete': { label: 'Delete contacts', group: 'contacts', subgroup: 'actions' },
+  'contacts:link': {
+    label: 'Link/unlink calls and conversations to contacts',
+    group: 'contacts',
+    subgroup: 'actions',
+  },
+  'contacts:triage': {
+    label: 'Review and merge intake submissions into contact records',
+    group: 'contacts',
+    subgroup: 'actions',
+  },
 
-  // Conversations
-  'conversations:read-assigned': 'Read assigned + waiting conversations',
-  'conversations:read-all': 'Read all conversations',
-  'conversations:claim': 'Claim a waiting conversation',
-  'conversations:claim-sms': 'Claim SMS conversations',
-  'conversations:claim-whatsapp': 'Claim WhatsApp conversations',
-  'conversations:claim-signal': 'Claim Signal conversations',
-  'conversations:claim-rcs': 'Claim RCS conversations',
-  'conversations:claim-web': 'Claim web conversations',
-  'conversations:claim-any': 'Claim any channel (bypass restrictions)',
-  'conversations:send': 'Send messages in assigned conversations',
-  'conversations:send-any': 'Send messages in any conversation',
-  'conversations:update': 'Reassign/close/reopen conversations',
+  // --- Tags: Actions ---
+  'tags:create': {
+    label: 'Create new tags',
+    group: 'tags',
+    subgroup: 'actions',
+  },
 
-  // Volunteers
-  'volunteers:read': 'List/view volunteer profiles',
-  'volunteers:create': 'Create new volunteers',
-  'volunteers:update': 'Update volunteer profiles',
-  'volunteers:delete': 'Deactivate/delete volunteers',
-  'volunteers:manage-roles': 'Assign/change volunteer roles',
+  // --- Notes: Scope ---
+  'notes:read-own': { label: 'Read own notes', group: 'notes', subgroup: 'scope' },
+  'notes:read-assigned': {
+    label: 'Read notes from assigned users',
+    group: 'notes',
+    subgroup: 'scope',
+  },
+  'notes:read-all': { label: 'Read all notes', group: 'notes', subgroup: 'scope' },
+  'notes:update-own': { label: 'Update own notes', group: 'notes', subgroup: 'scope' },
+  'notes:update-assigned': {
+    label: 'Update notes from assigned users',
+    group: 'notes',
+    subgroup: 'scope',
+  },
+  'notes:update-all': { label: 'Update any note', group: 'notes', subgroup: 'scope' },
 
-  // Shifts
-  'shifts:read-own': 'Check own shift status',
-  'shifts:read': 'View all shifts',
-  'shifts:create': 'Create shifts',
-  'shifts:update': 'Modify shifts',
-  'shifts:delete': 'Delete shifts',
-  'shifts:manage-fallback': 'Manage fallback ring group',
+  // --- Notes: Actions ---
+  'notes:create': { label: 'Create call notes', group: 'notes', subgroup: 'actions' },
+  'notes:reply': { label: 'Reply to notes', group: 'notes', subgroup: 'actions' },
 
-  // Bans
-  'bans:report': 'Report/flag a number',
-  'bans:read': 'View ban list',
-  'bans:create': 'Ban numbers',
-  'bans:bulk-create': 'Bulk ban import',
-  'bans:delete': 'Remove bans',
+  // --- Calls: Actions ---
+  'calls:answer': { label: 'Answer incoming calls', group: 'calls', subgroup: 'actions' },
+  'calls:read-active': {
+    label: 'See active calls (caller info redacted)',
+    group: 'calls',
+    subgroup: 'actions',
+  },
+  'calls:read-active-full': {
+    label: 'See active calls with full caller info',
+    group: 'calls',
+    subgroup: 'actions',
+  },
+  'calls:read-history': { label: 'View call history', group: 'calls', subgroup: 'actions' },
+  'calls:read-presence': { label: 'View user presence', group: 'calls', subgroup: 'actions' },
+  'calls:read-recording': {
+    label: 'Listen to call recordings',
+    group: 'calls',
+    subgroup: 'actions',
+  },
+  'calls:debug': { label: 'Debug call state', group: 'calls', subgroup: 'actions' },
 
-  // Invites
-  'invites:read': 'View pending invites',
-  'invites:create': 'Create invite codes',
-  'invites:revoke': 'Revoke invite codes',
+  // --- Reports: Scope ---
+  'reports:read-own': { label: 'Read own reports', group: 'reports', subgroup: 'scope' },
+  'reports:read-assigned': { label: 'Read assigned reports', group: 'reports', subgroup: 'scope' },
+  'reports:read-all': { label: 'Read all reports', group: 'reports', subgroup: 'scope' },
 
-  // Settings
-  'settings:read': 'View settings',
-  'settings:manage': 'Modify all settings',
-  'settings:manage-telephony': 'Modify telephony provider',
-  'settings:manage-messaging': 'Modify messaging channels',
-  'settings:manage-spam': 'Modify spam settings',
-  'settings:manage-ivr': 'Modify IVR/language settings',
-  'settings:manage-fields': 'Modify custom fields',
-  'settings:manage-transcription': 'Modify transcription settings',
+  // --- Reports: Actions ---
+  'reports:create': { label: 'Submit reports', group: 'reports', subgroup: 'actions' },
+  'reports:assign': { label: 'Assign reports to reviewers', group: 'reports', subgroup: 'actions' },
+  'reports:update': { label: 'Update report status', group: 'reports', subgroup: 'actions' },
+  'reports:send-message-own': {
+    label: 'Send messages in own reports',
+    group: 'reports',
+    subgroup: 'actions',
+  },
+  'reports:send-message': {
+    label: 'Send messages in any report',
+    group: 'reports',
+    subgroup: 'actions',
+  },
 
-  // Audit
-  'audit:read': 'View audit log',
+  // --- Conversations: Scope ---
+  'conversations:read-own': {
+    label: 'Read conversations they initiated',
+    group: 'conversations',
+    subgroup: 'scope',
+  },
+  'conversations:read-assigned': {
+    label: 'Read assigned and waiting conversations',
+    group: 'conversations',
+    subgroup: 'scope',
+  },
+  'conversations:read-all': {
+    label: 'Read all conversations',
+    group: 'conversations',
+    subgroup: 'scope',
+  },
 
-  // Blasts (future — Epic 62)
-  'blasts:read': 'View blast history',
-  'blasts:send': 'Send blasts',
-  'blasts:manage': 'Manage subscriber lists and templates',
-  'blasts:schedule': 'Schedule future blasts',
+  // --- Conversations: Actions ---
+  'conversations:claim': {
+    label: 'Claim a waiting conversation',
+    group: 'conversations',
+    subgroup: 'actions',
+  },
+  'conversations:claim-sms': {
+    label: 'Claim SMS conversations',
+    group: 'conversations',
+    subgroup: 'actions',
+  },
+  'conversations:claim-whatsapp': {
+    label: 'Claim WhatsApp conversations',
+    group: 'conversations',
+    subgroup: 'actions',
+  },
+  'conversations:claim-signal': {
+    label: 'Claim Signal conversations',
+    group: 'conversations',
+    subgroup: 'actions',
+  },
+  'conversations:claim-rcs': {
+    label: 'Claim RCS conversations',
+    group: 'conversations',
+    subgroup: 'actions',
+  },
+  'conversations:claim-web': {
+    label: 'Claim web conversations',
+    group: 'conversations',
+    subgroup: 'actions',
+  },
+  'conversations:claim-any': {
+    label: 'Claim any channel (bypass restrictions)',
+    group: 'conversations',
+    subgroup: 'actions',
+  },
+  'conversations:send': {
+    label: 'Send messages in assigned conversations',
+    group: 'conversations',
+    subgroup: 'actions',
+  },
+  'conversations:send-any': {
+    label: 'Send messages in any conversation',
+    group: 'conversations',
+    subgroup: 'actions',
+  },
+  'conversations:update': {
+    label: 'Reassign/close/reopen conversations',
+    group: 'conversations',
+    subgroup: 'actions',
+  },
 
-  // Files
-  'files:upload': 'Upload files',
-  'files:download-own': 'Download own/authorized files',
-  'files:download-all': 'Download any file',
-  'files:share': 'Re-encrypt/share files with others',
+  // --- Users: Actions ---
+  'users:read': { label: 'List/view user profiles', group: 'users', subgroup: 'actions' },
+  'users:create': { label: 'Create new users', group: 'users', subgroup: 'actions' },
+  'users:update': { label: 'Update user profiles', group: 'users', subgroup: 'actions' },
+  'users:delete': { label: 'Deactivate/delete users', group: 'users', subgroup: 'actions' },
+  'users:manage-roles': { label: 'Assign/change user roles', group: 'users', subgroup: 'actions' },
 
-  // Voicemail
-  'voicemail:listen': 'Play/decrypt voicemail audio',
-  'voicemail:read': 'View voicemail metadata in call history',
-  'voicemail:notify': 'Receive notifications for new voicemails',
-  'voicemail:delete': 'Delete voicemail audio and transcript',
-  'voicemail:manage': 'Configure voicemail settings',
+  // --- Shifts: Scope ---
+  'shifts:read-own': { label: 'Check own shift status', group: 'shifts', subgroup: 'scope' },
+  'shifts:read-assigned': {
+    label: 'View shifts they are scheduled on',
+    group: 'shifts',
+    subgroup: 'scope',
+  },
+  'shifts:read-all': { label: 'View all shifts', group: 'shifts', subgroup: 'scope' },
 
-  // GDPR
-  'gdpr:consent': 'Record and check own data processing consent',
-  'gdpr:export': 'Export own data (GDPR data portability)',
-  'gdpr:erase-self': 'Request erasure of own account',
-  'gdpr:admin': 'Admin-level GDPR operations (export/erase any user)',
+  // --- Shifts: Actions ---
+  'shifts:create': { label: 'Create shifts', group: 'shifts', subgroup: 'actions' },
+  'shifts:update': { label: 'Modify shifts', group: 'shifts', subgroup: 'actions' },
+  'shifts:delete': { label: 'Delete shifts', group: 'shifts', subgroup: 'actions' },
+  'shifts:manage-fallback': {
+    label: 'Manage fallback ring group',
+    group: 'shifts',
+    subgroup: 'actions',
+  },
 
-  // System (super-admin only)
-  'system:manage-roles': 'Create/edit/delete custom roles',
-  'system:manage-hubs': 'Create/manage hubs',
-  'system:manage-instance': 'Instance-level settings',
-} as const
+  // --- Files: Scope ---
+  'files:download-own': {
+    label: 'Download own/authorized files',
+    group: 'files',
+    subgroup: 'scope',
+  },
+  'files:download-assigned': {
+    label: 'Download files from assigned resources',
+    group: 'files',
+    subgroup: 'scope',
+  },
+  'files:download-all': { label: 'Download any file', group: 'files', subgroup: 'scope' },
+
+  // --- Files: Actions ---
+  'files:upload': { label: 'Upload files', group: 'files', subgroup: 'actions' },
+  'files:share': {
+    label: 'Re-encrypt/share files with others',
+    group: 'files',
+    subgroup: 'actions',
+  },
+
+  // --- Bans: Actions ---
+  'bans:report': { label: 'Report/flag a number', group: 'bans', subgroup: 'actions' },
+  'bans:read': { label: 'View ban list', group: 'bans', subgroup: 'actions' },
+  'bans:create': { label: 'Ban numbers', group: 'bans', subgroup: 'actions' },
+  'bans:bulk-create': { label: 'Bulk ban import', group: 'bans', subgroup: 'actions' },
+  'bans:delete': { label: 'Remove bans', group: 'bans', subgroup: 'actions' },
+
+  // --- Invites: Actions ---
+  'invites:read': { label: 'View pending invites', group: 'invites', subgroup: 'actions' },
+  'invites:create': { label: 'Create invite codes', group: 'invites', subgroup: 'actions' },
+  'invites:revoke': { label: 'Revoke invite codes', group: 'invites', subgroup: 'actions' },
+
+  // --- Settings: Actions ---
+  'settings:read': { label: 'View settings', group: 'settings', subgroup: 'actions' },
+  'settings:manage': { label: 'Modify all settings', group: 'settings', subgroup: 'actions' },
+  'settings:manage-telephony': {
+    label: 'Modify telephony provider',
+    group: 'settings',
+    subgroup: 'actions',
+  },
+  'settings:manage-messaging': {
+    label: 'Modify messaging channels',
+    group: 'settings',
+    subgroup: 'actions',
+  },
+  'settings:manage-spam': { label: 'Modify spam settings', group: 'settings', subgroup: 'actions' },
+  'settings:manage-ivr': {
+    label: 'Modify IVR/language settings',
+    group: 'settings',
+    subgroup: 'actions',
+  },
+  'settings:manage-fields': {
+    label: 'Modify custom fields',
+    group: 'settings',
+    subgroup: 'actions',
+  },
+  'settings:manage-transcription': {
+    label: 'Modify transcription settings',
+    group: 'settings',
+    subgroup: 'actions',
+  },
+
+  // --- Audit: Actions ---
+  'audit:read': { label: 'View audit log', group: 'audit', subgroup: 'actions' },
+
+  // --- Blasts: Actions ---
+  'blasts:read': { label: 'View blast history', group: 'blasts', subgroup: 'actions' },
+  'blasts:send': { label: 'Send blasts', group: 'blasts', subgroup: 'actions' },
+  'blasts:manage': {
+    label: 'Manage subscriber lists and templates',
+    group: 'blasts',
+    subgroup: 'actions',
+  },
+  'blasts:schedule': { label: 'Schedule future blasts', group: 'blasts', subgroup: 'actions' },
+
+  // --- Voicemail: Actions ---
+  'voicemail:listen': {
+    label: 'Play/decrypt voicemail audio',
+    group: 'voicemail',
+    subgroup: 'actions',
+  },
+  'voicemail:read': {
+    label: 'View voicemail metadata in call history',
+    group: 'voicemail',
+    subgroup: 'actions',
+  },
+  'voicemail:notify': {
+    label: 'Receive notifications for new voicemails',
+    group: 'voicemail',
+    subgroup: 'actions',
+  },
+  'voicemail:delete': {
+    label: 'Delete voicemail audio and transcript',
+    group: 'voicemail',
+    subgroup: 'actions',
+  },
+  'voicemail:manage': {
+    label: 'Configure voicemail settings',
+    group: 'voicemail',
+    subgroup: 'actions',
+  },
+
+  // --- GDPR: Actions ---
+  'gdpr:consent': {
+    label: 'Record and check own data processing consent',
+    group: 'gdpr',
+    subgroup: 'actions',
+  },
+  'gdpr:export': {
+    label: 'Export own data (GDPR data portability)',
+    group: 'gdpr',
+    subgroup: 'actions',
+  },
+  'gdpr:erase-self': {
+    label: 'Request erasure of own account',
+    group: 'gdpr',
+    subgroup: 'actions',
+  },
+  'gdpr:admin': {
+    label: 'Admin-level GDPR operations (export/erase any user)',
+    group: 'gdpr',
+    subgroup: 'actions',
+  },
+
+  // --- System: Actions ---
+  'system:manage-roles': {
+    label: 'Create/edit/delete custom roles',
+    group: 'system',
+    subgroup: 'actions',
+  },
+  'system:manage-hubs': { label: 'Create/manage hubs', group: 'system', subgroup: 'actions' },
+  'system:manage-instance': {
+    label: 'Instance-level settings',
+    group: 'system',
+    subgroup: 'actions',
+  },
+} as const satisfies Record<string, PermissionMeta>
 
 export type Permission = keyof typeof PERMISSION_CATALOG
 
 /** All permission domains (first part before the colon) */
 export type PermissionDomain = Permission extends `${infer D}:${string}` ? D : never
 
+/** Domain wildcard (e.g. "contacts:*") or global wildcard "*" */
+export type WildcardPermission = `${PermissionDomain}:*` | '*'
+
+/** A concrete permission or a wildcard */
+export type PermissionOrWildcard = Permission | WildcardPermission
+
 /** Group permissions by domain for the role editor UI */
-export function getPermissionsByDomain(): Record<string, { key: Permission; label: string }[]> {
-  const result: Record<string, { key: Permission; label: string }[]> = {}
-  for (const [key, label] of Object.entries(PERMISSION_CATALOG)) {
+export function getPermissionsByDomain(): Record<
+  string,
+  { key: Permission; meta: PermissionMeta }[]
+> {
+  const result: Record<string, { key: Permission; meta: PermissionMeta }[]> = {}
+  for (const [key, meta] of Object.entries(PERMISSION_CATALOG)) {
     const domain = key.split(':')[0]
     if (!result[domain]) result[domain] = []
-    result[domain].push({ key: key as Permission, label })
+    result[domain].push({ key: key as Permission, meta })
   }
   return result
 }
@@ -154,7 +450,6 @@ export function getPermissionsByDomain(): Record<string, { key: Permission; labe
 export interface Role {
   id: string
   name: string
-  slug: string
   permissions: string[]
   isDefault: boolean // ships with system
   isSystem: boolean // can't be modified at all (super-admin)
@@ -173,7 +468,6 @@ export const DEFAULT_ROLES: Omit<Role, 'createdAt' | 'updatedAt'>[] = [
   {
     id: 'role-super-admin',
     name: 'Super Admin',
-    slug: 'super-admin',
     permissions: ['*'],
     isDefault: true,
     isSystem: true,
@@ -182,9 +476,8 @@ export const DEFAULT_ROLES: Omit<Role, 'createdAt' | 'updatedAt'>[] = [
   {
     id: 'role-hub-admin',
     name: 'Hub Admin',
-    slug: 'hub-admin',
     permissions: [
-      'volunteers:*',
+      'users:*',
       'shifts:*',
       'settings:*',
       'audit:read',
@@ -204,12 +497,11 @@ export const DEFAULT_ROLES: Omit<Role, 'createdAt' | 'updatedAt'>[] = [
     ],
     isDefault: true,
     isSystem: false,
-    description: 'Full control within assigned hub(s) — manages volunteers, shifts, settings',
+    description: 'Full control within assigned hub(s) — manages users, shifts, settings',
   },
   {
     id: 'role-reviewer',
     name: 'Reviewer',
-    slug: 'reviewer',
     permissions: [
       'notes:read-assigned',
       'notes:reply',
@@ -225,12 +517,46 @@ export const DEFAULT_ROLES: Omit<Role, 'createdAt' | 'updatedAt'>[] = [
     ],
     isDefault: true,
     isSystem: false,
-    description: 'Reviews notes and reports from assigned volunteers or shifts',
+    description: 'Reviews notes and reports from assigned users or shifts',
+  },
+  {
+    id: 'role-case-manager',
+    name: 'Case Manager',
+    permissions: [
+      'contacts:read-assigned',
+      'contacts:update-assigned',
+      'contacts:envelope-summary',
+      'contacts:envelope-full',
+      'contacts:create',
+      'contacts:link',
+      'contacts:triage',
+      'tags:create',
+      'notes:read-all',
+      'notes:create',
+      'notes:update-own',
+      'notes:reply',
+      'conversations:read-assigned',
+      'conversations:send',
+      'reports:read-assigned',
+      'reports:update',
+      'reports:send-message',
+      'calls:read-history',
+      'calls:read-active',
+      'files:upload',
+      'files:download-assigned',
+      'shifts:read-own',
+      'voicemail:read',
+      'gdpr:consent',
+      'gdpr:export',
+      'gdpr:erase-self',
+    ],
+    isDefault: true,
+    isSystem: false,
+    description: 'Triages intake, manages assigned contact records, coordinates support networks',
   },
   {
     id: 'role-volunteer',
     name: 'Volunteer',
-    slug: 'volunteer',
     permissions: [
       'calls:answer',
       'calls:read-active',
@@ -247,7 +573,7 @@ export const DEFAULT_ROLES: Omit<Role, 'createdAt' | 'updatedAt'>[] = [
       'conversations:claim-rcs',
       'conversations:claim-web',
       'shifts:read-own',
-      'volunteers:read',
+      'users:read',
       'bans:report',
       'reports:read-assigned',
       'reports:send-message',
@@ -259,7 +585,8 @@ export const DEFAULT_ROLES: Omit<Role, 'createdAt' | 'updatedAt'>[] = [
       'voicemail:read',
       'calls:read-history',
       'contacts:create',
-      'contacts:read-summary',
+      'contacts:read-own',
+      'contacts:envelope-summary',
     ],
     isDefault: true,
     isSystem: false,
@@ -268,7 +595,6 @@ export const DEFAULT_ROLES: Omit<Role, 'createdAt' | 'updatedAt'>[] = [
   {
     id: 'role-reporter',
     name: 'Reporter',
-    slug: 'reporter',
     permissions: [
       'reports:create',
       'reports:read-own',
@@ -283,13 +609,13 @@ export const DEFAULT_ROLES: Omit<Role, 'createdAt' | 'updatedAt'>[] = [
   {
     id: 'role-voicemail-reviewer',
     name: 'Voicemail Reviewer',
-    slug: 'voicemail-reviewer',
     permissions: [
       'voicemail:listen',
       'voicemail:read',
       'voicemail:notify',
       'notes:read-all',
-      'contacts:read-summary',
+      'contacts:read-assigned',
+      'contacts:envelope-summary',
       'calls:read-history',
     ],
     isDefault: true,
@@ -300,9 +626,16 @@ export const DEFAULT_ROLES: Omit<Role, 'createdAt' | 'updatedAt'>[] = [
 
 // --- Permission Resolution ---
 
+const SCOPE_LEVELS: Record<string, number> = {
+  own: 0,
+  assigned: 1,
+  all: 2,
+}
+
 /**
  * Check if a set of permissions grants a specific permission.
  * Supports exact match, domain wildcards (e.g. "calls:*"), and global wildcard "*".
+ * Also resolves scope hierarchy: -all subsumes -assigned subsumes -own.
  */
 export function permissionGranted(grantedPermissions: string[], required: string): boolean {
   // Global wildcard
@@ -312,6 +645,22 @@ export function permissionGranted(grantedPermissions: string[], required: string
   // Domain wildcard (e.g. "calls:*" matches "calls:answer")
   const domain = required.split(':')[0]
   if (grantedPermissions.includes(`${domain}:*`)) return true
+
+  // Scope hierarchy: -all subsumes -assigned subsumes -own
+  const scopeMatch = required.match(/^(.+)-(own|assigned|all)$/)
+  if (scopeMatch) {
+    const [, base, requiredScope] = scopeMatch
+    const requiredLevel = SCOPE_LEVELS[requiredScope]
+    if (requiredLevel === undefined) return false
+    for (const granted of grantedPermissions) {
+      const grantedMatch = granted.match(/^(.+)-(own|assigned|all)$/)
+      if (grantedMatch && grantedMatch[1] === base) {
+        const grantedLevel = SCOPE_LEVELS[grantedMatch[2]]
+        if (grantedLevel !== undefined && grantedLevel >= requiredLevel) return true
+      }
+    }
+  }
+
   return false
 }
 
@@ -340,14 +689,15 @@ export function hasPermission(roleIds: string[], roles: Role[], permission: stri
 
 /**
  * Get the "primary" role for display purposes — the highest-privilege role.
- * Order: super-admin > hub-admin > reviewer > volunteer > reporter > custom
+ * Order: super-admin > hub-admin > case-manager > reviewer > volunteer > reporter > custom
  */
 const ROLE_PRIORITY: Record<string, number> = {
   'role-super-admin': 0,
   'role-hub-admin': 1,
-  'role-reviewer': 2,
-  'role-volunteer': 3,
-  'role-reporter': 4,
+  'role-case-manager': 2,
+  'role-reviewer': 3,
+  'role-volunteer': 4,
+  'role-reporter': 5,
 }
 
 export function getPrimaryRole(roleIds: string[], roles: Role[]): Role | undefined {
