@@ -71,13 +71,18 @@ async function unlockAndNavigateToDashboard(page: import('@playwright/test').Pag
  */
 async function bootstrapAdmin(page: import('@playwright/test').Page) {
   await page.goto('/setup', { waitUntil: 'domcontentloaded' })
-  await page.evaluate(() => {
+  await page.evaluate(async () => {
     localStorage.clear()
     sessionStorage.clear()
+    // Unregister all service workers to prevent stale cached responses
+    const registrations = await navigator.serviceWorker?.getRegistrations?.()
+    if (registrations) {
+      await Promise.all(registrations.map((r) => r.unregister()))
+    }
   })
   await page.reload({ waitUntil: 'domcontentloaded' })
 
-  // Wait for bootstrap UI
+  // Wait for bootstrap UI — config fetch must return needsBootstrap=true
   await expect(page.getByText('Create Admin Account')).toBeVisible({ timeout: 30000 })
 
   // Click "Get Started"
