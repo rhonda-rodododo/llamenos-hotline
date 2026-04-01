@@ -8,6 +8,12 @@
  * prefix for all sub-keys in that resource, enabling wildcard invalidation.
  */
 
+/**
+ * All query key domain names. Used by ENCRYPTED_QUERY_KEYS in query-client.ts
+ * to ensure new domains are explicitly classified as encrypted or plaintext.
+ */
+export type QueryKeyDomain = keyof typeof queryKeys
+
 export const queryKeys = {
   users: {
     all: ['users'] as const,

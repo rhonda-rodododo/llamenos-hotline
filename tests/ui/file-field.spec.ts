@@ -35,18 +35,24 @@ test.describe('File Custom Field', () => {
     await page.getByRole('link', { name: 'Hub Settings' }).click()
     await expect(page.getByRole('heading', { name: 'Hub Settings', exact: true })).toBeVisible()
 
+    // Expand Custom Note Fields section if collapsed
     const addFieldBtn = page.getByRole('button', { name: /add field/i })
-    if (!(await addFieldBtn.isVisible({ timeout: 1000 }).catch(() => false))) {
-      await page.getByRole('heading', { name: /custom note fields/i }).click()
+    const btnVisible = await addFieldBtn
+      .waitFor({ state: 'visible', timeout: 3000 })
+      .then(() => true)
+      .catch(() => false)
+    if (!btnVisible) {
+      await page.getByText('Custom Note Fields').click()
+      await expect(addFieldBtn).toBeVisible({ timeout: 10000 })
     }
-    await expect(addFieldBtn).toBeVisible({ timeout: 10000 })
 
     // Skip if already exists
     const existing = page.locator('.rounded-lg.border').filter({ hasText: label })
     if (
       await existing
         .first()
-        .isVisible({ timeout: 2000 })
+        .waitFor({ state: 'visible', timeout: 2000 })
+        .then(() => true)
         .catch(() => false)
     ) {
       return
@@ -70,11 +76,16 @@ test.describe('File Custom Field', () => {
       adminPage.getByRole('heading', { name: 'Hub Settings', exact: true })
     ).toBeVisible()
 
+    // Expand Custom Note Fields section if collapsed
     const addFieldBtn = adminPage.getByRole('button', { name: /add field/i })
-    if (!(await addFieldBtn.isVisible({ timeout: 1000 }).catch(() => false))) {
-      await adminPage.getByRole('heading', { name: /custom note fields/i }).click()
+    const fieldsBtnVisible = await addFieldBtn
+      .waitFor({ state: 'visible', timeout: 3000 })
+      .then(() => true)
+      .catch(() => false)
+    if (!fieldsBtnVisible) {
+      await adminPage.getByText('Custom Note Fields').click()
+      await expect(addFieldBtn).toBeVisible({ timeout: 10000 })
     }
-    await expect(addFieldBtn).toBeVisible({ timeout: 10000 })
     await addFieldBtn.click()
 
     // File option should be in the type dropdown

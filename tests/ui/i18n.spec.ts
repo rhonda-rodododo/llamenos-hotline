@@ -75,17 +75,24 @@ test.describe('Language selector', () => {
     await adminPage.keyboard.press('Escape')
   })
 
-  test('language selector available on login page without auth', async ({ adminPage }) => {
-    await adminPage.goto('/login')
-    const selector = adminPage.getByRole('combobox', { name: /switch to|language/i })
-    // Selector may or may not exist on login page — just verify it doesn't crash
-    const count = await selector.count()
-    if (count > 0) {
-      await selector.click()
-      await adminPage.keyboard.press('Escape')
+  test('language selector available on login page without auth', async ({ browser }) => {
+    // Use a fresh context without auth state — authenticated users get redirected from /login
+    const context = await browser.newContext()
+    const page = await context.newPage()
+    try {
+      await page.goto('/login')
+      const selector = page.getByRole('combobox', { name: /switch to|language/i })
+      // Selector may or may not exist on login page — just verify it doesn't crash
+      const count = await selector.count()
+      if (count > 0) {
+        await selector.click()
+        await page.keyboard.press('Escape')
+      }
+      // Login page should always render without errors
+      await expect(page.getByRole('heading', { name: /sign in/i })).toBeVisible()
+    } finally {
+      await context.close()
     }
-    // Login page should always render without errors
-    await expect(adminPage.getByRole('heading', { name: /sign in/i })).toBeVisible()
   })
 })
 

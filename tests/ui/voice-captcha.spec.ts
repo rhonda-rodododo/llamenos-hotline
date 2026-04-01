@@ -204,6 +204,8 @@ test.describe('Voice CAPTCHA', () => {
     await maxAttemptsInput.clear()
     await maxAttemptsInput.fill('3')
     await maxAttemptsInput.press('Tab') // trigger onChange
+    // Wait for the mutation to persist (async save)
+    await adminPage.waitForTimeout(1500)
 
     // Verify it was saved via API
     const adminApi = createAdminApiFromStorageState(request)
