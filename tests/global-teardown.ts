@@ -21,9 +21,10 @@ const ORPHAN_PATTERNS: Array<{ match: string; envGuard: string | null }> = [
 export default function globalTeardown() {
   if (process.env.PLAYWRIGHT_BASE_URL) return // external server — not ours to kill
 
+  const killed = new Set<number>()
+
   try {
     const result = execFileSync('ps', ['-eo', 'pid,args'], { encoding: 'utf-8' }).trim()
-    const killed = new Set<number>()
 
     for (const line of result.split('\n')) {
       if (!line.includes('bun')) continue
@@ -36,13 +37,14 @@ export default function globalTeardown() {
 
         try {
           if (pattern.envGuard) {
-            // Only kill if the env guard is present
             const env = execFileSync('cat', [`/proc/${pid}/environ`], { encoding: 'latin1' })
             if (!env.includes(pattern.envGuard)) continue
           }
           process.kill(pid, 'SIGTERM')
           killed.add(pid)
-          console.log(`[teardown] Killed orphaned process ${pid}: ${line.trim().slice(0, 120)}`)
+          console.log(
+            `[teardown] Sent SIGTERM to orphaned process ${pid}: ${line.trim().slice(0, 120)}`
+          )
         } catch {
           // Process already gone or /proc not available
         }
@@ -50,5 +52,19 @@ export default function globalTeardown() {
     }
   } catch {
     // Best-effort cleanup — don't fail the test run
+  }
+
+  // Wait 2s then SIGKILL any survivors — bun processes can ignore SIGTERM
+  if (killed.size > 0) {
+    execFileSync('sleep', ['2'])
+    for (const pid of killed) {
+      try {
+        process.kill(pid, 0) // throws if dead
+        process.kill(pid, 'SIGKILL')
+        console.log(`[teardown] Sent SIGKILL to stubborn process ${pid}`)
+      } catch {
+        // Already dead — good
+      }
+    }
   }
 }

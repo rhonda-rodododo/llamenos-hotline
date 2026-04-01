@@ -7,6 +7,8 @@ import type { AppEnv } from '../types'
 const config = new Hono<AppEnv>()
 
 config.get('/', async (c) => {
+  // Prevent browser from caching config — setup state must always be fresh
+  c.header('Cache-Control', 'no-store')
   const services = c.get('services')
 
   // Fetch enabled channels to include in config
