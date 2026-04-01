@@ -345,21 +345,40 @@ test.describe('Global Setup: Provision Test Accounts', () => {
 
   test('reset database and bootstrap admin', async ({ page, request, browser }) => {
     // Retry reset in case the server is still initializing
+    let resetOk = false
     for (let i = 0; i < 10; i++) {
       try {
         const res = await request.post('/api/test-reset-no-admin', {
           headers: { 'X-Test-Secret': TEST_RESET_SECRET },
         })
-        if (res.ok()) break
+        if (res.ok()) {
+          resetOk = true
+          break
+        }
         if (res.status() === 404) {
           throw new Error(
             'test-reset-no-admin returned 404 — ENVIRONMENT must be set to "development".'
           )
         }
+        console.log(`[SETUP] Reset attempt ${i + 1}: status ${res.status()}`)
       } catch (err) {
         if (err instanceof Error && err.message.includes('returned 404')) throw err
+        console.log(`[SETUP] Reset attempt ${i + 1}: ${(err as Error).message}`)
       }
       await new Promise((r) => setTimeout(r, 2000))
+    }
+    if (!resetOk) throw new Error('test-reset-no-admin never returned 200 after 10 retries')
+
+    // Verify the reset actually worked — config must show needsBootstrap=true
+    const configRes = await request.get('/api/config')
+    const config = await configRes.json()
+    if (!config.needsBootstrap) {
+      console.log('[SETUP] WARNING: config.needsBootstrap is false after reset — retrying reset')
+      const retryRes = await request.post('/api/test-reset-no-admin', {
+        headers: { 'X-Test-Secret': TEST_RESET_SECRET },
+      })
+      if (!retryRes.ok()) throw new Error('Retry reset failed')
+      await new Promise((r) => setTimeout(r, 1000))
     }
 
     // Run real bootstrap flow
