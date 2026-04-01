@@ -221,7 +221,12 @@ test.describe('Passkey authentication', () => {
     ).toBeVisible({ timeout: 10_000 })
 
     // Now log out and attempt passkey login — clear both storages to simulate a
-    // fresh device so the login page shows the passkey button instead of PIN entry
+    // fresh device so the login page shows the passkey button instead of PIN entry.
+    // Block the token refresh endpoint to prevent restoreSession from auto-redirecting
+    // via the httpOnly cookie (which survives storage clears).
+    await adminPage.route('**/api/auth/token/refresh', (route) =>
+      route.fulfill({ status: 401, contentType: 'application/json', body: '{"error":"blocked"}' })
+    )
     await adminPage.evaluate(() => {
       sessionStorage.clear()
       localStorage.clear()
@@ -232,10 +237,32 @@ test.describe('Passkey authentication', () => {
     const passkeyBtn = adminPage.getByTestId('passkey-login-btn')
     await expect(passkeyBtn).toBeVisible({ timeout: 15_000 })
 
+    // Unblock refresh before clicking — the passkey flow needs it for getUserInfo
+    await adminPage.unroute('**/api/auth/token/refresh')
+
     await passkeyBtn.click()
 
-    // Virtual authenticator auto-selects the registered credential
-    // Login should succeed → dashboard visible (or PIN prompt for key unlock)
+    // Virtual authenticator auto-selects the registered credential.
+    // Since localStorage was cleared (no stored key), the app shows a PIN setup
+    // flow to provision the key on this "new device".
+    const pinSetup = adminPage.getByTestId('passkey-pin-setup')
+    await expect(pinSetup).toBeVisible({ timeout: 30_000 })
+
+    // Create a PIN (6 digits) and confirm it
+    const TEST_PIN = '123456'
+    const pinDigit1 = adminPage.locator('input[aria-label="PIN digit 1"]')
+    await pinDigit1.waitFor({ state: 'visible', timeout: 10_000 })
+    await pinDigit1.focus()
+    await adminPage.keyboard.type(TEST_PIN, { delay: 80 })
+    await adminPage.keyboard.press('Enter')
+
+    // Confirm step — enter the same PIN
+    await pinDigit1.waitFor({ state: 'visible', timeout: 10_000 })
+    await pinDigit1.focus()
+    await adminPage.keyboard.type(TEST_PIN, { delay: 80 })
+    await adminPage.keyboard.press('Enter')
+
+    // After PIN setup, the app should navigate away from /login
     await adminPage.waitForURL((url) => !url.toString().includes('/login'), { timeout: 30_000 })
 
     await teardownVirtualAuthenticator(auth.cdp, auth.authenticatorId)
@@ -257,18 +284,43 @@ test.describe('Passkey authentication', () => {
       adminPage.getByTestId('passkey-credential-row').filter({ hasText: 'API Session Key' })
     ).toBeVisible({ timeout: 10_000 })
 
-    // Log out, log back in via passkey — clear all storage to get the full login form
+    // Log out, log back in via passkey — clear all storage to get the full login form.
+    // Block refresh to prevent restoreSession from auto-redirecting via httpOnly cookie.
+    await adminPage.route('**/api/auth/token/refresh', (route) =>
+      route.fulfill({ status: 401, contentType: 'application/json', body: '{"error":"blocked"}' })
+    )
     await adminPage.evaluate(() => {
       sessionStorage.clear()
       localStorage.clear()
     })
     await adminPage.goto('/login')
-    await adminPage.waitForLoadState('networkidle')
+    await adminPage.waitForLoadState('domcontentloaded')
 
     const passkeyBtn = adminPage.getByTestId('passkey-login-btn')
     await expect(passkeyBtn).toBeVisible({ timeout: 10_000 })
 
+    // Unblock refresh before clicking — the passkey flow needs it for getUserInfo
+    await adminPage.unroute('**/api/auth/token/refresh')
+
     await passkeyBtn.click()
+
+    // Passkey login on a fresh device shows PIN setup to provision the key
+    const pinSetup = adminPage.getByTestId('passkey-pin-setup')
+    await expect(pinSetup).toBeVisible({ timeout: 30_000 })
+
+    const SESSION_PIN = '654321'
+    const pinDigit1 = adminPage.locator('input[aria-label="PIN digit 1"]')
+    await pinDigit1.waitFor({ state: 'visible', timeout: 10_000 })
+    await pinDigit1.focus()
+    await adminPage.keyboard.type(SESSION_PIN, { delay: 80 })
+    await adminPage.keyboard.press('Enter')
+
+    // Confirm PIN
+    await pinDigit1.waitFor({ state: 'visible', timeout: 10_000 })
+    await pinDigit1.focus()
+    await adminPage.keyboard.type(SESSION_PIN, { delay: 80 })
+    await adminPage.keyboard.press('Enter')
+
     await adminPage.waitForURL((url) => !url.toString().includes('/login'), { timeout: 15_000 })
 
     // Verify the facade client holds a JWT access token after passkey login

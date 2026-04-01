@@ -65,6 +65,7 @@ function RootLayout() {
     name,
     isLoading,
     profileCompleted,
+    needsKeySetup,
     hasPermission,
     primaryRoleName,
   } = useAuth()
@@ -100,10 +101,11 @@ function RootLayout() {
   }, [isLoading, configLoading, isAuthenticated, location.pathname, navigate, needsBootstrap])
 
   useEffect(() => {
-    if (!isLoading && isAuthenticated && location.pathname === '/login') {
+    // Don't redirect away from /login during post-passkey PIN setup (needsKeySetup)
+    if (!isLoading && isAuthenticated && !needsKeySetup && location.pathname === '/login') {
       navigate({ to: profileCompleted ? '/' : '/profile-setup' })
     }
-  }, [isLoading, isAuthenticated, location.pathname, navigate, profileCompleted])
+  }, [isLoading, isAuthenticated, needsKeySetup, location.pathname, navigate, profileCompleted])
 
   // Redirect to profile setup if not completed (skip during setup wizard)
   useEffect(() => {

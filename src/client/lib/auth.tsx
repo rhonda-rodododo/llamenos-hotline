@@ -43,16 +43,21 @@ interface AuthState {
   sessionExpired: boolean
   adminPubkey: string
   adminDecryptionPubkey: string
+  /** True when passkey login succeeded but no local key exists — needs PIN setup */
+  needsKeySetup: boolean
 }
 
 interface AuthContextValue extends AuthState {
   signIn: (nsec: string) => Promise<void>
-  signInWithPasskey: () => Promise<void>
+  /** Returns true if key setup is needed (no local key on this device) */
+  signInWithPasskey: () => Promise<boolean>
   signOut: () => void
   refreshProfile: () => Promise<void>
   toggleBreak: () => Promise<void>
   renewSession: () => Promise<void>
   unlockWithPin: (pin: string) => Promise<boolean>
+  /** Complete key setup after passkey login on a new device (imports nsec with PIN) */
+  completePasskeyKeySetup: (pin: string) => Promise<boolean>
   lockKey: () => void
   hasPermission: (permission: string) => boolean
   isAdmin: boolean
@@ -89,6 +94,7 @@ function stateFromMe(
     adminDecryptionPubkey: me.adminDecryptionPubkey || '',
     sessionExpiring: false,
     sessionExpired: false,
+    needsKeySetup: false,
     ...overrides,
   }
 }
@@ -117,9 +123,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     sessionExpired: false,
     adminPubkey: '',
     adminDecryptionPubkey: '',
+    needsKeySetup: false,
   })
 
   const lastApiActivity = useRef(Date.now())
+  /** Holds nsec hex temporarily after passkey login when no local key — cleared after PIN setup */
+  const pendingNsecRef = useRef<{ nsecHex: string; pubkey: string; idpValue: Uint8Array } | null>(
+    null
+  )
 
   // Track API activity — called after each successful request
   const markActivity = useCallback(() => {
@@ -308,8 +319,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     void keyManager.lock()
   }, [])
 
-  const signInWithPasskey = useCallback(async () => {
-    setState((s) => ({ ...s, isLoading: true, error: null }))
+  const signInWithPasskey = useCallback(async (): Promise<boolean> => {
+    setState((s) => ({ ...s, isLoading: true, error: null, needsKeySetup: false }))
+    pendingNsecRef.current = null
     try {
       const { pubkey } = await webauthnLogin()
       // The facade client already holds the JWT access token from verifyLogin.
@@ -317,22 +329,100 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const me = await getMe()
       lastApiActivity.current = Date.now()
       const isUnlocked = await keyManager.isUnlocked()
+      const hasKey = keyManager.hasStoredKey()
+
       // Decrypt envelope-encrypted fields (e.g. name) via crypto worker
       if (isUnlocked) {
         await decryptObjectFields(me as unknown as Record<string, unknown>, pubkey)
       }
+
+      // If no local key exists (fresh device), fetch nsec from server so the user
+      // can create a PIN and provision the key on this device.
+      if (!isUnlocked && !hasKey) {
+        const userInfo = await authFacadeClient.getUserInfo()
+        if (userInfo?.nsecSecret) {
+          const { bytesToHex } = await import('@noble/hashes/utils.js')
+          pendingNsecRef.current = {
+            nsecHex: bytesToHex(userInfo.nsecSecret),
+            pubkey,
+            idpValue: userInfo.nsecSecret,
+          }
+          setState(
+            stateFromMe(me, {
+              isKeyUnlocked: false,
+              publicKey: pubkey,
+              needsKeySetup: true,
+            })
+          )
+          return true // key setup needed
+        }
+      }
+
       setState(
         stateFromMe(me, {
           isKeyUnlocked: isUnlocked,
           publicKey: pubkey,
         })
       )
+      return false // no key setup needed
     } catch (err) {
       setState((s) => ({
         ...s,
         isLoading: false,
         error: err instanceof Error ? err.message : 'Passkey login failed',
+        needsKeySetup: false,
       }))
+      throw err // re-throw so handlePasskeyLogin can catch
+    }
+  }, [])
+
+  /**
+   * Complete key setup on a new device after passkey login.
+   * Imports the nsec (fetched from server during signInWithPasskey) encrypted with the given PIN.
+   * Returns true on success, false if no pending nsec or import fails.
+   */
+  const completePasskeyKeySetup = useCallback(async (pin: string): Promise<boolean> => {
+    const pending = pendingNsecRef.current
+    if (!pending) return false
+
+    try {
+      const { nsecHex, pubkey, idpValue } = pending
+      // Import the key — this encrypts nsec with PIN+idpValue and stores in localStorage.
+      // Use window.location.origin as issuer (real IdP value, not synthetic).
+      await keyManager.importKey(
+        nsecHex,
+        pin,
+        pubkey,
+        idpValue,
+        undefined, // no PRF for passkey key setup
+        window.location.origin
+      )
+
+      // Clear the pending nsec from memory
+      pendingNsecRef.current = null
+
+      // Fetch fresh profile and set fully authenticated state
+      const me = await getMe()
+      lastApiActivity.current = Date.now()
+      await decryptObjectFields(me as unknown as Record<string, unknown>, pubkey)
+      const hubIds = (me.hubRoles ?? []).map((hr) => hr.hubId)
+      await loadHubKeysForUser(hubIds)
+      invalidateEncryptedQueries()
+      setState(
+        stateFromMe(me, {
+          isKeyUnlocked: true,
+          publicKey: pubkey,
+          needsKeySetup: false,
+        })
+      )
+      return true
+    } catch (err) {
+      console.error('[auth] completePasskeyKeySetup failed:', err)
+      setState((s) => ({
+        ...s,
+        error: err instanceof Error ? err.message : 'Key setup failed',
+      }))
+      return false
     }
   }, [])
 
@@ -426,6 +516,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Clean up encrypted drafts from localStorage
     const draftKeys = Object.keys(localStorage).filter((k) => k.startsWith('llamenos-draft:'))
     for (const k of draftKeys) localStorage.removeItem(k)
+    pendingNsecRef.current = null
     setState({
       isKeyUnlocked: false,
       publicKey: null,
@@ -446,6 +537,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       adminDecryptionPubkey: '',
       sessionExpiring: false,
       sessionExpired: false,
+      needsKeySetup: false,
     })
   }, [])
 
@@ -460,6 +552,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     toggleBreak,
     renewSession,
     unlockWithPin,
+    completePasskeyKeySetup,
     lockKey,
     hasPermission: (permission: string) => permissionGranted(state.permissions, permission),
     isAdmin: permissionGranted(state.permissions, 'settings:manage'),

@@ -49,7 +49,15 @@ export const Route = createFileRoute('/login')({
 
 function LoginPage() {
   const { t } = useTranslation()
-  const { signIn, signInWithPasskey, unlockWithPin, error, isLoading } = useAuth()
+  const {
+    signIn,
+    signInWithPasskey,
+    unlockWithPin,
+    completePasskeyKeySetup,
+    error,
+    isLoading,
+    needsKeySetup,
+  } = useAuth()
   const { hotlineName, demoMode, needsBootstrap } = useConfig()
   const { theme, setTheme } = useTheme()
   const navigate = useNavigate()
@@ -129,12 +137,48 @@ function LoginPage() {
     setValidationError('')
     setPasskeyLoading(true)
     try {
-      await signInWithPasskey()
-      navigate({ to: '/' })
+      const keySetupNeeded = await signInWithPasskey()
+      if (!keySetupNeeded) {
+        // Normal case: key exists and is unlocked, or key exists but locked (dashboard handles)
+        navigate({ to: '/' })
+      }
+      // If keySetupNeeded is true, the PIN creation UI will render via needsKeySetup state
     } catch (err) {
       setValidationError(err instanceof Error ? err.message : t('webauthn.signInError'))
     } finally {
       setPasskeyLoading(false)
+    }
+  }
+
+  // --- Passkey key setup PIN flow ---
+  const [passkeyPin1, setPasskeyPin1] = useState('')
+  const [passkeyPin2, setPasskeyPin2] = useState('')
+  const [passkeyPinStep, setPasskeyPinStep] = useState<'create' | 'confirm'>('create')
+  const [passkeyPinError, setPasskeyPinError] = useState('')
+
+  async function handlePasskeyPinComplete(pin: string) {
+    if (passkeyPinStep === 'create') {
+      if (!keyManager.isValidPin(pin)) {
+        setPasskeyPinError(t('pin.tooShort'))
+        return
+      }
+      setPasskeyPin1(pin)
+      setPasskeyPinStep('confirm')
+      setPasskeyPin2('')
+      setPasskeyPinError('')
+    } else {
+      if (pin !== passkeyPin1) {
+        setPasskeyPinError(t('pin.mismatch'))
+        setPasskeyPin2('')
+        return
+      }
+      // Import the key with the new PIN
+      const success = await completePasskeyKeySetup(pin)
+      if (success) {
+        navigate({ to: '/' })
+      } else {
+        setPasskeyPinError(t('common.error'))
+      }
     }
   }
 
@@ -371,6 +415,65 @@ function LoginPage() {
               </Button>
             </Link>
           </CardContent>
+        </Card>
+      </div>
+    )
+  }
+
+  // --- Passkey key setup: create PIN to protect key on this device ---
+  if (needsKeySetup) {
+    return (
+      <div className="relative flex min-h-screen items-center justify-center bg-background overflow-hidden">
+        <div className="pointer-events-none absolute inset-0">
+          <div className="absolute left-1/2 top-1/3 h-[600px] w-[600px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-primary/5 blur-3xl" />
+        </div>
+
+        <Card
+          className="relative z-10 w-full max-w-md animate-in fade-in slide-in-from-bottom-4 duration-500"
+          data-testid="passkey-pin-setup"
+        >
+          <CardHeader className="text-center">
+            <div className="mx-auto mb-3">
+              <LogoMark size="xl" className="animate-in fade-in zoom-in duration-700" />
+            </div>
+            <CardTitle className="text-2xl">
+              {t('pin.createTitle', { defaultValue: 'Create a PIN' })}
+            </CardTitle>
+            <CardDescription>
+              {passkeyPinStep === 'create'
+                ? t('pin.createDescription', {
+                    defaultValue: 'Choose a 6-8 digit PIN to protect your key on this device.',
+                  })
+                : t('pin.confirmDescription', {
+                    defaultValue: 'Enter the same PIN again to confirm.',
+                  })}
+            </CardDescription>
+          </CardHeader>
+
+          <CardContent className="space-y-4">
+            <PinInput
+              value={passkeyPinStep === 'create' ? passkeyPin1 : passkeyPin2}
+              onChange={passkeyPinStep === 'create' ? setPasskeyPin1 : setPasskeyPin2}
+              onComplete={handlePasskeyPinComplete}
+              error={!!passkeyPinError}
+              autoFocus
+            />
+            {passkeyPinError && (
+              <p className="text-center text-sm text-destructive">{passkeyPinError}</p>
+            )}
+            {(validationError || error) && (
+              <p className="flex items-center gap-1.5 text-sm text-destructive">
+                {validationError || error}
+              </p>
+            )}
+          </CardContent>
+
+          <CardFooter className="justify-center">
+            <p className="flex items-center gap-1.5 rounded-full bg-primary/5 px-3 py-1.5 text-xs font-medium text-primary">
+              <Shield className="h-3 w-3" />
+              {t('auth.securityNote')}
+            </p>
+          </CardFooter>
         </Card>
       </div>
     )
