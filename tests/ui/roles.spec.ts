@@ -134,10 +134,16 @@ test.describe('Role Editor — Permission Metadata UI', () => {
       adminPage.getByRole('heading', { name: 'Hub Settings', exact: true })
     ).toBeVisible()
 
-    // Expand the Roles section
-    await adminPage.getByText('Roles & Permissions').click()
-    await expect(adminPage.getByTestId('create-role-btn')).toBeVisible({ timeout: 15000 })
-    await adminPage.getByTestId('create-role-btn').click()
+    // Roles section returns null while loading — wait for it to render.
+    // The ?section=roles param may auto-expand it, so only click to expand if create button isn't visible.
+    await expect(adminPage.getByText('Roles & Permissions')).toBeVisible({ timeout: 30000 })
+    const createBtn = adminPage.getByTestId('create-role-btn')
+    const alreadyExpanded = await createBtn.isVisible({ timeout: 2000 }).catch(() => false)
+    if (!alreadyExpanded) {
+      await adminPage.getByText('Roles & Permissions').click()
+      await expect(createBtn).toBeVisible({ timeout: 15000 })
+    }
+    await createBtn.click()
 
     // Permission group labels should render with human-friendly names, not raw domains
     // Scope to main content to avoid matching sidebar nav links (e.g. "Audit Log")
