@@ -77,6 +77,13 @@ export function SetupWizard({ needsBootstrap = false }: { needsBootstrap?: boole
   const [pinLoading, setPinLoading] = useState(false)
   const stepHeadingRef = useRef<HTMLHeadingElement>(null)
 
+  // Sync bootstrapComplete when needsBootstrap prop changes (e.g. after config fetch)
+  useEffect(() => {
+    if (needsBootstrap && sessionStorage.getItem('bootstrapComplete') !== '1') {
+      setBootstrapComplete(false)
+    }
+  }, [needsBootstrap])
+
   // Focus step heading on step change
   useEffect(() => {
     // Short delay to let the new step render before focusing
