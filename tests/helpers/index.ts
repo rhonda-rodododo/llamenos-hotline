@@ -137,13 +137,15 @@ export async function reenterPinAfterReload(page: Page): Promise<void> {
   }
 
   const pinInput = page.locator('input[aria-label="PIN digit 1"]')
-  let pinVisible = await pinInput.isVisible({ timeout: 5000 }).catch(() => false)
+  // The SPA may need time to boot, check auth, and decide to show PIN screen.
+  // Under parallel load (3 workers doing PBKDF2), this can take longer.
+  let pinVisible = await pinInput.isVisible({ timeout: 10000 }).catch(() => false)
 
   // After reload, the refresh cookie may restore the API session without
   // showing a PIN prompt (user stays on dashboard with locked keys).
-  // Block the refresh endpoint and reload again to force the login/PIN screen,
-  // matching the same technique used in the auth fixture.
+  // Block the refresh endpoint and reload again to force the login/PIN screen.
   if (!pinVisible) {
+    // Block refresh BEFORE reload so the request is intercepted
     await page.route('**/api/auth/token/refresh', async (route) => {
       await route.fulfill({
         status: 401,
@@ -152,20 +154,32 @@ export async function reenterPinAfterReload(page: Page): Promise<void> {
       })
     })
     await page.reload({ waitUntil: 'domcontentloaded' })
+    // Wait for the login/PIN screen to appear (the blocked refresh triggers redirect)
+    pinVisible = await pinInput.isVisible({ timeout: 15000 }).catch(() => false)
     // Unblock refresh so the PIN unlock flow can complete
     await page.unroute('**/api/auth/token/refresh')
+  }
+
+  if (!pinVisible) {
+    // Last resort: navigate directly to /login to force PIN screen
+    await page.goto('/login', { waitUntil: 'domcontentloaded' })
     pinVisible = await pinInput.isVisible({ timeout: 10000 }).catch(() => false)
   }
 
-  if (pinVisible) {
-    await enterPin(page, TEST_PIN)
-    await page.waitForURL((u) => !u.toString().includes('/login'), { timeout: 15000 })
-    // Wait for the authenticated layout to render (sidebar, dashboard heading)
-    const dashHeading = page.getByRole('heading', { name: 'Dashboard', exact: true })
-    await dashHeading.waitFor({ state: 'visible', timeout: 30000 }).catch(() => {
-      // May have gone to profile-setup instead — that's OK
-    })
+  if (!pinVisible) {
+    throw new Error(
+      'reenterPinAfterReload: PIN screen never appeared after reload + blocked refresh + goto /login'
+    )
   }
+
+  await enterPin(page, TEST_PIN)
+  // PBKDF2 600K + unlockWithPin + invalidateQueries can take 30s+ on CI
+  await page.waitForURL((u) => !u.toString().includes('/login'), { timeout: 60000 })
+  // Wait for the authenticated layout to render (sidebar, dashboard heading)
+  const dashHeading = page.getByRole('heading', { name: 'Dashboard', exact: true })
+  await dashHeading.waitFor({ state: 'visible', timeout: 30000 }).catch(() => {
+    // May have gone to profile-setup instead — that's OK
+  })
 }
 
 export async function logout(page: Page) {
