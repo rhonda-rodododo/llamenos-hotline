@@ -1,10 +1,11 @@
-import { OpenAPIHono, createRoute, z } from '@hono/zod-openapi'
+import { createRoute, z } from '@hono/zod-openapi'
 import type { Ciphertext } from '@shared/crypto-types'
 import { CreateReportTypeSchema, UpdateReportTypeSchema } from '@shared/schemas/report-types'
+import { createRouter } from '../lib/openapi'
 import { requirePermission } from '../middleware/permission-guard'
 import type { AppEnv } from '../types'
 
-const reportTypesRoutes = new OpenAPIHono<AppEnv>()
+const reportTypesRoutes = createRouter()
 
 // ── Shared schemas ──
 

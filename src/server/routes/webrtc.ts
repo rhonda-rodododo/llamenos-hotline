@@ -1,8 +1,9 @@
-import { OpenAPIHono, createRoute, z } from '@hono/zod-openapi'
+import { createRoute, z } from '@hono/zod-openapi'
+import { createRouter } from '../lib/openapi'
 import { generateWebRtcToken, isWebRtcConfigured } from '../telephony/webrtc-tokens'
 import type { AppEnv } from '../types'
 
-const webrtc = new OpenAPIHono<AppEnv>()
+const webrtc = createRouter()
 
 // ── GET /webrtc-token — Generate a provider-specific WebRTC access token ──
 

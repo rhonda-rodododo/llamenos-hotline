@@ -1,13 +1,14 @@
-import { OpenAPIHono, createRoute, z } from '@hono/zod-openapi'
+import { createRoute, z } from '@hono/zod-openapi'
 import { LABEL_STORAGE_CREDENTIAL_WRAP } from '@shared/crypto-labels'
 import { eq } from 'drizzle-orm'
 import type { Hub } from '../../shared/types'
 import { getDb } from '../db'
 import { hubStorageCredentials, hubStorageSettings } from '../db/schema/storage'
+import { createRouter } from '../lib/openapi'
 import { checkPermission, requirePermission } from '../middleware/permission-guard'
 import { type AppEnv, STORAGE_NAMESPACES, type StorageNamespace } from '../types'
 
-const routes = new OpenAPIHono<AppEnv>()
+const routes = createRouter()
 
 // ── Shared schemas ──
 

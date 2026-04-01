@@ -1,5 +1,6 @@
-import { OpenAPIHono, createRoute, z } from '@hono/zod-openapi'
+import { createRoute, z } from '@hono/zod-openapi'
 import type { UploadInit } from '../../shared/types'
+import { createRouter } from '../lib/openapi'
 import { checkPermission, requirePermission } from '../middleware/permission-guard'
 import type { AppEnv } from '../types'
 
@@ -7,7 +8,7 @@ const MAX_UPLOAD_SIZE = 100 * 1024 * 1024 // 100 MB
 const MAX_CHUNK_SIZE = 10 * 1024 * 1024 // 10 MB
 const MAX_CHUNKS = 10000
 
-const uploads = new OpenAPIHono<AppEnv>()
+const uploads = createRouter()
 uploads.use('*', requirePermission('files:upload'))
 
 const UploadIdParamSchema = z.object({

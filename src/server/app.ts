@@ -64,7 +64,14 @@ const app = new Hono<AppEnv>()
 app.onError(errorHandler)
 
 // --- API routes: CORS on all /api/* ---
-const api = new OpenAPIHono<AppEnv>()
+const api = new OpenAPIHono<AppEnv>({
+  defaultHook: (result, c) => {
+    if (!result.success) {
+      const issues = result.error.issues.map((i) => `${i.path.join('.')}: ${i.message}`)
+      return c.json({ error: `Validation failed: ${issues.join('; ')}` }, 400)
+    }
+  },
+})
 
 // Health check — before CORS middleware (internal probes only, no external access needed)
 api.route('/health', healthRoutes)

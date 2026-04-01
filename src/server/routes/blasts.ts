@@ -1,7 +1,8 @@
-import { OpenAPIHono, createRoute, z } from '@hono/zod-openapi'
+import { createRoute, z } from '@hono/zod-openapi'
+import { createRouter } from '../lib/openapi'
 import type { AppEnv } from '../types'
 
-const blasts = new OpenAPIHono<AppEnv>()
+const blasts = createRouter()
 
 // ── Shared schemas ──
 

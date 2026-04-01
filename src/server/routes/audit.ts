@@ -1,8 +1,9 @@
-import { OpenAPIHono, createRoute, z } from '@hono/zod-openapi'
+import { createRoute, z } from '@hono/zod-openapi'
+import { createRouter } from '../lib/openapi'
 import { requirePermission } from '../middleware/permission-guard'
 import type { AppEnv } from '../types'
 
-const auditRoutes = new OpenAPIHono<AppEnv>()
+const auditRoutes = createRouter()
 
 // ── GET / — list audit log entries ──
 

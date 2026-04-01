@@ -1,9 +1,10 @@
-import { OpenAPIHono, createRoute, z } from '@hono/zod-openapi'
+import { createRoute, z } from '@hono/zod-openapi'
+import { createRouter } from '../lib/openapi'
 import { validateExternalUrl } from '../lib/ssrf-guard'
 import { requirePermission } from '../middleware/permission-guard'
 import type { AppEnv } from '../types'
 
-const setup = new OpenAPIHono<AppEnv>()
+const setup = createRouter()
 
 // ── GET /state — Get setup state (any authenticated user — used for redirect logic) ──
 

@@ -1,4 +1,4 @@
-import { OpenAPIHono, createRoute, z } from '@hono/zod-openapi'
+import { createRoute, z } from '@hono/zod-openapi'
 import { HMAC_IP_PREFIX } from '@shared/crypto-labels'
 import { resolvePermissions } from '@shared/permissions'
 import { setCookie } from 'hono/cookie'
@@ -6,6 +6,7 @@ import { getIdPAdapter } from '../app'
 import { hashIP } from '../lib/crypto-service'
 import { isValidE164 } from '../lib/helpers'
 import { signAccessToken } from '../lib/jwt'
+import { createRouter } from '../lib/openapi'
 import { auth as authMiddleware } from '../middleware/auth'
 import { requirePermission } from '../middleware/permission-guard'
 import {
@@ -14,7 +15,7 @@ import {
 } from '../services/invite-delivery-service'
 import type { AppEnv } from '../types'
 
-const invites = new OpenAPIHono<AppEnv>()
+const invites = createRouter()
 
 // --- Public routes (no auth) ---
 

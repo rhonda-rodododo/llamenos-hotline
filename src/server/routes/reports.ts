@@ -1,6 +1,7 @@
-import { OpenAPIHono, createRoute, z } from '@hono/zod-openapi'
+import { createRoute, z } from '@hono/zod-openapi'
 import { KIND_CONVERSATION_ASSIGNED, KIND_MESSAGE_NEW } from '../../shared/nostr-events'
 import { getNostrPublisher } from '../lib/adapters'
+import { createRouter } from '../lib/openapi'
 import { isReportOwner } from '../lib/report-access'
 import { checkPermission, requirePermission } from '../middleware/permission-guard'
 import type { AppEnv } from '../types'
@@ -30,7 +31,7 @@ function publishReportEvent(
   }
 }
 
-const reports = new OpenAPIHono<AppEnv>()
+const reports = createRouter()
 
 // ── Shared schemas ──
 

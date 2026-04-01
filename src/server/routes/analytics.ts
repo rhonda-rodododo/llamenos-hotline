@@ -1,8 +1,9 @@
-import { OpenAPIHono, createRoute, z } from '@hono/zod-openapi'
+import { createRoute, z } from '@hono/zod-openapi'
+import { createRouter } from '../lib/openapi'
 import { requirePermission } from '../middleware/permission-guard'
 import type { AppEnv } from '../types'
 
-const analytics = new OpenAPIHono<AppEnv>()
+const analytics = createRouter()
 
 // ── GET /calls — call volume by day ──
 

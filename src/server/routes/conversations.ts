@@ -1,12 +1,13 @@
-import { OpenAPIHono, createRoute, z } from '@hono/zod-openapi'
+import { createRoute, z } from '@hono/zod-openapi'
 import { KIND_CONVERSATION_ASSIGNED, KIND_MESSAGE_NEW } from '../../shared/nostr-events'
 import { canClaimChannel, getClaimableChannels } from '../../shared/permissions'
 import type { MessagingChannelType } from '../../shared/types'
 import { getMessagingAdapter, getNostrPublisher } from '../lib/adapters'
+import { createRouter } from '../lib/openapi'
 import { checkPermission } from '../middleware/permission-guard'
 import type { AppEnv } from '../types'
 
-const conversations = new OpenAPIHono<AppEnv>()
+const conversations = createRouter()
 
 // ── Shared schemas ──
 

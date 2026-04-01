@@ -1,8 +1,9 @@
-import { OpenAPIHono, createRoute, z } from '@hono/zod-openapi'
+import { createRoute, z } from '@hono/zod-openapi'
+import { createRouter } from '../lib/openapi'
 import { checkPermission, requirePermission } from '../middleware/permission-guard'
 import type { AppEnv } from '../types'
 
-const intakes = new OpenAPIHono<AppEnv>()
+const intakes = createRouter()
 
 // ── Shared schemas ──
 

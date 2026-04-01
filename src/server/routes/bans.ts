@@ -1,10 +1,11 @@
-import { OpenAPIHono, createRoute, z } from '@hono/zod-openapi'
+import { createRoute, z } from '@hono/zod-openapi'
 import { HMAC_PHONE_PREFIX } from '@shared/crypto-labels'
 import { isValidE164 } from '../lib/helpers'
+import { createRouter } from '../lib/openapi'
 import { requirePermission } from '../middleware/permission-guard'
 import type { AppEnv } from '../types'
 
-const bans = new OpenAPIHono<AppEnv>()
+const bans = createRouter()
 
 // ── Shared schemas ──
 

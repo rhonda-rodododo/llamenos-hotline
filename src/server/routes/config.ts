@@ -1,10 +1,11 @@
-import { OpenAPIHono, createRoute, z } from '@hono/zod-openapi'
+import { createRoute, z } from '@hono/zod-openapi'
 import type { Hub } from '../../shared/types'
 import { BUILD_COMMIT, BUILD_TIME, BUILD_VERSION } from '../lib/build-constants'
 import { deriveServerKeypair } from '../lib/nostr-publisher'
+import { createRouter } from '../lib/openapi'
 import type { AppEnv } from '../types'
 
-const config = new OpenAPIHono<AppEnv>()
+const config = createRouter()
 
 // ── GET / — Public config for the client app ──
 

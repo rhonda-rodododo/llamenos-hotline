@@ -1,14 +1,15 @@
-import { OpenAPIHono, createRoute, z } from '@hono/zod-openapi'
+import { createRoute, z } from '@hono/zod-openapi'
 import { HMAC_PHONE_PREFIX } from '@shared/crypto-labels'
 import type { Ciphertext, HmacHash } from '@shared/crypto-types'
 import { permissionGranted, resolveHubPermissions } from '@shared/permissions'
 import type { MessagingChannelType } from '@shared/types'
 import type { RecipientEnvelope } from '@shared/types'
 import { getMessagingAdapter } from '../lib/adapters'
+import { createRouter } from '../lib/openapi'
 import { checkPermission, requirePermission } from '../middleware/permission-guard'
 import type { AppEnv } from '../types'
 
-const contacts = new OpenAPIHono<AppEnv>()
+const contacts = createRouter()
 
 // ── Shared schemas ──
 

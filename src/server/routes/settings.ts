@@ -1,12 +1,13 @@
-import { OpenAPIHono, createRoute, z } from '@hono/zod-openapi'
+import { createRoute, z } from '@hono/zod-openapi'
 import type { MessagingChannelType, TelephonyProviderType } from '@shared/types'
 import { getTelephony } from '../lib/adapters'
+import { createRouter } from '../lib/openapi'
 import { MESSAGING_CAPABILITIES } from '../messaging/capabilities'
 import { checkPermission, requirePermission } from '../middleware/permission-guard'
 import { TELEPHONY_CAPABILITIES } from '../telephony/capabilities'
 import type { AppEnv } from '../types'
 
-const settings = new OpenAPIHono<AppEnv>()
+const settings = createRouter()
 
 // ── Shared schemas ──
 

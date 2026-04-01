@@ -1,9 +1,10 @@
-import { OpenAPIHono, createRoute, z } from '@hono/zod-openapi'
+import { createRoute, z } from '@hono/zod-openapi'
 import type { EncryptedMetaItem, FileKeyEnvelope } from '../../shared/types'
+import { createRouter } from '../lib/openapi'
 import { checkPermission, requirePermission } from '../middleware/permission-guard'
 import type { AppEnv } from '../types'
 
-const files = new OpenAPIHono<AppEnv>()
+const files = createRouter()
 
 const FileIdParamSchema = z.object({
   id: z.string().openapi({ param: { name: 'id', in: 'path' }, example: 'file-abc123' }),

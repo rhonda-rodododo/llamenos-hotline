@@ -1,7 +1,8 @@
-import { OpenAPIHono, createRoute, z } from '@hono/zod-openapi'
+import { createRoute, z } from '@hono/zod-openapi'
+import { createRouter } from '../lib/openapi'
 import type { AppEnv } from '../types'
 
-const notifications = new OpenAPIHono<AppEnv>()
+const notifications = createRouter()
 
 // ── GET /vapid-public-key — public, returns VAPID public key from env ──
 

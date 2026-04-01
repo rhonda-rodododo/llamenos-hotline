@@ -1,4 +1,4 @@
-import { OpenAPIHono, createRoute, z } from '@hono/zod-openapi'
+import { createRoute, z } from '@hono/zod-openapi'
 import { HMAC_IP_PREFIX } from '@shared/crypto-labels'
 import { setCookie } from 'hono/cookie'
 import { getPrimaryRole } from '../../shared/permissions'
@@ -6,12 +6,13 @@ import { getIdPAdapter } from '../app'
 import { hashIP } from '../lib/crypto-service'
 import { isValidE164 } from '../lib/helpers'
 import { signAccessToken } from '../lib/jwt'
+import { createRouter } from '../lib/openapi'
 import { maskPhone } from '../lib/user-projector'
 import { auth as authMiddleware } from '../middleware/auth'
 import { checkPermission } from '../middleware/permission-guard'
 import type { AppEnv, WebAuthnCredential } from '../types'
 
-const auth = new OpenAPIHono<AppEnv>()
+const auth = createRouter()
 
 // ── POST /bootstrap — One-shot admin registration (no auth) ──
 

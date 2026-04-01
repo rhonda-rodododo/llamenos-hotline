@@ -1,6 +1,7 @@
-import { OpenAPIHono, createRoute, z } from '@hono/zod-openapi'
+import { createRoute, z } from '@hono/zod-openapi'
 import { secp256k1 } from '@noble/curves/secp256k1.js'
 import { isValidE164 } from '../lib/helpers'
+import { createRouter } from '../lib/openapi'
 import { projectUser } from '../lib/user-projector'
 import { checkPermission, requirePermission } from '../middleware/permission-guard'
 import type { AppEnv } from '../types'
@@ -16,7 +17,7 @@ function isValidSecp256k1Pubkey(pk: string): boolean {
   }
 }
 
-const users = new OpenAPIHono<AppEnv>()
+const users = createRouter()
 
 // All users endpoints require at least users:read
 const baseMiddleware = requirePermission('users:read')

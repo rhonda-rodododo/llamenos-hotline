@@ -1,8 +1,9 @@
-import { OpenAPIHono, createRoute, z } from '@hono/zod-openapi'
+import { createRoute, z } from '@hono/zod-openapi'
+import { createRouter } from '../lib/openapi'
 import { requirePermission } from '../middleware/permission-guard'
 import type { AppEnv } from '../types'
 
-const shifts = new OpenAPIHono<AppEnv>()
+const shifts = createRouter()
 
 // ── Shared schemas ──
 // Note: service layer uses `userPubkeys`; shared schemas use `volunteerPubkeys`.

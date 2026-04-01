@@ -1,10 +1,11 @@
-import { OpenAPIHono, createRoute, z } from '@hono/zod-openapi'
+import { createRoute, z } from '@hono/zod-openapi'
 import type { GeocodingConfigAdmin } from '../../shared/types'
 import { createGeocodingAdapter } from '../geocoding/factory'
+import { createRouter } from '../lib/openapi'
 import { requirePermission } from '../middleware/permission-guard'
 import type { AppEnv } from '../types'
 
-const geocoding = new OpenAPIHono<AppEnv>()
+const geocoding = createRouter()
 
 /**
  * Helper: load geocoding config from SettingsService and create an adapter.

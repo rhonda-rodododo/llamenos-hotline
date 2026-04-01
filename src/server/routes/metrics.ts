@@ -8,10 +8,11 @@
  * On CF Workers, this endpoint returns minimal metrics (uptime only)
  * since CF provides its own analytics.
  */
-import { OpenAPIHono, createRoute, z } from '@hono/zod-openapi'
+import { createRoute, z } from '@hono/zod-openapi'
+import { createRouter } from '../lib/openapi'
 import type { AppEnv } from '../types'
 
-const metrics = new OpenAPIHono<AppEnv>()
+const metrics = createRouter()
 
 // In-memory counters and histograms
 const counters: Record<string, number> = {}

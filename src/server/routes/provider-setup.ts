@@ -1,11 +1,12 @@
-import { OpenAPIHono, createRoute, z } from '@hono/zod-openapi'
+import { createRoute, z } from '@hono/zod-openapi'
 import type { NumberSearchQuery, TelephonyProviderType } from '@shared/types'
+import { createRouter } from '../lib/openapi'
 import { requirePermission } from '../middleware/permission-guard'
 import { OAuthStateError, ProviderApiError, ProviderSetup } from '../provider-setup/index'
 import { TELEPHONY_CAPABILITIES } from '../telephony/capabilities'
 import type { AppEnv } from '../types'
 
-const providerSetup = new OpenAPIHono<AppEnv>()
+const providerSetup = createRouter()
 
 // --- Error handling helper ---
 function formatProviderError(err: unknown): {
