@@ -30,7 +30,9 @@ async function createCustomTextField(page: Page, label: string) {
   }
 
   await addFieldBtn.click()
-  await page.getByPlaceholder('e.g. Severity Rating').fill(label)
+  const fieldNameInput = page.getByPlaceholder('e.g. Severity Rating')
+  await expect(fieldNameInput).toBeVisible({ timeout: 10000 })
+  await fieldNameInput.fill(label)
   await page.getByRole('button', { name: /save/i }).last().click()
   await expect(page.getByText(/success/i)).toBeVisible({ timeout: 10000 })
 

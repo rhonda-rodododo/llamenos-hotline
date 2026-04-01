@@ -52,7 +52,9 @@ export default defineConfig({
       name: "api",
       testDir: "./tests/api",
       use: {
-        /* no device — request fixture only */
+        // API requests need longer timeouts when running in parallel with UI tests
+        // (3 workers + PBKDF2 + DB queries compete for CPU/IO)
+        actionTimeout: 30_000,
       },
       dependencies: ["api-setup"],
     },
@@ -75,6 +77,8 @@ export default defineConfig({
     {
       name: "mobile",
       testDir: "./tests/ui",
+      // Mobile tests run in parallel with UI tests — PBKDF2 under 3 workers needs more time
+      timeout: 120_000,
       use: { ...devices["Pixel 7"] },
       testMatch: /responsive\.spec\.ts/,
       dependencies: ["setup"],
