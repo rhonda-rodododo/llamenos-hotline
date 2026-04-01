@@ -86,6 +86,27 @@ src/
 - **Blob storage (RustFS)**: S3-compatible object storage via `StorageManager` (`src/server/services/storage-manager.ts`). Per-hub buckets (`hub-{hubId}`) with lifecycle policies. Provider-agnostic `STORAGE_*` env vars (`STORAGE_ENDPOINT`, `STORAGE_ACCESS_KEY`, `STORAGE_SECRET_KEY`). Used for voicemail recordings, attachments, and encrypted exports.
 - **Domain separation**: All 25 crypto context constants in `src/shared/crypto-labels.ts` — NEVER use raw string literals for crypto contexts.
 
+### Encrypted Field Development Guide
+
+The codebase has three encryption tiers for stored data:
+
+1. **Envelope-encrypted PII** (user names, phones): ECIES-wrapped per-user. Decrypted in `decryptObjectFields()` / `decryptArrayFields()` via crypto worker.
+2. **Hub-key encrypted org metadata** (role names, shift names, report type names, custom field labels, team names): Symmetric XChaCha20 with the hub's shared key. Decrypted client-side via `decryptHubField()`.
+3. **Per-note forward secrecy** (call notes): Unique random key per note, ECIES-wrapped per reader.
+
+**Adding a new encrypted field (hub-key tier):**
+
+1. **DB schema**: Use `ciphertext('encrypted_foo')` column type from `src/server/db/crypto-columns.ts`. No plaintext column — the `name`/`label` fields in API responses are empty strings; clients decrypt.
+2. **Server create**: Always fall back to plaintext: `const encryptedFoo = (data.encryptedFoo ?? data.foo) as Ciphertext`. This handles the case where the client's hub key cache is empty.
+3. **Server update**: Same fallback pattern — if `data.encryptedFoo` is undefined, check `data.foo`: `} else if (data.foo !== undefined) { encFields.encryptedFoo = data.foo as Ciphertext }`.
+4. **Client queryFn**: Decrypt in the React Query `queryFn`, not in components: `foo: decryptHubField(item.encryptedFoo, hubId, item.foo)`. The `hubId` must come from `useConfig().currentHubId`, not hardcoded.
+5. **Client mutation**: Send both plaintext and encrypted: `{ foo: value, encryptedFoo: encryptHubField(value, hubId) }`. The encrypted value is `undefined` when hub key isn't loaded — the server fallback handles this.
+6. **Query cache invalidation**: If calling API functions directly (not through React Query mutations), add `void queryClient.invalidateQueries({ queryKey: queryKeys.domain.subkey() })` after the API call succeeds.
+
+**ENCRYPTED_QUERY_KEYS exhaustiveness check** (`src/client/lib/query-client.ts`):
+
+Every query key domain in `queryKeys` must be classified as either `ENCRYPTED_QUERY_KEYS` or `PLAINTEXT_QUERY_KEYS`. Adding a new domain to `queryKeys` without classifying it produces a compile-time error via the `MissingDomains` type check. Encrypted domains are cleared on lock and invalidated on unlock.
+
 ## Gotchas
 
 - `@noble/ciphers` and `@noble/hashes` require `.js` extension in imports (e.g., `@noble/ciphers/chacha.js`)
@@ -142,6 +163,37 @@ PLAYWRIGHT_WORKERS=3 bunx playwright test    # Run with 3 workers (after isolati
 **Key config files**: `playwright.config.ts`, `.env` (DATABASE_URL, HMAC_SECRET, Twilio creds + ADMIN_PUBKEY, gitignored)
 
 **Local E2E tests**: Copy `.env.local.example` to `.env.local`, fill in your values, then start backing services with `bun run dev:docker` before running `bun run dev:server`.
+
+## Adding New Features
+
+### Workflow
+
+1. **Spec**: Write a spec in `docs/plans/` using the `superpowers:brainstorming` skill to explore requirements.
+2. **Plan**: Use `superpowers:writing-plans` to create an implementation plan with concrete file paths and steps.
+3. **Implement**: Use `superpowers:executing-plans` or `superpowers:subagent-driven-development` for multi-step work.
+4. **Review**: Use `superpowers:requesting-code-review` before merging. For received feedback, use `superpowers:receiving-code-review`.
+5. **Test**: Use `test-writer` skill for writing tests and `test-runner` skill for running them.
+
+### API Schema Pattern
+
+All API route payloads should be validated with zod schemas. The pattern:
+
+1. **Define zod schemas** in `src/shared/schemas/` (e.g., `src/shared/schemas/report-types.ts`).
+2. **Export TypeScript types** from schemas: `export type CreateReportTypeInput = z.infer<typeof createReportTypeSchema>`.
+3. **Use schemas in route handlers**: `const body = createReportTypeSchema.parse(await c.req.json())`.
+4. **Import types in client code**: Use the zod-derived types for API calls and React components.
+
+This ensures runtime validation at the API boundary and a single source of truth for types shared between client and server.
+
+### Testing New Features
+
+Use the `test-writer` skill for guidance on writing tests. Use the `test-runner` skill for running them.
+
+- **Unit tests** (`.test.ts` colocated): Pure functions, services with mocked deps. Fast, no services needed.
+- **API E2E** (`tests/api/`): Endpoint behavior through HTTP. Use `authed-request.ts` helper. No browser.
+- **UI E2E** (`tests/ui/`): Full browser interaction. Use `data-testid` selectors. Use auth fixtures from `tests/fixtures/auth.ts`.
+- **Run tests iteratively**: Don't wait until the end. Run affected suites after each logical chunk of implementation.
+- **Hub-encrypted data in tests**: After creating hub-encrypted data (shifts, roles, report types, custom fields), remember that the React Query cache must be invalidated for other pages to see the new data.
 
 ## Claude Code Working Style
 
