@@ -137,15 +137,17 @@ export async function reenterPinAfterReload(page: Page): Promise<void> {
   }
 
   const pinInput = page.locator('input[aria-label="PIN digit 1"]')
-  // The SPA may need time to boot, check auth, and decide to show PIN screen.
-  // Under parallel load (3 workers doing PBKDF2), this can take longer.
-  let pinVisible = await pinInput.isVisible({ timeout: 10000 }).catch(() => false)
 
   // After reload, the refresh cookie may restore the API session without
   // showing a PIN prompt (user stays on dashboard with locked keys).
-  // Block the refresh endpoint and reload again to force the login/PIN screen.
+  // Use waitFor (NOT isVisible) — isVisible resolves immediately for absent elements.
+  let pinVisible = await pinInput
+    .waitFor({ state: 'visible', timeout: 10000 })
+    .then(() => true)
+    .catch(() => false)
+
   if (!pinVisible) {
-    // Block refresh BEFORE reload so the request is intercepted
+    // Block refresh endpoint and reload to force the login/PIN screen
     await page.route('**/api/auth/token/refresh', async (route) => {
       await route.fulfill({
         status: 401,
@@ -155,7 +157,10 @@ export async function reenterPinAfterReload(page: Page): Promise<void> {
     })
     await page.reload({ waitUntil: 'domcontentloaded' })
     // Wait for the login/PIN screen to appear (the blocked refresh triggers redirect)
-    pinVisible = await pinInput.isVisible({ timeout: 15000 }).catch(() => false)
+    pinVisible = await pinInput
+      .waitFor({ state: 'visible', timeout: 15000 })
+      .then(() => true)
+      .catch(() => false)
     // Unblock refresh so the PIN unlock flow can complete
     await page.unroute('**/api/auth/token/refresh')
   }
@@ -163,7 +168,10 @@ export async function reenterPinAfterReload(page: Page): Promise<void> {
   if (!pinVisible) {
     // Last resort: navigate directly to /login to force PIN screen
     await page.goto('/login', { waitUntil: 'domcontentloaded' })
-    pinVisible = await pinInput.isVisible({ timeout: 10000 }).catch(() => false)
+    pinVisible = await pinInput
+      .waitFor({ state: 'visible', timeout: 10000 })
+      .then(() => true)
+      .catch(() => false)
   }
 
   if (!pinVisible) {
