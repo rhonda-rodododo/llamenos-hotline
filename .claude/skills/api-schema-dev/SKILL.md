@@ -1,6 +1,6 @@
 ---
 name: api-schema-dev
-description: Guide API route development with zod-validated, OpenAPI-documented endpoints. Use this skill whenever adding new API endpoints, modifying route handlers, creating or editing zod schemas, converting routes to @hono/zod-openapi, or working on any backend API feature. Also use when the user mentions API validation, OpenAPI, Scalar docs, zod schemas, request/response types, or asks to add a new resource/entity to the API. This skill enforces the schema-first, single-source-of-truth pattern where all types are derived from zod schemas in @shared/schemas/ and used by both backend and frontend.
+description: Guide full-stack feature development with zod-validated schemas and OpenAPI-documented endpoints. Use this skill for ANY feature work that touches API endpoints, data types, or encrypted fields — including frontend components that consume API data. Trigger when adding new API endpoints, modifying route handlers, creating React Query hooks, building forms that submit to the API, working with encrypted fields (hub-key or envelope), creating or editing zod schemas, converting routes to @hono/zod-openapi, or adding new resource entities. Also trigger when the user mentions API validation, OpenAPI, Scalar docs, zod schemas, request/response types, shared types, or type duplication. This skill enforces the schema-first, single-source-of-truth pattern where all types are derived from zod schemas in @shared/schemas/ and used by both backend and frontend — no duplicate type definitions.
 ---
 
 # API Schema Development
