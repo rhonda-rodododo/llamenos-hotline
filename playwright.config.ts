@@ -28,17 +28,23 @@ export default defineConfig({
   },
   projects: [
     {
+      // UI setup — real browser bootstrap. Calls test-reset-no-admin, then runs
+      // full admin bootstrap + invite onboarding flow.
+      // Runs BEFORE api-setup to avoid DB race conditions (both reset the DB).
       name: "setup",
       testMatch: /global-setup\.ts/,
       timeout: 300_000, // 5 min for real bootstrap + 4 invite onboardings
       use: { trace: "off" }, // Disable trace for setup — avoids ENOENT on trace artifacts
     },
     {
-      // API setup — seeds admin from ADMIN_PUBKEY via test-reset (no browser needed)
+      // API setup — seeds admin from ADMIN_PUBKEY via test-reset (no browser needed).
+      // Runs AFTER UI setup completes to avoid test-reset re-creating the admin
+      // that test-reset-no-admin just deleted.
       name: "api-setup",
       testMatch: /api-global-setup\.ts/,
       timeout: 60_000,
       use: { trace: "off" },
+      dependencies: ["setup"],
     },
     {
       // API integration tests — no browser, request fixture only.
