@@ -327,3 +327,60 @@ admin-flow (18), blast-sending (8), notes-crud (7), smoke (4), theme (7), health
 
 - [x] **React Query for fetch + decrypt** — Completed in react-query refactor PR #28.
 - [ ] **Eliminate remaining decryptHubField calls** — 53 usages of `decryptHubField` still in 10+ component files (shifts, blasts, hubs, contacts, etc.). Each should be moved to the respective React Query `queryFn` following the decrypt-in-queryFn pattern established in roles.ts. Also remove `hub-field-crypto.ts` once all callsites are migrated.
+
+## Comprehensive Audit (2026-04-02)
+
+> Specs and plans created from full codebase audit. Organized by priority.
+
+### Critical Bug Fixes
+**Spec:** `docs/specs/2026-04-02-critical-bug-fixes.md` | **Plan:** `docs/plans/2026-04-02-critical-bug-fixes.md`
+
+- [ ] **TwiML callback URLs use wrong prefix** — All telephony adapters (Twilio, Vonage, Plivo, SignalWire) generate URLs with `/api/telephony/` but webhooks are mounted at `/telephony/`. All inbound call flows broken. Fix: global find-replace in 4 adapter files. **Live Twilio testing available via `playwright.live.ts`.**
+- [ ] **Unknown API routes return 401 instead of 404** — Auth middleware runs before route matching. Add `api.notFound()` handler. Security: prevents route enumeration.
+- [x] ~~**Dashboard incoming calls require Nostr relay**~~ — Investigated: REST polling fallback already exists at 30s intervals (`src/client/lib/queries/calls.ts:87-112`). No additional work needed.
+- [ ] **CAPTCHA retry** — Service layer appears correct. Verify `voice-captcha.spec.ts` test 5.4 — if `test.fixme` is removed and passes, mark resolved.
+
+### Schema Alignment & API Validation
+**Spec:** `docs/specs/2026-04-02-schema-alignment-api-validation.md` | **Plan:** `docs/plans/2026-04-02-schema-alignment-api-validation.md`
+
+- [ ] **Auth facade Zod validation** — 4 public endpoints use raw `as` casts instead of Zod schemas. Not in OpenAPI docs.
+- [ ] **Blast schema alignment** — Shared schema completely misaligned with DB (field names, encryption, status values, channel structure).
+- [ ] **CallLeg field mismatch** — `volunteerPubkey` vs `userPubkey`; missing `type` field.
+- [ ] **Other field mismatches** — Custom field `type`/`fieldType`, blast keywords, conversations `reportTypeId`.
+- [ ] **Missing OpenAPI documentation** — 19 endpoints bypass `createRoute()`.
+
+### Test Coverage Hardening
+**Spec:** `docs/specs/2026-04-02-test-coverage-hardening.md` | **Plan:** `docs/plans/2026-04-02-test-coverage-hardening.md`
+
+- [ ] **Fix known failing tests** — roles.spec.ts (6/28 fail), hub-access-control.spec.ts (1/4 fail).
+- [ ] **Service unit tests** — CallsService, ShiftsService, GdprService (all zero coverage, high complexity).
+- [ ] **Security module tests** — auth.ts, ssrf-guard.ts, retention-purge.ts (all zero coverage).
+- [ ] **Messaging adapter tests** — Entire messaging system (16+ files) has no unit tests.
+- [ ] **Telephony adapter tests** — Most adapters (19 files) lack unit tests.
+
+### Infrastructure & DevOps Hardening
+**Spec:** `docs/specs/2026-04-02-infrastructure-devops-hardening.md` | **Plan:** `docs/plans/2026-04-02-infrastructure-devops-hardening.md`
+
+- [ ] **RustFS blob storage not backed up** — Only PostgreSQL is backed up. Voicemail recordings, uploads at risk.
+- [ ] **No backup failure alerting** — Status JSON exists but no alerts on missed/failed backups.
+- [ ] **Image digest pinning** — Authentik, Whisper, RustFS, Strfry (Helm) not pinned to SHA256.
+- [ ] **Prometheus alerting rules** — ServiceMonitor exists but no PrometheusRule. Minimal app metrics.
+- [ ] **Watchtower safeguards** — Missing scheduled windows, failure notifications, dry-run mode.
+
+### Code Organization & Refactoring
+**Spec:** `docs/specs/2026-04-02-code-organization-refactoring.md` | **Plan:** `docs/plans/2026-04-02-code-organization-refactoring.md`
+
+- [ ] **Split api.ts** (2,325 lines, 201 functions) → 12 domain-specific modules.
+- [ ] **Split settings.ts service** (1,439 lines, 53 methods) → 8 domain services.
+- [ ] **Split contacts.ts route** (1,231 lines) → 4 sub-route modules.
+- [ ] **Split server types.ts** (988 lines) → domain-specific type files.
+- [ ] **Migrate decryptHubField** — 75 usages across 22 files → decrypt-in-queryFn pattern.
+- [ ] **Console.log cleanup** — 17 debug logs in WebRTC adapters and key-manager.
+
+### Incomplete Adapter Completion
+**Spec:** `docs/specs/2026-04-02-adapter-completion.md` | **Plan:** `docs/plans/2026-04-02-adapter-completion.md`
+
+- [ ] **Telnyx telephony adapter** — Full TelephonyAdapter (23 methods) with TeXML format. ~600 lines.
+- [ ] **Telnyx SMS adapter** — MessagingAdapter with JSON webhooks. ~200 lines.
+- [ ] **SignalWire WebRTC tokens** — Copy Twilio JWT logic, adapt config. ~30 lines.
+- [ ] **Vonage webhook verification** — Implement Application API query with RS256 JWT. ~50 lines.
