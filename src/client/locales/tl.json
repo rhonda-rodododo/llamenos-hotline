@@ -1389,5 +1389,67 @@
     "channelWeb": "Web",
     "channelsSaved": "Channel settings saved",
     "selectChannels": "Select channels"
+  },
+  "voicemail": {
+    "loadingTranscript": "Nilo-load ang transcript…",
+    "transcriptError": "Hindi ma-load ang transcript ng voicemail"
+  },
+  "signal": {
+    "title": "Signal Channel",
+    "description": "End-to-end encrypted na pagmemensahe sa pamamagitan ng Signal bridge.",
+    "e2eeNote": "Nagbibigay ang Signal ng end-to-end encryption hanggang sa bridge. Ang mga mensahe ay muling ini-encrypt gamit ang mga susi ng iyong hotline bago i-store.",
+    "bridgeUrl": "URL ng Bridge",
+    "bridgeApiKey": "API Key ng Bridge",
+    "webhookUrl": "Webhook URL",
+    "webhookSecret": "Webhook Secret",
+    "registeredNumber": "Nakarehistrong Numero",
+    "autoResponse": "Auto-Response",
+    "security": {
+      "transportLabel": "Transport: Signal (E2EE hanggang sa bridge, pinakamalakas na available)",
+      "bridgeDecryptionNotice": "Nagbibigay ang Signal ng malakas na transport encryption. Ang mga mensahe ay dine-decrypt sa aming self-hosted bridge server (sa loob ng iyong infrastructure) para sa processing, pagkatapos ay muling ini-encrypt para sa storage. Kailangan ng bridge ng patuloy na maintenance habang ina-update ng Signal ang protocol nito."
+    }
+  },
+  "signalRegistration": {
+    "title": "Pagpaparehistro ng Signal Number",
+    "description": "Irehistro ang numero ng telepono ng iyong hotline sa Signal. Awtomatikong makukuha ang verification code mula sa iyong papasok na SMS.",
+    "bridgeUrl": "URL ng Bridge",
+    "registeredNumber": "Numero ng teleponong irerehistro",
+    "useVoice": "Gamitin ang voice verification (para sa VoIP numbers)",
+    "registerButton": "Irehistro sa Signal",
+    "startRegistration": "Irehistro ang Signal Number",
+    "notConfigured": "Hindi pa nakarehistro ang Signal number. Magparehistro para paganahin ang Signal messaging.",
+    "waitingSms": "Naghihintay ng verification SMS...",
+    "waitingSmsDescription": "Awtomatikong makukuha ang verification code mula sa iyong papasok na SMS. Maaaring tumagal ito ng ilang minuto.",
+    "voiceVerification": "Voice Verification",
+    "voiceDescription": "Ilagay ang 6 na digit na code mula sa verification voice call.",
+    "verificationCode": "Verification Code",
+    "connected": "Konektado na ang Signal",
+    "registrationFailed": "Nabigo ang pagpaparehistro",
+    "tryAgain": "Subukan muli",
+    "alreadyInProgress": "May kasalukuyang pagpaparehistro — hintayin itong mag-expire o i-refresh ang pahina.",
+    "expired": "Nag-expire na ang pagpaparehistro. Pakisubukan muli.",
+    "verificationFailed": "Nabigo ang verification"
+  },
+  "locationField": {
+    "placeholder": "Maghanap ng address…",
+    "searching": "Naghahanap…",
+    "noResults": "Walang nahanap na resulta",
+    "openInMaps": "Buksan sa mapa",
+    "clearLocation": "Burahin ang lokasyon",
+    "useCurrentLocation": "Gamitin ang kasalukuyang lokasyon"
+  },
+  "geocoding": {
+    "title": "Geocoding / Lokasyon",
+    "description": "Mag-configure ng geocoding provider para paganahin ang location autocomplete sa mga custom field",
+    "provider": "Geocoding Provider",
+    "apiKey": "API Key",
+    "apiKeyPlaceholder": "Ilagay ang iyong API Key",
+    "countries": "Filter ayon sa bansa",
+    "countriesPlaceholder": "hal. us, ca, mx",
+    "countriesHelp": "Mga 2-letter country code na pinaghiwalay ng kuwit. Iwanang blangko para sa buong mundo.",
+    "enabled": "Paganahin ang geocoding",
+    "testConnection": "Subukan ang Koneksyon",
+    "testSuccess": "Matagumpay ang koneksyon ({{latency}}ms)",
+    "testFailed": "Nabigo ang pagsubok ng koneksyon"
   }
 }

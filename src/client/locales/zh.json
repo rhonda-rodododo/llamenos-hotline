@@ -1389,5 +1389,67 @@
     "channelWeb": "Web",
     "channelsSaved": "Channel settings saved",
     "selectChannels": "Select channels"
+  },
+  "voicemail": {
+    "loadingTranscript": "正在加载转录…",
+    "transcriptError": "无法加载语音留言转录"
+  },
+  "signal": {
+    "title": "Signal 频道",
+    "description": "通过 Signal 桥接实现端到端加密消息传递。",
+    "e2eeNote": "Signal 提供到桥接服务器的端到端加密。消息在存储前会使用您的热线密钥重新加密。",
+    "bridgeUrl": "桥接 URL",
+    "bridgeApiKey": "桥接 API Key",
+    "webhookUrl": "Webhook URL",
+    "webhookSecret": "Webhook 密钥",
+    "registeredNumber": "已注册号码",
+    "autoResponse": "自动回复",
+    "security": {
+      "transportLabel": "传输方式：Signal（到桥接服务器的 E2EE，最强加密）",
+      "bridgeDecryptionNotice": "Signal 提供强大的传输加密。消息在我们自托管的桥接服务器（位于您的基础设施内）上解密以进行处理，然后重新加密存储。随着 Signal 更新其协议，桥接服务器需要持续维护。"
+    }
+  },
+  "signalRegistration": {
+    "title": "Signal 号码注册",
+    "description": "将您的热线电话号码注册到 Signal。验证码将从您的短信中自动截取。",
+    "bridgeUrl": "桥接 URL",
+    "registeredNumber": "要注册的电话号码",
+    "useVoice": "使用语音验证（适用于 VoIP 号码）",
+    "registerButton": "注册 Signal",
+    "startRegistration": "注册 Signal 号码",
+    "notConfigured": "Signal 号码尚未注册。注册后即可启用 Signal 消息功能。",
+    "waitingSms": "等待验证短信...",
+    "waitingSmsDescription": "验证码将从您的短信中自动截取。这可能需要几分钟。",
+    "voiceVerification": "语音验证",
+    "voiceDescription": "输入语音验证电话中的6位验证码。",
+    "verificationCode": "验证码",
+    "connected": "Signal 已连接",
+    "registrationFailed": "注册失败",
+    "tryAgain": "重试",
+    "alreadyInProgress": "注册正在进行中——请等待其过期或刷新页面。",
+    "expired": "注册已过期。请重试。",
+    "verificationFailed": "验证失败"
+  },
+  "locationField": {
+    "placeholder": "搜索地址…",
+    "searching": "搜索中…",
+    "noResults": "未找到结果",
+    "openInMaps": "在地图中打开",
+    "clearLocation": "清除位置",
+    "useCurrentLocation": "使用当前位置"
+  },
+  "geocoding": {
+    "title": "地理编码 / 位置",
+    "description": "配置地理编码提供商以在自定义字段中启用位置自动补全",
+    "provider": "地理编码提供商",
+    "apiKey": "API Key",
+    "apiKeyPlaceholder": "输入您的 API Key",
+    "countries": "国家过滤",
+    "countriesPlaceholder": "例如 us, ca, mx",
+    "countriesHelp": "逗号分隔的2字母国家代码。留空则搜索全球。",
+    "enabled": "启用地理编码",
+    "testConnection": "测试连接",
+    "testSuccess": "连接成功（{{latency}}ms）",
+    "testFailed": "连接测试失败"
   }
 }

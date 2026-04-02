@@ -1389,5 +1389,67 @@
     "channelWeb": "Web",
     "channelsSaved": "Channel settings saved",
     "selectChannels": "Select channels"
+  },
+  "voicemail": {
+    "loadingTranscript": "ट्रांसक्रिप्ट लोड हो रहा है…",
+    "transcriptError": "वॉइसमेल ट्रांसक्रिप्ट लोड नहीं हो सका"
+  },
+  "signal": {
+    "title": "Signal चैनल",
+    "description": "Signal ब्रिज के माध्यम से एंड-टू-एंड एन्क्रिप्टेड मैसेजिंग।",
+    "e2eeNote": "Signal ब्रिज तक एंड-टू-एंड एन्क्रिप्शन प्रदान करता है। संदेश स्टोरेज से पहले आपकी हॉटलाइन की कुंजियों से पुनः एन्क्रिप्ट किए जाते हैं।",
+    "bridgeUrl": "ब्रिज URL",
+    "bridgeApiKey": "ब्रिज API Key",
+    "webhookUrl": "Webhook URL",
+    "webhookSecret": "Webhook Secret",
+    "registeredNumber": "पंजीकृत नंबर",
+    "autoResponse": "स्वचालित उत्तर",
+    "security": {
+      "transportLabel": "ट्रांसपोर्ट: Signal (ब्रिज तक E2EE, सबसे मज़बूत उपलब्ध)",
+      "bridgeDecryptionNotice": "Signal मज़बूत ट्रांसपोर्ट एन्क्रिप्शन प्रदान करता है। संदेश हमारे सेल्फ-होस्टेड ब्रिज सर्वर (आपके इन्फ्रास्ट्रक्चर के भीतर) पर प्रोसेसिंग के लिए डिक्रिप्ट किए जाते हैं, फिर स्टोरेज के लिए पुनः एन्क्रिप्ट किए जाते हैं। Signal अपने प्रोटोकॉल को अपडेट करता रहता है, इसलिए ब्रिज को निरंतर रखरखाव की आवश्यकता होती है।"
+    }
+  },
+  "signalRegistration": {
+    "title": "Signal नंबर पंजीकरण",
+    "description": "अपने हॉटलाइन फ़ोन नंबर को Signal के साथ पंजीकृत करें। सत्यापन कोड आपके इनकमिंग SMS से स्वचालित रूप से प्राप्त किया जाएगा।",
+    "bridgeUrl": "ब्रिज URL",
+    "registeredNumber": "पंजीकृत करने के लिए फ़ोन नंबर",
+    "useVoice": "वॉइस सत्यापन का उपयोग करें (VoIP नंबरों के लिए)",
+    "registerButton": "Signal पंजीकृत करें",
+    "startRegistration": "Signal नंबर पंजीकृत करें",
+    "notConfigured": "Signal नंबर अभी तक पंजीकृत नहीं है। Signal मैसेजिंग सक्षम करने के लिए पंजीकरण करें।",
+    "waitingSms": "सत्यापन SMS की प्रतीक्षा हो रही है...",
+    "waitingSmsDescription": "सत्यापन कोड आपके इनकमिंग SMS से स्वचालित रूप से प्राप्त किया जाएगा। इसमें कुछ मिनट लग सकते हैं।",
+    "voiceVerification": "वॉइस सत्यापन",
+    "voiceDescription": "सत्यापन वॉइस कॉल से प्राप्त 6-अंकीय कोड दर्ज करें।",
+    "verificationCode": "सत्यापन कोड",
+    "connected": "Signal जुड़ गया",
+    "registrationFailed": "पंजीकरण विफल",
+    "tryAgain": "पुनः प्रयास करें",
+    "alreadyInProgress": "पंजीकरण पहले से चल रहा है — समाप्त होने की प्रतीक्षा करें या पृष्ठ रीफ़्रेश करें।",
+    "expired": "पंजीकरण समाप्त हो गया। कृपया पुनः प्रयास करें।",
+    "verificationFailed": "सत्यापन विफल"
+  },
+  "locationField": {
+    "placeholder": "पता खोजें...",
+    "searching": "खोज रहा है...",
+    "noResults": "कोई परिणाम नहीं मिला",
+    "openInMaps": "मानचित्र में खोलें",
+    "clearLocation": "स्थान मिटाएं",
+    "useCurrentLocation": "वर्तमान स्थान का उपयोग करें"
+  },
+  "geocoding": {
+    "title": "जियोकोडिंग / स्थान",
+    "description": "कस्टम फ़ील्ड में स्थान ऑटोकम्प्लीट सक्षम करने के लिए जियोकोडिंग प्रदाता कॉन्फ़िगर करें",
+    "provider": "जियोकोडिंग प्रदाता",
+    "apiKey": "API Key",
+    "apiKeyPlaceholder": "अपनी API Key दर्ज करें",
+    "countries": "देश फ़िल्टर",
+    "countriesPlaceholder": "उदा. us, ca, mx",
+    "countriesHelp": "कॉमा से अलग किए गए 2-अक्षर वाले देश कोड। विश्वव्यापी के लिए खाली छोड़ें।",
+    "enabled": "जियोकोडिंग सक्षम करें",
+    "testConnection": "कनेक्शन जाँचें",
+    "testSuccess": "कनेक्शन सफल ({{latency}}ms)",
+    "testFailed": "कनेक्शन परीक्षण विफल"
   }
 }

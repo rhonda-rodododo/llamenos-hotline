@@ -1397,5 +1397,67 @@
     "channelWeb": "Web",
     "channelsSaved": "Channel settings saved",
     "selectChannels": "Select channels"
+  },
+  "voicemail": {
+    "loadingTranscript": "Cargando transcripción…",
+    "transcriptError": "No se pudo cargar la transcripción del buzón de voz"
+  },
+  "signal": {
+    "title": "Canal Signal",
+    "description": "Mensajería cifrada de extremo a extremo a través del puente Signal.",
+    "e2eeNote": "Signal proporciona cifrado de extremo a extremo hasta el puente. Los mensajes se vuelven a cifrar con las claves de su línea antes de almacenarse.",
+    "bridgeUrl": "URL del puente",
+    "bridgeApiKey": "API Key del puente",
+    "webhookUrl": "URL del Webhook",
+    "webhookSecret": "Secreto del Webhook",
+    "registeredNumber": "Número registrado",
+    "autoResponse": "Respuesta automática",
+    "security": {
+      "transportLabel": "Transporte: Signal (E2EE hasta el puente, la más fuerte disponible)",
+      "bridgeDecryptionNotice": "Signal proporciona un cifrado de transporte robusto. Los mensajes se descifran en nuestro servidor puente autoalojado (dentro de su infraestructura) para su procesamiento, y luego se vuelven a cifrar para su almacenamiento. El puente requiere mantenimiento continuo a medida que Signal actualiza su protocolo."
+    }
+  },
+  "signalRegistration": {
+    "title": "Registro de número Signal",
+    "description": "Registre el número de teléfono de su línea en Signal. El código de verificación se interceptará automáticamente de sus SMS entrantes.",
+    "bridgeUrl": "URL del puente",
+    "registeredNumber": "Número de teléfono a registrar",
+    "useVoice": "Usar verificación por voz (para números VoIP)",
+    "registerButton": "Registrar Signal",
+    "startRegistration": "Registrar número Signal",
+    "notConfigured": "El número Signal aún no está registrado. Regístrese para habilitar la mensajería Signal.",
+    "waitingSms": "Esperando SMS de verificación...",
+    "waitingSmsDescription": "El código de verificación se interceptará automáticamente de sus SMS entrantes. Esto puede tardar unos minutos.",
+    "voiceVerification": "Verificación por voz",
+    "voiceDescription": "Ingrese el código de 6 dígitos de la llamada de verificación por voz.",
+    "verificationCode": "Código de verificación",
+    "connected": "Signal conectado",
+    "registrationFailed": "Error en el registro",
+    "tryAgain": "Intentar de nuevo",
+    "alreadyInProgress": "El registro ya está en curso — espere a que expire o actualice la página.",
+    "expired": "El registro expiró. Inténtelo de nuevo.",
+    "verificationFailed": "Error en la verificación"
+  },
+  "locationField": {
+    "placeholder": "Buscar una dirección...",
+    "searching": "Buscando...",
+    "noResults": "No se encontraron resultados",
+    "openInMaps": "Abrir en mapas",
+    "clearLocation": "Borrar ubicación",
+    "useCurrentLocation": "Usar ubicación actual"
+  },
+  "geocoding": {
+    "title": "Geocodificación / Ubicación",
+    "description": "Configure un proveedor de geocodificación para habilitar el autocompletado de ubicaciones en campos personalizados",
+    "provider": "Proveedor de geocodificación",
+    "apiKey": "API Key",
+    "apiKeyPlaceholder": "Ingrese su API Key",
+    "countries": "Filtro por país",
+    "countriesPlaceholder": "ej. us, ca, mx",
+    "countriesHelp": "Códigos de país de 2 letras separados por comas. Deje vacío para búsqueda mundial.",
+    "enabled": "Habilitar geocodificación",
+    "testConnection": "Probar conexión",
+    "testSuccess": "Conexión exitosa ({{latency}}ms)",
+    "testFailed": "La prueba de conexión falló"
   }
 }

@@ -1389,5 +1389,67 @@
     "channelWeb": "Web",
     "channelsSaved": "Channel settings saved",
     "selectChannels": "Select channels"
+  },
+  "voicemail": {
+    "loadingTranscript": "음성 메시지 텍스트 불러오는 중…",
+    "transcriptError": "음성 메시지 텍스트를 불러올 수 없습니다"
+  },
+  "signal": {
+    "title": "Signal 채널",
+    "description": "Signal 브릿지를 통한 종단간 암호화 메시징.",
+    "e2eeNote": "Signal은 브릿지까지 종단간 암호화를 제공합니다. 메시지는 저장 전에 핫라인 키로 다시 암호화됩니다.",
+    "bridgeUrl": "브릿지 URL",
+    "bridgeApiKey": "브릿지 API Key",
+    "webhookUrl": "Webhook URL",
+    "webhookSecret": "Webhook 비밀키",
+    "registeredNumber": "등록된 번호",
+    "autoResponse": "자동 응답",
+    "security": {
+      "transportLabel": "전송: Signal (브릿지까지 E2EE, 사용 가능한 가장 강력한 보안)",
+      "bridgeDecryptionNotice": "Signal은 강력한 전송 암호화를 제공합니다. 메시지는 자체 호스팅 브릿지 서버(인프라 내부)에서 처리를 위해 복호화된 후 저장을 위해 다시 암호화됩니다. Signal이 프로토콜을 업데이트할 때 브릿지의 지속적인 유지보수가 필요합니다."
+    }
+  },
+  "signalRegistration": {
+    "title": "Signal 번호 등록",
+    "description": "핫라인 전화번호를 Signal에 등록합니다. 인증 코드는 수신 SMS에서 자동으로 가로채집니다.",
+    "bridgeUrl": "브릿지 URL",
+    "registeredNumber": "등록할 전화번호",
+    "useVoice": "음성 인증 사용 (VoIP 번호용)",
+    "registerButton": "Signal 등록",
+    "startRegistration": "Signal 번호 등록",
+    "notConfigured": "Signal 번호가 아직 등록되지 않았습니다. Signal 메시징을 활성화하려면 등록하세요.",
+    "waitingSms": "인증 SMS 대기 중…",
+    "waitingSmsDescription": "인증 코드는 수신 SMS에서 자동으로 가로채집니다. 몇 분이 걸릴 수 있습니다.",
+    "voiceVerification": "음성 인증",
+    "voiceDescription": "음성 통화로 받은 6자리 코드를 입력하세요.",
+    "verificationCode": "인증 코드",
+    "connected": "Signal 연결됨",
+    "registrationFailed": "등록 실패",
+    "tryAgain": "다시 시도",
+    "alreadyInProgress": "등록이 이미 진행 중입니다 — 만료되거나 페이지를 새로고침할 때까지 기다리세요.",
+    "expired": "등록이 만료되었습니다. 다시 시도해 주세요.",
+    "verificationFailed": "인증 실패"
+  },
+  "locationField": {
+    "placeholder": "주소 검색…",
+    "searching": "검색 중…",
+    "noResults": "결과를 찾을 수 없습니다",
+    "openInMaps": "지도에서 열기",
+    "clearLocation": "위치 지우기",
+    "useCurrentLocation": "현재 위치 사용"
+  },
+  "geocoding": {
+    "title": "지오코딩 / 위치",
+    "description": "사용자 정의 필드에서 위치 자동완성을 활성화하려면 지오코딩 제공업체를 설정하세요",
+    "provider": "지오코딩 제공업체",
+    "apiKey": "API Key",
+    "apiKeyPlaceholder": "API Key를 입력하세요",
+    "countries": "국가 필터",
+    "countriesPlaceholder": "예: us, ca, mx",
+    "countriesHelp": "쉼표로 구분된 2자리 국가 코드. 전 세계 대상은 비워 두세요.",
+    "enabled": "지오코딩 활성화",
+    "testConnection": "연결 테스트",
+    "testSuccess": "연결 성공 ({{latency}}ms)",
+    "testFailed": "연결 테스트 실패"
   }
 }

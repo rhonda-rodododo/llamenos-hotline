@@ -1389,5 +1389,67 @@
     "channelWeb": "Web",
     "channelsSaved": "Channel settings saved",
     "selectChannels": "Select channels"
+  },
+  "voicemail": {
+    "loadingTranscript": "جارٍ تحميل النص…",
+    "transcriptError": "تعذّر تحميل نص البريد الصوتي"
+  },
+  "signal": {
+    "title": "قناة Signal",
+    "description": "مراسلة مشفرة من طرف إلى طرف عبر جسر Signal.",
+    "e2eeNote": "يوفر Signal تشفيرًا من طرف إلى طرف حتى الجسر. يُعاد تشفير الرسائل بمفاتيح خط المساعدة قبل التخزين.",
+    "bridgeUrl": "عنوان URL للجسر",
+    "bridgeApiKey": "مفتاح API للجسر",
+    "webhookUrl": "عنوان URL للـ Webhook",
+    "webhookSecret": "المفتاح السري للـ Webhook",
+    "registeredNumber": "الرقم المسجّل",
+    "autoResponse": "الرد التلقائي",
+    "security": {
+      "transportLabel": "النقل: Signal (E2EE حتى الجسر، أقوى تشفير متاح)",
+      "bridgeDecryptionNotice": "يوفر Signal تشفير نقل قويًا. تُفك تشفير الرسائل في خادم الجسر المستضاف ذاتيًا (ضمن بنيتكم التحتية) للمعالجة، ثم تُعاد تشفيرها للتخزين. يتطلب الجسر صيانة مستمرة مع تحديثات بروتوكول Signal."
+    }
+  },
+  "signalRegistration": {
+    "title": "تسجيل رقم Signal",
+    "description": "سجّل رقم هاتف خط المساعدة مع Signal. سيتم اعتراض رمز التحقق تلقائيًا من الرسائل القصيرة الواردة.",
+    "bridgeUrl": "عنوان URL للجسر",
+    "registeredNumber": "رقم الهاتف للتسجيل",
+    "useVoice": "استخدام التحقق الصوتي (لأرقام VoIP)",
+    "registerButton": "تسجيل Signal",
+    "startRegistration": "تسجيل رقم Signal",
+    "notConfigured": "لم يتم تسجيل رقم Signal بعد. سجّل لتفعيل مراسلة Signal.",
+    "waitingSms": "في انتظار رسالة التحقق القصيرة...",
+    "waitingSmsDescription": "سيتم اعتراض رمز التحقق تلقائيًا من الرسائل القصيرة الواردة. قد يستغرق ذلك بضع دقائق.",
+    "voiceVerification": "التحقق الصوتي",
+    "voiceDescription": "أدخل الرمز المكون من 6 أرقام من مكالمة التحقق الصوتية.",
+    "verificationCode": "رمز التحقق",
+    "connected": "تم الاتصال بـ Signal",
+    "registrationFailed": "فشل التسجيل",
+    "tryAgain": "حاول مجددًا",
+    "alreadyInProgress": "التسجيل قيد التنفيذ — انتظر حتى انتهاء صلاحيته أو أعد تحميل الصفحة.",
+    "expired": "انتهت صلاحية التسجيل. يرجى المحاولة مجددًا.",
+    "verificationFailed": "فشل التحقق"
+  },
+  "locationField": {
+    "placeholder": "ابحث عن عنوان…",
+    "searching": "جارٍ البحث…",
+    "noResults": "لم يتم العثور على نتائج",
+    "openInMaps": "فتح في الخرائط",
+    "clearLocation": "مسح الموقع",
+    "useCurrentLocation": "استخدام الموقع الحالي"
+  },
+  "geocoding": {
+    "title": "الترميز الجغرافي / الموقع",
+    "description": "قم بتكوين مزوّد ترميز جغرافي لتفعيل الإكمال التلقائي للموقع في الحقول المخصصة",
+    "provider": "مزوّد الترميز الجغرافي",
+    "apiKey": "مفتاح API",
+    "apiKeyPlaceholder": "أدخل مفتاح API الخاص بك",
+    "countries": "تصفية حسب الدولة",
+    "countriesPlaceholder": "مثال: us, ca, mx",
+    "countriesHelp": "رموز دول مكونة من حرفين، مفصولة بفواصل. اتركه فارغًا للبحث عالميًا.",
+    "enabled": "تفعيل الترميز الجغرافي",
+    "testConnection": "اختبار الاتصال",
+    "testSuccess": "نجح الاتصال ({{latency}} مللي ثانية)",
+    "testFailed": "فشل اختبار الاتصال"
   }
 }

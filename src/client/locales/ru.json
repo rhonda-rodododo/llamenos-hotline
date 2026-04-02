@@ -1389,5 +1389,67 @@
     "channelWeb": "Web",
     "channelsSaved": "Channel settings saved",
     "selectChannels": "Select channels"
+  },
+  "voicemail": {
+    "loadingTranscript": "Загрузка расшифровки…",
+    "transcriptError": "Не удалось загрузить расшифровку голосового сообщения"
+  },
+  "signal": {
+    "title": "Канал Signal",
+    "description": "Сквозное шифрование сообщений через мост Signal.",
+    "e2eeNote": "Signal обеспечивает сквозное шифрование до моста. Сообщения повторно шифруются ключами вашей горячей линии перед сохранением.",
+    "bridgeUrl": "URL моста",
+    "bridgeApiKey": "API Key моста",
+    "webhookUrl": "URL Webhook",
+    "webhookSecret": "Секрет Webhook",
+    "registeredNumber": "Зарегистрированный номер",
+    "autoResponse": "Автоответ",
+    "security": {
+      "transportLabel": "Транспорт: Signal (E2EE до моста, самый надёжный из доступных)",
+      "bridgeDecryptionNotice": "Signal обеспечивает надёжное шифрование транспорта. Сообщения расшифровываются на нашем собственном сервере-мосте (в вашей инфраструктуре) для обработки, затем повторно шифруются для хранения. Мост требует постоянного обслуживания при обновлении протокола Signal."
+    }
+  },
+  "signalRegistration": {
+    "title": "Регистрация номера Signal",
+    "description": "Зарегистрируйте номер телефона горячей линии в Signal. Код подтверждения будет автоматически перехвачен из входящего SMS.",
+    "bridgeUrl": "URL моста",
+    "registeredNumber": "Номер телефона для регистрации",
+    "useVoice": "Голосовая верификация (для номеров VoIP)",
+    "registerButton": "Зарегистрировать Signal",
+    "startRegistration": "Зарегистрировать номер Signal",
+    "notConfigured": "Номер Signal ещё не зарегистрирован. Зарегистрируйтесь для активации обмена сообщениями через Signal.",
+    "waitingSms": "Ожидание SMS с кодом…",
+    "waitingSmsDescription": "Код подтверждения будет автоматически перехвачен из входящего SMS. Это может занять несколько минут.",
+    "voiceVerification": "Голосовая верификация",
+    "voiceDescription": "Введите 6-значный код из голосового звонка для подтверждения.",
+    "verificationCode": "Код подтверждения",
+    "connected": "Signal подключён",
+    "registrationFailed": "Ошибка регистрации",
+    "tryAgain": "Попробовать снова",
+    "alreadyInProgress": "Регистрация уже выполняется — дождитесь её истечения или обновите страницу.",
+    "expired": "Срок регистрации истёк. Пожалуйста, попробуйте снова.",
+    "verificationFailed": "Ошибка верификации"
+  },
+  "locationField": {
+    "placeholder": "Поиск адреса…",
+    "searching": "Поиск…",
+    "noResults": "Результаты не найдены",
+    "openInMaps": "Открыть на карте",
+    "clearLocation": "Очистить местоположение",
+    "useCurrentLocation": "Использовать текущее местоположение"
+  },
+  "geocoding": {
+    "title": "Геокодирование / Местоположение",
+    "description": "Настройте провайдера геокодирования для автодополнения местоположений в пользовательских полях",
+    "provider": "Провайдер геокодирования",
+    "apiKey": "API Key",
+    "apiKeyPlaceholder": "Введите ваш API Key",
+    "countries": "Фильтр по странам",
+    "countriesPlaceholder": "напр. us, ca, mx",
+    "countriesHelp": "Двухбуквенные коды стран через запятую. Оставьте пустым для всего мира.",
+    "enabled": "Включить геокодирование",
+    "testConnection": "Проверить подключение",
+    "testSuccess": "Подключение успешно ({{latency}}мс)",
+    "testFailed": "Проверка подключения не удалась"
   }
 }

@@ -1389,5 +1389,67 @@
     "channelWeb": "Web",
     "channelsSaved": "Channel settings saved",
     "selectChannels": "Select channels"
+  },
+  "voicemail": {
+    "loadingTranscript": "Đang tải bản ghi âm…",
+    "transcriptError": "Không thể tải bản ghi âm thư thoại"
+  },
+  "signal": {
+    "title": "Kênh Signal",
+    "description": "Nhắn tin mã hóa đầu cuối qua cầu nối Signal.",
+    "e2eeNote": "Signal cung cấp mã hóa đầu cuối đến cầu nối. Tin nhắn được mã hóa lại bằng khóa của đường dây nóng trước khi lưu trữ.",
+    "bridgeUrl": "URL cầu nối",
+    "bridgeApiKey": "API Key cầu nối",
+    "webhookUrl": "URL Webhook",
+    "webhookSecret": "Mã bí mật Webhook",
+    "registeredNumber": "Số đã đăng ký",
+    "autoResponse": "Trả lời tự động",
+    "security": {
+      "transportLabel": "Truyền tải: Signal (E2EE đến cầu nối, bảo mật cao nhất hiện có)",
+      "bridgeDecryptionNotice": "Signal cung cấp mã hóa truyền tải mạnh. Tin nhắn được giải mã tại máy chủ cầu nối tự lưu trữ (trong hạ tầng của bạn) để xử lý, sau đó được mã hóa lại để lưu trữ. Cầu nối cần bảo trì liên tục khi Signal cập nhật giao thức."
+    }
+  },
+  "signalRegistration": {
+    "title": "Đăng ký số Signal",
+    "description": "Đăng ký số điện thoại đường dây nóng với Signal. Mã xác minh sẽ được tự động nhận từ SMS đến.",
+    "bridgeUrl": "URL cầu nối",
+    "registeredNumber": "Số điện thoại cần đăng ký",
+    "useVoice": "Dùng xác minh bằng giọng nói (cho số VoIP)",
+    "registerButton": "Đăng ký Signal",
+    "startRegistration": "Đăng ký số Signal",
+    "notConfigured": "Số Signal chưa được đăng ký. Đăng ký để bật nhắn tin Signal.",
+    "waitingSms": "Đang chờ SMS xác minh...",
+    "waitingSmsDescription": "Mã xác minh sẽ được tự động nhận từ SMS đến. Quá trình này có thể mất vài phút.",
+    "voiceVerification": "Xác minh bằng giọng nói",
+    "voiceDescription": "Nhập mã 6 chữ số từ cuộc gọi xác minh.",
+    "verificationCode": "Mã xác minh",
+    "connected": "Đã kết nối Signal",
+    "registrationFailed": "Đăng ký thất bại",
+    "tryAgain": "Thử lại",
+    "alreadyInProgress": "Đăng ký đang tiến hành — vui lòng chờ hết hạn hoặc tải lại trang.",
+    "expired": "Đăng ký đã hết hạn. Vui lòng thử lại.",
+    "verificationFailed": "Xác minh thất bại"
+  },
+  "locationField": {
+    "placeholder": "Tìm kiếm địa chỉ…",
+    "searching": "Đang tìm kiếm…",
+    "noResults": "Không tìm thấy kết quả",
+    "openInMaps": "Mở trên bản đồ",
+    "clearLocation": "Xóa vị trí",
+    "useCurrentLocation": "Dùng vị trí hiện tại"
+  },
+  "geocoding": {
+    "title": "Mã hóa địa lý / Vị trí",
+    "description": "Cấu hình nhà cung cấp mã hóa địa lý để bật tự động hoàn thành vị trí trong các trường tùy chỉnh",
+    "provider": "Nhà cung cấp mã hóa địa lý",
+    "apiKey": "API Key",
+    "apiKeyPlaceholder": "Nhập API key của bạn",
+    "countries": "Bộ lọc quốc gia",
+    "countriesPlaceholder": "ví dụ: us, ca, mx",
+    "countriesHelp": "Mã quốc gia 2 chữ cái, phân cách bằng dấu phẩy. Để trống cho toàn cầu.",
+    "enabled": "Bật mã hóa địa lý",
+    "testConnection": "Kiểm tra kết nối",
+    "testSuccess": "Kết nối thành công ({{latency}}ms)",
+    "testFailed": "Kiểm tra kết nối thất bại"
   }
 }

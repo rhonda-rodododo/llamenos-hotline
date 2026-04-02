@@ -1389,5 +1389,67 @@
     "channelWeb": "Web",
     "channelsSaved": "Channel settings saved",
     "selectChannels": "Select channels"
+  },
+  "voicemail": {
+    "loadingTranscript": "Transkription wird geladen…",
+    "transcriptError": "Voicemail-Transkription konnte nicht geladen werden"
+  },
+  "signal": {
+    "title": "Signal-Kanal",
+    "description": "Ende-zu-Ende-verschlüsselte Nachrichten über die Signal-Brücke.",
+    "e2eeNote": "Signal bietet Ende-zu-Ende-Verschlüsselung bis zur Brücke. Nachrichten werden vor der Speicherung mit den Schlüsseln Ihrer Hotline neu verschlüsselt.",
+    "bridgeUrl": "Brücken-URL",
+    "bridgeApiKey": "Brücken-API-Key",
+    "webhookUrl": "Webhook-URL",
+    "webhookSecret": "Webhook-Secret",
+    "registeredNumber": "Registrierte Nummer",
+    "autoResponse": "Automatische Antwort",
+    "security": {
+      "transportLabel": "Transport: Signal (E2EE bis zur Brücke, stärkste verfügbare Option)",
+      "bridgeDecryptionNotice": "Signal bietet starke Transportverschlüsselung. Nachrichten werden auf unserem selbst gehosteten Brückenserver (innerhalb Ihrer Infrastruktur) zur Verarbeitung entschlüsselt und anschließend für die Speicherung neu verschlüsselt. Die Brücke erfordert laufende Wartung, da Signal sein Protokoll regelmäßig aktualisiert."
+    }
+  },
+  "signalRegistration": {
+    "title": "Signal-Nummernregistrierung",
+    "description": "Registrieren Sie die Telefonnummer Ihrer Hotline bei Signal. Der Verifizierungscode wird automatisch aus Ihrer eingehenden SMS abgefangen.",
+    "bridgeUrl": "Brücken-URL",
+    "registeredNumber": "Zu registrierende Telefonnummer",
+    "useVoice": "Sprachverifizierung verwenden (für VoIP-Nummern)",
+    "registerButton": "Signal registrieren",
+    "startRegistration": "Signal-Nummer registrieren",
+    "notConfigured": "Die Signal-Nummer ist noch nicht registriert. Registrieren Sie sich, um Signal-Nachrichten zu aktivieren.",
+    "waitingSms": "Warte auf Verifizierungs-SMS...",
+    "waitingSmsDescription": "Der Verifizierungscode wird automatisch aus Ihrer eingehenden SMS abgefangen. Dies kann einige Minuten dauern.",
+    "voiceVerification": "Sprachverifizierung",
+    "voiceDescription": "Geben Sie den 6-stelligen Code aus dem Verifizierungsanruf ein.",
+    "verificationCode": "Verifizierungscode",
+    "connected": "Signal verbunden",
+    "registrationFailed": "Registrierung fehlgeschlagen",
+    "tryAgain": "Erneut versuchen",
+    "alreadyInProgress": "Registrierung läuft bereits — warten Sie auf den Ablauf oder aktualisieren Sie die Seite.",
+    "expired": "Registrierung abgelaufen. Bitte versuchen Sie es erneut.",
+    "verificationFailed": "Verifizierung fehlgeschlagen"
+  },
+  "locationField": {
+    "placeholder": "Adresse suchen...",
+    "searching": "Suche läuft...",
+    "noResults": "Keine Ergebnisse gefunden",
+    "openInMaps": "In Karten öffnen",
+    "clearLocation": "Standort löschen",
+    "useCurrentLocation": "Aktuellen Standort verwenden"
+  },
+  "geocoding": {
+    "title": "Geokodierung / Standort",
+    "description": "Konfigurieren Sie einen Geokodierungsanbieter, um Standort-Autovervollständigung in benutzerdefinierten Feldern zu aktivieren",
+    "provider": "Geokodierungsanbieter",
+    "apiKey": "API-Key",
+    "apiKeyPlaceholder": "Geben Sie Ihren API-Key ein",
+    "countries": "Länderfilter",
+    "countriesPlaceholder": "z.B. us, ca, mx",
+    "countriesHelp": "Kommagetrennte 2-Buchstaben-Ländercodes. Leer lassen für weltweit.",
+    "enabled": "Geokodierung aktivieren",
+    "testConnection": "Verbindung testen",
+    "testSuccess": "Verbindung erfolgreich ({{latency}}ms)",
+    "testFailed": "Verbindungstest fehlgeschlagen"
   }
 }

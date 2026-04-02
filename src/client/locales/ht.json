@@ -1389,5 +1389,67 @@
     "channelWeb": "Web",
     "channelsSaved": "Channel settings saved",
     "selectChannels": "Select channels"
+  },
+  "voicemail": {
+    "loadingTranscript": "Ap chaje transkripsyon…",
+    "transcriptError": "Pa t kapab chaje transkripsyon mesaj vokal la"
+  },
+  "signal": {
+    "title": "Kanal Signal",
+    "description": "Mesaj chifre bout-an-bout atravè pon Signal.",
+    "e2eeNote": "Signal bay chifray bout-an-bout jiska pon an. Mesaj yo re-chifre ak kle liy dirèk ou a anvan yo estoke.",
+    "bridgeUrl": "URL Pon",
+    "bridgeApiKey": "Kle API Pon",
+    "webhookUrl": "URL Webhook",
+    "webhookSecret": "Sekrè Webhook",
+    "registeredNumber": "Nimewo Anrejistre",
+    "autoResponse": "Repons Otomatik",
+    "security": {
+      "transportLabel": "Transpò: Signal (E2EE jiska pon, pi solid ki disponib)",
+      "bridgeDecryptionNotice": "Signal bay chifray transpò solid. Mesaj yo dechifre nan sèvè pon pwòp nou an (nan enfrastrikti ou) pou tretman, epi re-chifre pou estokaj. Pon an mande antretyen kontinyèl lè Signal mete ajou pwotokòl li."
+    }
+  },
+  "signalRegistration": {
+    "title": "Anrejistreman Nimewo Signal",
+    "description": "Anrejistre nimewo telefòn liy dirèk ou a ak Signal. Kòd verifikasyon an ap entèsepte otomatikman nan SMS ki rantre yo.",
+    "bridgeUrl": "URL Pon",
+    "registeredNumber": "Nimewo Telefòn pou Anrejistre",
+    "useVoice": "Sèvi ak verifikasyon vwa (pou nimewo VoIP)",
+    "registerButton": "Anrejistre Signal",
+    "startRegistration": "Anrejistre Nimewo Signal",
+    "notConfigured": "Nimewo Signal poko anrejistre. Anrejistre pou aktive mesaj Signal.",
+    "waitingSms": "Ap tann SMS verifikasyon…",
+    "waitingSmsDescription": "Kòd verifikasyon an ap entèsepte otomatikman nan SMS ki rantre yo. Sa ka pran kèk minit.",
+    "voiceVerification": "Verifikasyon Vwa",
+    "voiceDescription": "Antre kòd 6 chif ki nan apèl verifikasyon vwa a.",
+    "verificationCode": "Kòd Verifikasyon",
+    "connected": "Signal konekte",
+    "registrationFailed": "Anrejistreman echwe",
+    "tryAgain": "Eseye Ankò",
+    "alreadyInProgress": "Anrejistreman deja an kou — tann li ekspire oswa rafrechi paj la.",
+    "expired": "Anrejistreman ekspire. Tanpri eseye ankò.",
+    "verificationFailed": "Verifikasyon echwe"
+  },
+  "locationField": {
+    "placeholder": "Chèche yon adrès…",
+    "searching": "Ap chèche…",
+    "noResults": "Pa jwenn rezilta",
+    "openInMaps": "Ouvri nan kat",
+    "clearLocation": "Efase lokalizasyon",
+    "useCurrentLocation": "Sèvi ak lokalizasyon aktyèl"
+  },
+  "geocoding": {
+    "title": "Jewokodaj / Lokalizasyon",
+    "description": "Konfigire yon founisè jewokodaj pou pèmèt konpletman otomatik lokalizasyon nan chan pèsonalize",
+    "provider": "Founisè Jewokodaj",
+    "apiKey": "Kle API",
+    "apiKeyPlaceholder": "Antre kle API ou",
+    "countries": "Filtè Peyi",
+    "countriesPlaceholder": "pa egzanp us, ca, mx",
+    "countriesHelp": "Kòd peyi 2 lèt separe ak vigil. Kite vid pou tout mond.",
+    "enabled": "Aktive jewokodaj",
+    "testConnection": "Teste Koneksyon",
+    "testSuccess": "Koneksyon reyisi ({{latency}}ms)",
+    "testFailed": "Tès koneksyon echwe"
   }
 }

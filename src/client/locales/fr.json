@@ -1389,5 +1389,67 @@
     "channelWeb": "Web",
     "channelsSaved": "Channel settings saved",
     "selectChannels": "Select channels"
+  },
+  "voicemail": {
+    "loadingTranscript": "Chargement de la transcription…",
+    "transcriptError": "Impossible de charger la transcription du message vocal"
+  },
+  "signal": {
+    "title": "Canal Signal",
+    "description": "Messagerie chiffrée de bout en bout via le relais Signal.",
+    "e2eeNote": "Signal fournit un chiffrement de bout en bout jusqu'au relais. Les messages sont rechiffrés avec les clés de votre ligne d'urgence avant le stockage.",
+    "bridgeUrl": "URL du relais",
+    "bridgeApiKey": "Clé API du relais",
+    "webhookUrl": "URL du Webhook",
+    "webhookSecret": "Secret du Webhook",
+    "registeredNumber": "Numéro enregistré",
+    "autoResponse": "Réponse automatique",
+    "security": {
+      "transportLabel": "Transport : Signal (E2EE jusqu'au relais, le plus sécurisé disponible)",
+      "bridgeDecryptionNotice": "Signal fournit un chiffrement de transport robuste. Les messages sont déchiffrés sur le serveur relais auto-hébergé (au sein de votre infrastructure) pour traitement, puis rechiffrés pour le stockage. Le relais nécessite une maintenance continue au fil des mises à jour du protocole Signal."
+    }
+  },
+  "signalRegistration": {
+    "title": "Enregistrement du numéro Signal",
+    "description": "Enregistrez le numéro de téléphone de votre ligne d'urgence avec Signal. Le code de vérification sera intercepté automatiquement depuis vos SMS entrants.",
+    "bridgeUrl": "URL du relais",
+    "registeredNumber": "Numéro de téléphone à enregistrer",
+    "useVoice": "Utiliser la vérification vocale (pour les numéros VoIP)",
+    "registerButton": "Enregistrer Signal",
+    "startRegistration": "Enregistrer le numéro Signal",
+    "notConfigured": "Le numéro Signal n'est pas encore enregistré. Enregistrez-le pour activer la messagerie Signal.",
+    "waitingSms": "En attente du SMS de vérification...",
+    "waitingSmsDescription": "Le code de vérification sera intercepté automatiquement depuis vos SMS entrants. Cela peut prendre quelques minutes.",
+    "voiceVerification": "Vérification vocale",
+    "voiceDescription": "Saisissez le code à 6 chiffres reçu par appel vocal de vérification.",
+    "verificationCode": "Code de vérification",
+    "connected": "Signal connecté",
+    "registrationFailed": "Échec de l'enregistrement",
+    "tryAgain": "Réessayer",
+    "alreadyInProgress": "Enregistrement déjà en cours — attendez son expiration ou rechargez la page.",
+    "expired": "L'enregistrement a expiré. Veuillez réessayer.",
+    "verificationFailed": "Échec de la vérification"
+  },
+  "locationField": {
+    "placeholder": "Rechercher une adresse…",
+    "searching": "Recherche en cours…",
+    "noResults": "Aucun résultat trouvé",
+    "openInMaps": "Ouvrir dans les cartes",
+    "clearLocation": "Effacer la localisation",
+    "useCurrentLocation": "Utiliser la position actuelle"
+  },
+  "geocoding": {
+    "title": "Géocodage / Localisation",
+    "description": "Configurez un fournisseur de géocodage pour activer l'autocomplétion de localisation dans les champs personnalisés",
+    "provider": "Fournisseur de géocodage",
+    "apiKey": "Clé API",
+    "apiKeyPlaceholder": "Saisissez votre clé API",
+    "countries": "Filtre par pays",
+    "countriesPlaceholder": "ex. : us, ca, mx",
+    "countriesHelp": "Codes pays à 2 lettres, séparés par des virgules. Laissez vide pour une couverture mondiale.",
+    "enabled": "Activer le géocodage",
+    "testConnection": "Tester la connexion",
+    "testSuccess": "Connexion réussie ({{latency}} ms)",
+    "testFailed": "Échec du test de connexion"
   }
 }
