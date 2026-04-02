@@ -1,0 +1,64 @@
+---
+import DocsLayout from '../../../layouts/DocsLayout.astro';
+import { type Lang, defaultLang } from '../../../i18n/config';
+import { getTranslation } from '../../../i18n/utils';
+import { common } from '../../../i18n/translations/common';
+
+const lang: Lang = defaultLang;
+const t = getTranslation(common, lang);
+
+const references = [
+  {
+    title: 'API Documentation',
+    description: 'Interactive API reference with request/response schemas, generated from OpenAPI spec.',
+    href: '/api/docs',
+    external: true,
+  },
+  {
+    title: 'Architecture',
+    description: 'System architecture, service layer design, encryption model, and data flow diagrams.',
+    href: 'https://github.com/rhonda-rodododo/llamenos/blob/main/docs/ARCHITECTURE.md',
+    external: true,
+  },
+  {
+    title: 'Security Model',
+    description: 'Threat model, encryption protocols, key management, and audit logging design.',
+    href: 'https://github.com/rhonda-rodododo/llamenos/blob/main/docs/SECURITY.md',
+    external: true,
+  },
+  {
+    title: 'Protocol Specification',
+    description: 'Nostr relay protocol, event kinds, hub key distribution, and real-time messaging.',
+    href: 'https://github.com/rhonda-rodododo/llamenos/blob/main/docs/PROTOCOL.md',
+    external: true,
+  },
+];
+---
+
+<DocsLayout title={t.docs.reference} lang={lang}>
+  <h1>{t.docs.reference}</h1>
+  <p class="text-fg-muted mb-6">Technical reference documentation for developers and system administrators.</p>
+
+  <div class="not-prose grid grid-cols-1 gap-4 sm:grid-cols-2">
+    {references.map(ref => (
+      <a
+        href={ref.href}
+        class="rounded-xl border border-border bg-bg-card p-5 transition-colors hover:border-border-bright group"
+        target={ref.external ? '_blank' : undefined}
+        rel={ref.external ? 'noopener noreferrer' : undefined}
+      >
+        <div class="flex items-start justify-between gap-2">
+          <h3 class="text-base font-semibold text-fg mb-1 group-hover:text-accent-bright transition-colors">
+            {ref.title}
+          </h3>
+          {ref.external && (
+            <svg class="h-4 w-4 text-fg-dim flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+            </svg>
+          )}
+        </div>
+        <p class="text-sm text-fg-muted">{ref.description}</p>
+      </a>
+    ))}
+  </div>
+</DocsLayout>

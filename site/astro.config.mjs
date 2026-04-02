@@ -1,10 +1,12 @@
 import { defineConfig } from 'astro/config';
 import tailwindcss from '@tailwindcss/vite';
+import pagefind from 'astro-pagefind';
 import mermaid from 'astro-mermaid';
 
 export default defineConfig({
   output: 'static',
   integrations: [
+    pagefind(),
     mermaid({
       // Dark theme for better readability on dark backgrounds
       theme: 'dark',
