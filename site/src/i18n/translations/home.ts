@@ -17,6 +17,14 @@ export const home: Record<string, {
     description: string;
     link: string;
   };
+  screenshots: {
+    heading: string;
+    subtitle: string;
+  };
+  architecture: {
+    heading: string;
+    subtitle: string;
+  };
   deploy: {
     heading: string;
     description: string;
@@ -49,6 +57,14 @@ export const home: Record<string, {
       heading: 'Honest about security',
       description: "We publish exactly what is encrypted, what isn't, and what the server can see. No hand-waving. Your secret key is PIN-encrypted and held only in memory when unlocked. Per-note forward secrecy means compromising a key can't reveal past notes. Link new devices securely via QR code. Read the full security model to understand our threat landscape.",
       link: 'Read the security model',
+    },
+    screenshots: {
+      heading: 'See it in action',
+      subtitle: 'A modern, responsive interface designed for crisis response. Works on desktop and mobile.',
+    },
+    architecture: {
+      heading: 'Multi-channel architecture',
+      subtitle: 'Voice, SMS, WhatsApp, and Signal — all routed through a unified platform with your choice of provider.',
     },
     deploy: {
       heading: 'Ready to deploy?',
@@ -83,6 +99,14 @@ export const home: Record<string, {
       description: 'Publicamos exactamente qué está cifrado, qué no lo está y qué puede ver el servidor. Sin ambigüedades. Tu clave secreta está cifrada con PIN y solo en memoria cuando está desbloqueada. El secreto hacia adelante por nota significa que comprometer una clave no revela notas pasadas. Vincula nuevos dispositivos de forma segura via código QR. Lee el modelo de seguridad completo.',
       link: 'Leer el modelo de seguridad',
     },
+    screenshots: {
+      heading: 'Véalo en acción',
+      subtitle: 'Una interfaz moderna y responsiva diseñada para respuesta a crisis. Funciona en escritorio y móvil.',
+    },
+    architecture: {
+      heading: 'Arquitectura multicanal',
+      subtitle: 'Voz, SMS, WhatsApp y Signal — todo enrutado a través de una plataforma unificada con el proveedor de su elección.',
+    },
     deploy: {
       heading: '¿Listo para desplegar?',
       description: 'Llámenos se auto-aloja con Docker — tú controlas todo. Pon en marcha una línea de ayuda en menos de una hora.',
@@ -115,6 +139,14 @@ export const home: Record<string, {
       heading: '坦诚的安全声明',
       description: '我们准确公布哪些内容已加密、哪些未加密以及服务器能看到什么。绝不含糊。您的密钥由PIN加密，解锁时仅存在于内存中。逐条前向保密意味着泄露密钥无法揭示过去的笔记。通过二维码安全链接新设备。阅读完整的安全模型。',
       link: '阅读安全模型',
+    },
+    screenshots: {
+      heading: '实际效果展示',
+      subtitle: '为危机响应设计的现代化、响应式界面。支持桌面和移动设备。',
+    },
+    architecture: {
+      heading: '多渠道架构',
+      subtitle: '语音、SMS、WhatsApp 和 Signal — 全部通过统一平台路由，支持您选择的服务商。',
     },
     deploy: {
       heading: '准备好部署了吗？',
@@ -149,6 +181,14 @@ export const home: Record<string, {
       description: 'Inilalathala namin nang eksakto kung ano ang naka-encrypt, ano ang hindi, at ano ang nakikita ng server. Walang pambubulag. Ang iyong secret key ay naka-encrypt ng PIN at nasa memory lang kapag naka-unlock. Per-note forward secrecy ang ibig sabihin ay hindi maibubunyag ang mga nakaraang tala. Ligtas na i-link ang mga bagong device sa pamamagitan ng QR code.',
       link: 'Basahin ang modelo ng seguridad',
     },
+    screenshots: {
+      heading: 'Tingnan ito sa aksyon',
+      subtitle: 'Isang modernong, responsive na interface na dinisenyo para sa crisis response. Gumagana sa desktop at mobile.',
+    },
+    architecture: {
+      heading: 'Multi-channel na arkitektura',
+      subtitle: 'Voice, SMS, WhatsApp, at Signal — lahat ay naka-route sa isang pinag-isang platform na may pagpipilian ng provider.',
+    },
     deploy: {
       heading: 'Handa nang mag-deploy?',
       description: 'Ang Llámenos ay self-hosted gamit ang Docker — ikaw ang may kontrol sa lahat. Magpatakbo ng hotline sa loob ng isang oras.',
@@ -181,6 +221,14 @@ export const home: Record<string, {
       heading: 'Trung thực về bảo mật',
       description: 'Chúng tôi công bố chính xác những gì được mã hóa, những gì không và những gì máy chủ có thể thấy. Không mập mờ. Khóa bí mật của bạn được mã hóa bằng PIN và chỉ tồn tại trong bộ nhớ khi mở khóa. Bảo mật chuyển tiếp theo ghi chú nghĩa là lộ khóa không thể tiết lộ ghi chú trước đó. Liên kết thiết bị mới an toàn qua mã QR.',
       link: 'Đọc mô hình bảo mật',
+    },
+    screenshots: {
+      heading: 'Xem thực tế',
+      subtitle: 'Giao diện hiện đại, đáp ứng được thiết kế cho ứng phó khủng hoảng. Hoạt động trên máy tính và di động.',
+    },
+    architecture: {
+      heading: 'Kiến trúc đa kênh',
+      subtitle: 'Thoại, SMS, WhatsApp và Signal — tất cả được định tuyến qua một nền tảng thống nhất với nhà cung cấp bạn chọn.',
     },
     deploy: {
       heading: 'Sẵn sàng triển khai?',
@@ -215,6 +263,14 @@ export const home: Record<string, {
       description: 'ننشر بالضبط ما هو مشفر وما ليس كذلك وما يمكن للخادم رؤيته. بلا غموض. مفتاحك السري مشفر برمز PIN ويوجد في الذاكرة فقط عند فتح القفل. السرية التامة لكل ملاحظة تعني أن اختراق المفتاح لا يكشف الملاحظات السابقة. اربط أجهزة جديدة بأمان عبر رمز QR.',
       link: 'اقرأ نموذج الأمان',
     },
+    screenshots: {
+      heading: 'شاهده أثناء العمل',
+      subtitle: 'واجهة حديثة ومتجاوبة مصممة للاستجابة للأزمات. تعمل على سطح المكتب والجوال.',
+    },
+    architecture: {
+      heading: 'بنية متعددة القنوات',
+      subtitle: 'الصوت، SMS، WhatsApp، و Signal — الكل يمر عبر منصة موحدة مع اختيارك لمزود الخدمة.',
+    },
     deploy: {
       heading: 'مستعد للنشر؟',
       description: 'Llámenos مستضاف ذاتياً عبر Docker — أنت تتحكم في كل شيء. شغّل خطاً ساخناً في أقل من ساعة.',
@@ -247,6 +303,14 @@ export const home: Record<string, {
       heading: 'Honnêtes sur la sécurité',
       description: "Nous publions exactement ce qui est chiffré, ce qui ne l'est pas et ce que le serveur peut voir. Sans ambiguïté. Votre clé secrète est chiffrée par PIN et n'existe en mémoire que lorsqu'elle est déverrouillée. Le secret de transfert par note signifie que compromettre une clé ne révèle pas les notes passées. Liez de nouveaux appareils en toute sécurité via code QR.",
       link: 'Lire le modèle de sécurité',
+    },
+    screenshots: {
+      heading: 'Voyez-le en action',
+      subtitle: 'Une interface moderne et responsive conçue pour la réponse aux crises. Fonctionne sur ordinateur et mobile.',
+    },
+    architecture: {
+      heading: 'Architecture multicanal',
+      subtitle: "Voix, SMS, WhatsApp et Signal — le tout acheminé via une plateforme unifiée avec le fournisseur de votre choix.",
     },
     deploy: {
       heading: 'Prêt à déployer ?',
@@ -281,6 +345,14 @@ export const home: Record<string, {
       description: 'Nou pibliye egzakteman sa ki chifre, sa ki pa chifre, ak sa sèvè a ka wè. San dezòd. Kle sekrè ou a chifre pa PIN epi li sèlman nan memwa lè li debloke. Sekrè alavans pou chak nòt vle di konpwomèt yon kle pa ka revele nòt pase yo. Konekte nouvo aparèy an sekirite via kòd QR.',
       link: 'Li modèl sekirite a',
     },
+    screenshots: {
+      heading: 'Wè li an aksyon',
+      subtitle: 'Yon entèfas modèn ki reponn byen, ki fèt pou repons a kriz. Mache sou òdinatè ak mobil.',
+    },
+    architecture: {
+      heading: 'Achitekti milti-kanal',
+      subtitle: 'Vwa, SMS, WhatsApp, ak Signal — tout dirije nan yon sèl platfòm ak founisè ou chwazi.',
+    },
     deploy: {
       heading: 'Pare pou deplwaye?',
       description: 'Llámenos se auto-hébergé via Docker — ou kontwole tout bagay. Lanse yon liy asistans nan mwens pase inèdtan.',
@@ -313,6 +385,14 @@ export const home: Record<string, {
       heading: '보안에 대해 솔직하게',
       description: '무엇이 암호화되고, 무엇이 되지 않으며, 서버가 무엇을 볼 수 있는지 정확히 공개합니다. 모호함 없이. 비밀 키는 PIN으로 암호화되어 잠금 해제 시에만 메모리에 존재합니다. 메모별 전방 비밀성은 키가 유출되어도 이전 메모를 볼 수 없음을 의미합니다. QR 코드로 새 기기를 안전하게 연결하세요.',
       link: '보안 모델 읽기',
+    },
+    screenshots: {
+      heading: '실제로 확인하세요',
+      subtitle: '위기 대응을 위해 설계된 현대적이고 반응형 인터페이스. 데스크톱과 모바일에서 작동합니다.',
+    },
+    architecture: {
+      heading: '멀티채널 아키텍처',
+      subtitle: '음성, SMS, WhatsApp, Signal — 모두 원하는 공급자와 함께 통합 플랫폼을 통해 라우팅됩니다.',
     },
     deploy: {
       heading: '배포할 준비가 되셨나요?',
@@ -347,6 +427,14 @@ export const home: Record<string, {
       description: 'Мы публикуем точно, что зашифровано, что нет, и что видит сервер. Без двусмысленности. Ваш секретный ключ зашифрован PIN-кодом и существует в памяти только при разблокировке. Прямая секретность для каждой заметки означает, что компрометация ключа не раскрывает прошлые заметки. Безопасно привязывайте новые устройства через QR-код.',
       link: 'Прочитать модель безопасности',
     },
+    screenshots: {
+      heading: 'Посмотрите в действии',
+      subtitle: 'Современный адаптивный интерфейс, разработанный для реагирования на кризисы. Работает на компьютере и мобильных устройствах.',
+    },
+    architecture: {
+      heading: 'Многоканальная архитектура',
+      subtitle: 'Голос, SMS, WhatsApp и Signal — всё маршрутизируется через единую платформу с выбранным вами провайдером.',
+    },
     deploy: {
       heading: 'Готовы к развёртыванию?',
       description: 'Llámenos самостоятельно размещается через Docker — вы контролируете всё. Запустите горячую линию менее чем за час.',
@@ -379,6 +467,14 @@ export const home: Record<string, {
       heading: 'सुरक्षा के बारे में ईमानदार',
       description: 'हम सटीक रूप से प्रकाशित करते हैं कि क्या एन्क्रिप्टेड है, क्या नहीं है, और सर्वर क्या देख सकता है। बिना अस्पष्टता के। आपकी गुप्त कुंजी PIN से एन्क्रिप्टेड है और अनलॉक होने पर केवल मेमोरी में रहती है। प्रति-नोट फॉरवर्ड सीक्रेसी का अर्थ है कि कुंजी से समझौता पिछले नोट्स को प्रकट नहीं करता। QR कोड से नए डिवाइस सुरक्षित रूप से लिंक करें।',
       link: 'सुरक्षा मॉडल पढ़ें',
+    },
+    screenshots: {
+      heading: 'इसे कार्य में देखें',
+      subtitle: 'संकट प्रतिक्रिया के लिए डिज़ाइन किया गया आधुनिक, रिस्पॉन्सिव इंटरफ़ेस। डेस्कटॉप और मोबाइल पर काम करता है।',
+    },
+    architecture: {
+      heading: 'मल्टी-चैनल आर्किटेक्चर',
+      subtitle: 'वॉइस, SMS, WhatsApp, और Signal — सभी एक एकीकृत प्लेटफ़ॉर्म के माध्यम से आपकी पसंद के प्रदाता के साथ रूट किए जाते हैं।',
     },
     deploy: {
       heading: 'तैनात करने के लिए तैयार?',
@@ -413,6 +509,14 @@ export const home: Record<string, {
       description: 'Publicamos exatamente o que está criptografado, o que não está e o que o servidor pode ver. Sem ambiguidade. Sua chave secreta é criptografada por PIN e existe apenas na memória quando desbloqueada. O sigilo direto por nota significa que comprometer uma chave não revela notas anteriores. Vincule novos dispositivos com segurança via código QR.',
       link: 'Ler o modelo de segurança',
     },
+    screenshots: {
+      heading: 'Veja em ação',
+      subtitle: 'Uma interface moderna e responsiva projetada para resposta a crises. Funciona em desktop e dispositivos móveis.',
+    },
+    architecture: {
+      heading: 'Arquitetura multicanal',
+      subtitle: 'Voz, SMS, WhatsApp e Signal — tudo roteado por uma plataforma unificada com o provedor de sua escolha.',
+    },
     deploy: {
       heading: 'Pronto para implantar?',
       description: 'O Llámenos é auto-hospedado via Docker — você controla tudo. Coloque uma linha de ajuda em funcionamento em menos de uma hora.',
@@ -445,6 +549,14 @@ export const home: Record<string, {
       heading: 'Ehrlich über Sicherheit',
       description: 'Wir veröffentlichen genau, was verschlüsselt ist, was nicht und was der Server sehen kann. Ohne Verschleierung. Ihr geheimer Schlüssel ist PIN-verschlüsselt und existiert nur im Speicher, wenn er entsperrt ist. Perfect Forward Secrecy pro Notiz bedeutet, dass ein kompromittierter Schlüssel vergangene Notizen nicht preisgibt. Verknüpfen Sie neue Geräte sicher per QR-Code.',
       link: 'Sicherheitsmodell lesen',
+    },
+    screenshots: {
+      heading: 'Sehen Sie es in Aktion',
+      subtitle: 'Eine moderne, responsive Oberfläche für die Krisenreaktion. Funktioniert auf Desktop und Mobilgeräten.',
+    },
+    architecture: {
+      heading: 'Mehrkanalarchitektur',
+      subtitle: 'Sprache, SMS, WhatsApp und Signal — alles über eine einheitliche Plattform mit dem Anbieter Ihrer Wahl geroutet.',
     },
     deploy: {
       heading: 'Bereit zur Bereitstellung?',
@@ -479,6 +591,14 @@ export const home: Record<string, {
       description: 'Ми публікуємо точно, що зашифровано, що ні, і що може бачити сервер. Без натяків. Ваш секретний ключ зашифрований PIN-кодом і існує в пам\'яті лише при розблокуванні. Пряма секретність для кожної нотатки означає, що компрометація ключа не розкриває попередні нотатки. Безпечно прив\'язуйте нові пристрої через QR-код.',
       link: 'Прочитати модель безпеки',
     },
+    screenshots: {
+      heading: 'Подивіться в дії',
+      subtitle: 'Сучасний адаптивний інтерфейс, розроблений для реагування на кризи. Працює на комп\'ютері та мобільних пристроях.',
+    },
+    architecture: {
+      heading: 'Багатоканальна архітектура',
+      subtitle: 'Голос, SMS, WhatsApp та Signal — все маршрутизується через єдину платформу з обраним вами провайдером.',
+    },
     deploy: {
       heading: 'Готові до розгортання?',
       description: 'Llámenos розгортається самостійно через Docker \u2014 ви контролюєте все. Запустіть гарячу лінію менш ніж за годину.',
@@ -511,6 +631,14 @@ export const home: Record<string, {
       heading: 'صادقانه درباره امنیت',
       description: 'ما دقیقا منتشر می\u200Cکنیم که چه چیزی رمزنگاری شده، چه چیزی نشده و سرور چه چیزی می\u200Cتواند ببیند. بدون ابهام. کلید محرمانه شما با PIN رمزنگاری شده و فقط هنگام باز بودن قفل در حافظه وجود دارد. محرمانگی پیشرو هر یادداشت به این معنی است که لو رفتن کلید یادداشت\u200Cهای قبلی را فاش نمی\u200Cکند. دستگاه\u200Cهای جدید را با کد QR به\u200Cصورت امن متصل کنید.',
       link: 'مدل امنیتی را بخوانید',
+    },
+    screenshots: {
+      heading: 'آن را در عمل ببینید',
+      subtitle: 'یک رابط کاربری مدرن و واکنش‌گرا که برای پاسخ به بحران طراحی شده است. روی دسکتاپ و موبایل کار می‌کند.',
+    },
+    architecture: {
+      heading: 'معماری چندکاناله',
+      subtitle: 'صوت، SMS، WhatsApp و Signal — همه از طریق یک پلتفرم یکپارچه با ارائه‌دهنده مورد نظر شما مسیریابی می‌شوند.',
     },
     deploy: {
       heading: 'آماده استقرار هستید؟',
@@ -545,6 +673,14 @@ export const home: Record<string, {
       description: 'Neyin \u015fifreli oldu\u011funu, neyin olmad\u0131\u011f\u0131n\u0131 ve sunucunun neler g\u00f6rebildi\u011fini tam olarak yay\u0131nl\u0131yoruz. Belirsizlik yok. Gizli anahtar\u0131n\u0131z PIN ile \u015fifrelenir ve yaln\u0131zca kilit a\u00e7\u0131kken bellekte bulunur. Not ba\u015f\u0131na ileri gizlilik, bir anahtar\u0131n ele ge\u00e7irilmesinin ge\u00e7mi\u015f notlar\u0131 a\u00e7\u0131\u011fa \u00e7\u0131karamayaca\u011f\u0131 anlam\u0131na gelir. QR kodu ile yeni cihazlar\u0131 g\u00fcvenli bir \u015fekilde ba\u011flay\u0131n.',
       link: 'G\u00fcvenlik modelini oku',
     },
+    screenshots: {
+      heading: '\u00c7al\u0131\u015f\u0131rken g\u00f6r\u00fcn',
+      subtitle: 'Kriz m\u00fcdahalesi i\u00e7in tasarlanm\u0131\u015f modern, duyarl\u0131 bir aray\u00fcz. Masa\u00fcst\u00fc ve mobilde \u00e7al\u0131\u015f\u0131r.',
+    },
+    architecture: {
+      heading: '\u00c7ok kanall\u0131 mimari',
+      subtitle: 'Ses, SMS, WhatsApp ve Signal \u2014 hepsi tercih etti\u011finiz sa\u011flay\u0131c\u0131 ile birle\u015fik bir platform \u00fczerinden y\u00f6nlendirilir.',
+    },
     deploy: {
       heading: 'Da\u011f\u0131t\u0131ma haz\u0131r m\u0131s\u0131n\u0131z?',
       description: 'Ll\u00e1menos, Docker \u00fczerinden kendi sunucunuzda bar\u0131nd\u0131r\u0131l\u0131r \u2014 her \u015feyi siz kontrol edersiniz. Bir saatten k\u0131sa s\u00fcrede bir kriz hatt\u0131 ba\u015flat\u0131n.',
@@ -577,6 +713,14 @@ export const home: Record<string, {
       heading: 'Rast derbarê ewlehiyê',
       description: 'Em tam di\u015eîn ku \u00e7i \u015eifrekir\u00ee ye, \u00e7i n\u00eaye û server dikare \u00e7i bibîne. Bêyî nenas\u00ee. Mifteya te ya nehênî bi PIN \u015eifrekir\u00ee ye û tenê dema vekirî di bîranînê de heye. Nehêniya pê\u015fverû ji bo her notê t\u00eaye wê wateyê ku ger mifteyek were girtin notên berê eşkere nabe. Amûrên nû bi ewlehî bi koda QR ve girêbide.',
       link: 'Modela ewlehiyê bixwîne',
+    },
+    screenshots: {
+      heading: 'Di çalakiyê de bibînin',
+      subtitle: 'Navbeynkariyeke nûjen û bersivdar ku ji bo bersiva krîzê hatiye çêkirin. Li ser komputerê û mobîlê dixebite.',
+    },
+    architecture: {
+      heading: 'Mîmariya pir-kanal',
+      subtitle: 'Deng, SMS, WhatsApp, û Signal — hemû bi riya platformek yekgirtî bi dabînkerê bijartina we ve têne rêkirin.',
     },
     deploy: {
       heading: 'Ji bo bicihkirinê amade ye?',
@@ -611,6 +755,14 @@ export const home: Record<string, {
       description: 'Waxaan si sax ah u daabacnaa waxa la sir-daamiyay, waxa aan la sir-daaminin iyo waxa server-ku arki karo. Wax qarsoon la\'aan. Furahaaga sirta ah waxaa lagu sir-daamiyay PIN wuxuuna ku jiraa xusuusta oo keliya marka la furo. Sir horumarsan oo qoraal kasta macnaheedu waa in la helo fure qoraallada hore ma muujiyo. Qalabyo cusub si ammaan ah ugu xidh QR code.',
       link: 'Akhri qaabka amniga',
     },
+    screenshots: {
+      heading: 'Ku arag shaqada',
+      subtitle: 'Mugdi casri ah oo jawaab celin ah oo loo qaabeeyay jawaabta xasaasiyadda. Waxay ku shaqaysaa kombuyuutarka iyo mobilka.',
+    },
+    architecture: {
+      heading: 'Qaab-dhismeedka kanaalado badan',
+      subtitle: 'Codka, SMS, WhatsApp, iyo Signal — dhammaan waxaa lagu hagaajiyaa hal madal oo isku mid ah oo leh bixiyaha aad dooratay.',
+    },
     deploy: {
       heading: 'U diyaar tahay hawlgelinta?',
       description: 'Llámenos waa mid uu qofku iskiis u martigelin karo Docker \u2014 adiga ayaa wax walba xakameynaya. Ku bilow khadka xasaasiyadda in ka yar hal saac.',
@@ -643,6 +795,14 @@ export const home: Record<string, {
       heading: 'ስለ ደህንነት ታማኝ',
       description: 'ምን እንደተመሰጠረ፣ ምን እንዳልተመሰጠረ እና አገልጋዩ ምን ማየት እንደሚችል በትክክል እናሳትማለን። ግልጽነት ብቻ። ሚስጥራዊ ቁልፍዎ በPIN ተመስጥሮ በማስታወሻ ውስጥ ብቻ ሲከፈት ይኖራል። የእያንዳንዱ ማስታወሻ ወደፊት ምስጢራዊነት ማለት ቁልፍ መጥፋት ያለፉ ማስታወሻዎችን አያሳይም። አዲስ መሳሪያዎችን በQR ኮድ በደህንነት ያገናኙ።',
       link: 'የደህንነት ሞዴሉን ያንብቡ',
+    },
+    screenshots: {
+      heading: 'በተግባር ይመልከቱ',
+      subtitle: 'ለቀውስ ምላሽ የተዘጋጀ ዘመናዊ እና ምላሽ ሰጪ በይነገጽ። በኮምፒውተር እና ሞባይል ላይ ይሰራል።',
+    },
+    architecture: {
+      heading: 'ባለብዙ ቻናል ስነ-ህንፃ',
+      subtitle: 'ድምፅ፣ SMS፣ WhatsApp እና Signal — ሁሉም በመረጡት አቅራቢ በተዋሃደ መድረክ በኩል ይዘዋወራሉ።',
     },
     deploy: {
       heading: 'ለማሰማራት ዝግጁ ነዎት?',
@@ -677,6 +837,14 @@ export const home: Record<string, {
       description: 'ဘာကို ကုဒ်ဝှက်ထားသည်၊ ဘာကို မဝှက်ထား၊ ဆာဗာက ဘာကို မြင်နိုင်သည်ကို အတိအကျ ထုတ်ဝေသည်။ မရှင်းလင်းမှု မရှိ။ သင့်လျှို့ဝှက်သော့ကို PIN ဖြင့် ကုဒ်ဝှက်ထားပြီး သော့ဖွင့်ထားချိန်တွင်သာ မှတ်ဉာဏ်တွင် ရှိသည်။ မှတ်စုတစ်ခုချင်းစီ ရှေ့သို့လျှို့ဝှက်မှု ဆိုသည်မှာ သော့ ပေါက်ကြားခြင်းဖြင့် ယခင်မှတ်စုများ ဖော်ထုတ်၍မရပါ။ QR ကုဒ်ဖြင့် စက်ပစ္စည်းအသစ်များကို လုံခြုံစွာ ချိတ်ဆက်ပါ။',
       link: 'လုံခြုံရေး မော်ဒယ်ကို ဖတ်ပါ',
     },
+    screenshots: {
+      heading: 'လက်တွေ့ကြည့်ပါ',
+      subtitle: 'အကျပ်အတည်း တုံ့ပြန်မှုအတွက် ဒီဇိုင်းထုတ်ထားသော ခေတ်မီ၊ တုံ့ပြန်နိုင်သော အင်တာဖေ့စ်။ ဒက်စ်တော့နှင့် မိုဘိုင်းတွင် အလုပ်လုပ်သည်။',
+    },
+    architecture: {
+      heading: 'မျက်နှာပြင်များစွာ ဗိသုကာ',
+      subtitle: 'အသံ၊ SMS၊ WhatsApp နှင့် Signal — အားလုံးကို သင်ရွေးချယ်သော ဝန်ဆောင်မှုပေးသူနှင့်အတူ ပေါင်းစည်းထားသော ပလက်ဖောင်းမှတစ်ဆင့် လမ်းကြောင်းပြောင်းထားသည်။',
+    },
     deploy: {
       heading: 'အသုံးချရန် အဆင်သင့်ဖြစ်ပြီလား?',
       description: 'Llámenos ကို Docker မှတစ်ဆင့် ကိုယ်တိုင် hosting လုပ်သည် \u2014 အရာအားလုံးကို သင် ထိန်းချုပ်သည်။ တစ်နာရီအတွင်း ဟော့တ်လိုင်းကို စတင်လိုက်ပါ။',
@@ -710,6 +878,14 @@ export const home: Record<string, {
       description: "Qak'ut ta ne ri ewan, ri man ewan ta xuquje' ri kurilo' ri server. Man k'o ta itzel. Ri amifteya' ewan ruk' PIN xuquje' k'o xa xe pa ch'ob'oj are taq jaqatal. Ri ewan q'aqa'l rech jujun tz'ib'anik are chi ri rumisaxik jun mifteya' man kuk'ut ta ri tz'ib'anik ojer. Ketob'an ri k'ak'a taq okisaxel ruk' jikomal ruk' QR.",
       link: "Tasik'ij ri rub'eyal jikomal",
     },
+    screenshots: {
+      heading: "Tawila' ri kusamajij",
+      subtitle: "Jun jalwachinik k'ak'a' xuquje' bersivdar ri b'anik rech jaloj kamisanik. Kusamajij pa komputadora xuquje' oyowal.",
+    },
+    architecture: {
+      heading: "Nuk'uj k'iy b'ey",
+      subtitle: "Ch'ab'al, SMS, WhatsApp, xuquje' Signal — ronojel ruk'amik pa jun nuk'uj ruk' ri ya'onel ri nawajo'.",
+    },
     deploy: {
       heading: "Amade at rech nak'am?",
       description: "Llámenos nuk'un ruk' Docker \u2014 at nakanoj ronojel. Tatikirisaj jun jaloj kamisanik pa jun hora.",
@@ -742,6 +918,14 @@ export const home: Record<string, {
       heading: "Ndaa nuu ja'an kua'a",
       description: "Ndiso'o ndaa nasa ndiso'o, nasa ma ndiso'o ji nasa ka ndanduku servidor. Ma ka ña'a tu kukanu'un. Llave ndiso'o ji PIN ji ka ini memoria nuu ja ndiso'o. Ndiso'o iin iin tu'un kuu ja ma ka ndanduku tu'un ja nda'a. Ndiso'o qalabka ja'a ji QR.",
       link: "Kastu'un ja'an kua'a",
+    },
+    screenshots: {
+      heading: "Ndanduku nasa ka tniuu",
+      subtitle: "Iin nuu ja'a ja ndiso'o nuu ta'vi. Ka tniuu nuu computadora ji nuu telefono.",
+    },
+    architecture: {
+      heading: "Nuk'uj kuaha nuu",
+      subtitle: "Tu'un, SMS, WhatsApp ji Signal — ndihi ka ndakuatu'un ini iin programa ji proveedor ja maa ndiso'o.",
     },
     deploy: {
       heading: "Ndiso'o nuu ndakua?",

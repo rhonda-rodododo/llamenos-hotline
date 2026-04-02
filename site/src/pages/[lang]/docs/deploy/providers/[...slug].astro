@@ -1,0 +1,22 @@
+---
+import DocsLayout from '../../../../../layouts/DocsLayout.astro';
+import { getEntry, render } from 'astro:content';
+import { type Lang, nonDefaultLocales } from '../../../../../i18n/config';
+
+export function getStaticPaths() {
+  const providerSlugs = ['twilio', 'signalwire', 'vonage', 'plivo', 'asterisk', 'sms', 'whatsapp', 'signal', 'webrtc'];
+  return nonDefaultLocales.flatMap(lang =>
+    providerSlugs.map(slug => ({ params: { lang, slug } }))
+  );
+}
+
+const lang = Astro.params.lang as Lang;
+const { slug } = Astro.params;
+const entry = (await getEntry('docs', `${lang}/deploy/providers/${slug}`)) ?? (await getEntry('docs', `en/deploy/providers/${slug}`))!;
+const { Content } = await render(entry);
+---
+
+<DocsLayout title={entry.data.title} lang={lang}>
+  <h1>{entry.data.title}</h1>
+  <Content />
+</DocsLayout>
