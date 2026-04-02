@@ -21,6 +21,7 @@
 
 html {
   scroll-behavior: smooth;
+  overflow-x: hidden;
 }
 
 body {
@@ -28,6 +29,7 @@ body {
   color: var(--color-fg);
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
   -moz-osx-font-smoothing: grayscale;
   overflow-x: hidden;
   /* Subtle noise texture for depth */
@@ -162,6 +164,24 @@ a {
 .prose hr {
   border-color: var(--color-border);
   margin: 2rem 0;
+}
+
+/* Prevent prose content from overflowing on mobile */
+.prose {
+  overflow-wrap: break-word;
+  word-break: break-word;
+}
+
+.prose img {
+  max-width: 100%;
+  height: auto;
+}
+
+.prose table {
+  display: block;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  max-width: 100%;
 }
 
 /* Table responsive wrapper — JS wraps each table in .table-wrap */
