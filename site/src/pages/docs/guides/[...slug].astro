@@ -8,7 +8,7 @@ import { common } from '../../../i18n/translations/common';
 export async function getStaticPaths() {
   const guides = await getCollection('guides');
   return guides.map(guide => ({
-    params: { slug: guide.id },
+    params: { slug: guide.id.split('/').slice(1).join('/') },
     props: { guide },
   }));
 }
@@ -77,7 +77,7 @@ const related = allGuides
       <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
         {related.map(r => (
           <a
-            href={`/docs/guides/${r.id}`}
+            href={`/docs/guides/${r.id.split('/').slice(1).join('/')}`}
             class="rounded-lg border border-border bg-bg-card p-4 transition-colors hover:border-border-bright group"
           >
             <h3 class="text-sm font-semibold text-fg group-hover:text-accent-bright transition-colors">

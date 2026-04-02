@@ -19,7 +19,7 @@ export function getLocalizedPath(currentPath: string, targetLang: Lang): string 
   const firstSegment = segments[0];
   let pathWithoutLocale: string;
 
-  if (firstSegment && firstSegment in languages && firstSegment !== defaultLang) {
+  if (firstSegment && firstSegment in languages) {
     pathWithoutLocale = '/' + segments.slice(1).join('/');
   } else {
     pathWithoutLocale = path;
