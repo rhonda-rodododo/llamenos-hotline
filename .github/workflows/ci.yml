@@ -1,37 +1,29 @@
-# Continuous Integration & Deployment
+# Continuous Integration — Pull Request Validation
 #
-# On every push to main:
-#   1. Detect changed files — skip version/release for docs-only changes
+# On pull requests (any target branch):
+#   1. Detect changed files — skip tests for docs-only changes
 #   2. Build & validate (lint, typecheck, vite build, site build)
 #   3. Run unit tests (with Postgres for DB-dependent tests)
 #   4. Run API integration tests (Playwright, no browser)
 #   5. Run UI E2E tests (Playwright, Chromium — non-blocking while stabilizing)
-#   6. Auto-determine version bump from conventional commits
-#   7. Bump version, generate changelog, commit + tag
-#   8. Create GitHub Release with changelog
-#   (Desktop app releases are handled by tauri-release.yml)
+#   6. Dependency vulnerability scan
+#   7. Ansible validation (if ansible or app files changed)
 #
-# On pull requests (any target branch):
-#   Runs build, test, and validation jobs only (no version bump or release).
-#
-# Docs-only changes (*.md and site/ files) skip tests and versioning.
-#
-# Desktop and crypto jobs are disabled until ready.
+# Docs-only changes (*.md and site/ files) skip tests.
 # UI E2E tests run but are non-blocking (continue-on-error) while being stabilized.
 #
-# The created tag also triggers docker.yml for Docker image builds.
+# Releases are handled by release.yml (push to main).
+# Desktop app releases are handled by tauri-release.yml.
 
 name: CI
 
 on:
-  push:
-    branches: [main]
   pull_request:
 
-# Cancel in-progress PR runs when new commits are pushed; never cancel main
+# Cancel in-progress PR runs when new commits are pushed
 concurrency:
   group: ci-${{ github.ref }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+  cancel-in-progress: true
 
 env:
   BUN_VERSION: "1.3.11"
@@ -50,7 +42,6 @@ jobs:
   # ─── Detect Changed Files ─────────────────────────────────────
   changes:
     runs-on: ubuntu-latest
-    if: "!startsWith(github.event.head_commit.message, 'chore(release):')"
 
     outputs:
       app: ${{ steps.filter.outputs.app }}
@@ -157,7 +148,7 @@ jobs:
       - name: Build marketing site
         run: bun run site:build
 
-      # Upload build artifacts for deploy jobs
+      # Upload build artifacts for test jobs
       - name: Upload app build
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
@@ -525,255 +516,13 @@ jobs:
             -i inventory.example.yml \
             --extra-vars "@vars.example.yml"
 
-  # ─── Version Bump & Changelog ──────────────────────────────
-  version:
-    needs: [changes, ci-status]
-    # Skip version bump for docs-only changes and PRs; ci-status gates all required checks
-    if: |
-      github.event_name == 'push' &&
-      needs.changes.outputs.docs_only != 'true' &&
-      needs.ci-status.result == 'success'
-    runs-on: ubuntu-latest
-
-    permissions:
-      contents: write
-
-    outputs:
-      new_version: ${{ steps.version.outputs.new_version }}
-      old_version: ${{ steps.version.outputs.old_version }}
-      bump_type: ${{ steps.version.outputs.bump_type }}
-      should_release: ${{ steps.version.outputs.should_release }}
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
-        with:
-          fetch-depth: 0
-          token: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Determine version bump from commits
-        id: version
-        run: |
-          # Get the latest tag
-          LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
-
-          if [ -z "$LATEST_TAG" ]; then
-            COMMITS=$(git log --oneline --format="%s")
-          else
-            COMMITS=$(git log "${LATEST_TAG}..HEAD" --oneline --format="%s")
-          fi
-
-          # No commits since last tag means this IS the tag commit — skip
-          if [ -z "$COMMITS" ]; then
-            echo "should_release=false" >> "$GITHUB_OUTPUT"
-            echo "No new commits since last tag. Skipping release."
-            exit 0
-          fi
-
-          echo "Commits since ${LATEST_TAG:-beginning}:"
-          echo "$COMMITS"
-
-          # Determine bump type from conventional commits
-          BUMP="patch"
-          if echo "$COMMITS" | grep -qiE "^feat(\(.*\))?!:|BREAKING CHANGE"; then
-            BUMP="major"
-          elif echo "$COMMITS" | grep -qE "^feat(\(.*\))?:"; then
-            BUMP="minor"
-          fi
-
-          # Read current version
-          OLD_VERSION=$(node -p "require('./package.json').version")
-
-          # Calculate new version
-          IFS='.' read -r MAJOR MINOR PATCH <<< "$OLD_VERSION"
-          case "$BUMP" in
-            major) NEW_VERSION="$((MAJOR + 1)).0.0" ;;
-            minor) NEW_VERSION="${MAJOR}.$((MINOR + 1)).0" ;;
-            patch) NEW_VERSION="${MAJOR}.${MINOR}.$((PATCH + 1))" ;;
-          esac
-
-          {
-            echo "bump_type=$BUMP"
-            echo "old_version=$OLD_VERSION"
-            echo "new_version=$NEW_VERSION"
-            echo "should_release=true"
-          } >> "$GITHUB_OUTPUT"
-          echo "Version: $OLD_VERSION → $NEW_VERSION ($BUMP)"
-
-      - uses: ./.github/actions/install-git-cliff
-        if: steps.version.outputs.should_release == 'true'
-
-      - name: Bump version in package.json
-        if: steps.version.outputs.should_release == 'true'
-        run: |
-          NEW_VERSION="${{ steps.version.outputs.new_version }}"
-          node -e "
-            const pkg = require('./package.json');
-            pkg.version = '$NEW_VERSION';
-            require('fs').writeFileSync('package.json', JSON.stringify(pkg, null, 2) + '\n');
-          "
-
-      - name: Generate changelog and commit release
-        if: steps.version.outputs.should_release == 'true'
-        run: |
-          NEW_VERSION="${{ steps.version.outputs.new_version }}"
-
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-
-          # Stage version files
-          git add package.json
-
-          # Create tag so git-cliff can generate notes for this version
-          git commit -m "chore(release): v${NEW_VERSION} [skip ci]"
-          git tag -a "v${NEW_VERSION}" -m "Release v${NEW_VERSION}"
-
-          # Generate full CHANGELOG.md (includes the new tag)
-          git-cliff --output CHANGELOG.md
-
-          # Amend the release commit to include the changelog
-          git add CHANGELOG.md
-          git commit --amend --no-edit
-
-          # Move the tag to the amended commit
-          git tag -f -a "v${NEW_VERSION}" -m "Release v${NEW_VERSION}"
-
-      - name: Push release
-        if: steps.version.outputs.should_release == 'true'
-        run: |
-          # Rebase onto any commits pushed during tests
-          git pull --rebase origin main
-          git push origin main --follow-tags
-
-  # ─── Create GitHub Release ──────────────────────────────────
-  release:
-    needs: [version]
-    if: github.event_name == 'push' && needs.version.outputs.should_release == 'true'
-    runs-on: ubuntu-latest
-
-    permissions:
-      contents: write
-      id-token: write  # Required for SLSA attestation
-      attestations: write
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
-        with:
-          fetch-depth: 0
-
-      - name: Download checksums
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
-        with:
-          name: checksums
-
-      - name: Download app build (for attestation)
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
-        with:
-          name: app-build
-          path: dist/
-
-      - name: Generate SLSA build provenance attestation (Epic 79)
-        uses: actions/attest-build-provenance@ef244123eb79f2f7a7e75d99086184180e6d0018 # v2.1.0
-        with:
-          subject-path: |
-            CHECKSUMS.txt
-            dist/client/**/*.js
-            dist/client/**/*.css
-
-      - name: Generate provenance metadata JSON (Epic 79)
-        run: |
-          cat > provenance.json <<PROVEOF
-          {
-            "builder": { "id": "https://github.com/actions/runner" },
-            "buildType": "https://github.com/slsa-framework/slsa/blob/main/docs/spec/v1.0/levels.md",
-            "invocation": {
-              "configSource": {
-                "uri": "git+https://github.com/${{ github.repository }}@refs/tags/v${{ needs.version.outputs.new_version }}",
-                "digest": { "sha1": "${{ github.sha }}" },
-                "entryPoint": ".github/workflows/ci.yml"
-              },
-              "parameters": {
-                "SOURCE_DATE_EPOCH": "$(git log -1 --format=%ct)",
-                "bunVersion": "${{ env.BUN_VERSION }}"
-              }
-            },
-            "buildConfig": {
-              "dockerfile": "Dockerfile.build",
-              "steps": ["bun install --frozen-lockfile", "bun run build"]
-            },
-            "metadata": {
-              "buildStartedOn": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
-              "buildFinishedOn": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
-              "completeness": { "parameters": true, "environment": false, "materials": false },
-              "reproducible": true
-            },
-            "materials": [
-              {
-                "uri": "git+https://github.com/${{ github.repository }}@refs/tags/v${{ needs.version.outputs.new_version }}",
-                "digest": { "sha1": "${{ github.sha }}" }
-              }
-            ]
-          }
-          PROVEOF
-          # Clean up leading whitespace from heredoc indentation
-          python3 -c "
-          import json, sys
-          with open('provenance.json') as f:
-              data = json.load(f)
-          with open('provenance.json', 'w') as f:
-              json.dump(data, f, indent=2)
-          "
-          echo "--- provenance.json ---"
-          cat provenance.json
-
-      - name: GPG sign CHECKSUMS.txt (Epic 79)
-        env:
-          GPG_PRIVATE_KEY: ${{ secrets.RELEASE_GPG_PRIVATE_KEY }}
-          GPG_KEY_ID: ${{ secrets.RELEASE_GPG_KEY_ID }}
-        run: |
-          if [ -z "$GPG_PRIVATE_KEY" ] || [ -z "$GPG_KEY_ID" ]; then
-            echo "GPG signing secrets not configured — skipping signature"
-            exit 0
-          fi
-          echo "$GPG_PRIVATE_KEY" | gpg --batch --import
-          gpg --batch --armor --local-user "$GPG_KEY_ID" --detach-sign CHECKSUMS.txt
-          echo "GPG signature generated: CHECKSUMS.txt.asc"
-          gpg --verify CHECKSUMS.txt.asc CHECKSUMS.txt
-          echo "GPG signature verified successfully"
-
-      - uses: ./.github/actions/install-git-cliff
-
-      - name: Generate release notes
-        run: |
-          git-cliff --latest --strip header > RELEASE_NOTES.md
-          echo "--- Release notes ---"
-          cat RELEASE_NOTES.md
-
-      - name: Create GitHub Release
-        uses: softprops/action-gh-release@da05d552573ad5aba039eaac05058a918a7bf631 # v2.2.2
-        with:
-          tag_name: v${{ needs.version.outputs.new_version }}
-          name: v${{ needs.version.outputs.new_version }}
-          body_path: RELEASE_NOTES.md
-          draft: false
-          prerelease: false
-          fail_on_unmatched_files: false
-          files: |
-            CHECKSUMS.txt
-            CHECKSUMS.txt.asc
-            provenance.json
-
   # ─── CI Status Gate ─────────────────────────────────────────
-  # Single status check for branch protection rules AND version/release gating.
-  # All required jobs must pass for PRs to be mergeable and for releases to proceed.
+  # Single status check for branch protection rules.
+  # All required jobs must pass for PRs to be mergeable.
   ci-status:
     needs: [lint, build, audit, unit-tests, integration-tests, api-tests, e2e-tests, ansible-validate]
     if: always()
     runs-on: ubuntu-latest
-
-    outputs:
-      passed: ${{ steps.check.outputs.passed }}
 
     steps:
       - name: Check all required jobs
@@ -818,10 +567,8 @@ jobs:
           echo ":: e2e-tests: $E2E_TESTS_RESULT (informational)"
 
           if [[ "$FAILED" == "true" ]]; then
-            echo "passed=false" >> "$GITHUB_OUTPUT"
             echo "One or more required checks failed"
             exit 1
           fi
 
-          echo "passed=true" >> "$GITHUB_OUTPUT"
           echo "All required checks passed!"
