@@ -9,7 +9,9 @@ import { common } from '../../../i18n/translations/common';
 const lang: Lang = defaultLang;
 const t = getTranslation(common, lang);
 
-const guides = await getCollection('guides');
+const allGuides = await getCollection('guides');
+// Filter to current language only — guide IDs are like "en/getting-started"
+const guides = allGuides.filter(g => g.id.startsWith(`${lang}/`));
 const sorted = guides.sort((a, b) => (a.data.order ?? 999) - (b.data.order ?? 999));
 
 const audienceLabels: Record<string, string> = {
@@ -38,7 +40,7 @@ const taskLabels: Record<string, string> = {
       {sorted.map(guide => (
         <a
           href={`/docs/guides/${guide.id}`}
-          class="rounded-xl border border-border bg-bg-card p-5 transition-colors hover:border-border-bright group"
+          class="rounded-xl border border-border bg-bg-card p-5 transition-colors hover:border-border-bright group no-underline"
           data-guide-card
           data-audience={guide.data.audience.join(',')}
           data-task={guide.data.task.join(',')}
@@ -63,4 +65,9 @@ const taskLabels: Record<string, string> = {
       ))}
     </div>
   </div>
+<style>
+  [data-guide-card] {
+    text-decoration: none !important;
+  }
+</style>
 </DocsLayout>
