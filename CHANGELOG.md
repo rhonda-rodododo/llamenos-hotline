@@ -5,11 +5,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.33.0] - 2026-04-02
+
+### Features
+
+- documentation, infrastructure & doc site overhaul (#37)
+
+### Miscellaneous
+
+- v0.33.0 [skip ci]
+
 ## [0.32.0] - 2026-04-01
 
 ### Features
 
 - Contact Directory CMS — PBAC, teams, tags, intake, bulk ops, encryption (#33)
+- zod schema migration — OpenAPIHono + external schemas (#36)
 
 ### Miscellaneous
 
