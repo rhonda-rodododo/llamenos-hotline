@@ -33,10 +33,11 @@ const taskLabels: Record<string, string> = {
   security: t.docs.taskSecurity,
 };
 
-// Find related guides: same feature or overlapping tags
+// Find related guides: same language, same feature or overlapping tags
 const allGuides = await getCollection('guides');
+const langPrefix = guide.id.split('/')[0] + '/';
 const related = allGuides
-  .filter(g => g.id !== guide.id)
+  .filter(g => g.id !== guide.id && g.id.startsWith(langPrefix))
   .map(g => {
     let score = 0;
     if (guide.data.feature && g.data.feature === guide.data.feature) score += 3;
@@ -77,7 +78,8 @@ const related = allGuides
         {related.map(r => (
           <a
             href={`/docs/guides/${r.id}`}
-            class="rounded-lg border border-border bg-bg-card p-4 transition-colors hover:border-border-bright group"
+            class="rounded-lg border border-border bg-bg-card p-4 transition-colors hover:border-border-bright group no-underline"
+            style="text-decoration: none;"
           >
             <h3 class="text-sm font-semibold text-fg group-hover:text-accent-bright transition-colors">
               {r.data.title}
