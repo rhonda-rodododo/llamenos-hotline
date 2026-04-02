@@ -30,7 +30,7 @@ All event content is encrypted with the hub key before publishing. The relay see
 | Event-type visibility | Yes — server knew event types for routing | No — generic `["t", "llamenos:event"]` tag only |
 | Protocol standard | Custom proprietary | NIP-01/NIP-42 open standard |
 | Self-hosted option | Same server as app | Independent infrastructure (strfry) |
-| CF deployment | Built into Worker | Nosflare DO service binding |
+| CF deployment | Built into Worker | N/A (strfry is self-hosted only) |
 
 ---
 
@@ -48,15 +48,9 @@ All event content is encrypted with the hub key before publishing. The relay see
 - Ephemeral event forwarding (kind 20000-29999)
 - Low memory footprint (~50MB for typical workloads)
 
-### Nosflare (Cloudflare)
+### Nosflare (Deprecated)
 
-For Cloudflare Workers deployments, Nosflare runs as a Durable Object with a service binding. It provides the same NIP-01/NIP-42 interface as strfry but runs on Cloudflare's edge network.
-
-**Characteristics**:
-- No separate infrastructure to manage
-- Automatically scaled by Cloudflare
-- Same trust model as the rest of the CF deployment (see [Threat Model: Cloudflare Trust Boundary](security/THREAT_MODEL.md#cloudflare-trust-boundary-honest-assessment))
-- Does NOT provide additional privacy vs. Cloudflare (only vs. DB-only subpoena)
+> **Deprecated.** Nosflare was used for Cloudflare Workers deployments but is no longer the primary relay. strfry is the recommended and only actively maintained relay for all deployments (Docker Compose and Kubernetes). Nosflare remains in the codebase for reference but should not be used for new deployments.
 
 ---
 
@@ -98,17 +92,6 @@ kubectl create secret generic llamenos-nostr-secret \
 
 The StatefulSet uses a PersistentVolumeClaim for the LMDB data directory.
 
-### Cloudflare (Service Binding)
-
-Nosflare is configured in `wrangler.jsonc` as a service binding:
-
-```bash
-# Set the server Nostr secret
-wrangler secret put SERVER_NOSTR_SECRET
-```
-
-No separate deployment step — Nosflare is part of the Worker bundle.
-
 ---
 
 ## 4. Hardening
@@ -123,6 +106,8 @@ strfry supports NIP-42 (client authentication). When enabled:
 4. Relay verifies the signature before allowing publish/subscribe
 
 This prevents anonymous clients from subscribing to hub events or injecting events.
+
+**Important**: NIP-42 relay authentication uses Nostr keys and is entirely separate from the JWT/Authentik authentication used for the REST API. The relay does not validate JWTs -- it authenticates clients via Nostr key signatures. The server's relay identity is derived from `SERVER_NOSTR_SECRET`, not from any IdP credential.
 
 ### Write Policy
 
@@ -276,7 +261,6 @@ docker compose start strfry
 
 1. Check relay CPU and memory usage — under load, strfry may queue events
 2. Check network latency between the app server and relay (should be <10ms if co-located)
-3. For Nosflare, check Cloudflare's edge latency to the client
 
 ### SERVER_NOSTR_SECRET Missing
 

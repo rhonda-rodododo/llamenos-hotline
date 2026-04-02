@@ -1,6 +1,18 @@
-# Design Notes
+# Design Notes (Original v0.x)
 
-Original project design notes and threat model. These informed the architecture and feature set of Llámenos.
+> **Historical document.** These are the original design notes from early development. For the current architecture, see [`docs/architecture/`](architecture/) which covers the E2EE architecture, PBAC authorization model, Contact Directory, and protocol specification.
+
+## Key Evolutions Since v0.x
+
+- **Auth**: Migrated from raw nsec entry to JWT + Authentik IdP with WebAuthn (passkey) support. Nostr keypairs are still used for cryptographic operations (signing, encryption) but authentication flows through Authentik.
+- **Storage**: Replaced MinIO with RustFS (S3-compatible, self-hosted via Docker/Ansible). Per-hub buckets with lifecycle policies.
+- **Services**: Replaced Cloudflare Durable Objects with seven PostgreSQL-backed services (IdentityService, SettingsService, RecordsService, ShiftManagerService, CallRouterService, ConversationService, AuditService) using Drizzle ORM.
+- **Real-time**: Replaced custom WebSocket server with Nostr relay (strfry) for all real-time communication. All event content is hub-key encrypted.
+- **Encryption**: Added field-level encryption for all PII (envelope encryption) and org metadata (hub-key symmetric encryption). Per-note forward secrecy with multi-admin envelopes.
+- **Contact Directory**: E2EE contact management with PBAC, teams, tags, intake routing, and bulk operations.
+- **Deployment**: Primary deployment is VPS via Docker Compose + Ansible. Kubernetes via Helm chart for larger deployments.
+
+---
 
 ## Hotline Personas
 
@@ -16,7 +28,7 @@ Original project design notes and threat model. These informed the architecture 
 
 ## Requirements That Shaped the Architecture
 
-- **Low cost** — Twilio for telephony, Cloudflare free/paid tiers for hosting.
+- **Low cost** — Twilio for telephony, self-hosted VPS for infrastructure.
 - **Automated shift routing** — recurring schedules with ring groups and fallback groups.
 - **Volunteer identity protection** — personal info (name, phone) visible only to admins.
 - **Call spam mitigation** — real-time ban lists, voice CAPTCHA, rate limiting.

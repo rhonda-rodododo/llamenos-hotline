@@ -17,8 +17,10 @@ This runbook provides procedures for common operational tasks, incident response
 5. [Incident Response](#5-incident-response)
 6. [Log Analysis and Monitoring](#6-log-analysis-and-monitoring)
 7. [Common Issues and Solutions](#7-common-issues-and-solutions)
-8. [Scaling Considerations](#8-scaling-considerations)
-9. [Emergency Procedures](#9-emergency-procedures)
+8. [Authentik (IdP) Operations](#8-authentik-idp-operations)
+9. [Contact Directory Operations](#9-contact-directory-operations)
+10. [Scaling Considerations](#10-scaling-considerations)
+11. [Emergency Procedures](#11-emergency-procedures)
 
 > **Key Revocation and Rotation**: For cryptographic key compromise, volunteer departure key revocation, device seizure response, and hub key rotation procedures, see the dedicated [Key Revocation Runbook](security/KEY_REVOCATION_RUNBOOK.md).
 
@@ -76,7 +78,7 @@ docker compose exec app curl -sf http://localhost:3000/api/health
 
 After rotation, re-add banned phone numbers through the admin UI so they are hashed with the new secret.
 
-### 1.3 MinIO Credentials Rotation
+### 1.3 RustFS Credentials Rotation
 
 **Frequency**: Annually, or after suspected compromise.
 
@@ -87,24 +89,69 @@ cd /opt/llamenos/deploy/docker
 NEW_ACCESS_KEY=$(openssl rand -base64 16 | tr -dc 'a-zA-Z0-9' | head -c 20)
 NEW_SECRET_KEY=$(openssl rand -base64 24)
 
-# 2. Update MinIO credentials via mc (MinIO client)
-docker compose exec minio mc alias set local http://localhost:9000 \
-  "${MINIO_ACCESS_KEY}" "${MINIO_SECRET_KEY}"
-docker compose exec minio mc admin user svcacct add local "${NEW_ACCESS_KEY}" \
-  --secret-key "${NEW_SECRET_KEY}"
+# 2. Update .env with new credentials
+sed -i "s|^STORAGE_ACCESS_KEY=.*|STORAGE_ACCESS_KEY=${NEW_ACCESS_KEY}|" .env
+sed -i "s|^STORAGE_SECRET_KEY=.*|STORAGE_SECRET_KEY=${NEW_SECRET_KEY}|" .env
 
-# 3. Update .env with new credentials
-sed -i "s|^MINIO_ACCESS_KEY=.*|MINIO_ACCESS_KEY=${NEW_ACCESS_KEY}|" .env
-sed -i "s|^MINIO_SECRET_KEY=.*|MINIO_SECRET_KEY=${NEW_SECRET_KEY}|" .env
+# 3. Restart both RustFS and the app
+docker compose restart rustfs app
 
-# 4. Restart both MinIO and the app
-docker compose restart minio app
+# 4. Verify
+docker compose exec app curl -sf http://localhost:3000/api/health
+```
+
+### 1.4 JWT Secret Rotation
+
+**Frequency**: Annually, or immediately after suspected compromise.
+
+**WARNING**: Rotating the JWT secret invalidates all existing JWT tokens. All users will be logged out and must re-authenticate through Authentik.
+
+```bash
+cd /opt/llamenos/deploy/docker
+
+# 1. Generate new secret (64 hex characters)
+NEW_JWT_SECRET=$(openssl rand -hex 32)
+
+# 2. Update .env
+sed -i "s|^JWT_SECRET=.*|JWT_SECRET=${NEW_JWT_SECRET}|" .env
+
+# 3. Restart the application
+docker compose restart app
+
+# 4. Verify
+docker compose exec app curl -sf http://localhost:3000/api/health
+```
+
+After rotation, all users must re-authenticate. Revoked tokens in `jwtRevocations` are cleared since the old signing key is no longer valid.
+
+### 1.5 IDP_VALUE_ENCRYPTION_KEY Rotation
+
+**Frequency**: Annually, or when key compromise is suspected.
+
+**WARNING**: This key encrypts sensitive values stored by the IdP integration layer. Rotation is versioned -- increment `IDP_VALUE_KEY_VERSION` alongside the new key. The application supports decrypting values encrypted with previous key versions during a transition period.
+
+```bash
+cd /opt/llamenos/deploy/docker
+
+# 1. Generate new encryption key
+NEW_IDP_KEY=$(openssl rand -hex 32)
+
+# 2. Get current version
+CURRENT_VERSION=$(grep "^IDP_VALUE_KEY_VERSION=" .env | cut -d= -f2)
+NEW_VERSION=$((CURRENT_VERSION + 1))
+
+# 3. Update .env (keep old key as IDP_VALUE_ENCRYPTION_KEY_PREV for transition)
+sed -i "s|^IDP_VALUE_ENCRYPTION_KEY=.*|IDP_VALUE_ENCRYPTION_KEY=${NEW_IDP_KEY}|" .env
+sed -i "s|^IDP_VALUE_KEY_VERSION=.*|IDP_VALUE_KEY_VERSION=${NEW_VERSION}|" .env
+
+# 4. Restart the application
+docker compose restart app
 
 # 5. Verify
 docker compose exec app curl -sf http://localhost:3000/api/health
 ```
 
-### 1.4 Twilio Credentials Rotation
+### 1.6 Twilio Credentials Rotation
 
 **Frequency**: Quarterly, or immediately after compromise.
 
@@ -125,7 +172,7 @@ Alternatively, rotate credentials through the admin UI at Settings > Telephony P
 
 4. Revoke the old API key in the Twilio Console.
 
-### 1.6 Server Nostr Secret Rotation
+### 1.7 Server Nostr Secret Rotation
 
 **Frequency**: Only when compromised, or when deliberately changing the server's Nostr identity.
 
@@ -151,7 +198,7 @@ After rotation:
 - All connected clients will automatically reconnect and accept the new server identity
 - Historical events signed by the old server key will fail verification (acceptable — ephemeral events are not persisted)
 
-### 1.5 Asterisk / Bridge Secrets Rotation
+### 1.8 Asterisk / Bridge Secrets Rotation
 
 Only applicable if using the Asterisk profile.
 
@@ -421,21 +468,38 @@ docker run --rm -v llamenos_nostr-data:/data -v /opt/llamenos/backups:/backup \
 
 **Note**: If all events are ephemeral (kind 20001), the relay database is small and contains only relay state — not user data. Backup is recommended but not critical.
 
-### 4.6 MinIO Blob Backup
+### 4.6 RustFS Blob Backup
 
-MinIO stores uploaded files (encrypted reports, IVR audio). Back it up separately:
+RustFS stores uploaded files (encrypted reports, IVR audio, voicemail recordings). Back it up separately using any S3-compatible client:
 
 ```bash
-# Install MinIO client if needed
-docker compose exec minio mc alias set local http://localhost:9000 \
-  "$MINIO_ACCESS_KEY" "$MINIO_SECRET_KEY"
+# Using rclone (recommended for large datasets)
+rclone sync rustfs:hub-files /opt/llamenos/backups/rustfs/
 
-# Mirror to local directory
-docker compose exec minio mc mirror local/llamenos-files /tmp/minio-backup/
+# Or use the AWS CLI with S3-compatible endpoint
+aws --endpoint-url http://localhost:9002 s3 sync s3://hub-files /opt/llamenos/backups/rustfs/
 
-# Or use rclone for remote backup
-# rclone sync minio:llamenos-files remote:llamenos-minio-backup/
+# Or use rclone for off-site backup
+# rclone sync rustfs:hub-files remote:llamenos-rustfs-backup/
 ```
+
+### 4.7 Authentik Database Backup
+
+Authentik uses its own PostgreSQL database. Include it in your backup procedure:
+
+```bash
+cd /opt/llamenos/deploy/docker
+
+# Dump the Authentik database
+docker compose exec -T authentik-postgresql pg_dump -U authentik authentik \
+  | gzip \
+  | age -r "age1your-public-key-here" \
+  > /opt/llamenos/backups/authentik_$(date +%Y%m%d_%H%M%S).sql.gz.age
+
+echo "Authentik DB backup complete"
+```
+
+**Note**: Authentik also uses Redis for caching and session state. Redis data is ephemeral and will be rebuilt on restart -- it does not need to be backed up. After restoring the Authentik database, restart the Authentik services and Redis will repopulate automatically.
 
 ---
 
@@ -517,11 +581,8 @@ This is the most severe account compromise scenario.
    docker compose stop app
    ```
 
-2. Generate a new admin keypair:
-   ```bash
-   # On a trusted machine
-   bun run bootstrap-admin
-   ```
+2. Generate a new admin account:
+   - Create a new admin account via the setup wizard or Authentik admin panel on a trusted machine.
 
 3. Update the server configuration:
    ```bash
@@ -529,7 +590,7 @@ This is the most severe account compromise scenario.
    sed -i "s|^ADMIN_PUBKEY=.*|ADMIN_PUBKEY=<new_pubkey>|" .env
    ```
 
-4. Rotate all secrets (database, HMAC, MinIO, telephony).
+4. Rotate all secrets (database, HMAC, JWT, RustFS, telephony, IDP_VALUE_ENCRYPTION_KEY).
 
 5. Restart the application:
    ```bash
@@ -553,7 +614,7 @@ The VPS itself has been compromised (SSH breach, container escape, provider-leve
 3. **Rotate ALL secrets**:
    - Database password
    - HMAC secret
-   - MinIO credentials
+   - RustFS credentials
    - Twilio/telephony credentials
    - Asterisk credentials (if applicable)
    - SSH keys (generate new key pairs for the new server)
@@ -710,10 +771,12 @@ docker compose exec postgres pg_isready -U llamenos
 | Error | Cause | Solution |
 |-------|-------|----------|
 | `PG_PASSWORD is required` | Missing `.env` variable | Set `PG_PASSWORD` in `.env` |
-| `ADMIN_PUBKEY is required` | Missing admin key | Run `bun run bootstrap-admin` and set the key |
+| `ADMIN_PUBKEY is required` | Missing admin key | Complete setup wizard to generate admin keypair |
 | `HMAC_SECRET is required` | Missing HMAC secret | Generate with `openssl rand -hex 32` |
+| `JWT_SECRET is required` | Missing JWT secret | Generate with `openssl rand -hex 32` |
 | `Connection refused` (postgres) | Database not ready | Wait for postgres health check; check `docker compose ps` |
-| `ECONNREFUSED` (minio) | MinIO not ready | Wait for MinIO health check |
+| `ECONNREFUSED` (rustfs) | RustFS not ready | Wait for RustFS health check; verify UID 10001 owns volume |
+| `Authentik unhealthy` | IdP not ready | Check `docker compose logs authentik-server`; verify Redis is running |
 | `out of memory` | Insufficient RAM | Increase VPS RAM or reduce `PG_POOL_SIZE` |
 
 ### 7.2 Caddy Returns 502 Bad Gateway
@@ -792,9 +855,36 @@ docker compose exec app curl -v http://localhost:3000/api/health
 # If database connection is failing
 docker compose exec postgres pg_isready -U llamenos
 
-# If MinIO is failing
-docker compose exec minio mc ready local
+# If RustFS is failing
+curl -sf http://localhost:9002/minio/health/live
+
+# If Authentik is failing
+curl -sf http://localhost:9000/idp/-/health/ready/
 ```
+
+### 7.8 Authentication Failures
+
+**Symptom**: Users cannot log in, or get 401/403 errors after login.
+
+```bash
+# Check Authentik IdP health
+curl -sf https://hotline.yourorg.org/idp/-/health/ready/
+
+# Check Authentik logs
+docker compose logs authentik-server --tail 50
+
+# Check app JWT verification logs
+docker compose logs app --tail 50 | grep -i "jwt\|auth\|token"
+```
+
+**Common causes**:
+
+| Symptom | Cause | Solution |
+|---------|-------|----------|
+| Login redirects fail | Authentik unhealthy | Restart `authentik-server` and `authentik-worker`; check Redis |
+| 401 after login | JWT expired or invalid | Check clock sync (NTP); verify `JWT_SECRET` matches between app and IdP |
+| 403 on API calls | Token refresh failed | Check `jwtRevocations` table; user may need to re-authenticate |
+| Passkey not working | WebAuthn RP mismatch | Verify `WEBAUTHN_RP_ID` matches your domain in Authentik config |
 
 ### 7.6 Docker Image Build Fails
 
@@ -824,7 +914,104 @@ sudo tail -50 /var/log/fail2ban.log
 
 ---
 
-## 8. Scaling Considerations
+## 8. Authentik (IdP) Operations
+
+### 8.1 Health Monitoring
+
+```bash
+# Check Authentik readiness
+curl -sf https://hotline.yourorg.org/idp/-/health/ready/
+
+# Check Authentik liveness
+curl -sf https://hotline.yourorg.org/idp/-/health/live/
+
+# View Authentik server logs
+docker compose logs authentik-server --tail 100
+
+# View Authentik worker logs (background tasks)
+docker compose logs authentik-worker --tail 100
+```
+
+### 8.2 Authentik Backup
+
+Authentik stores data in its own PostgreSQL database and uses Redis for caching:
+
+```bash
+cd /opt/llamenos/deploy/docker
+
+# Database backup (include in your daily backup script)
+docker compose exec -T authentik-postgresql pg_dump -U authentik authentik \
+  | gzip \
+  | age -r "age1your-public-key-here" \
+  > /opt/llamenos/backups/authentik_$(date +%Y%m%d_%H%M%S).sql.gz.age
+```
+
+**Redis does not need backup** -- it contains only cache and session data that rebuilds on restart.
+
+### 8.3 User Management
+
+User accounts are managed through the Authentik admin interface or via the Llamenos admin panel:
+
+- **Authentik admin**: `https://hotline.yourorg.org/idp/if/admin/` -- full IdP administration
+- **Llamenos admin panel**: Volunteers > manage individual accounts
+
+To deactivate a user at the IdP level (prevents all authentication):
+
+```bash
+# Via Authentik API
+curl -X PATCH https://hotline.yourorg.org/idp/api/v3/core/users/<user-id>/ \
+  -H "Authorization: Bearer ${AUTHENTIK_BOOTSTRAP_TOKEN}" \
+  -H "Content-Type: application/json" \
+  -d '{"is_active": false}'
+```
+
+### 8.4 Blueprint Updates
+
+Authentik uses blueprints for declarative configuration. When updating Llamenos, new blueprints may be included:
+
+```bash
+# Apply updated blueprints
+docker compose exec authentik-server ak apply_blueprint /blueprints/llamenos/
+
+# Check blueprint status
+docker compose exec authentik-server ak list_blueprints
+```
+
+## 9. Contact Directory Operations
+
+### 9.1 Bulk Import
+
+Import contacts from CSV via the admin panel or API:
+
+```bash
+# API bulk import (JSON array of contacts)
+curl -X POST https://hotline.yourorg.org/api/contacts/bulk \
+  -H "Authorization: Bearer ${TOKEN}" \
+  -H "Content-Type: application/json" \
+  -d @contacts.json
+```
+
+### 9.2 Bulk Export
+
+Export all contacts (encrypted fields are exported in encrypted form):
+
+```bash
+curl -s https://hotline.yourorg.org/api/contacts/export \
+  -H "Authorization: Bearer ${TOKEN}" \
+  > contacts-export.json
+```
+
+### 9.3 Tag Management
+
+Tags are used for intake routing and contact categorization. Manage via the admin panel at Contacts > Tags, or via API:
+
+```bash
+# List all tags
+curl -s https://hotline.yourorg.org/api/contacts/tags \
+  -H "Authorization: Bearer ${TOKEN}"
+```
+
+## 10. Scaling Considerations
 
 ### 8.1 Single-Server Limits
 
@@ -878,7 +1065,7 @@ docker compose exec postgres psql -U llamenos -d llamenos -c "
 
 ---
 
-## 9. Emergency Procedures
+## 11. Emergency Procedures
 
 ### 9.1 Emergency Shutdown
 
@@ -964,12 +1151,14 @@ If you need to rebuild from scratch (server unrecoverable, no trust in existing 
 # On a new, clean server:
 
 # 1. Follow the Quick Start Guide sections 1-4
-# 2. Restore database from off-site backup
-# 3. Restore MinIO blobs from off-site backup
-# 4. Generate new admin keypair (bun run bootstrap-admin)
-# 5. Rotate ALL secrets
-# 6. Update DNS to point to new server
-# 7. Notify volunteers to re-authenticate
+# 2. Restore PostgreSQL database from off-site backup
+# 3. Restore Authentik database from off-site backup
+# 4. Restore RustFS blobs from off-site backup
+# 5. Restore strfry relay data from off-site backup
+# 6. Create new admin account via setup wizard
+# 7. Rotate ALL secrets
+# 8. Update DNS to point to new server
+# 9. Notify volunteers to re-authenticate
 ```
 
 The admin will need to re-wrap note encryption envelopes with the new admin keypair. This requires volunteers to be online.

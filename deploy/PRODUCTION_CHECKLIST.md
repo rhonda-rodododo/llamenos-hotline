@@ -16,17 +16,18 @@ Pre-launch checklist for self-hosted Llamenos instances. Complete all items befo
 
 - [ ] All images pinned to digest hashes (not `latest`)
 - [ ] `.env` file has strong, unique secrets (not defaults)
-- [ ] `PG_PASSWORD` is cryptographically random (≥24 chars)
+- [ ] `PG_PASSWORD` is cryptographically random (>=24 chars)
 - [ ] `HMAC_SECRET` is 64 hex chars (`openssl rand -hex 32`)
 - [ ] `SERVER_NOSTR_SECRET` is 64 hex chars
-- [ ] `STORAGE_ACCESS_KEY` and `STORAGE_SECRET_KEY` are unique
+- [ ] `JWT_SECRET` is 64 hex chars (`openssl rand -hex 32`)
+- [ ] `STORAGE_ACCESS_KEY` and `STORAGE_SECRET_KEY` are unique (RustFS)
 - [ ] `ADMIN_PUBKEY` set to real admin's Nostr pubkey
 - [ ] `DOMAIN` set to actual production domain
 - [ ] `ACME_EMAIL` set for Let's Encrypt notifications
 - [ ] `ENVIRONMENT=production` (not development)
 - [ ] Docker network isolation: internal services not exposed to host
 - [ ] Read-only root filesystem for app container
-- [ ] Non-root user in all containers
+- [ ] Non-root user in all containers (note: RustFS runs as UID 10001)
 
 ## TLS & Domain
 
@@ -36,6 +37,19 @@ Pre-launch checklist for self-hosted Llamenos instances. Complete all items befo
 - [ ] HTTP redirects to HTTPS
 - [ ] HSTS header present with `includeSubDomains; preload`
 - [ ] CSP header blocks inline scripts
+
+## Authentik (IdP)
+
+- [ ] `AUTHENTIK_SECRET_KEY` generated (`openssl rand -hex 32`)
+- [ ] `AUTHENTIK_BOOTSTRAP_TOKEN` generated (`openssl rand -hex 64`)
+- [ ] `IDP_VALUE_ENCRYPTION_KEY` generated (`openssl rand -hex 32`)
+- [ ] `IDP_VALUE_KEY_VERSION` set to `1`
+- [ ] Authentik health check passes: `curl -sf https://yourdomain.org/idp/-/health/ready/`
+- [ ] Authentik blueprint applied (llamenos flow, property mappings)
+- [ ] Admin account created through Authentik
+- [ ] WebAuthn RP ID configured to match production domain (`WEBAUTHN_RP_ID`)
+- [ ] Authentik Redis running and connected
+- [ ] Authentik worker running (background tasks, email sending)
 
 ## Health & Monitoring
 
@@ -72,12 +86,14 @@ Pre-launch checklist for self-hosted Llamenos instances. Complete all items befo
 
 ## Application
 
-- [ ] Admin account created (`bun run bootstrap-admin`)
-- [ ] Admin can log in and access all features
+- [ ] Admin account created via setup wizard (Authentik registration + PIN + key generation)
+- [ ] Admin can log in via Authentik and access all features
 - [ ] Volunteer invite flow works end-to-end
 - [ ] E2EE notes: volunteer creates note, admin can decrypt
 - [ ] Ban list functionality works
 - [ ] Shift scheduling works
+- [ ] Contact Directory accessible and functional (create contact, search, tags)
+- [ ] Hub-key encryption working (shift names, role names encrypted in DB)
 
 ## Security
 
@@ -94,7 +110,7 @@ Pre-launch checklist for self-hosted Llamenos instances. Complete all items befo
 - [ ] Secrets stored in Kubernetes Secrets (not values.yaml)
 - [ ] PodDisruptionBudget configured for app and strfry
 - [ ] Resource limits set for all containers
-- [ ] RustFS uses StatefulSet (not Deployment)
+- [ ] RustFS uses StatefulSet (not Deployment) with correct UID (10001)
 - [ ] Liveness probe: `/api/health/live`
 - [ ] Readiness probe: `/api/health/ready`
 - [ ] NetworkPolicy restricts pod-to-pod traffic

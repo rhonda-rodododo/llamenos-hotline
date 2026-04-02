@@ -44,7 +44,7 @@ The build process eliminates all sources of non-determinism:
 | `index.html` | Yes | References content-hashed assets |
 | `CHECKSUMS.txt` | Yes | SHA-256 of all output files |
 | Worker bundle (Node.js) | Yes | Same deterministic config |
-| Worker bundle (Cloudflare) | **No** | Cloudflare modifies the bundle during deployment |
+| External images (Authentik, strfry, RustFS) | **No** | Third-party images are pinned by digest, not built from source |
 
 ---
 
@@ -106,7 +106,7 @@ If verification passes, you know:
 | The running server serves these exact files | A compromised server could serve different files |
 | The source code is free of vulnerabilities | Reproducible builds verify build integrity, not code quality |
 | GitHub Actions was not compromised | CI/CD supply chain is a separate trust boundary |
-| Cloudflare serves unmodified files | CF controls TLS termination and can serve arbitrary content |
+| The reverse proxy serves unmodified files | Caddy (or any TLS-terminating proxy) could serve different files |
 
 ### Why Not Serve Checksums from the App
 
@@ -125,9 +125,20 @@ Client JavaScript and CSS bundles are fully verified:
 
 These are the security-critical artifacts — they contain the cryptographic code that handles key management, encryption, and decryption.
 
-### Not Verified (Server/Worker)
+### Not Verified (External Images)
 
-The Worker/server bundle is **not verified** for Cloudflare deployments because Cloudflare modifies the bundle during deployment (minification, source maps, etc.). For Node.js self-hosted deployments, the server bundle IS deterministic and can be verified using the same Docker build process.
+Reproducible build verification covers the Llamenos application image only. External service images are **not built from source** -- they are pinned by digest hash in `docker-compose.yml` to ensure integrity:
+
+| Image | Purpose | Pinning |
+|-------|---------|---------|
+| `goauthentik/server` | Authentik IdP | Digest-pinned |
+| `dockurr/strfry` | Nostr relay | Digest-pinned |
+| `rustfs/rustfs` | S3-compatible blob storage | Digest-pinned |
+| `postgres` | PostgreSQL | Digest-pinned |
+| `redis` | Authentik cache/sessions | Digest-pinned |
+| `caddy` | Reverse proxy / TLS | Digest-pinned |
+
+When updating external images, verify the new digest matches the upstream release and update the pin in `docker-compose.yml`.
 
 ---
 

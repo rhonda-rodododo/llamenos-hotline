@@ -317,7 +317,7 @@ The setup script generates all required secrets and starts the application with 
 ```
 
 This will:
-1. Generate cryptographically random secrets (database password, HMAC key, MinIO credentials, Nostr relay key)
+1. Generate cryptographically random secrets (database password, HMAC key, RustFS credentials, Nostr relay key, IdP secrets)
 2. Write them to `deploy/docker/.env`
 3. Build the Docker images
 4. Start all services using the production Docker Compose configuration (with TLS, log rotation, and resource limits)
@@ -327,15 +327,16 @@ This will:
 
 Visit `https://hotline.yourorg.org` in your browser. The setup wizard guides you through:
 
-1. **Create admin account** -- generates a cryptographic keypair in your browser. The private key (nsec) never leaves your device.
-2. **Name your hotline** -- set the display name.
-3. **Choose channels** -- enable Voice, SMS, WhatsApp, Signal, and/or Reports.
-4. **Configure providers** -- enter credentials for each enabled channel.
-5. **Review and finish**.
+1. **Create admin account** -- register through the Authentik IdP. This creates your identity and generates a cryptographic keypair in your browser.
+2. **Set your PIN** -- choose a PIN to protect your local key store. The PIN encrypts your private key material on-device.
+3. **Name your hotline** -- set the display name.
+4. **Choose channels** -- enable Voice, SMS, WhatsApp, Signal, and/or Reports.
+5. **Configure providers** -- enter credentials for each enabled channel.
+6. **Review and finish**.
 
 Download the encrypted backup when prompted and store it in a password manager.
 
-**SECURITY WARNING**: The admin nsec is the master key for your hotline. If compromised, an attacker can manage all volunteers, read admin-wrapped notes, and modify all settings. Store it in a hardware security module or a high-security password manager (1Password, Bitwarden, KeePassXC). Never reuse this keypair on public Nostr relays or other services.
+**SECURITY WARNING**: Your admin credentials and cryptographic keys are the master keys for your hotline. If compromised, an attacker can manage all volunteers, read admin-wrapped notes, and modify all settings. Use strong passwords, enable WebAuthn (passkey) for your Authentik account, and back up your key store securely. Never reuse credentials across services.
 
 ### 4.4 Manual Setup (Alternative)
 
@@ -353,8 +354,14 @@ Generate and fill in the required secrets:
 # For hex secrets (HMAC_SECRET, SERVER_NOSTR_SECRET):
 openssl rand -hex 32
 
-# For passwords (PG_PASSWORD, MINIO_ACCESS_KEY, MINIO_SECRET_KEY):
+# For passwords (PG_PASSWORD, STORAGE_ACCESS_KEY, STORAGE_SECRET_KEY):
 openssl rand -base64 24
+
+# IdP / Authentik secrets:
+openssl rand -hex 32          # JWT_SECRET
+openssl rand -hex 32          # IDP_VALUE_ENCRYPTION_KEY
+openssl rand -hex 32          # AUTHENTIK_SECRET_KEY
+openssl rand -hex 64          # AUTHENTIK_BOOTSTRAP_TOKEN
 ```
 
 Set your domain and email in `.env`:
@@ -377,15 +384,20 @@ docker compose -f docker-compose.yml -f docker-compose.production.yml up -d
 cd /opt/llamenos/deploy/docker
 docker compose -f docker-compose.yml -f docker-compose.production.yml ps
 
-# Expected: app, postgres, caddy, minio, strfry all "running" with healthy status
+# Expected: app, postgres, caddy, rustfs, strfry, authentik-server, authentik-worker, redis all "running" with healthy status
 docker compose -f docker-compose.yml -f docker-compose.production.yml logs -f app --since 1m
 ```
 
-Verify the health endpoint:
+Verify the health endpoints:
 
 ```bash
+# Application health
 curl -s https://hotline.yourorg.org/api/health
 # Expected: {"status":"ok"}
+
+# Authentik IdP health
+curl -s https://hotline.yourorg.org/idp/-/health/ready/
+# Expected: 200 OK
 ```
 
 ---
@@ -421,9 +433,9 @@ Telephony is optional -- Llamenos works as a messaging and reporting platform wi
 
 5. **Configure Twilio webhooks** in the Twilio Console:
    - Navigate to your phone number's configuration.
-   - Set the Voice webhook URL to: `https://hotline.yourorg.org/telephony/twilio/voice`
+   - Set the Voice webhook URL to: `https://hotline.yourorg.org/api/telephony/twilio/voice`
    - Set the method to `POST`.
-   - Set the Status Callback URL to: `https://hotline.yourorg.org/telephony/twilio/status`
+   - Set the Status Callback URL to: `https://hotline.yourorg.org/api/telephony/twilio/status`
 
 ### Other Providers
 
@@ -446,7 +458,9 @@ Run through this checklist to verify your deployment:
 
 - [ ] `https://hotline.yourorg.org` loads the login page
 - [ ] `https://hotline.yourorg.org/api/health` returns `{"status":"ok"}`
-- [ ] Admin can log in with their nsec or passkey
+- [ ] Authentik IdP is healthy: `curl -s https://hotline.yourorg.org/idp/-/health/ready/` returns 200
+- [ ] Admin can log in via Authentik (IdP registration or passkey)
+- [ ] Contact Directory is accessible from the admin panel
 - [ ] TLS certificate is valid (check browser padlock icon)
 - [ ] HTTP redirects to HTTPS
 
@@ -586,6 +600,7 @@ docker compose -f docker-compose.yml -f docker-compose.production.yml --profile 
 
 - **Invite volunteers**: Use the admin panel to generate invite links.
 - **Configure shifts**: Set up recurring shift schedules in the admin panel.
+- **Set up the Contact Directory**: Import contacts, configure teams, and set up tags for intake routing.
 - **Set up backups**: See [`docs/RUNBOOK.md`](RUNBOOK.md) for automated encrypted backup procedures.
 - **Review security**: Read [`docs/security/DEPLOYMENT_HARDENING.md`](security/DEPLOYMENT_HARDENING.md) for the full security hardening checklist.
 - **Incident response**: Familiarize yourself with the runbook at [`docs/RUNBOOK.md`](RUNBOOK.md) before you need it.

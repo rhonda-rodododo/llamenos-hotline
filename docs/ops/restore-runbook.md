@@ -1,6 +1,19 @@
-# PostgreSQL Restore Runbook
+# Restore Runbook
 
-Emergency procedures for restoring the Llamenos PostgreSQL database from an encrypted backup.
+Emergency procedures for restoring all Llamenos data stores from encrypted backups.
+
+## Restore Order
+
+When performing a full restore, follow this order to ensure service dependencies are satisfied:
+
+1. **PostgreSQL** (application database) -- core data store, must be first
+2. **Authentik database** -- IdP user accounts and configuration
+3. **RustFS** -- blob storage (voicemail, attachments, exports)
+4. **strfry** -- Nostr relay data (optional if all events are ephemeral)
+5. **Restart all services** -- `docker compose up -d`
+6. **Verify health** -- check all endpoints respond
+
+**Note on Authentik Redis**: Redis is used for caching and sessions only. It does not need to be restored -- it will rebuild automatically when Authentik restarts. Users will need to re-authenticate after a full restore since session state is lost.
 
 ## Who Holds the Age Private Key
 
@@ -58,6 +71,43 @@ chmod 600 /tmp/backup-key.txt
 
 # Clean up private key after restore
 shred -u /tmp/backup-key.txt
+```
+
+### Option C: Restore Authentik Database
+
+If restoring the Authentik IdP database alongside the main database:
+
+```bash
+cd /opt/llamenos/deploy/docker
+
+# 1. Stop Authentik services
+docker compose stop authentik-server authentik-worker
+
+# 2. Decrypt the Authentik backup
+age -d -i /root/backup-key.txt /opt/llamenos/backups/authentik-20260101-030000.sql.gz.age \
+  | gunzip > /tmp/authentik-restore.sql
+
+# 3. Drop and recreate the Authentik database
+docker compose exec authentik-postgresql psql -U authentik -d postgres -c "
+  SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname='authentik';
+"
+docker compose exec authentik-postgresql psql -U authentik -d postgres -c "DROP DATABASE authentik;"
+docker compose exec authentik-postgresql psql -U authentik -d postgres -c "CREATE DATABASE authentik OWNER authentik;"
+
+# 4. Restore
+docker compose exec -T authentik-postgresql psql -U authentik -d authentik < /tmp/authentik-restore.sql
+
+# 5. Clean up
+rm -f /tmp/authentik-restore.sql
+
+# 6. Flush Redis (session cache will rebuild)
+docker compose exec redis redis-cli FLUSHALL
+
+# 7. Restart Authentik services
+docker compose start authentik-server authentik-worker
+
+# 8. Verify Authentik health
+curl -sf https://hotline.yourorg.org/idp/-/health/ready/
 ```
 
 ---
