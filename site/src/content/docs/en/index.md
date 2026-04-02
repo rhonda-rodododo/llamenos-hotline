@@ -58,18 +58,20 @@ guides:
 
 ## Architecture overview
 
-Llamenos is a single-page application (SPA) that can run on **Cloudflare Workers** or on your own infrastructure via **Docker Compose / Kubernetes**. It supports voice calls, SMS, WhatsApp, and Signal — all routed to on-shift volunteers through a unified interface.
+Llamenos is a self-hosted single-page application (SPA) deployed via **Docker Compose** or **Kubernetes**. It supports voice calls, SMS, WhatsApp, and Signal — all routed to on-shift staff through a unified interface.
 
-| Component | Cloudflare | Self-Hosted |
-|---|---|---|
-| Frontend | Vite + React + TanStack Router | Same |
-| Backend | Cloudflare Workers + 6 Durable Objects | Node.js + PostgreSQL |
-| Blob Storage | R2 | RustFS (S3-compatible) |
-| Voice | Twilio, SignalWire, Vonage, Plivo, or Asterisk | Same |
-| Messaging | SMS, WhatsApp Business, Signal | Same |
-| Auth | Nostr keypairs (BIP-340 Schnorr) + WebAuthn | Same |
-| Encryption | ECIES (secp256k1 + XChaCha20-Poly1305) | Same |
-| Transcription | Client-side Whisper (WASM) | Client-side Whisper (WASM) |
+| Component | Technology |
+|---|---|
+| Frontend | Vite + React + TanStack Router |
+| Backend | Bun + Hono + PostgreSQL |
+| Blob Storage | RustFS (S3-compatible) |
+| Identity Provider | Authentik (self-hosted OIDC) |
+| Voice | Twilio, SignalWire, Vonage, Plivo, or Asterisk |
+| Messaging | SMS, WhatsApp Business, Signal |
+| Auth | JWT + multi-factor KEK + WebAuthn passkeys |
+| Encryption | ECIES (secp256k1 + XChaCha20-Poly1305), 3 tiers |
+| Transcription | Client-side Whisper (WASM) — audio never leaves browser |
+| Real-time | Nostr relay (strfry) |
 | i18n | i18next (13 languages) | Same |
 
 ## Roles
