@@ -197,13 +197,13 @@ This document defines the threat model for Llamenos, a secure crisis response ho
 | Metadata confidentiality | Server needs `callId`, `authorPubkey`, timestamps for routing | Yes — documented trade-off |
 | SMS/WhatsApp E2EE | Provider requires plaintext | Yes — documented per-channel |
 | PIN brute-force resistance (offline) | 4-6 digit PIN, ~10K-1M possibilities | Marginal — recommend 6-digit minimum |
-| Server-side key deletion verification | Cannot prove Cloudflare/operator deleted data | Yes — fundamental cloud trust limitation |
+| Server-side key deletion verification | Cannot prove hosting provider/operator deleted data | Yes — fundamental cloud trust limitation |
 
 ## Legal Compulsion and Subpoena Scenarios
 
 This section documents what data can be obtained through legal process against various parties. Crisis hotlines operating in hostile legal environments should understand these limitations.
 
-### Subpoena of Hosting Provider (Cloudflare, VPS)
+### Subpoena of Hosting Provider (VPS / Cloud)
 
 **Obtainable:**
 - Encrypted database contents (ciphertext for E2EE data)
@@ -501,7 +501,7 @@ SRI hashes on the HTML that loads the client JavaScript ensure the bundle has no
 
 ### Residual Risk
 
-Even with all mitigations, a server compromise (or Cloudflare compromise in the CF deployment) can serve modified JavaScript that removes the pinning check entirely. This is the fundamental limitation of web applications — the server controls the code the client executes. Only a native application with code signing can fully address this, and that introduces its own supply chain risks (app store compromise, signing key theft).
+Even with all mitigations, a server compromise can serve modified JavaScript that removes the pinning check entirely. This is the fundamental limitation of web applications — the server controls the code the client executes. Only a native application with code signing can fully address this, and that introduces its own supply chain risks (app store compromise, signing key theft).
 
 ---
 
@@ -808,7 +808,7 @@ The trust anchor is the **GitHub Release** (not the running application). The ap
 ### Scope
 
 - **Verified**: Client JavaScript and CSS bundles (deterministic output via `SOURCE_DATE_EPOCH`, content-hashed filenames)
-- **NOT verified**: Worker/server bundle (Cloudflare modifies the bundle during deployment; Node.js builds are deterministic but server integrity depends on operator trust)
+- **NOT verified**: Server runtime (server integrity depends on operator trust and host security)
 
 ---
 
