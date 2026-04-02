@@ -121,6 +121,15 @@ a {
   color: var(--color-fg);
 }
 
+/* Card-style links should never have underlines — used in guides hub, docs hub, reference page */
+.not-prose a {
+  text-decoration: none;
+}
+
+.not-prose a:hover {
+  text-decoration: none;
+}
+
 .prose code {
   font-family: var(--font-mono);
   font-size: 0.875em;
