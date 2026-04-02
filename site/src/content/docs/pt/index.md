@@ -40,17 +40,21 @@ guides:
 
 ## Visao geral da arquitetura
 
-Llamenos e uma aplicacao de pagina unica (SPA) baseada em Cloudflare Workers e Durable Objects. Nao ha servidores tradicionais para gerenciar.
+Llamenos e uma aplicacao de pagina unica (SPA) auto-hospedada, implantada via **Docker Compose** ou **Kubernetes**. Suporta chamadas de voz, SMS, WhatsApp e Signal — tudo roteado para a equipe de plantao atraves de uma interface unificada.
 
 | Componente | Tecnologia |
 |---|---|
 | Frontend | Vite + React + TanStack Router |
-| Backend | Cloudflare Workers + Durable Objects |
-| Telefonia | Twilio, SignalWire, Vonage, Plivo ou Asterisk (via interface TelephonyAdapter) |
-| Autenticacao | Chaves Nostr (BIP-340 Schnorr) + WebAuthn |
-| Criptografia | ECIES (secp256k1 + XChaCha20-Poly1305) |
-| Transcricao | Whisper no lado do cliente (WASM) |
-| i18n | i18next (12+ idiomas) |
+| Backend | Bun + Hono + PostgreSQL |
+| Armazenamento | RustFS (compativel com S3) |
+| Provedor de identidade | Authentik (OIDC auto-hospedado) |
+| Telefonia | Twilio, SignalWire, Vonage, Plivo ou Asterisk |
+| Mensagens | SMS, WhatsApp Business, Signal |
+| Autenticacao | JWT + KEK multifator + WebAuthn passkeys |
+| Criptografia | ECIES (secp256k1 + XChaCha20-Poly1305), 3 niveis |
+| Transcricao | Whisper no lado do cliente (WASM) — o audio nunca sai do navegador |
+| Tempo real | Nostr relay (strfry) |
+| i18n | i18next (13 idiomas) |
 
 ## Funcoes
 

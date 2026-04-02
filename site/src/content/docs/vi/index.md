@@ -40,17 +40,21 @@ guides:
 
 ## Tổng quan kiến trúc
 
-Llamenos là một ứng dụng trang đơn (SPA) được hỗ trợ bởi Cloudflare Workers và Durable Objects. Không cần quản lý máy chủ truyền thống.
+Llamenos là một ứng dụng trang đơn (SPA) tự lưu trữ, được triển khai qua **Docker Compose** hoặc **Kubernetes**. Hỗ trợ cuộc gọi thoại, SMS, WhatsApp và Signal — tất cả được định tuyến đến nhân viên trực qua giao diện thống nhất.
 
 | Thành phần | Công nghệ |
 |---|---|
 | Giao diện | Vite + React + TanStack Router |
-| Máy chủ | Cloudflare Workers + Durable Objects |
-| Dịch vụ điện thoại | Twilio, SignalWire, Vonage, Plivo hoặc Asterisk (thông qua giao diện TelephonyAdapter) |
-| Xác thực | Cặp khóa Nostr (BIP-340 Schnorr) + WebAuthn |
-| Mã hóa | ECIES (secp256k1 + XChaCha20-Poly1305) |
-| Chuyển đổi giọng nói | Whisper phía máy khách (WASM) |
-| Đa ngôn ngữ | i18next (hỗ trợ 12+ ngôn ngữ) |
+| Máy chủ | Bun + Hono + PostgreSQL |
+| Lưu trữ | RustFS (tương thích S3) |
+| Nhà cung cấp danh tính | Authentik (OIDC tự lưu trữ) |
+| Dịch vụ điện thoại | Twilio, SignalWire, Vonage, Plivo hoặc Asterisk |
+| Nhắn tin | SMS, WhatsApp Business, Signal |
+| Xác thực | JWT + KEK đa yếu tố + WebAuthn passkeys |
+| Mã hóa | ECIES (secp256k1 + XChaCha20-Poly1305), 3 tầng |
+| Chuyển đổi giọng nói | Whisper phía máy khách (WASM) — âm thanh không bao giờ rời khỏi trình duyệt |
+| Thời gian thực | Nostr relay (strfry) |
+| Đa ngôn ngữ | i18next (13 ngôn ngữ) |
 
 ## Vai trò
 

@@ -10,7 +10,7 @@ Operational procedures for emergency key revocation, rotation, and compromise re
 - [Deployment Hardening](DEPLOYMENT_HARDENING.md) -- infrastructure security
 - [Epic 76.0](../epics/epic-76.0-security-foundations.md) -- security foundations design (Phase 3)
 
-**Conventions**: Commands assume a Docker Compose deployment in `/opt/llamenos/deploy/docker/`. For Cloudflare Workers deployments, substitute `wrangler` commands and environment variable updates as appropriate. All commands should be run as the `deploy` user unless otherwise noted.
+**Conventions**: Commands assume a Docker Compose deployment in `/opt/llamenos/deploy/docker/`. All commands should be run as the `deploy` user unless otherwise noted.
 
 ---
 
@@ -20,7 +20,8 @@ Operational procedures for emergency key revocation, rotation, and compromise re
 2. [Volunteer Key Revocation on Departure](#2-volunteer-key-revocation-on-departure)
 3. [Device Seizure Response](#3-device-seizure-response)
 4. [Hub Key Rotation Ceremony](#4-hub-key-rotation-ceremony)
-5. [Response Timeframe Summary](#5-response-timeframe-summary)
+5. [IdP and JWT Session Revocation](#5-idp-and-jwt-session-revocation)
+6. [Response Timeframe Summary](#6-response-timeframe-summary)
 
 ---
 
@@ -40,38 +41,61 @@ These steps must be completed as fast as possible. The goal is to revoke the com
    ```
    Record the new public key securely. Do not transmit it over any channel the attacker may control.
 
-2. **Update the deployment configuration** with the new admin public key:
+2. **Reset the admin's IdP password** in Authentik (if applicable):
+   ```bash
+   # Disable the compromised admin user in Authentik to prevent IdP value retrieval
+   docker compose exec app curl -sf -X PATCH \
+     -H "Authorization: Bearer $AUTHENTIK_API_TOKEN" \
+     -H "Content-Type: application/json" \
+     -d '{"is_active": false}' \
+     "http://authentik-server:9000/api/v3/core/users/<user_pk>/"
+   ```
+
+3. **Bulk-revoke all JWT refresh tokens** for the compromised admin:
+   ```sql
+   -- Run against the app database
+   INSERT INTO jwt_revocations (jti, pubkey, expires_at, created_at)
+   SELECT jti, pubkey, expires_at, NOW()
+   FROM jwt_active_tokens  -- or revoke all for the pubkey
+   WHERE pubkey = '<compromised_admin_pubkey>';
+   ```
+   If a `jwt_active_tokens` table does not exist, revoke by inserting a sentinel:
+   ```sql
+   INSERT INTO jwt_revocations (jti, pubkey, expires_at)
+   VALUES ('BULK_REVOKE_' || '<compromised_admin_pubkey>', '<compromised_admin_pubkey>', NOW() + INTERVAL '24 hours');
+   ```
+
+4. **Update the deployment configuration** with the new admin public key:
    ```bash
    cd /opt/llamenos/deploy/docker
    sed -i "s|^ADMIN_PUBKEY=.*|ADMIN_PUBKEY=<new_pubkey>|" .env
    ```
-   For Cloudflare Workers deployments, update the `ADMIN_PUBKEY` secret via `wrangler secret put ADMIN_PUBKEY`.
 
-3. **Redeploy the application** to apply the new admin pubkey:
+5. **Redeploy the application** to apply the new admin pubkey:
    ```bash
    docker compose restart app
    ```
-   This invalidates all active sessions (the server restart clears in-memory session state).
+   This invalidates all active in-memory state. Combined with JWT revocation, the compromised admin is fully locked out.
 
-4. **Verify the deployment** is running with the new key:
+6. **Verify the deployment** is running with the new key:
    ```bash
    docker compose exec app curl -sf http://localhost:3000/api/health
    ```
 
-5. **Begin hub key rotation** immediately (see [Section 4](#4-hub-key-rotation-ceremony)). Do not wait for the 24-hour window -- start now.
+7. **Begin hub key rotation** immediately (see [Section 4](#4-hub-key-rotation-ceremony)). Do not wait for the 24-hour window -- start now.
 
 ### 1.2 Short-Term Actions (within 24 hours)
 
-6. **Complete hub key rotation** (Section 4). The new hub key must be distributed to all active members. The maximum deadline for hub key rotation to begin is 4 hours from confirmed compromise; it must be completed within 24 hours.
+8. **Complete hub key rotation** (Section 4). The new hub key must be distributed to all active members. The maximum deadline for hub key rotation to begin is 4 hours from confirmed compromise; it must be completed within 24 hours.
 
-7. **Re-wrap all admin note envelopes** with the new admin public key. This requires a re-encryption pass:
+9. **Re-wrap all admin note envelopes** with the new admin public key. This requires a re-encryption pass:
    - For each note in the system, the volunteer who authored it must be online to re-wrap their note's admin envelope using the new admin pubkey.
    - Notes whose authors are offline cannot be re-wrapped until those volunteers reconnect.
    - Track re-wrapping progress in the admin UI.
 
-8. **Re-wrap all admin message envelopes** with the new admin public key, following the same process as note envelopes.
+10. **Re-wrap all admin message envelopes** with the new admin public key, following the same process as note envelopes.
 
-9. **Review the audit log** for anomalous access patterns during the compromise window:
+11. **Review the audit log** for anomalous access patterns during the compromise window:
    - Unusual login times or IP addresses
    - Bulk data access or export
    - Settings or configuration changes
@@ -79,20 +103,20 @@ These steps must be completed as fast as possible. The goal is to revoke the com
 
 ### 1.3 Assessment
 
-10. **Determine what data was accessible** to the attacker. The compromised admin key could decrypt:
+12. **Determine what data was accessible** to the attacker. The compromised admin key could decrypt:
     - All note envelopes wrapped for the admin pubkey
     - All message envelopes wrapped for the admin pubkey
     - If the admin held the hub key: all hub-encrypted Nostr events (past and present, until hub key rotation completes)
 
-11. **Assess GDPR notification obligations**. If personal data of callers or volunteers may have been exposed, you must notify the supervisory authority within 72 hours of becoming aware of the breach. Prepare a report covering:
+13. **Assess GDPR notification obligations**. If personal data of callers or volunteers may have been exposed, you must notify the supervisory authority within 72 hours of becoming aware of the breach. Prepare a report covering:
     - Nature of the breach and compromised key type
     - Categories and approximate number of data subjects affected
     - Likely consequences of the compromise
     - Measures taken (key rotation, re-wrapping, session invalidation)
 
-12. **Notify affected parties** per your organization's breach notification policy and GDPR requirements.
+14. **Notify affected parties** per your organization's breach notification policy and GDPR requirements.
 
-**Maximum response timeframe**: Hub key rotation must BEGIN within 4 hours of confirmed compromise. All immediate actions (steps 1-5) must be completed within 1 hour. Short-term actions (steps 6-9) must be completed within 24 hours.
+**Maximum response timeframe**: Hub key rotation must BEGIN within 4 hours of confirmed compromise. All immediate actions (steps 1-7) must be completed within 1 hour. Short-term actions (steps 8-11) must be completed within 24 hours.
 
 ### 1.4 Verification Checklist
 
@@ -100,9 +124,11 @@ After completing all admin key compromise response actions, verify:
 
 - [ ] New admin keypair is active — admin can log in with the new nsec
 - [ ] Old admin keypair is rejected — login attempt with old nsec fails
+- [ ] Old admin disabled in Authentik — IdP value no longer retrievable
+- [ ] All JWT refresh tokens for old admin are revoked — check `jwt_revocations` table
 - [ ] Hub key has been rotated — test by publishing a hub event and verifying active members can decrypt
 - [ ] All active volunteer sessions are functional — at least one volunteer confirms they can decrypt notes
-- [ ] Audit log shows the compromise response actions (key rotation, session invalidation)
+- [ ] Audit log shows the compromise response actions (key rotation, session invalidation, IdP disable)
 - [ ] GDPR notification has been filed (if applicable) within the 72-hour window
 - [ ] Re-wrapping progress is tracked — note which volunteers' envelopes have been re-wrapped
 
@@ -120,26 +146,36 @@ The volunteer is cooperating and leaving on good terms. They may retain their ns
 
 1. **Deactivate the volunteer** via the admin UI:
    - Navigate to Volunteers > [volunteer name] > Deactivate
-   - This immediately revokes all active sessions for the volunteer
+   - This immediately revokes all active JWT sessions for the volunteer
 
-2. **Confirm session revocation** -- the volunteer should be logged out of all devices. Verify no active sessions remain in the admin panel.
+2. **Disable the volunteer in Authentik** — prevents IdP value retrieval on any device, blocking key unlock even if they retain their PIN.
 
-3. **Rotate the hub key** immediately (see [Section 4](#4-hub-key-rotation-ceremony)):
+3. **Revoke all JWT refresh tokens** for the volunteer:
+   ```sql
+   INSERT INTO jwt_revocations (jti, pubkey, expires_at)
+   VALUES ('DEPART_' || '<volunteer_pubkey>', '<volunteer_pubkey>', NOW() + INTERVAL '24 hours');
+   ```
+
+4. **Confirm session revocation** -- the volunteer should be logged out of all devices. Verify no active sessions remain in the admin panel.
+
+5. **Rotate the hub key** immediately (see [Section 4](#4-hub-key-rotation-ceremony)):
    - Generate a new random hub key
    - Distribute the new hub key to all remaining active members
    - The departed volunteer does NOT receive the new key
 
-4. **Verify post-departure access boundaries**:
+6. **Verify post-departure access boundaries**:
    - The departed volunteer CAN still decrypt notes they authored (they have the author envelope keys from when they were active). This is acceptable -- they authored those notes.
    - The departed volunteer CANNOT decrypt new hub events (new hub key).
    - The departed volunteer CANNOT decrypt other volunteers' notes (they never had those keys).
    - The departed volunteer CAN prove they were a member (their pubkey was registered). Consider whether this is a concern for your threat model.
 
-5. **Document the departure** in the audit log with the date, reason, and confirmation that hub key rotation was completed.
+7. **Document the departure** in the audit log with the date, reason, and confirmation that hub key rotation was completed.
 
 #### Friendly Departure Verification Checklist
 
 - [ ] Volunteer is deactivated in the admin UI (status: inactive)
+- [ ] Volunteer is disabled in Authentik
+- [ ] All JWT refresh tokens revoked for the volunteer
 - [ ] No active sessions remain for the volunteer
 - [ ] Hub key has been rotated — new key distributed to all remaining members
 - [ ] At least one remaining member confirms they can decrypt new hub events
@@ -152,35 +188,48 @@ The volunteer is leaving on bad terms, has been terminated, or is suspected of a
 1. **Deactivate the volunteer immediately** via the admin UI. If the admin UI is not accessible, deactivate via the database:
    ```bash
    docker compose exec postgres psql -U llamenos -d llamenos -c "
-     UPDATE storage
-     SET value = jsonb_set(value::jsonb, '{active}', 'false')
-     WHERE namespace = 'identity'
-       AND key LIKE 'volunteer:%'
-       AND value::jsonb->>'pubkey' = '<volunteer_pubkey>';
+     UPDATE users SET active = false WHERE pubkey = '<volunteer_pubkey>';
    "
    docker compose restart app
    ```
 
-2. **Rotate the hub key immediately** (see [Section 4](#4-hub-key-rotation-ceremony)). Do not delay.
+2. **Disable the volunteer in Authentik** immediately — prevents IdP value retrieval:
+   ```bash
+   docker compose exec app curl -sf -X PATCH \
+     -H "Authorization: Bearer $AUTHENTIK_API_TOKEN" \
+     -H "Content-Type: application/json" \
+     -d '{"is_active": false}' \
+     "http://authentik-server:9000/api/v3/core/users/?username=<volunteer_pubkey>"
+   ```
 
-3. **Revoke all WebAuthn credentials** associated with the volunteer's devices via the admin UI.
+3. **Bulk-revoke all JWT tokens** for the volunteer:
+   ```sql
+   INSERT INTO jwt_revocations (jti, pubkey, expires_at)
+   VALUES ('HOSTILE_DEPART_' || '<volunteer_pubkey>', '<volunteer_pubkey>', NOW() + INTERVAL '24 hours');
+   ```
 
-4. **Conduct an access assessment** -- determine what data the hostile volunteer had access to during their tenure:
+4. **Rotate the hub key immediately** (see [Section 4](#4-hub-key-rotation-ceremony)). Do not delay.
+
+5. **Revoke all WebAuthn credentials** associated with the volunteer's devices via the admin UI.
+
+6. **Conduct an access assessment** -- determine what data the hostile volunteer had access to during their tenure:
    - Which notes did they author or have access to?
    - Which hub events were encrypted with keys they possessed?
    - Did they have access to any shared resources or admin-level data?
    - Review audit logs for any data exfiltration patterns (bulk access, unusual export activity).
 
-5. **Assess whether further action is needed** based on the access assessment:
+7. **Assess whether further action is needed** based on the access assessment:
    - If the volunteer had access to sensitive caller data, consider GDPR notification obligations.
    - If the volunteer had access to other volunteers' identities, notify those volunteers.
    - If the volunteer had admin-level access at any point, treat this as an admin key compromise (Section 1).
 
-6. **Document the incident** thoroughly in the audit log and any incident tracking system.
+8. **Document the incident** thoroughly in the audit log and any incident tracking system.
 
 #### Hostile Departure Verification Checklist
 
-- [ ] Volunteer is deactivated — no active sessions remain
+- [ ] Volunteer is deactivated in the app — no active sessions remain
+- [ ] Volunteer is disabled in Authentik — IdP value no longer retrievable
+- [ ] All JWT refresh tokens revoked for the volunteer
 - [ ] Hub key has been rotated — departed volunteer's pubkey excluded from key distribution
 - [ ] All WebAuthn credentials for the volunteer are revoked
 - [ ] Access assessment documented — what data the volunteer had access to during tenure
@@ -229,25 +278,32 @@ Whether or not the panic wipe was successful, the administrator must assume the 
 
 6. **Revoke WebAuthn credentials** for the seized device via the admin UI, regardless of whether panic wipe occurred. Physical possession of the device may allow the attacker to use stored WebAuthn credentials.
 
-### 3.3 PIN Protection Assessment
+### 3.3 Multi-Factor Key Protection Assessment
 
-The volunteer's nsec is stored encrypted under a PIN-derived key. The strength of this protection depends on:
+The volunteer's nsec is stored encrypted under a multi-factor KEK. Key reconstruction requires:
 
-| PIN Length | Brute-force time (offline, no rate limiting) | Assessment |
-|------------|----------------------------------------------|------------|
-| 4 digits   | Minutes to hours                             | Insufficient against a funded adversary |
-| 6 digits   | Hours to days                                | Marginal |
-| 8+ digits  | Days to weeks                                | Provides meaningful time buffer |
+1. **PIN** — user-chosen, 4-8+ digits
+2. **IdP value** — random 32-byte secret stored in Authentik (encrypted with `IDP_VALUE_ENCRYPTION_KEY`)
+3. **WebAuthn PRF output** (if enabled) — authenticator-derived value, requires physical authenticator
 
-The PIN protection is a delay mechanism, not a permanent barrier. Hub key rotation must be completed before a well-funded adversary could crack the PIN. For 4-6 digit PINs, this means hub key rotation should begin within 1 hour of confirmed device seizure.
+| Factors Available to Attacker | Brute-force Difficulty | Assessment |
+|-------------------------------|----------------------|------------|
+| Device only (no IdP value) | PIN alone insufficient — missing IdP factor | **Strong** — attacker needs server access too |
+| Device + Authentik DB dump (no encryption key) | IdP values are encrypted; PIN still needed | **Strong** — two unknowns |
+| Device + decrypted IdP value | PIN brute-force only barrier | **Marginal** — similar to old PIN-only model |
+| Device + decrypted IdP value + WebAuthn PRF | Need physical authenticator | **Strong** — hardware factor blocks offline attack |
+
+**Key improvement over PIN-only**: Even if the attacker cracks the PIN, they cannot reconstruct the KEK without the IdP value. Admin can immediately disable the user in Authentik to prevent IdP value retrieval via the API, and revoke all JWT tokens to prevent session reuse.
+
+Hub key rotation should still begin within 1 hour of confirmed device seizure as a defense-in-depth measure.
 
 ### 3.4 Post-Seizure Volunteer Re-Onboarding
 
 After the incident is resolved and if the volunteer continues with the organization:
 
-7. **Generate a new invite** for the volunteer to onboard with a fresh keypair on a new device.
+7. **Generate a new invite** for the volunteer to onboard with a fresh keypair on a new device. The new enrollment will generate a fresh IdP value in Authentik and a new multi-factor KEK.
 8. **The volunteer's old notes remain accessible** to the admin (admin envelope) but the volunteer will not be able to access their historical notes from the new keypair unless they retained a backup of their old nsec.
-9. **Brief the volunteer** on any changes to operational security procedures.
+9. **Brief the volunteer** on any changes to operational security procedures. Recommend enabling WebAuthn PRF on the new device for three-factor key protection.
 
 ---
 
@@ -344,11 +400,7 @@ If the admin UI is not accessible (e.g., server partially down, admin locked out
 1. Obtain the list of active member pubkeys from the database:
    ```bash
    docker compose exec postgres psql -U llamenos -d llamenos -c "
-     SELECT value->>'pubkey' AS pubkey
-     FROM storage
-     WHERE namespace = 'identity'
-       AND key LIKE 'volunteer:%'
-       AND (value->>'active')::boolean = true;
+     SELECT pubkey FROM users WHERE active = true;
    "
    ```
 
@@ -360,7 +412,82 @@ If the admin UI is not accessible (e.g., server partially down, admin locked out
 
 ---
 
-## 5. Response Timeframe Summary
+## 5. IdP and JWT Session Revocation
+
+This section covers session-level revocation procedures that complement key-level revocation. These procedures provide immediate lockout without requiring hub key rotation.
+
+### 5.1 IdP-Level User Disable (Immediate Lockout)
+
+Disabling a user in Authentik immediately prevents them from:
+- Retrieving their IdP value (required to unlock their nsec)
+- Refreshing JWT tokens (IdP session check fails)
+- Enrolling new devices
+
+```bash
+# Disable a user in Authentik (replace <user_pk> with the Authentik user PK)
+docker compose exec app curl -sf -X PATCH \
+  -H "Authorization: Bearer $AUTHENTIK_API_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"is_active": false}' \
+  "http://authentik-server:9000/api/v3/core/users/<user_pk>/"
+```
+
+**Effect**: The user's existing JWT access token remains valid until expiry (max 15 minutes). After that, token refresh fails. For immediate cutoff, combine with JWT revocation (Section 5.2).
+
+### 5.2 Per-Device JWT Session Revocation
+
+To revoke a specific device's session (e.g., a seized device while keeping the user's other devices active):
+
+```sql
+-- Revoke a specific refresh token by jti
+INSERT INTO jwt_revocations (jti, pubkey, expires_at)
+VALUES ('<specific_jti>', '<pubkey>', '<token_expires_at>');
+```
+
+The `jti` can be found in the audit log (logged on token issuance) or by decoding the JWT.
+
+### 5.3 Bulk JWT Revocation (All Sessions for a User)
+
+To revoke all sessions for a user across all devices:
+
+```sql
+-- Insert a bulk revocation marker
+-- The app server checks for pubkey-level revocations
+INSERT INTO jwt_revocations (jti, pubkey, expires_at)
+VALUES (
+  'BULK_' || gen_random_uuid()::text,
+  '<pubkey>',
+  NOW() + INTERVAL '24 hours'
+);
+```
+
+**Note**: Existing access tokens (up to 15 minutes old) will continue to work until they expire. For true immediate lockout, restart the app server to clear any in-memory token caches.
+
+### 5.4 Re-Enrollment Flow
+
+After a user has been disabled and their sessions revoked, re-enrollment requires:
+
+1. **Re-enable the user in Authentik** (or create a new user if the pubkey is changing)
+2. **Generate a new invite code** via the admin UI
+3. **The user completes enrollment** on their new/clean device:
+   - New keypair generated in-browser (if pubkey change)
+   - New IdP value generated and stored in Authentik
+   - New multi-factor KEK derived from PIN + new IdP value + optional WebAuthn PRF
+   - New hub key distributed via ECIES
+4. **Verify** the user can decrypt hub events and access their assigned data
+
+### 5.5 Verification Checklist
+
+- [ ] User disabled in Authentik (if applicable)
+- [ ] JWT refresh tokens revoked in `jwt_revocations` table
+- [ ] User cannot refresh tokens (returns 401)
+- [ ] User cannot retrieve IdP value (returns 403 or user-not-found)
+- [ ] After access token expires (15min), user is fully locked out
+- [ ] Re-enrollment completed successfully (if applicable)
+
+---
+
+## 6. Response Timeframe Summary
 
 | Scenario | Action | Maximum Timeframe |
 |----------|--------|-------------------|
@@ -380,5 +507,6 @@ If the admin UI is not accessible (e.g., server partially down, admin locked out
 
 | Date | Change | Author |
 |------|--------|--------|
+| 2026-04-01 | IdP + JWT Auth Overhaul: Added Section 5 (IdP and JWT Session Revocation) with per-device, bulk, and re-enrollment procedures; updated admin compromise to include IdP disable + JWT bulk revocation; updated volunteer departure to include Authentik disable + JWT revocation; updated device seizure to multi-factor KEK analysis; updated SQL examples to use `users` table (was Durable Objects `storage` table); added Authentik API examples | -- |
 | 2026-02-25 | Added verification checklists, updated hub key description (random 32 bytes, not derived), added Section 4.5 emergency CLI rotation, updated adminEnvelopes[] references | -- |
 | 2026-02-25 | Initial version, per Epic 76.0 Phase 3 | -- |

@@ -1,6 +1,6 @@
 ---
 title: Features
-subtitle: Everything a crisis response platform needs, in one open-source package. Voice, SMS, WhatsApp, Signal, and encrypted reports — built on Cloudflare Workers with zero servers to manage.
+subtitle: Everything a crisis response platform needs, in one open-source package. Voice, SMS, WhatsApp, Signal, and encrypted reports — self-hosted for maximum control.
 ---
 
 ## Multi-Provider Telephony
@@ -31,9 +31,9 @@ subtitle: Everything a crisis response platform needs, in one open-source packag
 
 ## AI Transcription
 
-**Whisper-powered transcription** — Call recordings are transcribed using Cloudflare Workers AI with the Whisper model. Transcription happens server-side, then the transcript is encrypted before storage.
+**On-device transcription** — Calls are transcribed using AI running entirely in the volunteer's browser. Audio never leaves the device. Only the encrypted transcript is stored.
 
-**Toggle controls** — Admin can enable/disable transcription globally. Volunteers can opt out individually. Both toggles are independent.
+**Admin and volunteer controls** — Admins can enable or disable transcription globally. Volunteers can opt out individually. Both toggles are independent.
 
 **Encrypted transcripts** — Transcripts use the same ECIES encryption as notes. The stored transcript is ciphertext only.
 
@@ -41,7 +41,7 @@ subtitle: Everything a crisis response platform needs, in one open-source packag
 
 **Voice CAPTCHA** — Optional voice bot detection: callers hear a randomized 4-digit number and must enter it on the keypad. Blocks automated dialing while remaining accessible to real callers.
 
-**Rate limiting** — Sliding-window rate limiting per phone number, persisted in Durable Object storage. Survives Worker restarts. Configurable thresholds.
+**Rate limiting** — Sliding-window rate limiting per phone number, persisted in the database. Configurable thresholds that survive restarts.
 
 **Real-time ban lists** — Admins manage phone number ban lists with single-entry or bulk import. Bans take effect immediately. Banned callers hear a rejection message.
 
@@ -53,9 +53,9 @@ subtitle: Everything a crisis response platform needs, in one open-source packag
 
 **WhatsApp Business** — Connect via the Meta Cloud API (Graph API v21.0). Template message support for initiating conversations within the 24-hour messaging window. Media message support for images, documents, and audio.
 
-**Signal** — Privacy-focused messaging via a self-hosted signal-cli-rest-api bridge. Health monitoring with graceful degradation. Voice message transcription via Workers AI Whisper.
+**Signal** — Privacy-focused messaging via a self-hosted signal-cli-rest-api bridge. Health monitoring with graceful degradation. Voice message transcription via on-device Whisper AI.
 
-**Threaded conversations** — All messaging channels flow into a unified conversation view. Message bubbles with timestamps and direction indicators. Real-time updates via WebSocket.
+**Threaded conversations** — All messaging channels flow into a unified conversation view. Message bubbles with timestamps and direction indicators. Real-time updates. All messages are encrypted on your server the moment they arrive. The server stores only ciphertext.
 
 ## Encrypted Reports
 
@@ -65,15 +65,37 @@ subtitle: Everything a crisis response platform needs, in one open-source packag
 
 **Report workflow** — Categories for organizing reports. Status tracking (open, claimed, resolved). Admins can claim reports and respond with threaded, encrypted replies.
 
+## Contact Directory
+
+**Encrypted contact records** — Store contact information with end-to-end encryption. Names, phone numbers, emails, and notes are encrypted before leaving the browser.
+
+**Relationship tracking** — Link contacts to each other and to calls, conversations, and reports. Build a picture of who you're helping.
+
+**Auto-linking** — Incoming calls and messages are automatically associated with known contacts by matching phone numbers.
+
+**Team-based access** — Control which team members can see which contacts. Permissions are granular and configurable.
+
+**Tags and intake** — Organize contacts with tags. Intake workflows route new contacts for review.
+
+**Bulk import/export** — Import contacts from CSV or JSON. Export encrypted backups. All processing happens in your browser.
+
+## Configurable Permissions
+
+**Custom roles** — Define your own roles with exactly the permissions you need. Start from built-in templates (Admin, Volunteer, Reporter) or build from scratch.
+
+**Granular permissions** — Over 90 individual permissions across 17 feature areas. Control who can view, create, edit, and delete at a fine-grained level.
+
+**Team scoping** — Assign team members to teams. Permissions can be scoped to specific teams, so different groups see different data.
+
 ## Admin Dashboard
 
 **Setup wizard** — Guided multi-step setup on first admin login. Choose which channels to enable (Voice, SMS, WhatsApp, Signal, Reports), configure providers, and set your hotline name.
 
 **Getting Started checklist** — Dashboard widget that tracks setup progress: channel configuration, volunteer onboarding, shift creation.
 
-**Real-time monitoring** — See active calls, queued callers, conversations, and volunteer status in real time via WebSocket. Metrics update instantly.
+**Real-time monitoring** — See active calls, queued callers, conversations, and volunteer status in real time. Metrics update instantly.
 
-**Volunteer management** — Add volunteers with generated keypairs, manage roles (volunteer, admin, reporter), view online status. Invite links for self-registration with role selection.
+**User management** — Invite new team members via secure links. They create their own accounts and encryption keys. Manage roles, permissions, and team assignments.
 
 **Audit logging** — Every call answered, note created, message sent, report submitted, setting changed, and admin action is logged. Paginated viewer for admins.
 
@@ -93,7 +115,7 @@ subtitle: Everything a crisis response platform needs, in one open-source packag
 
 **Note draft auto-save** — Notes are auto-saved as encrypted drafts in the browser. If the page reloads or the volunteer navigates away, their work is preserved. Drafts are cleaned from localStorage on logout.
 
-**Encrypted data export** — Export notes as a GDPR-compliant encrypted file (.enc) using the volunteer's own key. Only the original author can decrypt the export.
+**Encrypted data export** — Export notes as a GDPR-compliant encrypted file (.enc) protected by your multi-factor encryption key. Only the original author can decrypt the export.
 
 **Dark/light themes** — Toggle between dark mode, light mode, or follow the system theme. Preference persisted per session.
 
@@ -107,18 +129,16 @@ subtitle: Everything a crisis response platform needs, in one open-source packag
 
 ## Authentication & Key Management
 
-**PIN-protected local key store** — Your secret key is encrypted with a 6-digit PIN using PBKDF2 (600,000 iterations) + XChaCha20-Poly1305. The raw key never touches sessionStorage or any browser API — it lives only in an in-memory closure, zeroed on lock.
+**Multi-factor key protection** — Your encryption key is protected by up to three independent factors: a PIN you choose, your identity provider account, and optionally a hardware security key. Compromising any single factor is not enough.
 
-**Auto-lock** — The key manager locks automatically after idle timeout or when the browser tab is hidden. Re-enter your PIN to unlock. Configurable idle duration.
+**Identity provider integration** — Self-hosted identity management (you control it). Invite-based onboarding — no sharing secret keys. Remote session revocation — lock out a compromised device from anywhere.
 
-**Device linking** — Set up new devices without ever exposing your secret key. Scan a QR code or enter a short provisioning code. Uses ephemeral ECDH key exchange to transfer your encrypted key securely between devices. Provisioning rooms expire after 5 minutes.
+**Automatic session management** — Sessions refresh silently in the background. Idle auto-lock protects unattended devices. Your encryption key lives in an isolated process, never accessible to the page.
 
-**Recovery keys** — During onboarding, you receive a Base32-formatted recovery key (128-bit entropy). This replaces the old nsec-display flow. Mandatory encrypted backup download before you can proceed.
+**Device linking** — Set up new devices securely. Scan a QR code or enter a short provisioning code. Uses ephemeral key exchange — your secret key is never exposed during transfer.
+
+**Recovery keys** — During onboarding, you receive a recovery key for emergencies. Mandatory encrypted backup before you can proceed.
+
+**Hardware security keys** — Optional passkey support for phishing-resistant login. Register a hardware key or biometric, then sign in without typing credentials.
 
 **Per-note forward secrecy** — Each note is encrypted with a unique random key, then that key is wrapped via ECIES for each authorized reader. Compromising the identity key does not reveal past notes.
-
-**Nostr keypair auth** — Volunteers authenticate with Nostr-compatible keypairs (nsec/npub). BIP-340 Schnorr signature verification. No passwords, no email addresses.
-
-**WebAuthn passkeys** — Optional passkey support for multi-device login. Register a hardware key or biometric, then sign in without typing your secret key.
-
-**Session management** — Two-tier access model: "authenticated but locked" (session token only) vs "authenticated and unlocked" (PIN entered, full crypto access). 8-hour session tokens with idle timeout warnings.

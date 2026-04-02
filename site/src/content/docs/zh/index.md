@@ -40,17 +40,21 @@ guides:
 
 ## 架构概览
 
-Llamenos 是一个单页应用（SPA），由 Cloudflare Workers 和 Durable Objects 提供后端支持。无需管理传统服务器。
+Llamenos 是一个自托管的单页应用（SPA），通过 **Docker Compose** 或 **Kubernetes** 部署。支持语音通话、短信、WhatsApp 和 Signal — 所有渠道通过统一界面路由到值班人员。
 
 | 组件 | 技术 |
 |---|---|
 | 前端 | Vite + React + TanStack Router |
-| 后端 | Cloudflare Workers + Durable Objects |
-| 电话服务 | Twilio、SignalWire、Vonage、Plivo 或 Asterisk（通过 TelephonyAdapter 接口） |
-| 认证 | Nostr 密钥对（BIP-340 Schnorr）+ WebAuthn |
-| 加密 | ECIES（secp256k1 + XChaCha20-Poly1305） |
-| 语音转文字 | 客户端 Whisper（WASM） |
-| 国际化 | i18next（支持 12+ 种语言） |
+| 后端 | Bun + Hono + PostgreSQL |
+| 存储 | RustFS（S3 兼容） |
+| 身份提供商 | Authentik（自托管 OIDC） |
+| 电话服务 | Twilio、SignalWire、Vonage、Plivo 或 Asterisk |
+| 消息 | SMS、WhatsApp Business、Signal |
+| 认证 | JWT + 多因素 KEK + WebAuthn 通行密钥 |
+| 加密 | ECIES（secp256k1 + XChaCha20-Poly1305），3 层 |
+| 语音转文字 | 客户端 Whisper（WASM）— 音频永不离开浏览器 |
+| 实时 | Nostr 中继（strfry） |
+| 国际化 | i18next（13 种语言） |
 
 ## 角色
 

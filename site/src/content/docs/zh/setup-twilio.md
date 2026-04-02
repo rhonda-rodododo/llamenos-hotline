@@ -35,10 +35,10 @@ Twilio 是 Llamenos 的默认电话服务提供商，也是最容易上手的选
 1. 转到 **Phone Numbers** > **Manage** > **Active Numbers**
 2. 点击您的热线号码
 3. 在 **Voice Configuration** 下，设置：
-   - **A call comes in**：Webhook，`https://your-worker-url.com/telephony/incoming`，HTTP POST
-   - **Call status changes**：`https://your-worker-url.com/telephony/status`，HTTP POST
+   - **A call comes in**：Webhook，`https://your-domain.com/telephony/incoming`，HTTP POST
+   - **Call status changes**：`https://your-domain.com/telephony/status`，HTTP POST
 
-将 `your-worker-url.com` 替换为您实际的 Cloudflare Worker URL。
+将 `your-domain.com` 替换为您实际的 Llamenos server URL。
 
 ## 5. 在 Llamenos 中配置
 
@@ -70,7 +70,7 @@ Twilio 是 Llamenos 的默认电话服务提供商，也是最容易上手的选
 
 1. 转到 **Voice** > **Manage** > **TwiML Apps**
 2. 点击 **Create new TwiML App**
-3. 将 **Voice Request URL** 设置为 `https://your-worker-url.com/telephony/webrtc-incoming`
+3. 将 **Voice Request URL** 设置为 `https://your-domain.com/telephony/webrtc-incoming`
 4. 保存并记录 **App SID**
 
 ### 在 Llamenos 中启用

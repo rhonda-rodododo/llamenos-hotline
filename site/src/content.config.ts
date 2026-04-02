@@ -25,4 +25,16 @@ const pages = defineCollection({
   }),
 });
 
-export const collections = { docs, pages };
+const guides = defineCollection({
+  loader: glob({ pattern: '**/*.md', base: './src/content/guides' }),
+  schema: z.object({
+    title: z.string(),
+    description: z.string(),
+    audience: z.array(z.enum(['operator', 'staff', 'caller'])),
+    task: z.array(z.enum(['setup', 'daily-use', 'configuration', 'troubleshooting', 'security'])),
+    feature: z.string().optional(),
+    order: z.number().optional(),
+  }),
+});
+
+export const collections = { docs, pages, guides };

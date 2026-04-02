@@ -11,7 +11,7 @@ La receta se mantiene en un [repositorio independiente](https://github.com/rhond
 
 - Un servidor con [Docker Swarm](https://docs.docker.com/engine/swarm/) inicializado y [Traefik](https://doc.traefik.io/traefik/) ejecutandose como proxy inverso
 - El [CLI `abra`](https://docs.coopcloud.tech/abra/install/) instalado en tu maquina local
-- Un nombre de dominio con DNS apuntando a la IP de tu servidor
+- Un nombre de dorustfs con DNS apuntando a la IP de tu servidor
 - Acceso SSH al servidor
 
 Si eres nuevo en Co-op Cloud, sigue primero la [guia de configuracion de Co-op Cloud](https://docs.coopcloud.tech/intro/).
@@ -47,7 +47,7 @@ La receta despliega cinco servicios:
 | **web** | `nginx:1.27-alpine` | Proxy inverso con etiquetas Traefik |
 | **app** | `ghcr.io/rhonda-rodododo/llamenos` | Servidor de aplicacion Node.js |
 | **db** | `postgres:17-alpine` | Base de datos PostgreSQL |
-| **minio** | `minio/minio` | Almacenamiento de archivos compatible con S3 |
+| **rustfs** | `rustfs/rustfs` | Almacenamiento de archivos compatible con S3 |
 | **relay** | `dockurr/strfry` | Relay Nostr para eventos en tiempo real |
 
 ## Secretos
@@ -59,8 +59,8 @@ Todos los secretos se gestionan via secretos de Docker Swarm (versionados, inmut
 | `hmac_secret` | hex (64 chars) | Clave HMAC para firmar tokens de sesion |
 | `server_nostr` | hex (64 chars) | Clave de identidad Nostr del servidor |
 | `db_password` | alfanum (32 chars) | Contrasena de PostgreSQL |
-| `minio_access` | alfanum (20 chars) | Clave de acceso MinIO |
-| `minio_secret` | alfanum (40 chars) | Clave secreta MinIO |
+| `rustfs_access` | alfanum (20 chars) | Clave de acceso RustFS |
+| `rustfs_secret` | alfanum (40 chars) | Clave secreta RustFS |
 
 Genera todos los secretos de una vez:
 
@@ -107,7 +107,7 @@ HOTLINE_NAME=Linea de ayuda
 
 ## Primer inicio de sesion
 
-Despues del despliegue, abre tu dominio en un navegador. El asistente de configuracion te guia a traves de:
+Despues del despliegue, abre tu dorustfs en un navegador. El asistente de configuracion te guia a traves de:
 
 1. **Crear cuenta de administrador** — genera un par de claves criptograficas en tu navegador
 2. **Nombrar tu linea** — establece el nombre visible
@@ -117,7 +117,7 @@ Despues del despliegue, abre tu dominio en un navegador. El asistente de configu
 
 ## Configurar webhooks
 
-Apunta los webhooks de tu proveedor de telefonia a tu dominio:
+Apunta los webhooks de tu proveedor de telefonia a tu dorustfs:
 
 - **Voz**: `https://hotline.ejemplo.com/telephony/incoming`
 - **SMS**: `https://hotline.ejemplo.com/api/messaging/sms/webhook`
@@ -205,7 +205,7 @@ Esto descarga la ultima version de la receta y redespliega. Los datos se persist
 
 ### Integracion con backupbot
 
-La receta incluye etiquetas de [backupbot](https://docs.coopcloud.tech/backupbot/) para respaldos automaticos de PostgreSQL y MinIO. Si tu servidor ejecuta backupbot, los respaldos ocurren automaticamente.
+La receta incluye etiquetas de [backupbot](https://docs.coopcloud.tech/backupbot/) para respaldos automaticos de PostgreSQL y RustFS. Si tu servidor ejecuta backupbot, los respaldos ocurren automaticamente.
 
 ### Respaldo manual
 
@@ -223,8 +223,8 @@ O respalda directamente:
 # PostgreSQL
 docker exec $(docker ps -q -f name=<nombre-del-stack>_db) pg_dump -U llamenos llamenos | gzip > backup.sql.gz
 
-# MinIO
-docker run --rm -v <nombre-del-stack>_minio-data:/data -v /backups:/backups alpine tar czf /backups/minio-$(date +%Y%m%d).tar.gz /data
+# RustFS
+docker run --rm -v <nombre-del-stack>_rustfs-data:/data -v /backups:/backups alpine tar czf /backups/rustfs-$(date +%Y%m%d).tar.gz /data
 ```
 
 ## Monitoreo
@@ -280,7 +280,7 @@ Traefik maneja TLS. Revisa los logs de Traefik en tu servidor:
 docker service logs traefik
 ```
 
-Asegurate de que el DNS de tu dominio resuelva al servidor y que los puertos 80/443 esten abiertos.
+Asegurate de que el DNS de tu dorustfs resuelva al servidor y que los puertos 80/443 esten abiertos.
 
 ### Rotacion de secretos
 
@@ -299,7 +299,7 @@ flowchart TD
     Nginx -->|":3000"| App["App<br/>(Node.js)"]
     Nginx -->|"/nostr"| Relay["strfry<br/>(Relay Nostr)"]
     App --> PostgreSQL[("PostgreSQL<br/>:5432")]
-    App --> MinIO[("MinIO<br/>:9000")]
+    App --> RustFS[("RustFS<br/>:9000")]
     App -.->|"opcional"| Whisper["Whisper<br/>:8080"]
 ```
 

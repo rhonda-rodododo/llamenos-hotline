@@ -28,8 +28,8 @@ Gumagamit ang Plivo ng "XML Applications" para i-route ang mga tawag:
 2. I-click ang **Add New Application**
 3. I-configure ang:
    - **Application Name**: Llamenos Hotline
-   - **Answer URL**: `https://your-worker-url.com/telephony/incoming` (POST)
-   - **Hangup URL**: `https://your-worker-url.com/telephony/status` (POST)
+   - **Answer URL**: `https://your-domain.com/telephony/incoming` (POST)
+   - **Hangup URL**: `https://your-domain.com/telephony/status` (POST)
 4. I-save ang application
 
 ## 4. I-link ang numero ng telepono

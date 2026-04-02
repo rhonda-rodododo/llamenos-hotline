@@ -27,8 +27,8 @@ Vonage nhóm cấu hình vào "Applications":
 1. Vào **Applications** > **Create a new application**
 2. Nhập tên (ví dụ: "Llamenos Hotline")
 3. Trong phần **Voice**, bật và thiết lập:
-   - **Answer URL**: `https://your-worker-url.com/telephony/incoming` (POST)
-   - **Event URL**: `https://your-worker-url.com/telephony/status` (POST)
+   - **Answer URL**: `https://your-domain.com/telephony/incoming` (POST)
+   - **Event URL**: `https://your-domain.com/telephony/status` (POST)
 4. Nhấn **Generate new application**
 5. Lưu **Application ID** hiển thị trên trang xác nhận
 6. Tải xuống tệp **private key** -- bạn sẽ cần nội dung của nó cho cấu hình

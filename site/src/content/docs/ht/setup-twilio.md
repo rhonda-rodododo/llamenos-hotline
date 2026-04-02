@@ -35,10 +35,10 @@ Nan Twilio Console, ale nan konfigirasyon nimewo telefòn ou a:
 1. Ale nan **Phone Numbers** > **Manage** > **Active Numbers**
 2. Klike sou nimewo liy dirèk ou a
 3. Anba **Voice Configuration**, mete:
-   - **A call comes in**: Webhook, `https://your-worker-url.com/telephony/incoming`, HTTP POST
-   - **Call status changes**: `https://your-worker-url.com/telephony/status`, HTTP POST
+   - **A call comes in**: Webhook, `https://your-domain.com/telephony/incoming`, HTTP POST
+   - **Call status changes**: `https://your-domain.com/telephony/status`, HTTP POST
 
-Ranplase `your-worker-url.com` ak URL Cloudflare Worker reyèl ou a.
+Ranplase `your-domain.com` ak URL Llamenos server reyèl ou a.
 
 ## 5. Konfigire nan Llamenos
 
@@ -70,7 +70,7 @@ Pou pèmèt volontè yo reponn apèl nan navigatè yo olye ke nan telefòn yo:
 
 1. Ale nan **Voice** > **Manage** > **TwiML Apps**
 2. Klike sou **Create new TwiML App**
-3. Mete **Voice Request URL** a `https://your-worker-url.com/telephony/webrtc-incoming`
+3. Mete **Voice Request URL** a `https://your-domain.com/telephony/webrtc-incoming`
 4. Sere epi note **App SID** a
 
 ### Aktive nan Llamenos

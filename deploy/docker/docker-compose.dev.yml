@@ -31,7 +31,7 @@ services:
     volumes:
       - ./strfry-test.conf:/etc/strfry.conf:ro
 
-  # Authentik IdP — dev port offset (9100 to avoid conflict with MinIO console at 9003)
+  # Authentik IdP — dev port offset (9100 to avoid conflict with RustFS console at 9003)
   authentik-server:
     ports:
       - "9100:9000"
@@ -54,7 +54,7 @@ services:
       - ARI_REST_URL=http://asterisk:8088/ari
       - ARI_USERNAME=llamenos
       - ARI_PASSWORD=changeme
-      - WORKER_WEBHOOK_URL=http://host.docker.internal:8788
+      - WORKER_WEBHOOK_URL=http://host.docker.internal:3000
       - BRIDGE_SECRET=dev-bridge-secret
       - BRIDGE_PORT=3001
       - HOTLINE_NUMBER=${HOTLINE_NUMBER:-}

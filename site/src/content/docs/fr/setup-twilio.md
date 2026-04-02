@@ -35,10 +35,10 @@ Dans la console Twilio, accedez a la configuration de votre numero de telephone 
 1. Allez dans **Phone Numbers** > **Manage** > **Active Numbers**
 2. Cliquez sur votre numero de ligne
 3. Sous **Voice Configuration**, definissez :
-   - **A call comes in** : Webhook, `https://your-worker-url.com/telephony/incoming`, HTTP POST
-   - **Call status changes** : `https://your-worker-url.com/telephony/status`, HTTP POST
+   - **A call comes in** : Webhook, `https://your-domain.com/telephony/incoming`, HTTP POST
+   - **Call status changes** : `https://your-domain.com/telephony/status`, HTTP POST
 
-Remplacez `your-worker-url.com` par l'URL reelle de votre Cloudflare Worker.
+Remplacez `your-domain.com` par l'URL reelle de votre Llamenos server.
 
 ## 5. Configurer dans Llamenos
 
@@ -70,7 +70,7 @@ Pour permettre aux benevoles de repondre aux appels dans leur navigateur plutot 
 
 1. Allez dans **Voice** > **Manage** > **TwiML Apps**
 2. Cliquez sur **Create new TwiML App**
-3. Definissez le **Voice Request URL** sur `https://your-worker-url.com/telephony/webrtc-incoming`
+3. Definissez le **Voice Request URL** sur `https://your-domain.com/telephony/webrtc-incoming`
 4. Enregistrez et notez le **App SID**
 
 ### Activer dans Llamenos

@@ -5,8 +5,8 @@ pre-commit:
       glob: "*.{ts,tsx,js,jsx}"
       exclude: "*.config.{ts,js,mjs}"
       run: |
-        bunx biome check --write --files-ignore-unknown=true {staged_files} >/dev/null 2>&1
-        bunx biome check --diagnostic-level=error --files-ignore-unknown=true {staged_files}
+        bunx biome check --write --files-ignore-unknown=true --no-errors-on-unmatched {staged_files} >/dev/null 2>&1
+        bunx biome check --diagnostic-level=error --files-ignore-unknown=true --no-errors-on-unmatched {staged_files}
       stage_fixed: true
     - name: pii-check
       run: "test -x scripts/pii-check.sh && scripts/pii-check.sh || true"

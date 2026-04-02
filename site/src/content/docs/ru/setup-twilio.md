@@ -35,10 +35,10 @@ Twilio — это провайдер телефонии по умолчанию 
 1. Перейдите в **Phone Numbers** > **Manage** > **Active Numbers**
 2. Нажмите на ваш номер горячей линии
 3. В разделе **Voice Configuration** установите:
-   - **A call comes in**: Webhook, `https://your-worker-url.com/telephony/incoming`, HTTP POST
-   - **Call status changes**: `https://your-worker-url.com/telephony/status`, HTTP POST
+   - **A call comes in**: Webhook, `https://your-domain.com/telephony/incoming`, HTTP POST
+   - **Call status changes**: `https://your-domain.com/telephony/status`, HTTP POST
 
-Замените `your-worker-url.com` на фактический URL вашего Cloudflare Worker.
+Замените `your-domain.com` на фактический URL вашего Llamenos server.
 
 ## 5. Настройте в Llamenos
 
@@ -70,7 +70,7 @@ Twilio — это провайдер телефонии по умолчанию 
 
 1. Перейдите в **Voice** > **Manage** > **TwiML Apps**
 2. Нажмите **Create new TwiML App**
-3. Установите **Voice Request URL** на `https://your-worker-url.com/telephony/webrtc-incoming`
+3. Установите **Voice Request URL** на `https://your-domain.com/telephony/webrtc-incoming`
 4. Сохраните и запишите **App SID**
 
 ### Включите в Llamenos

@@ -101,3 +101,23 @@ This document maps each client route and major feature to its test coverage, ide
 9. **Language preferences** — `/preferences` is only tested for theme. Language switching and persistence are uncovered.
 
 10. **Notification permission flow** — PWA notification banner is tested for UI state, but the actual push subscription registration is not tested end-to-end.
+
+## New Gaps (Post-2026-03-22)
+
+### High Priority
+
+11. **JWT / Authentik authentication flow** — No E2E test exercises the full JWT auth cycle: Authentik login → JWT issuance → token refresh → token revocation via `jwtRevocations`. The TestAdapter bypasses real auth entirely.
+
+12. **Multi-factor KEK (PIN + IdP)** — The key encryption key derivation from PIN combined with IdP-provided factors is not tested end-to-end. Unit tests cover crypto primitives but not the full unlock flow.
+
+13. **Contact Directory CRUD** — The Contact Directory (contacts, relationships, auto-linking, intake routing) has no E2E test coverage. API endpoints for contact creation, search, bulk import/export, and tag management are untested.
+
+14. **PBAC (Permission-Based Access Control)** — The PBAC authorization layer (team-scoped permissions, role hierarchies, permission grants/denials) is not tested end-to-end. Unit tests cover the permission resolver but not the full middleware chain.
+
+### Medium Priority
+
+15. **Hub-key encryption round-trip** — While encrypted field creation is tested via admin-flow and shift-management specs, there is no dedicated test verifying the full encryption round-trip: plaintext → `encryptHubField()` → API → storage → fetch → `decryptHubField()` → plaintext comparison.
+
+16. **Envelope encryption for messaging** — Per-message envelope encryption (random symmetric key, ECIES-wrapped per reader) is not tested at the E2E level. ConversationService tests mock the encryption layer.
+
+17. **Contact Directory teams and tags** — Team-based access scoping for contacts (which team members can see which contacts) and tag-based intake routing are not tested.

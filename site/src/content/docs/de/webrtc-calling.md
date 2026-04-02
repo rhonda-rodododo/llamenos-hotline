@@ -36,7 +36,7 @@ Jeder Telefonieanbieter benoetigt unterschiedliche Zugangsdaten fuer WebRTC:
 ### Twilio / SignalWire
 
 1. Erstellen Sie einen **API-Schluessel** in der Anbieter-Konsole
-2. Erstellen Sie eine **TwiML/LaML-Anwendung** mit der Voice URL auf `https://your-worker-url.com/telephony/webrtc-incoming`
+2. Erstellen Sie eine **TwiML/LaML-Anwendung** mit der Voice URL auf `https://your-domain.com/telephony/webrtc-incoming`
 3. Geben Sie in Llamenos API Key SID, API Key Secret und Application SID ein
 
 ### Vonage

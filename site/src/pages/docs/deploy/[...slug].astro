@@ -1,0 +1,30 @@
+---
+import DocsLayout from '../../../layouts/DocsLayout.astro';
+import { getEntry, render } from 'astro:content';
+
+const slugMap: Record<string, string> = {
+  'self-hosting': 'en/deploy/self-hosting',
+  'docker': 'en/deploy/docker',
+  'kubernetes': 'en/deploy/kubernetes',
+  'coopcloud': 'en/deploy/coopcloud',
+};
+
+export function getStaticPaths() {
+  return [
+    { params: { slug: 'self-hosting' } },
+    { params: { slug: 'docker' } },
+    { params: { slug: 'kubernetes' } },
+    { params: { slug: 'coopcloud' } },
+  ];
+}
+
+const { slug } = Astro.params;
+const entryId = slugMap[slug!];
+const entry = (await getEntry('docs', entryId))!;
+const { Content } = await render(entry);
+---
+
+<DocsLayout title={entry.data.title}>
+  <h1>{entry.data.title}</h1>
+  <Content />
+</DocsLayout>

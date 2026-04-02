@@ -40,17 +40,21 @@ guides:
 
 ## Vue d'ensemble de l'architecture
 
-Llamenos est une application monopage (SPA) reposant sur Cloudflare Workers et Durable Objects. Il n'y a pas de serveurs traditionnels a gerer.
+Llamenos est une application monopage (SPA) auto-hebergee, deployee via **Docker Compose** ou **Kubernetes**. Elle prend en charge les appels vocaux, les SMS, WhatsApp et Signal — le tout achemine vers le personnel de garde via une interface unifiee.
 
 | Composant | Technologie |
 |---|---|
 | Frontend | Vite + React + TanStack Router |
-| Backend | Cloudflare Workers + Durable Objects |
-| Telephonie | Twilio, SignalWire, Vonage, Plivo ou Asterisk (via l'interface TelephonyAdapter) |
-| Authentification | Cles Nostr (BIP-340 Schnorr) + WebAuthn |
-| Chiffrement | ECIES (secp256k1 + XChaCha20-Poly1305) |
-| Transcription | Whisper cote client (WASM) |
-| i18n | i18next (12+ langues) |
+| Backend | Bun + Hono + PostgreSQL |
+| Stockage | RustFS (compatible S3) |
+| Fournisseur d'identite | Authentik (OIDC auto-heberge) |
+| Telephonie | Twilio, SignalWire, Vonage, Plivo ou Asterisk |
+| Messagerie | SMS, WhatsApp Business, Signal |
+| Authentification | JWT + KEK multi-facteur + passkeys WebAuthn |
+| Chiffrement | ECIES (secp256k1 + XChaCha20-Poly1305), 3 niveaux |
+| Transcription | Whisper cote client (WASM) — l'audio ne quitte jamais le navigateur |
+| Temps reel | Relais Nostr (strfry) |
+| i18n | i18next (13 langues) |
 
 ## Roles
 

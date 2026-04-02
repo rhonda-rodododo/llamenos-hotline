@@ -33,8 +33,8 @@ Mag-sign up sa [signalwire.com/signup](https://signalwire.com/signup). Sa panaho
 2. I-click ang iyong numero ng hotline
 3. Sa ilalim ng **Voice Settings**, itakda ang:
    - **Handle calls using**: LaML Webhooks
-   - **When a call comes in**: `https://your-worker-url.com/telephony/incoming` (POST)
-   - **Call status callback**: `https://your-worker-url.com/telephony/status` (POST)
+   - **When a call comes in**: `https://your-domain.com/telephony/incoming` (POST)
+   - **Call status callback**: `https://your-domain.com/telephony/status` (POST)
 
 ## 5. I-configure sa Llamenos
 
@@ -59,7 +59,7 @@ Ang SignalWire WebRTC ay gumagamit ng parehong pattern ng API key tulad ng Twili
 1. Sa iyong SignalWire Dashboard, lumikha ng isang **API Key** sa ilalim ng **API** > **Tokens**
 2. Lumikha ng **LaML Application**:
    - Pumunta sa **LaML** > **LaML Applications**
-   - Itakda ang Voice URL sa `https://your-worker-url.com/telephony/webrtc-incoming`
+   - Itakda ang Voice URL sa `https://your-domain.com/telephony/webrtc-incoming`
    - Tandaan ang Application SID
 3. Sa Llamenos, pumunta sa **Settings** > **Telephony Provider**
 4. I-toggle on ang **WebRTC Calling**

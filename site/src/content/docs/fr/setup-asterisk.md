@@ -141,7 +141,7 @@ bun run build:ari-bridge
 ASTERISK_ARI_URL=https://your-asterisk-server:8089/ari \
 ASTERISK_ARI_USERNAME=llamenos \
 ASTERISK_ARI_PASSWORD=your-strong-ari-password \
-LLAMENOS_CALLBACK_URL=https://your-worker-url.com/telephony \
+LLAMENOS_CALLBACK_URL=https://your-domain.com/telephony \
 bun run ari-bridge
 ```
 
@@ -153,7 +153,7 @@ docker run -d \
   -e ASTERISK_ARI_URL=https://your-asterisk-server:8089/ari \
   -e ASTERISK_ARI_USERNAME=llamenos \
   -e ASTERISK_ARI_PASSWORD=your-strong-ari-password \
-  -e LLAMENOS_CALLBACK_URL=https://your-worker-url.com/telephony \
+  -e LLAMENOS_CALLBACK_URL=https://your-domain.com/telephony \
   llamenos/ari-bridge
 ```
 

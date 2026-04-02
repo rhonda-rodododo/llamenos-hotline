@@ -33,8 +33,8 @@ Sign up at [signalwire.com/signup](https://signalwire.com/signup). During signup
 2. Click your hotline number
 3. Under **Voice Settings**, set:
    - **Handle calls using**: LaML Webhooks
-   - **When a call comes in**: `https://your-worker-url.com/telephony/incoming` (POST)
-   - **Call status callback**: `https://your-worker-url.com/telephony/status` (POST)
+   - **When a call comes in**: `https://your-domain.com/telephony/incoming` (POST)
+   - **Call status callback**: `https://your-domain.com/telephony/status` (POST)
 
 ## 5. Configure in Llamenos
 
@@ -59,7 +59,7 @@ SignalWire WebRTC uses the same API key pattern as Twilio:
 1. In your SignalWire Dashboard, create an **API Key** under **API** > **Tokens**
 2. Create a **LaML Application**:
    - Go to **LaML** > **LaML Applications**
-   - Set the Voice URL to `https://your-worker-url.com/telephony/webrtc-incoming`
+   - Set the Voice URL to `https://your-domain.com/telephony/webrtc-incoming`
    - Note the Application SID
 3. In Llamenos, go to **Settings** > **Telephony Provider**
 4. Toggle **WebRTC Calling** on
@@ -76,5 +76,5 @@ SignalWire WebRTC uses the same API key pattern as Twilio:
 ## Troubleshooting
 
 - **"Space not found" errors**: Double-check the Space name (just the subdomain, not the full URL).
-- **Webhook failures**: Ensure your Worker URL is publicly accessible and uses HTTPS.
+- **Webhook failures**: Ensure your Llamenos server URL is publicly accessible and uses HTTPS.
 - **API token issues**: SignalWire tokens can expire. Create a new token if you get authentication errors.

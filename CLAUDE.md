@@ -14,7 +14,7 @@ Llámenos is a secure crisis response hotline webapp. Callers dial a phone numbe
 - **Frontend**: Vite + TanStack Router (SPA, no SSR) + shadcn/ui (component installer)
 - **Backend**: Bun + Hono (OpenAPIHono + @hono/zod-openapi) + PostgreSQL + RustFS (self-hosted via Docker/Ansible)
 - **Telephony**: Twilio via a `TelephonyAdapter` interface (designed for future provider swaps, e.g. SIP trunks)
-- **Auth**: Nostr keypairs (BIP-340 Schnorr signatures) + WebAuthn session tokens for multi-device support
+- **Auth**: JWT + Authentik IdP (OIDC) + multi-factor KEK (PIN + recovery key + WebAuthn) + WebAuthn passkeys
 - **i18n**: Built-in from day one — all user-facing strings must be translatable
 - **Deployment**: VPS (Ansible/Docker), EU/GDPR-compatible hosting
 - **Testing**: Three suites — unit (`bun:test`), API integration (Playwright, no browser), UI E2E (Playwright, Chromium)
@@ -46,12 +46,15 @@ src/
     routes/         # TanStack file-based routes
     components/     # App components + ui/ (shadcn primitives)
     lib/            # Client utilities (auth, crypto, ws, i18n, hooks)
+                    #   key-store-v2.ts — multi-factor KEK key store (PIN + recovery + WebAuthn)
+                    #   crypto-worker.ts / crypto-worker-client.ts — Web Worker crypto isolation
     locales/        # 13 locale JSON files (en, es, zh, tl, vi, ar, fr, ht, ko, ru, hi, pt, de)
   server/           # Bun/Hono backend
-    routes/         # REST API route handlers
-    services/       # Business logic services (replacing Durable Objects)
+    routes/         # REST API route handlers (includes auth-facade.ts for /api/auth/*)
+    services/       # PostgreSQL-backed business logic services
     telephony/      # TelephonyAdapter interface + 5 adapters (Twilio, SignalWire, Vonage, Plivo, Asterisk)
     messaging/      # MessagingAdapter interface + SMS, WhatsApp, Signal adapters
+    idp/            # IdP adapter interface (adapter.ts) + Authentik implementation (authentik-adapter.ts)
     lib/            # Server utilities (auth, crypto, webauthn)
     db/             # Drizzle ORM schema + migrations
     server.ts       # Entry point
@@ -79,7 +82,7 @@ src/
 - **Service layer**: Seven PostgreSQL-backed services (IdentityService, SettingsService, RecordsService, ShiftManagerService, CallRouterService, ConversationService, AuditService) replace the former Durable Objects. Drizzle ORM manages schema and migrations.
 - **E2EE notes**: Per-note forward secrecy — unique random key per note, wrapped via ECIES for each reader. Dual-encrypted: one copy for volunteer, one for each admin (multi-admin envelopes).
 - **E2EE messaging**: Per-message envelope encryption — random symmetric key, ECIES-wrapped for assigned volunteer + each admin. Server encrypts inbound on webhook receipt, discards plaintext immediately.
-- **Key management**: PIN-encrypted local key store (`key-manager.ts`). nsec held in closure only, zeroed on lock. Device linking via ephemeral ECDH provisioning rooms.
+- **Key management**: Multi-factor KEK key store (`key-store-v2.ts`). Identity key encrypted under PIN + optional recovery key + optional WebAuthn. nsec held in closure only, zeroed on lock. Device linking via ephemeral ECDH provisioning rooms.
 - **Nostr relay real-time**: Ephemeral kind 20001 events via strfry (self-hosted). All event content encrypted with hub key. Generic tags (`["t", "llamenos:event"]`) — relay cannot distinguish event types.
 - **Hub key distribution**: Random 32 bytes (`crypto.getRandomValues`), ECIES-wrapped individually per member via `LABEL_HUB_KEY_WRAP`. Rotation on member departure excludes departed member.
 - **Client-side transcription**: WASM Whisper via `@huggingface/transformers` ONNX runtime. AudioWorklet ring buffer → Web Worker isolation. Audio never leaves the browser.
@@ -90,6 +93,11 @@ src/
 - **Domain separation**: All 25 crypto context constants in `src/shared/crypto-labels.ts` — NEVER use raw string literals for crypto contexts.
 - **Zod schemas as single source of truth**: `src/shared/schemas/` defines zod schemas for all API types. Types are derived via `z.infer<>`. Route files use `OpenAPIHono` + `createRoute()` from `@hono/zod-openapi` for declarative validation. `types.ts` re-exports from schemas where possible — types using branded `Ciphertext` remain in `types.ts` (schemas use plain `string` for API validation, app code uses branded types for safety). OpenAPI spec auto-generated at `/api/openapi.json`, Scalar docs at `/api/docs`.
 - **External schemas**: `src/shared/schemas/external/` contains zod schemas for third-party webhook payloads (Twilio, Vonage, Plivo, Asterisk) and API responses (Authentik, OpenCage). These are the runtime validation contract for incoming external data.
+- **IdP adapter interface**: `src/server/idp/adapter.ts` defines the abstract `IdpAdapter` interface. `AuthentikAdapter` (`src/server/idp/authentik-adapter.ts`) implements OIDC login, user provisioning, group sync, and token refresh against Authentik. Designed for future provider swaps.
+- **Auth facade**: `src/server/routes/auth-facade.ts` provides `/api/auth/*` endpoints that abstract the IdP — login, logout, token refresh, session validation. Clients never talk to Authentik directly.
+- **Crypto Web Worker isolation**: All ECIES/XChaCha20 operations run in a dedicated Web Worker (`src/client/lib/crypto-worker.ts`) via a typed RPC client (`crypto-worker-client.ts`). Keeps the main thread responsive and isolates key material.
+- **Decrypt-on-fetch**: Encrypted fields are decrypted inside React Query `queryFn` callbacks, not in components. This ensures decrypted data flows through the cache and re-renders correctly.
+- **Key-store-v2 multi-factor format**: `src/client/lib/key-store-v2.ts` stores the identity key encrypted under a multi-factor KEK (PIN + optional recovery key + optional WebAuthn). Supports factor rotation without re-encrypting all data.
 
 ### Encrypted Field Development Guide
 
@@ -127,6 +135,11 @@ Every query key domain in `queryKeys` must be classified as either `ENCRYPTED_QU
 - coturn TURN credentials use time-limited HMAC from shared secret — not static username/password
 - JsSIP `newRTCSession` fires for both incoming and outgoing — check `originator === 'remote'`
 - RustFS container runs as UID 10001 — volume ownership must match
+- Crypto worker is a singleton — one instance per tab, initialized lazily. Do not create multiple instances.
+- Decrypt rate limiter: 100 ops/sec burst, 1000 ops/min sustained — batch large decrypt operations
+- Dev/test mode uses synthetic IdP values (no real Authentik needed) — controlled by `AUTH_MODE=synthetic` env var
+- Auth facade endpoints live at `/api/auth/*` — clients never call Authentik APIs directly
+- Authentik first-boot takes ~60s to initialize (database migrations + default flows) — `docker-setup.sh` waits automatically
 
 ## Development Commands
 
@@ -134,7 +147,7 @@ Every query key domain in `queryKeys` must be classified as either `ENCRYPTED_QU
 bun install                              # Install dependencies
 bun run dev                              # Vite dev server (frontend only)
 bun run dev:server                       # Bun watch server (localhost:3000)
-bun run dev:docker                       # Start backing services (postgres, rustfs, strfry) for local dev
+bun run dev:docker                       # Start backing services (postgres, rustfs, strfry, authentik) for local dev
 bun run dev:docker:down                  # Stop dev backing services
 bun run migrate                          # Apply pending Drizzle migrations
 bun run migrate:generate                 # Generate SQL migration files from schema changes
@@ -165,7 +178,7 @@ PLAYWRIGHT_WORKERS=3 bunx playwright test    # Run with 3 workers (after isolati
 
 **Primary demo deployment is VPS-based via Ansible.** Use `cd deploy/ansible && just deploy-demo` to deploy the demo instance. See `deploy/ansible/justfile` for all Ansible commands and `deploy/ansible/demo_vars.example.yml` for demo configuration.
 
-**Key config files**: `playwright.config.ts`, `.env` (DATABASE_URL, HMAC_SECRET, Twilio creds + ADMIN_PUBKEY, gitignored)
+**Key config files**: `playwright.config.ts`, `.env` (DATABASE_URL, JWT_SECRET, IDP_VALUE_ENCRYPTION_KEY, AUTHENTIK_URL, AUTHENTIK_API_TOKEN, AUTHENTIK_SECRET_KEY, AUTHENTIK_BOOTSTRAP_TOKEN, AUTH_WEBAUTHN_RP_ID, AUTH_WEBAUTHN_RP_NAME, AUTH_WEBAUTHN_ORIGIN, Twilio creds, gitignored)
 
 **Local E2E tests**: Copy `.env.local.example` to `.env.local`, fill in your values, then start backing services with `bun run dev:docker` before running `bun run dev:server`.
 

@@ -28,8 +28,8 @@ Plivo usa "Aplicaciones XML" para enrutar llamadas:
 2. Haz clic en **Add New Application**
 3. Configura:
    - **Application Name**: Linea Llamenos
-   - **Answer URL**: `https://tu-url-del-worker.com/telephony/incoming` (POST)
-   - **Hangup URL**: `https://tu-url-del-worker.com/telephony/status` (POST)
+   - **Answer URL**: `https://tu-dominio.com/telephony/incoming` (POST)
+   - **Hangup URL**: `https://tu-dominio.com/telephony/status` (POST)
 4. Guarda la aplicacion
 
 ## 4. Vincular el numero de telefono
@@ -76,5 +76,5 @@ El adaptador genera tokens HMAC de duracion limitada a partir de tu Auth ID y Au
 
 - **"Auth ID invalid"**: El Auth ID no es tu correo electronico. Encuentralo en la pagina principal del panel de la Consola de Plivo.
 - **Las llamadas no se enrutan**: Verifica que el numero de telefono este vinculado a la Aplicacion XML correcta.
-- **Errores en la Answer URL**: Plivo espera respuestas XML validas. Revisa los registros de tu Worker para ver errores de respuesta.
+- **Errores en la Answer URL**: Plivo espera respuestas XML validas. Revisa los registros de tu servidor Llamenos para ver errores de respuesta.
 - **Restricciones en llamadas salientes**: Las cuentas de prueba tienen limitaciones para llamadas salientes. Actualiza para uso en produccion.

@@ -1,12 +1,14 @@
 ---
-import DocsLayout from '../../layouts/DocsLayout.astro';
-import { getEntry, render } from 'astro:content';
-
-const entry = (await getEntry('docs', 'en/setup-asterisk'))!;
-const { Content } = await render(entry);
+// 301 redirect: /docs/setup-asterisk -> /docs/deploy/providers/asterisk
 ---
 
-<DocsLayout title={entry.data.title}>
-  <h1>{entry.data.title}</h1>
-  <Content />
-</DocsLayout>
+<html>
+  <head>
+    <meta http-equiv="refresh" content="0;url=/docs/deploy/providers/asterisk" />
+    <link rel="canonical" href="/docs/deploy/providers/asterisk" />
+    <title>Redirecting...</title>
+  </head>
+  <body>
+    <p>This page has moved. <a href="/docs/deploy/providers/asterisk">Click here</a> if you are not redirected.</p>
+  </body>
+</html>

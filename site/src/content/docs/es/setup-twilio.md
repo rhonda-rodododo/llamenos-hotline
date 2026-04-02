@@ -35,10 +35,10 @@ En la Consola de Twilio, navega a la configuracion de tu numero de telefono:
 1. Ve a **Phone Numbers** > **Manage** > **Active Numbers**
 2. Haz clic en tu numero de linea
 3. En **Voice Configuration**, configura:
-   - **A call comes in**: Webhook, `https://tu-url-del-worker.com/telephony/incoming`, HTTP POST
-   - **Call status changes**: `https://tu-url-del-worker.com/telephony/status`, HTTP POST
+   - **A call comes in**: Webhook, `https://tu-dominio.com/telephony/incoming`, HTTP POST
+   - **Call status changes**: `https://tu-dominio.com/telephony/status`, HTTP POST
 
-Reemplaza `tu-url-del-worker.com` con la URL real de tu Cloudflare Worker.
+Reemplaza `tu-dominio.com` con el dominio real de tu servidor Llamenos.
 
 ## 5. Configurar en Llamenos
 
@@ -70,7 +70,7 @@ Para permitir que los voluntarios contesten llamadas en el navegador en lugar de
 
 1. Ve a **Voice** > **Manage** > **TwiML Apps**
 2. Haz clic en **Create new TwiML App**
-3. Establece la **Voice Request URL** como `https://tu-url-del-worker.com/telephony/webrtc-incoming`
+3. Establece la **Voice Request URL** como `https://tu-dominio.com/telephony/webrtc-incoming`
 4. Guarda y anota el **App SID**
 
 ### Habilitar en Llamenos
@@ -87,7 +87,7 @@ Consulta [Llamadas WebRTC en el Navegador](/docs/webrtc-calling) para la configu
 
 ## Solucion de problemas
 
-- **Las llamadas no llegan**: Verifica que la URL del webhook sea correcta y que tu Worker este desplegado. Revisa los registros de errores en la Consola de Twilio.
+- **Las llamadas no llegan**: Verifica que la URL del webhook sea correcta y que tu servidor Llamenos este desplegado. Revisa los registros de errores en la Consola de Twilio.
 - **Errores de "Invalid webhook"**: Asegurate de que la URL del webhook use HTTPS y devuelva TwiML valido.
 - **Limitaciones de cuenta de prueba**: Las cuentas de prueba solo pueden llamar a numeros verificados. Actualiza a una cuenta de pago para uso en produccion.
 - **Fallos en la validacion del webhook**: Asegurate de que el Auth Token en Llamenos coincida con el de la Consola de Twilio.

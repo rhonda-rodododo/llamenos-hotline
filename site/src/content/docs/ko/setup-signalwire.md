@@ -33,8 +33,8 @@ SignalWire는 호환되는 API를 갖춘 비용 효율적인 Twilio 대안입니
 2. 핫라인 번호 클릭
 3. **Voice Settings** 아래에서 설정:
    - **Handle calls using**: LaML Webhooks
-   - **When a call comes in**: `https://your-worker-url.com/telephony/incoming` (POST)
-   - **Call status callback**: `https://your-worker-url.com/telephony/status` (POST)
+   - **When a call comes in**: `https://your-domain.com/telephony/incoming` (POST)
+   - **Call status callback**: `https://your-domain.com/telephony/status` (POST)
 
 ## 5. Llamenos에서 구성
 
@@ -59,7 +59,7 @@ SignalWire WebRTC는 Twilio와 동일한 API Key 패턴을 사용합니다:
 1. SignalWire 대시보드에서 **API** > **Tokens** 아래에 **API Key** 생성
 2. **LaML Application** 생성:
    - **LaML** > **LaML Applications**로 이동
-   - Voice URL을 `https://your-worker-url.com/telephony/webrtc-incoming`으로 설정
+   - Voice URL을 `https://your-domain.com/telephony/webrtc-incoming`으로 설정
    - Application SID 기록
 3. Llamenos에서 **설정** > **전화 서비스 제공업체**로 이동
 4. **WebRTC 통화** 토글 켜기

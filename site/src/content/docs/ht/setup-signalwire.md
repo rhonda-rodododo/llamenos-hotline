@@ -33,8 +33,8 @@ Enskri nan [signalwire.com/signup](https://signalwire.com/signup). Pandan enskri
 2. Klike sou nimewo liy dirèk ou a
 3. Anba **Voice Settings**, mete:
    - **Handle calls using**: LaML Webhooks
-   - **When a call comes in**: `https://your-worker-url.com/telephony/incoming` (POST)
-   - **Call status callback**: `https://your-worker-url.com/telephony/status` (POST)
+   - **When a call comes in**: `https://your-domain.com/telephony/incoming` (POST)
+   - **Call status callback**: `https://your-domain.com/telephony/status` (POST)
 
 ## 5. Konfigire nan Llamenos
 
@@ -59,7 +59,7 @@ SignalWire WebRTC itilize menm modèl API key tankou Twilio:
 1. Nan SignalWire Dashboard ou a, kreye yon **API Key** anba **API** > **Tokens**
 2. Kreye yon **LaML Application**:
    - Ale nan **LaML** > **LaML Applications**
-   - Mete Voice URL a `https://your-worker-url.com/telephony/webrtc-incoming`
+   - Mete Voice URL a `https://your-domain.com/telephony/webrtc-incoming`
    - Note Application SID a
 3. Nan Llamenos, ale nan **Settings** > **Telephony Provider**
 4. Aktive **WebRTC Calling**

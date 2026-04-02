@@ -85,6 +85,11 @@ asteriskBridge:
   sipUsername: ""   # SIP username / account SID
   sipPassword: ""   # SIP password / auth token
 
+# Identity Provider (Authentik)
+idp:
+  adapter: authentik
+  authentikUrl: http://authentik-server:9000
+
 # Nostr relay (strfry) — required for all real-time events
 nostr:
   relayUrl: "ws://strfry:7777"
@@ -140,6 +145,13 @@ secrets:
   twilioAuthToken: ""
   twilioPhoneNumber: ""
   serverNostrSecret: ""  # Required: 64-char hex, generate with: openssl rand -hex 32
+  jwtSecret: ""                    # Required — 32+ hex chars
+  idpValueEncryptionKey: ""        # Required — base64, 32 bytes
+  authentikSecretKey: ""           # Required — 50+ chars
+  authentikBootstrapToken: ""      # Required — 32+ hex bytes
+  webauthnRpId: ""                 # Defaults to ingress host
+  webauthnRpName: "Hotline"
+  webauthnOrigin: ""               # Defaults to https://{ingress.host}
 
 # Service account
 serviceAccount:

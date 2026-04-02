@@ -27,8 +27,8 @@ Vonage는 구성을 "Applications"로 그룹화합니다:
 1. **Applications** > **Create a new application**으로 이동
 2. 이름 입력 (예: "Llamenos Hotline")
 3. **Voice** 아래에서 토글을 켜고 설정:
-   - **Answer URL**: `https://your-worker-url.com/telephony/incoming` (POST)
-   - **Event URL**: `https://your-worker-url.com/telephony/status` (POST)
+   - **Answer URL**: `https://your-domain.com/telephony/incoming` (POST)
+   - **Event URL**: `https://your-domain.com/telephony/status` (POST)
 4. **Generate new application** 클릭
 5. 확인 페이지에 표시된 **Application ID** 저장
 6. **private key** 파일 다운로드 -- 구성에 내용이 필요합니다

@@ -40,17 +40,21 @@ guides:
 
 ## Apèsi sou achitekti a
 
-Llamenos se yon single-page application (SPA) ki fonksyone ak Cloudflare Workers ak Durable Objects. Pa gen okenn sèvè tradisyonèl pou jere.
+Llamenos se yon single-page application (SPA) ki ebèje pa ou menm, deplwaye atravè **Docker Compose** oswa **Kubernetes**. Li sipòte apèl vwa, SMS, WhatsApp, ak Signal — tout dirije nan pèsonèl ki sou sèvis atravè yon entèfas inifye.
 
 | Konpozan | Teknoloji |
 |---|---|
 | Frontend | Vite + React + TanStack Router |
-| Backend | Cloudflare Workers + Durable Objects |
-| Telefoni | Twilio, SignalWire, Vonage, Plivo, oswa Asterisk (atravè TelephonyAdapter interface) |
-| Otantifikasyon | Nostr keypairs (BIP-340 Schnorr) + WebAuthn |
-| Chifraj | ECIES (secp256k1 + XChaCha20-Poly1305) |
-| Transkripsyon | Whisper nan kote kliyan (WASM) |
-| i18n | i18next (12+ lang) |
+| Backend | Bun + Hono + PostgreSQL |
+| Depo | RustFS (konpatib ak S3) |
+| Founisè idantite | Authentik (OIDC ebèje pa ou menm) |
+| Telefoni | Twilio, SignalWire, Vonage, Plivo, oswa Asterisk |
+| Mesajri | SMS, WhatsApp Business, Signal |
+| Otantifikasyon | JWT + KEK milti-faktè + WebAuthn passkeys |
+| Chifraj | ECIES (secp256k1 + XChaCha20-Poly1305), 3 nivo |
+| Transkripsyon | Whisper nan kote kliyan (WASM) — odyo pa janm kite navigatè a |
+| An tan reyèl | Nostr relay (strfry) |
+| i18n | i18next (13 lang) |
 
 ## Wòl yo
 

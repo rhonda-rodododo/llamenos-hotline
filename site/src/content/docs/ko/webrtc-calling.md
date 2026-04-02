@@ -36,7 +36,7 @@ WebRTC(Web Real-Time Communication)를 사용하면 자원봉사자가 전화기
 ### Twilio / SignalWire
 
 1. 제공업체 콘솔에서 **API Key** 생성
-2. Voice URL을 `https://your-worker-url.com/telephony/webrtc-incoming`으로 설정한 **TwiML/LaML Application** 생성
+2. Voice URL을 `https://your-domain.com/telephony/webrtc-incoming`으로 설정한 **TwiML/LaML Application** 생성
 3. Llamenos에서 API Key SID, API Key Secret, Application SID 입력
 
 ### Vonage

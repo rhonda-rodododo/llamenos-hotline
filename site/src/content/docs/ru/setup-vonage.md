@@ -27,8 +27,8 @@ Vonage группирует конфигурацию в «Приложения»
 1. Перейдите в **Applications** > **Create a new application**
 2. Введите имя (например, «Llamenos Hotline»)
 3. В разделе **Voice** включите его и установите:
-   - **Answer URL**: `https://your-worker-url.com/telephony/incoming` (POST)
-   - **Event URL**: `https://your-worker-url.com/telephony/status` (POST)
+   - **Answer URL**: `https://your-domain.com/telephony/incoming` (POST)
+   - **Event URL**: `https://your-domain.com/telephony/status` (POST)
 4. Нажмите **Generate new application**
 5. Сохраните **Application ID**, показанный на странице подтверждения
 6. Скачайте файл **закрытого ключа** — его содержимое понадобится для настройки

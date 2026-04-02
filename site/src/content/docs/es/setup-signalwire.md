@@ -33,8 +33,8 @@ Registrate en [signalwire.com/signup](https://signalwire.com/signup). Durante el
 2. Haz clic en tu numero de linea
 3. En **Voice Settings**, configura:
    - **Handle calls using**: LaML Webhooks
-   - **When a call comes in**: `https://tu-url-del-worker.com/telephony/incoming` (POST)
-   - **Call status callback**: `https://tu-url-del-worker.com/telephony/status` (POST)
+   - **When a call comes in**: `https://tu-dominio.com/telephony/incoming` (POST)
+   - **Call status callback**: `https://tu-dominio.com/telephony/status` (POST)
 
 ## 5. Configurar en Llamenos
 
@@ -59,7 +59,7 @@ SignalWire WebRTC usa el mismo patron de claves API que Twilio:
 1. En tu panel de SignalWire, crea una **clave API** en **API** > **Tokens**
 2. Crea una **aplicacion LaML**:
    - Ve a **LaML** > **LaML Applications**
-   - Establece la URL de voz como `https://tu-url-del-worker.com/telephony/webrtc-incoming`
+   - Establece la URL de voz como `https://tu-dominio.com/telephony/webrtc-incoming`
    - Anota el Application SID
 3. En Llamenos, ve a **Configuracion** > **Proveedor de Telefonia**
 4. Activa **Llamadas WebRTC**
@@ -76,5 +76,5 @@ SignalWire WebRTC usa el mismo patron de claves API que Twilio:
 ## Solucion de problemas
 
 - **Errores de "Space not found"**: Verifica el nombre del Space (solo el subdominio, no la URL completa).
-- **Fallos en webhooks**: Asegurate de que la URL de tu Worker sea accesible publicamente y use HTTPS.
+- **Fallos en webhooks**: Asegurate de que la URL de tu servidor Llamenos sea accesible publicamente y use HTTPS.
 - **Problemas con el token API**: Los tokens de SignalWire pueden expirar. Crea un nuevo token si recibes errores de autenticacion.

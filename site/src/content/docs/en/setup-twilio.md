@@ -35,10 +35,10 @@ In the Twilio Console, navigate to your phone number's configuration:
 1. Go to **Phone Numbers** > **Manage** > **Active Numbers**
 2. Click your hotline number
 3. Under **Voice Configuration**, set:
-   - **A call comes in**: Webhook, `https://your-worker-url.com/telephony/incoming`, HTTP POST
-   - **Call status changes**: `https://your-worker-url.com/telephony/status`, HTTP POST
+   - **A call comes in**: Webhook, `https://your-domain.com/telephony/incoming`, HTTP POST
+   - **Call status changes**: `https://your-domain.com/telephony/status`, HTTP POST
 
-Replace `your-worker-url.com` with your actual Cloudflare Worker URL.
+Replace `your-domain.com` with your actual Llamenos server domain.
 
 ## 5. Configure in Llamenos
 
@@ -70,7 +70,7 @@ To enable volunteers to answer calls in their browser instead of their phone:
 
 1. Go to **Voice** > **Manage** > **TwiML Apps**
 2. Click **Create new TwiML App**
-3. Set the **Voice Request URL** to `https://your-worker-url.com/telephony/webrtc-incoming`
+3. Set the **Voice Request URL** to `https://your-domain.com/telephony/webrtc-incoming`
 4. Save and note the **App SID**
 
 ### Enable in Llamenos
@@ -87,7 +87,7 @@ See [WebRTC Browser Calling](/docs/webrtc-calling) for volunteer setup and troub
 
 ## Troubleshooting
 
-- **Calls not arriving**: Verify the webhook URL is correct and your Worker is deployed. Check the Twilio Console error logs.
+- **Calls not arriving**: Verify the webhook URL is correct and your server is reachable. Check the Twilio Console error logs.
 - **"Invalid webhook" errors**: Make sure the webhook URL uses HTTPS and returns valid TwiML.
 - **Trial account limitations**: Trial accounts can only call verified numbers. Upgrade to a paid account for production use.
 - **Webhook validation failures**: Ensure the Auth Token in Llamenos matches the one in Twilio Console.

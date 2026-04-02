@@ -27,8 +27,8 @@ Vonage कॉन्फ़िगरेशन को "Applications" में ग�
 1. **Applications** > **Create a new application** पर जाएँ
 2. एक नाम दर्ज करें (जैसे, "Llamenos Hotline")
 3. **Voice** के तहत, इसे टॉगल ऑन करें और सेट करें:
-   - **Answer URL**: `https://your-worker-url.com/telephony/incoming` (POST)
-   - **Event URL**: `https://your-worker-url.com/telephony/status` (POST)
+   - **Answer URL**: `https://your-domain.com/telephony/incoming` (POST)
+   - **Event URL**: `https://your-domain.com/telephony/status` (POST)
 4. **Generate new application** पर क्लिक करें
 5. कन्फ़र्मेशन पेज पर दिखाया गया **Application ID** सेव करें
 6. **प्राइवेट की** फ़ाइल डाउनलोड करें -- कॉन्फ़िगरेशन के लिए आपको इसकी सामग्री की आवश्यकता होगी

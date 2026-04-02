@@ -10,7 +10,7 @@ Llamenos supports Signal messaging via a self-hosted [signal-cli-rest-api](https
 - A Linux server or VM for the bridge (can be the same server as Asterisk, or separate)
 - Docker installed on the bridge server
 - A dedicated phone number for Signal registration
-- Network access from the bridge to your Cloudflare Worker
+- Network access from the bridge to your Llamenos server
 
 ## Architecture
 
@@ -18,10 +18,10 @@ Llamenos supports Signal messaging via a self-hosted [signal-cli-rest-api](https
 flowchart LR
     User["Signal User"] --> Servers["Signal Servers"]
     Servers --> Bridge["signal-cli bridge<br/>(self-hosted)"]
-    Bridge --> Worker["Llamenos Worker<br/>(Cloudflare)"]
+    Bridge --> Worker["Llamenos Server"]
 ```
 
-The signal-cli bridge runs on your infrastructure and forwards messages to your Worker via HTTP webhooks. This means you control the entire message path from Signal to your application.
+The signal-cli bridge runs on your infrastructure and forwards messages to your Llamenos server via HTTP webhooks. This means you control the entire message path from Signal to your application.
 
 ## 1. Deploy the signal-cli bridge
 
@@ -51,14 +51,14 @@ curl -X POST http://localhost:8080/v1/register/+1234567890/verify/123456
 
 ## 3. Configure webhook forwarding
 
-Set up the bridge to forward incoming messages to your Worker:
+Set up the bridge to forward incoming messages to your Llamenos server:
 
 ```bash
 curl -X PUT http://localhost:8080/v1/about \
   -H "Content-Type: application/json" \
   -d '{
     "webhook": {
-      "url": "https://your-worker.your-domain.com/api/messaging/signal/webhook",
+      "url": "https://your-domain.com/api/messaging/signal/webhook",
       "headers": {
         "Authorization": "Bearer your-webhook-secret"
       }

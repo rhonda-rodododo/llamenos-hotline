@@ -14,15 +14,21 @@ This document defines the threat model for Llamenos, a secure crisis response ho
 
 | Asset | Classification | Storage Location | Protection |
 |-------|---------------|-----------------|------------|
-| Caller phone numbers | PII / Safety-Critical | Hashed in DO/PostgreSQL | HMAC-SHA256 with operator secret; last 4 digits stored plaintext for display |
-| Call note content | Confidential | Encrypted in DO/PostgreSQL | E2EE V2: per-note XChaCha20-Poly1305, ECIES key wrapping |
-| Volunteer identity (name, phone) | PII / Safety-Critical | Encrypted at rest in DO/PostgreSQL | Visible only to admins; never exposed to other volunteers or callers |
-| Volunteer private keys (nsec) | Secret | PIN-encrypted in browser localStorage | PBKDF2-SHA256 600K iterations + XChaCha20-Poly1305 |
+| Caller phone numbers | PII / Safety-Critical | Hashed in PostgreSQL | HMAC-SHA256 with operator secret; last 4 digits stored plaintext for display |
+| Call note content | Confidential | Encrypted in PostgreSQL | E2EE: per-note XChaCha20-Poly1305, ECIES key wrapping |
+| Volunteer identity (name) | PII / Safety-Critical | E2EE in PostgreSQL (`users.encryptedName`) | Tier 1 envelope encryption (ECIES-wrapped per-user); server stores ciphertext only |
+| Volunteer identity (phone) | PII / Safety-Critical | E2EE in PostgreSQL (`users.encryptedPhone`) | Tier 1 envelope encryption; server needs ciphertext for routing but cannot read plaintext |
+| Volunteer private keys (nsec) | Secret | Multi-factor encrypted in browser localStorage | PIN + IdP value + optional WebAuthn PRF; PBKDF2-SHA256 600K iterations + XChaCha20-Poly1305 |
 | Admin private key (nsec) | Secret | Operator-managed (env var, hardware key) | Never stored server-side |
-| Session tokens | Secret | sessionStorage (client), DO/PostgreSQL (server) | 256-bit random, 8-hour TTL, revocable |
-| Audit logs | Operational | DO/PostgreSQL | Admin-only access; IP hashes truncated to 96 bits |
-| Shift schedules | Operational | DO/PostgreSQL | Authenticated access only |
-| Telephony credentials | Secret | Cloudflare Secrets / env vars | Never in source control; never sent to client |
+| IdP value (nsec_secret) | Secret | Authentik user attributes (encrypted) | XChaCha20-Poly1305 with HKDF-derived key from `IDP_VALUE_ENCRYPTION_KEY` |
+| JWT access tokens | Secret | Memory-only (client), never persisted | Short-lived (15min TTL), signed with `JWT_SECRET` |
+| JWT refresh tokens | Secret | httpOnly secure cookie (client) | Revocable via `jwtRevocations` table (by jti) |
+| WebAuthn credentials | Secret | PostgreSQL (`webauthnCredentials` table) | Credential public keys stored; private keys never leave authenticator |
+| Audit logs | Operational | PostgreSQL | Admin-only access; IP hashes truncated to 96 bits; hash-chained for tamper detection |
+| Shift schedules | Operational | PostgreSQL | Hub-key encrypted names; authenticated access only |
+| Org metadata (role names, shift names, etc.) | Operational | PostgreSQL | Hub-key encrypted (XChaCha20-Poly1305 with shared hub key) |
+| Contact directory PII | PII / Safety-Critical | E2EE in PostgreSQL | Tier 1 envelope encryption; display name, full name, phone, notes all encrypted |
+| Telephony credentials | Secret | Environment variables / `.env` | Never in source control; never sent to client |
 
 ## Adversary Profiles
 
@@ -33,19 +39,21 @@ This document defines the threat model for Llamenos, a secure crisis response ho
 **Goals**: Identify callers (political dissidents, activists). Identify volunteers. Obtain call note content. Disrupt hotline operations.
 
 **Mitigations**:
-- E2EE notes with forward secrecy (V2) — server compromise reveals nothing
-- PIN-encrypted keys — device seizure requires PIN brute-force
+- E2EE notes with forward secrecy — server compromise reveals nothing
+- E2EE for all volunteer PII (name, phone) — server stores only ciphertext
+- Multi-factor key encryption — PIN alone insufficient for key recovery; requires IdP value (Authentik) and optionally WebAuthn PRF
+- Remote kill-switch via IdP session revocation — admin can immediately lock out any device by revoking Authentik sessions + JWT tokens
 - Auto-lock on idle/tab-hide — limits physical access window
 - Generic PWA name ("Hotline") — reduces identification on seized devices
-- Nostr keypair auth — no passwords stored server-side to compel
+- JWT short-lived access tokens (15min) — limits window of stolen token utility
 - Domain-separated ECIES — no cross-context key reuse
 - Certificate pinning NOT implemented (impractical for web apps; rely on HSTS preload)
 
 **Residual risks**:
-- PIN entropy (4-6 digits, ~20 bits) is brute-forceable with seized encrypted blob + GPU resources
+- Multi-factor key encryption significantly raises the bar vs. PIN-only, but a funded adversary with both the device and access to the Authentik database could reconstruct the KEK
 - Caller phone numbers are transiently available to answering volunteers during active calls
 - Traffic analysis can reveal call timing, duration, and volunteer activity patterns
-- Legal compulsion of Cloudflare can access encrypted blobs (but not decrypt them)
+- Legal compulsion of VPS/cloud provider can access encrypted blobs (but not decrypt them)
 
 ### Tier 2: Private Intelligence / Hacking Firm
 
@@ -79,7 +87,7 @@ This document defines the threat model for Llamenos, a secure crisis response ho
 ```
 ┌─────────────────────────────────────────────────────────────────┐
 │                        UNTRUSTED                                │
-│  Callers (PSTN)  │  Public Internet  │  CDN/Cloud Provider     │
+│  Callers (PSTN)  │  Public Internet  │  Cloud Provider          │
 └──────┬───────────┴────────┬──────────┴──────────┬──────────────┘
        │                    │                     │
        │ Telephony          │ HTTPS/WSS           │ Infrastructure
@@ -87,18 +95,25 @@ This document defines the threat model for Llamenos, a secure crisis response ho
        ▼                    ▼                     ▼
 ┌──────────────────────────────────────────────────────────────────┐
 │                    SEMI-TRUSTED                                   │
-│  Cloudflare Workers / Node.js Server                             │
+│  Bun/Hono Server (Docker/VPS/Kubernetes)                         │
 │  ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌───────────────┐      │
-│  │ Hono API │→│ Auth MW  │→│ Perm MW  │→│ Route Handler │      │
+│  │ Hono API │→│ JWT Auth │→│ PBAC MW  │→│ Route Handler │      │
 │  └──────────┘ └──────────┘ └──────────┘ └───────┬───────┘      │
 │                                                  │               │
 │  ┌─────────────────────────────────────────────┐ │               │
-│  │ Durable Objects / PostgreSQL                │←┘               │
-│  │ (encrypted blobs, hashed identifiers)       │                 │
+│  │ PostgreSQL (encrypted blobs, hashed IDs)    │←┘               │
 │  └─────────────────────────────────────────────┘                 │
 │                                                                   │
+│  ┌──────────────────────────────────────────────┐                │
+│  │ Authentik IdP (self-hosted, operator-controlled)              │
+│  │ Stores: encrypted nsec_secret per user                        │
+│  │ Provides: one factor for multi-factor KEK derivation          │
+│  │ If compromised alone: insufficient — needs PIN + optionally   │
+│  │ WebAuthn PRF to reconstruct KEK                               │
+│  └──────────────────────────────────────────────┘                │
+│                                                                   │
 │  Server can see: metadata (who wrote, when, callId)              │
-│  Server CANNOT see: note content, transcription text, file data  │
+│  Server CANNOT see: note content, volunteer PII, org metadata    │
 └──────────────────────────────────────────────────────────────────┘
        │                    │
        │ E2EE payloads      │ Encrypted key blobs
@@ -107,8 +122,8 @@ This document defines the threat model for Llamenos, a secure crisis response ho
 │                       TRUSTED                                     │
 │  Volunteer's Browser                                              │
 │  ┌───────────┐ ┌──────────────┐ ┌──────────────┐                │
-│  │ Key Mgr   │ │ Crypto (V2)  │ │ Auth Context │                │
-│  │ (closure) │ │ ECIES+XChaCha│ │ Schnorr/WA   │                │
+│  │ Key Mgr   │ │ Crypto       │ │ Auth Context │                │
+│  │ (closure) │ │ ECIES+XChaCha│ │ JWT + WA     │                │
 │  └───────────┘ └──────────────┘ └──────────────┘                │
 │                                                                   │
 │  Decrypted notes exist ONLY here, in memory, while unlocked      │
@@ -119,13 +134,15 @@ This document defines the threat model for Llamenos, a secure crisis response ho
 
 1. **PSTN → Server**: All telephony webhooks MUST be signature-validated (Twilio HMAC-SHA1, Vonage HMAC-SHA256, etc.). Caller numbers are hashed on receipt; only last-4 digits retained in call records.
 
-2. **Internet → Server**: All API requests require Schnorr or WebAuthn session authentication (except `/api/config`, `/api/auth/login`, `/api/auth/bootstrap`). CORS restricts to same-origin. Security headers enforced on all responses.
+2. **Internet → Server**: All API requests require JWT Bearer token authentication (except `/api/config`, `/api/auth/*` login/bootstrap/refresh endpoints). CORS restricts to same-origin. Security headers enforced on all responses.
 
 3. **Server → Client**: The server NEVER sends plaintext note content, transcription text, or file data. All sensitive data is encrypted with the recipient's public key before storage.
 
 4. **Client → Server**: The client sends encrypted payloads only. Exception: `plaintextForSending` in messaging (SMS/WhatsApp require server-side plaintext to reach the provider — documented and accepted).
 
-5. **Cloud Provider**: Cloudflare (or the self-hosted infrastructure operator) can access encrypted blobs, metadata, and traffic patterns. They CANNOT decrypt E2EE content without the volunteer/admin private keys.
+5. **Cloud Provider / VPS Host**: The infrastructure operator can access encrypted blobs, metadata, and traffic patterns. They CANNOT decrypt E2EE content without the volunteer/admin private keys.
+
+6. **Authentik IdP → Server**: Authentik is self-hosted and operator-controlled. It stores an encrypted `nsec_secret` per user (one factor of the multi-factor KEK). If Authentik is compromised alone, the attacker obtains IdP values but NOT PINs or WebAuthn PRF outputs. Multi-factor derivation means compromise of any single factor is insufficient to reconstruct the KEK.
 
 ## Attack Surface Inventory
 
@@ -135,10 +152,14 @@ This document defines the threat model for Llamenos, a secure crisis response ho
 |---------|------------|---------------|------------|
 | Login | `POST /api/auth/login` | No | Schnorr signature + rate limit |
 | Bootstrap | `POST /api/auth/bootstrap` | No | Schnorr signature + one-shot guard + rate limit |
+| Token refresh | `POST /api/auth/refresh` | httpOnly refresh cookie | JWT signature verification + jti revocation check |
+| WebAuthn registration | `POST /api/auth/webauthn/register/*` | JWT | Authenticated users only |
+| WebAuthn authentication | `POST /api/auth/webauthn/authenticate/*` | Challenge | Rate-limited challenge-response |
+| IdP value fetch | `POST /api/auth/idp-value` | JWT | Returns encrypted nsec_secret from Authentik |
 | Config | `GET /api/config` | No | Read-only; exposes `adminPubkey` |
 | Telephony webhooks (10 endpoints) | `POST /telephony/*` | Webhook signature | Provider-specific HMAC |
 | Messaging webhooks | `POST /messaging/*` | Webhook signature | Provider-specific validation |
-| All other API endpoints | `*/api/*` | Schnorr or Session | Auth + permission middleware |
+| All other API endpoints | `*/api/*` | JWT Bearer token | JWT auth + PBAC permission middleware |
 | IVR audio | `GET /api/ivr-audio/*` | No | Strict regex on path params |
 | Dev reset | `POST /api/test-reset*` | No (env-gated) | `ENVIRONMENT=development` check |
 
@@ -146,7 +167,7 @@ This document defines the threat model for Llamenos, a secure crisis response ho
 
 | Surface | Risk | Mitigation |
 |---------|------|------------|
-| Volunteer → Admin escalation | Role modification | Safe-fields allowlist on self-update; `roles` requires `volunteers:update` permission |
+| Volunteer → Admin escalation | Role modification | PBAC permission system; safe-fields allowlist on self-update; `users:manage-roles` permission required for role changes |
 | Volunteer → Other volunteer's notes | Note content theft | E2EE — server has no plaintext; `notes:read-own` permission scoping |
 | Volunteer → Caller identification | PII exposure | Caller numbers hashed; only `callerLast4` sent to answering volunteer; redacted for others |
 | Admin → Excessive data access | Insider threat | Audit logging of all admin actions; admin notes are separately encrypted |
@@ -162,8 +183,10 @@ This document defines the threat model for Llamenos, a secure crisis response ho
 | Note integrity | Poly1305 MAC (AEAD) | 128-bit |
 | Note forward secrecy | Ephemeral ECDH per note + per recipient | secp256k1 |
 | Key-at-rest confidentiality | PBKDF2-SHA256 (600K iter) + XChaCha20-Poly1305 | ~20 bits PIN + 256-bit key |
-| Auth token unforgeability | BIP-340 Schnorr signatures | 128-bit security level |
-| Session token unpredictability | `crypto.getRandomValues(32)` | 256-bit |
+| Auth token unforgeability | BIP-340 Schnorr signatures (login) | 128-bit security level |
+| JWT access token integrity | HMAC-SHA256 with server `JWT_SECRET` | 256-bit key |
+| JWT refresh token revocability | `jwtRevocations` table keyed by jti | Immediate revocation, cleanup after expiry |
+| Multi-factor KEK strength | PIN + IdP value + optional WebAuthn PRF | Compromise of any single factor insufficient |
 | Phone hash preimage resistance | HMAC-SHA256 with operator secret | Infeasible without HMAC secret |
 
 ### What We Do NOT Guarantee
@@ -174,13 +197,13 @@ This document defines the threat model for Llamenos, a secure crisis response ho
 | Metadata confidentiality | Server needs `callId`, `authorPubkey`, timestamps for routing | Yes — documented trade-off |
 | SMS/WhatsApp E2EE | Provider requires plaintext | Yes — documented per-channel |
 | PIN brute-force resistance (offline) | 4-6 digit PIN, ~10K-1M possibilities | Marginal — recommend 6-digit minimum |
-| Server-side key deletion verification | Cannot prove Cloudflare/operator deleted data | Yes — fundamental cloud trust limitation |
+| Server-side key deletion verification | Cannot prove hosting provider/operator deleted data | Yes — fundamental cloud trust limitation |
 
 ## Legal Compulsion and Subpoena Scenarios
 
 This section documents what data can be obtained through legal process against various parties. Crisis hotlines operating in hostile legal environments should understand these limitations.
 
-### Subpoena of Hosting Provider (Cloudflare, VPS)
+### Subpoena of Hosting Provider (VPS / Cloud)
 
 **Obtainable:**
 - Encrypted database contents (ciphertext for E2EE data)
@@ -213,20 +236,27 @@ This section documents what data can be obtained through legal process against v
 ### Device Seizure (Volunteer)
 
 **Without PIN:**
-- Encrypted key blob in localStorage requires PIN brute-force
-- 600,000 PBKDF2 iterations + 4-6 digit PIN = estimated hours on GPU hardware
-- Session tokens may still be valid if device was recently used (8-hour TTL)
+- Encrypted key blob in localStorage requires multi-factor KEK reconstruction
+- PIN brute-force alone is now insufficient — the IdP value (from Authentik) is also required
+- With WebAuthn PRF enabled: three factors needed (PIN + IdP value + PRF output from authenticator)
+- JWT access tokens expire in 15 minutes; refresh tokens are httpOnly cookies (revocable server-side)
 
-**With PIN (or successful brute-force):**
+**With PIN only (no IdP value):**
+- Cannot reconstruct KEK — the IdP value is a separate encryption factor stored server-side in Authentik
+- Admin can immediately revoke IdP sessions and JWT tokens, preventing token refresh
+
+**With all factors (PIN + IdP value + optional PRF):**
 - Access to that volunteer's decrypted notes
 - Cannot decrypt other volunteers' notes (separate keypairs)
 - Per-note forward secrecy: compromising identity key does not reveal notes without also obtaining the per-note ECIES envelopes
 
 **Mitigations:**
+- Multi-factor KEK makes PIN-only brute-force insufficient
+- Admin can remotely revoke sessions via IdP (Authentik user disable) + JWT bulk revocation
 - Enable device full-disk encryption
 - Use 6-digit PIN (not 4-digit)
 - Enable auto-lock on shorter timeout
-- Admin can remotely revoke sessions
+- Enable WebAuthn PRF for three-factor key protection
 
 ### Device Seizure (Admin)
 
@@ -254,13 +284,77 @@ A malicious operator with server access can:
 - Multi-party deployment approval
 - Audit logging of all server access
 
+## JWT Token Threats
+
+The system uses short-lived JWT access tokens (15-minute TTL) and longer-lived refresh tokens (httpOnly cookie). Both are signed with `JWT_SECRET`.
+
+| Threat | Impact | Window | Mitigation |
+|--------|--------|--------|------------|
+| Access token theft (XSS, memory dump) | Impersonation for API calls | 15 minutes (token TTL) | Short TTL limits window; CSP `script-src 'self'` prevents most XSS; token never persisted to storage |
+| Refresh token theft (cookie exfiltration) | Token renewal for extended access | Until revoked | httpOnly + Secure + SameSite=Strict cookie; revocable via `jwtRevocations` table by jti |
+| Token injection (forged JWT) | Unauthorized API access | N/A if secret is secure | Requires `JWT_SECRET`; use `openssl rand -hex 32` for 256-bit entropy |
+| JWT_SECRET compromise | All tokens forgeable | Until secret rotation | Rotate immediately; set `JWT_SECRET_PREVIOUS` for 15-minute transition; revoke all refresh tokens |
+| Bulk session hijacking | Mass impersonation | Until detected | Monitor audit logs for anomalous patterns; JWT includes `pubkey` in `sub` claim for attribution |
+
+### JWT Secret Rotation Procedure
+
+1. Generate a new secret: `openssl rand -hex 32`
+2. Set `JWT_SECRET_PREVIOUS` to the current `JWT_SECRET` value
+3. Set `JWT_SECRET` to the new secret
+4. Restart the application — new tokens use the new secret; existing tokens validated against both
+5. After 15 minutes (access token TTL), remove `JWT_SECRET_PREVIOUS`
+6. Optionally bulk-revoke all refresh tokens for a clean break
+
+---
+
+## Authentik (IdP) Compromise Scenario
+
+Authentik is self-hosted and operator-controlled. It stores an encrypted `nsec_secret` per user — one factor of the multi-factor KEK used to decrypt the volunteer's private key.
+
+### What an Authentik Compromise Reveals
+
+| Data | Classification | Impact |
+|------|---------------|--------|
+| Encrypted `nsec_secret` values | Ciphertext | Encrypted with `IDP_VALUE_ENCRYPTION_KEY` via XChaCha20-Poly1305; attacker needs the encryption key to decrypt |
+| User records (pubkeys, active status) | Pseudonymous | Pubkeys are already semi-public; no PII stored in Authentik |
+| Session state | Operational | Can hijack active IdP sessions |
+
+### Attack Scenarios
+
+**Scenario A: Authentik database dump only**
+- Attacker obtains encrypted `nsec_secret` values
+- Without `IDP_VALUE_ENCRYPTION_KEY` (stored in app `.env`, not in Authentik), these are undecryptable ciphertext
+- **Impact**: Low — encrypted blobs without the key
+
+**Scenario B: Authentik database + `IDP_VALUE_ENCRYPTION_KEY`**
+- Attacker can decrypt `nsec_secret` values (one KEK factor)
+- Still needs the user's PIN (and optionally WebAuthn PRF) to reconstruct the full KEK
+- **Impact**: Medium — reduces multi-factor to fewer factors, but does not directly yield private keys
+
+**Scenario C: Authentik admin API access**
+- Attacker can disable/enable users, create sessions, modify attributes
+- Can perform IdP-level denial of service (disable all users)
+- Cannot forge JWTs (JWT_SECRET is separate, held by the app server)
+- **Impact**: Medium-High — operational disruption; combined with other factors could enable key recovery
+
+### Mitigations
+
+- Rotate `IDP_VALUE_ENCRYPTION_KEY` periodically (requires re-encrypting all `nsec_secret` values)
+- Network-isolate Authentik (accessible only from app server, not from public internet)
+- Use a dedicated PostgreSQL instance for Authentik (not shared with app database)
+- Monitor Authentik audit logs for unauthorized API access
+- Restrict Authentik API token scope to minimum required operations
+- Rate-limit Authentik API endpoints
+
+---
+
 ## Deployment-Specific Threats
 
-### Cloudflare Workers Deployment
+### Authentik IdP Deployment
 
-- **Cloudflare as trusted party**: Cloudflare can read memory, intercept requests, access DO storage. E2EE ensures they cannot read note content, but they see all metadata and traffic patterns.
-- **Cloudflare account compromise**: Attacker gains full access to Worker code, secrets, and DO storage. Mitigate with 2FA, access logs, and key rotation procedures.
-- **`workers.dev` subdomain disabled**: Prevents alternate origin that bypasses domain-specific security policies.
+- **Authentik as operator-controlled party**: Self-hosted; stores encrypted IdP values (one KEK factor). If compromised alone: insufficient for key recovery without PIN + optional WebAuthn PRF.
+- **Authentik account/API compromise**: Attacker can disable/enable users, modify attributes, create sessions. Cannot forge JWTs (separate secret). Combined with `IDP_VALUE_ENCRYPTION_KEY` compromise: reduces multi-factor to fewer factors.
+- **Network isolation**: Authentik should be accessible only from the app server, not from the public internet. See [Deployment Hardening, Section 3](DEPLOYMENT_HARDENING.md#3-authentik-idp-hardening).
 
 ### Docker/Node.js Self-Hosted Deployment
 
@@ -321,54 +415,43 @@ Push notification infrastructure is a **necessary trusted party** for mobile dep
 
 ---
 
-## Cloudflare Trust Boundary (Honest Assessment)
+## Cloud Provider Trust Boundary (Honest Assessment)
 
-Cloudflare Workers is a primary deployment target for Llamenos. The zero-knowledge architecture (E2EE notes, encrypted Nostr events via Nosflare) is designed to minimize what the server can access. This section provides an honest assessment of what these protections achieve and what they do not.
+**Note**: The primary deployment model is self-hosted (Docker Compose / Kubernetes). This section documents the general trust analysis for any cloud provider hosting Llamenos, and historically addressed Cloudflare Workers as a deployment target. The zero-knowledge architecture (E2EE notes, encrypted Nostr events) minimizes what any infrastructure provider can access.
 
-### What Nosflare / E2EE Protects Against
+### What E2EE Protects Against (Any Provider)
 
 | Threat | Protection Level | Explanation |
 |--------|-----------------|-------------|
-| Database-only subpoena | **Strong** | If only Durable Object storage is obtained (e.g., via legal process targeting stored data), the attacker gets encrypted blobs — ciphertext for notes, encrypted Nostr events, hashed phone numbers. Without volunteer/admin private keys, this data is useless. |
-| Rogue Cloudflare employee with DB access | **Strong** | An employee with access to DO storage (but not the Workers runtime) sees only encrypted blobs. This is a realistic scenario — large organizations have many employees with partial infrastructure access. |
-| Third-party breach of Cloudflare storage | **Strong** | If an attacker compromises Cloudflare's storage layer (e.g., S3-equivalent) without gaining runtime access, all E2EE data is protected. |
+| Database-only subpoena | **Strong** | If only PostgreSQL data is obtained (e.g., via legal process targeting stored data), the attacker gets encrypted blobs — ciphertext for notes, volunteer PII, org metadata, hashed phone numbers. Without volunteer/admin private keys, this data is useless. |
+| Rogue provider employee with DB access | **Strong** | An employee with access to database storage (but not the application runtime) sees only encrypted blobs. This is a realistic scenario — large organizations have many employees with partial infrastructure access. |
+| Third-party breach of storage layer | **Strong** | If an attacker compromises the storage layer (RustFS, PostgreSQL backups) without gaining runtime access, all E2EE data is protected. |
 | Passive network observer | **Strong** | TLS protects data in transit. An observer on the network path sees encrypted Nostr relay events only. |
 
-### What Nosflare / E2EE Does NOT Protect Against
+### What E2EE Does NOT Protect Against
 
 | Threat | Protection Level | Explanation |
 |--------|-----------------|-------------|
-| Cloudflare as a willing adversary | **None** | Cloudflare operates the Workers runtime. They can inspect memory during execution, intercept requests before encryption, modify Worker code, and read all data that passes through the runtime. E2EE encrypts data before it reaches the server, but Cloudflare controls the server that serves the client code — they could serve modified JavaScript that exfiltrates keys. Reproducible builds (Epic 79) allow operators and auditors to verify that deployed client code matches public source — but Cloudflare could serve different code selectively. |
-| Legal compulsion of Cloudflare (with runtime access) | **None** | A court order compelling Cloudflare to instrument the Workers runtime would defeat E2EE. Cloudflare would not need private keys — they could capture data in transit through the Worker. |
-| Cloudflare account compromise | **None** | An attacker who gains access to the Cloudflare account can deploy modified Worker code, read secrets, and access DO storage. They could serve a backdoored client that exfiltrates volunteer private keys. |
+| VPS provider as a willing adversary | **None** | The VPS provider can image the VM, access disk, and intercept network traffic. They could modify the served JavaScript to exfiltrate keys. Reproducible builds allow verification of deployed client code — but a compromised server could serve different code selectively. |
+| Legal compulsion with runtime access | **None** | A court order compelling the VPS provider to instrument the runtime would defeat E2EE for in-flight data. The provider would not need private keys — they could capture data in transit. |
+| Server compromise | **None** | An attacker with root access can modify server code, read secrets (`JWT_SECRET`, `IDP_VALUE_ENCRYPTION_KEY`), and intercept requests. E2EE protects data at rest but not data in transit through a compromised server. |
 
-### What Cloudflare Can Always Observe (Regardless of E2EE)
+### What the Infrastructure Provider Can Always Observe
 
-- **Nostr relay connections (Nosflare)**: IP addresses, connection timing, duration, event frequency and sizes
 - **HTTP request metadata**: All API request URLs, headers, query parameters, source IPs
-- **Worker execution**: If logging is enabled, full request/response bodies. Even with logging disabled, Cloudflare has the technical capability to instrument the runtime.
-- **DO storage contents at rest**: Cloudflare holds the encryption keys for Durable Object storage — the "encryption at rest" protects against disk theft, not against Cloudflare itself
-- **Worker deployment history**: All code versions, environment variables, secrets (encrypted but Cloudflare holds the master key)
-- **DNS and TLS termination**: All domain resolution and certificate management passes through Cloudflare
-
-### Required Operational Actions
-
-1. **Disable all application-level logging** in Nosflare configuration — no request logging, no event logging, no error logging that captures user data
-2. **Disable Cloudflare Workers analytics and observability** where possible — Workers Trace Events, Tail Workers, and Logpush can capture request data
-3. **Use Cloudflare Access or Zero Trust** to restrict access to the Cloudflare dashboard, limiting who can deploy code changes
-4. **Enable audit logs** on the Cloudflare account to detect unauthorized access
+- **Nostr relay connections**: IP addresses, connection timing, duration, event frequency and sizes
+- **Database contents at rest**: Encrypted blobs are present on disk; provider sees ciphertext
+- **DNS and TLS termination**: All domain resolution passes through the provider (unless using custom DNS)
+- **Application secrets**: If the provider images the VM disk, `.env` files containing `JWT_SECRET`, `IDP_VALUE_ENCRYPTION_KEY`, etc. are accessible
 
 ### Recommendation for Maximum Privacy Deployments
 
-For organizations where Cloudflare as an adversary is within the threat model (e.g., operating in jurisdictions where US-based companies can be legally compelled), **deploy Llamenos self-hosted with a strfry Nostr relay instead of Nosflare**.
+For organizations operating under extreme threat models, **deploy Llamenos self-hosted on dedicated hardware** with full-disk encryption and a self-hosted strfry Nostr relay:
 
-strfry is an open-source, self-hosted Nostr relay written in C++ that:
-- Runs entirely on operator-controlled infrastructure
-- Has no cloud provider dependency for the relay layer
-- Can be deployed on air-gapped or Tor-accessible infrastructure
+- strfry is an open-source, self-hosted Nostr relay written in C++ that runs entirely on operator-controlled infrastructure
 - Combined with Llamenos E2EE, provides true operator-only trust (the operator sees encrypted blobs, and controls the infrastructure)
-
-The Cloudflare deployment is appropriate for organizations that trust Cloudflare as an infrastructure provider (most organizations) and want the operational simplicity of a managed platform. The self-hosted deployment is for organizations that cannot accept any third-party infrastructure trust.
+- Can be deployed on air-gapped or Tor-accessible infrastructure
+- No cloud provider dependency for any component
 
 ---
 
@@ -418,7 +501,7 @@ SRI hashes on the HTML that loads the client JavaScript ensure the bundle has no
 
 ### Residual Risk
 
-Even with all mitigations, a server compromise (or Cloudflare compromise in the CF deployment) can serve modified JavaScript that removes the pinning check entirely. This is the fundamental limitation of web applications — the server controls the code the client executes. Only a native application with code signing can fully address this, and that introduces its own supply chain risks (app store compromise, signing key theft).
+Even with all mitigations, a server compromise can serve modified JavaScript that removes the pinning check entirely. This is the fundamental limitation of web applications — the server controls the code the client executes. Only a native application with code signing can fully address this, and that introduces its own supply chain risks (app store compromise, signing key theft).
 
 ---
 
@@ -611,7 +694,7 @@ For Llamenos, the npm supply chain is a **medium-severity, low-probability** ris
 
 ## Nostr Relay Trust Boundary
 
-The Nostr relay (strfry for self-hosted, Nosflare for Cloudflare) replaces the former WebSocket server for all real-time communication. Understanding what the relay can and cannot observe is critical for threat modeling.
+The Nostr relay (strfry, self-hosted) handles all real-time communication. Understanding what the relay can and cannot observe is critical for threat modeling.
 
 ### What the Relay Can Observe
 
@@ -725,13 +808,13 @@ The trust anchor is the **GitHub Release** (not the running application). The ap
 ### Scope
 
 - **Verified**: Client JavaScript and CSS bundles (deterministic output via `SOURCE_DATE_EPOCH`, content-hashed filenames)
-- **NOT verified**: Worker/server bundle (Cloudflare modifies the bundle during deployment; Node.js builds are deterministic but server integrity depends on operator trust)
+- **NOT verified**: Server runtime (server integrity depends on operator trust and host security)
 
 ---
 
 ## Client-Side Transcription Trust Model
 
-Epic 78 moved transcription from Cloudflare Workers AI to in-browser WASM (Whisper via `@huggingface/transformers`).
+Transcription runs entirely in-browser via WASM (Whisper via `@huggingface/transformers`).
 
 ### Security Properties
 
@@ -755,6 +838,7 @@ Epic 78 moved transcription from Cloudflare Workers AI to in-browser WASM (Whisp
 
 | Date | Version | Author | Changes |
 |------|---------|--------|---------|
+| 2026-04-01 | 2.0 | IdP + JWT Auth Overhaul | Added IdP trust boundary (Authentik), multi-factor KEK analysis for device seizure, JWT token threats table with rotation procedure, Authentik compromise scenarios, updated attack surface for auth facade endpoints, updated protected assets for E2EE volunteer PII / hub-key org metadata / contact directory, replaced Durable Objects with PostgreSQL throughout, updated PBAC permission references |
 | 2026-02-25 | 1.3 | ZK Architecture Overhaul | Removed WebSocket references (replaced with Nostr relay); added Nostr relay trust boundary, audit log tamper detection, admin key separation, hub key compromise analysis, reproducible builds, client-side transcription trust model |
 | 2026-02-25 | 1.2 | Epic 76.0 Phase 4 | Added threat model gap sections: APNs/FCM trust, Cloudflare trust boundary, admin pubkey fetch trust, departed volunteer key retirement, SMS/WhatsApp outbound limitation, npm supply chain risk |
 | 2026-02-25 | 1.1 | Documentation overhaul | Added legal compulsion section; fixed phone hashing to HMAC-SHA256; fixed caller number broadcast status; added cross-references |

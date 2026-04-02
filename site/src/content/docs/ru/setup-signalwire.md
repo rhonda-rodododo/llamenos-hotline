@@ -33,8 +33,8 @@ SignalWire — это экономичная альтернатива Twilio с 
 2. Нажмите на номер горячей линии
 3. В разделе **Voice Settings** установите:
    - **Handle calls using**: LaML Webhooks
-   - **When a call comes in**: `https://your-worker-url.com/telephony/incoming` (POST)
-   - **Call status callback**: `https://your-worker-url.com/telephony/status` (POST)
+   - **When a call comes in**: `https://your-domain.com/telephony/incoming` (POST)
+   - **Call status callback**: `https://your-domain.com/telephony/status` (POST)
 
 ## 5. Настройте в Llamenos
 
@@ -59,7 +59,7 @@ SignalWire WebRTC использует тот же шаблон API-ключей
 1. В панели управления SignalWire создайте **API Key** в разделе **API** > **Tokens**
 2. Создайте **приложение LaML**:
    - Перейдите в **LaML** > **LaML Applications**
-   - Установите Voice URL на `https://your-worker-url.com/telephony/webrtc-incoming`
+   - Установите Voice URL на `https://your-domain.com/telephony/webrtc-incoming`
    - Запишите Application SID
 3. В Llamenos перейдите в **Настройки** > **Провайдер телефонии**
 4. Включите **Звонки через WebRTC**

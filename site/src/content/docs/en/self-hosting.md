@@ -40,20 +40,19 @@ Or use the setup script, which handles this automatically:
 ./scripts/docker-setup.sh --domain hotline.org --email a@b    # production
 ```
 
-## Architecture differences
+## Architecture
 
-Both deployment targets run the **exact same application code**. The difference is in the infrastructure layer:
+All deployment options run the **exact same application code**. The difference is in the infrastructure layer:
 
-| Component | Cloudflare | Self-Hosted |
-|-----------|------------|-------------|
-| **Backend runtime** | Cloudflare Workers | Node.js (via Hono) |
-| **Data storage** | Durable Objects (KV) | PostgreSQL |
-| **Blob storage** | R2 | RustFS (S3-compatible) |
-| **Transcription** | Client-side Whisper (WASM) | Client-side Whisper (WASM) |
-| **Static files** | Workers Assets | Caddy / Hono serveStatic |
-| **Real-time events** | Nostr relay (Nosflare) | Nostr relay (strfry) |
-| **TLS termination** | Cloudflare edge | Caddy (automatic HTTPS) |
-| **Cost** | Usage-based (free tier available) | Your server costs |
+| Component | Technology |
+|-----------|------------|
+| **Backend runtime** | Bun + Hono |
+| **Data storage** | PostgreSQL |
+| **Blob storage** | RustFS (S3-compatible) |
+| **Transcription** | Client-side Whisper (WASM) — audio never leaves browser |
+| **Static files** | Caddy / Hono serveStatic |
+| **Real-time events** | Nostr relay (strfry) |
+| **TLS termination** | Caddy (automatic HTTPS) |
 
 ## What you need
 

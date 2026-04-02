@@ -52,7 +52,7 @@ export const home: Record<string, {
     },
     deploy: {
       heading: 'Ready to deploy?',
-      description: 'Llámenos runs on Cloudflare Workers with zero infrastructure to manage. Get a hotline running in under an hour.',
+      description: 'Llámenos is self-hosted via Docker — you control everything. Get a hotline running in under an hour.',
       cta: 'Get started',
       github: 'View on GitHub',
     },
@@ -85,7 +85,7 @@ export const home: Record<string, {
     },
     deploy: {
       heading: '¿Listo para desplegar?',
-      description: 'Llámenos funciona en Cloudflare Workers sin infraestructura que gestionar. Pon en marcha una línea de ayuda en menos de una hora.',
+      description: 'Llámenos se auto-aloja con Docker — tú controlas todo. Pon en marcha una línea de ayuda en menos de una hora.',
       cta: 'Comenzar',
       github: 'Ver en GitHub',
     },
@@ -118,7 +118,7 @@ export const home: Record<string, {
     },
     deploy: {
       heading: '准备好部署了吗？',
-      description: 'Llámenos 运行在 Cloudflare Workers 上，无需管理基础设施。不到一小时即可启动热线。',
+      description: 'Llámenos 通过 Docker 自托管 — 一切由您掌控。不到一小时即可启动热线。',
       cta: '开始使用',
       github: '在 GitHub 上查看',
     },
@@ -151,7 +151,7 @@ export const home: Record<string, {
     },
     deploy: {
       heading: 'Handa nang mag-deploy?',
-      description: 'Ang Llámenos ay tumatakbo sa Cloudflare Workers na walang imprastrukturang kailangang pamahalaan. Magpatakbo ng hotline sa loob ng isang oras.',
+      description: 'Ang Llámenos ay self-hosted gamit ang Docker — ikaw ang may kontrol sa lahat. Magpatakbo ng hotline sa loob ng isang oras.',
       cta: 'Magsimula',
       github: 'Tingnan sa GitHub',
     },
@@ -184,7 +184,7 @@ export const home: Record<string, {
     },
     deploy: {
       heading: 'Sẵn sàng triển khai?',
-      description: 'Llámenos chạy trên Cloudflare Workers không cần quản lý hạ tầng. Khởi chạy đường dây nóng trong chưa đầy một giờ.',
+      description: 'Llámenos tự lưu trữ qua Docker — bạn kiểm soát mọi thứ. Khởi chạy đường dây nóng trong chưa đầy một giờ.',
       cta: 'Bắt đầu',
       github: 'Xem trên GitHub',
     },
@@ -217,7 +217,7 @@ export const home: Record<string, {
     },
     deploy: {
       heading: 'مستعد للنشر؟',
-      description: 'يعمل Llámenos على Cloudflare Workers بدون بنية تحتية لإدارتها. شغّل خطاً ساخناً في أقل من ساعة.',
+      description: 'Llámenos مستضاف ذاتياً عبر Docker — أنت تتحكم في كل شيء. شغّل خطاً ساخناً في أقل من ساعة.',
       cta: 'ابدأ الآن',
       github: 'عرض على GitHub',
     },
@@ -250,7 +250,7 @@ export const home: Record<string, {
     },
     deploy: {
       heading: 'Prêt à déployer ?',
-      description: "Llámenos fonctionne sur Cloudflare Workers sans infrastructure à gérer. Lancez une ligne d'assistance en moins d'une heure.",
+      description: "Llámenos est auto-hébergé via Docker — vous contrôlez tout. Lancez une ligne d'assistance en moins d'une heure.",
       cta: 'Commencer',
       github: 'Voir sur GitHub',
     },
@@ -283,7 +283,7 @@ export const home: Record<string, {
     },
     deploy: {
       heading: 'Pare pou deplwaye?',
-      description: 'Llámenos fonksyone sou Cloudflare Workers san enfrastrikti pou jere. Lanse yon liy asistans nan mwens pase inèdtan.',
+      description: 'Llámenos se auto-hébergé via Docker — ou kontwole tout bagay. Lanse yon liy asistans nan mwens pase inèdtan.',
       cta: 'Kòmanse',
       github: 'Wè sou GitHub',
     },
@@ -316,7 +316,7 @@ export const home: Record<string, {
     },
     deploy: {
       heading: '배포할 준비가 되셨나요?',
-      description: 'Llámenos는 Cloudflare Workers에서 관리할 인프라 없이 실행됩니다. 한 시간 이내에 핫라인을 가동하세요.',
+      description: 'Llámenos는 Docker로 자체 호스팅됩니다 — 모든 것을 직접 제어하세요. 한 시간 이내에 핫라인을 가동하세요.',
       cta: '시작하기',
       github: 'GitHub에서 보기',
     },
@@ -349,7 +349,7 @@ export const home: Record<string, {
     },
     deploy: {
       heading: 'Готовы к развёртыванию?',
-      description: 'Llámenos работает на Cloudflare Workers без необходимости управления инфраструктурой. Запустите горячую линию менее чем за час.',
+      description: 'Llámenos самостоятельно размещается через Docker — вы контролируете всё. Запустите горячую линию менее чем за час.',
       cta: 'Начать',
       github: 'Смотреть на GitHub',
     },
@@ -382,7 +382,7 @@ export const home: Record<string, {
     },
     deploy: {
       heading: 'तैनात करने के लिए तैयार?',
-      description: 'Llámenos Cloudflare Workers पर बिना किसी इंफ्रास्ट्रक्चर प्रबंधन के चलता है। एक घंटे से कम में हॉटलाइन शुरू करें।',
+      description: 'Llámenos Docker के माध्यम से स्वयं-होस्ट किया जाता है — आप सब कुछ नियंत्रित करते हैं। एक घंटे से कम में हॉटलाइन शुरू करें।',
       cta: 'शुरू करें',
       github: 'GitHub पर देखें',
     },
@@ -415,7 +415,7 @@ export const home: Record<string, {
     },
     deploy: {
       heading: 'Pronto para implantar?',
-      description: 'O Llámenos roda no Cloudflare Workers sem infraestrutura para gerenciar. Coloque uma linha de ajuda em funcionamento em menos de uma hora.',
+      description: 'O Llámenos é auto-hospedado via Docker — você controla tudo. Coloque uma linha de ajuda em funcionamento em menos de uma hora.',
       cta: 'Começar',
       github: 'Ver no GitHub',
     },
@@ -448,7 +448,7 @@ export const home: Record<string, {
     },
     deploy: {
       heading: 'Bereit zur Bereitstellung?',
-      description: 'Llámenos läuft auf Cloudflare Workers ohne zu verwaltende Infrastruktur. Starten Sie eine Hotline in weniger als einer Stunde.',
+      description: 'Llámenos wird selbst gehostet über Docker — Sie kontrollieren alles. Starten Sie eine Hotline in weniger als einer Stunde.',
       cta: 'Erste Schritte',
       github: 'Auf GitHub ansehen',
     },

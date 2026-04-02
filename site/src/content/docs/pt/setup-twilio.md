@@ -35,10 +35,10 @@ No console do Twilio, navegue ate a configuracao do seu numero de telefone:
 1. Va em **Phone Numbers** > **Manage** > **Active Numbers**
 2. Clique no seu numero da linha
 3. Em **Voice Configuration**, defina:
-   - **A call comes in**: Webhook, `https://your-worker-url.com/telephony/incoming`, HTTP POST
-   - **Call status changes**: `https://your-worker-url.com/telephony/status`, HTTP POST
+   - **A call comes in**: Webhook, `https://your-domain.com/telephony/incoming`, HTTP POST
+   - **Call status changes**: `https://your-domain.com/telephony/status`, HTTP POST
 
-Substitua `your-worker-url.com` pela URL real do seu Cloudflare Worker.
+Substitua `your-domain.com` pela URL real do seu Llamenos server.
 
 ## 5. Configurar no Llamenos
 
@@ -70,7 +70,7 @@ Para permitir que voluntarios atendam chamadas no navegador em vez do telefone:
 
 1. Va em **Voice** > **Manage** > **TwiML Apps**
 2. Clique em **Create new TwiML App**
-3. Defina o **Voice Request URL** como `https://your-worker-url.com/telephony/webrtc-incoming`
+3. Defina o **Voice Request URL** como `https://your-domain.com/telephony/webrtc-incoming`
 4. Salve e anote o **App SID**
 
 ### Ativar no Llamenos

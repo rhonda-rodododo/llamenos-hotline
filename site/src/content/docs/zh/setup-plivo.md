@@ -28,8 +28,8 @@ Plivo 使用"XML Applications"来路由呼叫：
 2. 点击 **Add New Application**
 3. 配置：
    - **Application Name**：Llamenos Hotline
-   - **Answer URL**：`https://your-worker-url.com/telephony/incoming`（POST）
-   - **Hangup URL**：`https://your-worker-url.com/telephony/status`（POST）
+   - **Answer URL**：`https://your-domain.com/telephony/incoming`（POST）
+   - **Hangup URL**：`https://your-domain.com/telephony/status`（POST）
 4. 保存应用
 
 ## 4. 关联电话号码
