@@ -14,9 +14,8 @@ This guide provides security-focused deployment recommendations for Llamenos ope
 |---|---|---|---|
 | **Docker Compose on VPS** | Small orgs (1-10 volunteers) | Low | Single server, all services co-located |
 | **Kubernetes (Helm)** | Medium-large orgs (10-100+ volunteers) | High | Multi-node, network policies, pod isolation |
-| **Cloudflare Workers** | Any size; managed infrastructure | Medium | Cloudflare as trusted party; no server management |
 
-All three architectures provide E2EE for call notes and transcriptions. The security of the cryptographic layer is independent of the deployment model — the server never has access to plaintext note content regardless of where it runs.
+All architectures provide E2EE for call notes, volunteer PII, contact directory, and transcriptions. Hub-key encryption covers all org metadata. The security of the cryptographic layer is independent of the deployment model — the server never has access to plaintext note content, volunteer names, or org metadata regardless of where it runs.
 
 ---
 
@@ -35,9 +34,10 @@ All three architectures provide E2EE for call notes and transcriptions. The secu
 - Shared hosting / VPS with known noisy-neighbor attacks
 
 **Minimum specifications**:
-- 2 vCPU, 4GB RAM, 40GB SSD
+- 2 vCPU, 4GB RAM (+512MB for Authentik, +256MB for worker), 40GB SSD
 - Dedicated IP (not shared)
 - KVM or dedicated hardware (avoid OpenVZ — no kernel isolation)
+- Sufficient RAM for Authentik + Redis + PostgreSQL (Authentik) co-located on same host
 
 ### VPS Hardening with Ansible
 
@@ -189,8 +189,9 @@ automountServiceAccountToken: false
 networkPolicy:
   enabled: true  # Default: true
   # App pod: ingress only from ingress controller
-  # App pod: egress only to DNS, MinIO, Whisper, external HTTPS
-  # MinIO pod: ingress only from app pod
+  # App pod: egress only to DNS, RustFS, Authentik, external HTTPS
+  # RustFS pod: ingress only from app pod
+  # Authentik pod: ingress only from app pod (and admin IP for UI)
 ```
 
 ### Required Values
@@ -244,32 +245,94 @@ resources:
 
 ---
 
-## 3. Cloudflare Workers Deployment
+## 3. Authentik IdP Hardening
 
-### Security Advantages
+Authentik is a self-hosted identity provider that stores encrypted IdP values (one factor of the multi-factor KEK). It must be hardened because compromise of Authentik + the `IDP_VALUE_ENCRYPTION_KEY` reduces multi-factor key protection.
 
-- No server to manage — no OS patching, no SSH keys to rotate
-- DDoS protection included at the edge
-- Durable Objects provide transactional consistency without database management
-- R2 for encrypted file storage with no public access
-- Automatic TLS with edge termination
+### Network Isolation
 
-### Security Considerations
+Authentik should be accessible **only from the app server**, not from the public internet:
 
-- **Cloudflare is a trusted party**: They can access Worker memory, DO storage, and R2 blobs. E2EE ensures they cannot read note content.
-- **Account security is critical**: Enable 2FA, use API tokens (not global key), restrict token permissions to the minimum required.
-- **`workers_dev: false`** is set by default — do not change this (prevents alternate origin).
-- **Secrets**: Use `wrangler secret put` — never put secrets in `wrangler.jsonc` or source control.
+```yaml
+# docker-compose.yml — Authentik network isolation
+services:
+  authentik-server:
+    networks:
+      - internal  # Only accessible from app server
+    # Do NOT expose ports to the host
+  authentik-worker:
+    networks:
+      - internal
+  authentik-redis:
+    networks:
+      - internal
+  authentik-postgres:
+    networks:
+      - internal
+```
 
-### Hardening Checklist for Cloudflare
+If the admin UI must be accessible, proxy it through Caddy with IP allowlisting:
 
-- [ ] Enable 2FA on the Cloudflare account
-- [ ] Use API tokens scoped to the specific Worker/account
-- [ ] Enable Cloudflare Access or IP allowlisting for the Cloudflare dashboard
-- [ ] Set up Cloudflare audit logs and alert on Worker deployments
-- [ ] Use a separate Cloudflare account for the hotline (isolate from other projects)
-- [ ] Enable Bot Management if available (additional call spam protection)
-- [ ] Configure custom WAF rules for the API endpoints
+```
+auth.hotline.example.com {
+    @allowed remote_ip 10.0.0.0/8 192.168.0.0/16
+    handle @allowed {
+        reverse_proxy authentik-server:9000
+    }
+    respond "Forbidden" 403
+}
+```
+
+### Redis Security
+
+Authentik uses Redis for caching and session state:
+
+- Set `requirepass` on Redis (use a strong random password)
+- Bind Redis to `127.0.0.1` or the Docker internal network only
+- Disable Redis persistence if session loss on restart is acceptable (reduces attack surface)
+
+### PostgreSQL Isolation
+
+Use a **separate PostgreSQL instance** for Authentik (not the same database as the app):
+
+- Authentik's DB contains user records, sessions, and flow configurations
+- The app's DB contains E2EE data, call records, and audit logs
+- Compromise of one database should not grant access to the other
+
+### Blueprint-Only Provisioning
+
+Configure Authentik using blueprints (YAML configuration files) rather than the admin UI for production:
+
+- Blueprints are version-controlled and auditable
+- The enrollment flow, provider configuration, and application settings should all be blueprint-managed
+- Restrict API token scope to the minimum required by the app server
+
+### API Token Rotation
+
+The app server uses an Authentik API token for user management. Rotate this token periodically:
+
+1. Generate a new API token in Authentik
+2. Update `AUTHENTIK_API_TOKEN` in the app server `.env`
+3. Restart the app server
+4. Revoke the old token in Authentik
+
+### Rate Limiting
+
+Rate-limit the Authentik API to prevent brute-force attacks on user enumeration:
+
+- Configure Authentik's built-in rate limiting for login flows
+- Add Caddy rate limiting on the Authentik proxy (if exposed)
+
+### Hardening Checklist for Authentik
+
+- [ ] Authentik accessible only from app server (no public internet exposure)
+- [ ] Separate PostgreSQL instance for Authentik
+- [ ] Redis bound to internal network with `requirepass`
+- [ ] API token scoped to minimum required operations
+- [ ] Blueprint-managed configuration (not ad-hoc UI changes)
+- [ ] `IDP_VALUE_ENCRYPTION_KEY` stored in app `.env` only (not in Authentik)
+- [ ] Authentik audit logs monitored for unauthorized access
+- [ ] API token rotation schedule established (quarterly recommended)
 
 ---
 
@@ -408,12 +471,11 @@ Application-level rate limiting is already enforced on auth endpoints, but ingre
 
 ## Nostr Relay Operations (strfry)
 
-The Nostr relay handles all real-time event delivery (call notifications, presence updates, typing indicators). Two implementations are supported:
+The Nostr relay handles all real-time event delivery (call notifications, presence updates, typing indicators).
 
 | Implementation | Deployment | Best For |
 |---------------|------------|----------|
 | **strfry** | Self-hosted (Docker, K8s, bare metal) | Maximum privacy — operator controls all infrastructure |
-| **Nosflare** | Cloudflare Workers (DO service binding) | Managed infrastructure — no separate relay to operate |
 
 ### strfry Deployment
 
@@ -445,13 +507,6 @@ Create the server Nostr secret:
 ```bash
 kubectl create secret generic llamenos-nostr-secret \
   --from-literal=server-nostr-secret=$(openssl rand -hex 32)
-```
-
-#### Cloudflare (Nosflare)
-
-For Cloudflare deployments, Nosflare runs as a Durable Object with a service binding. Set the server secret:
-```bash
-wrangler secret put SERVER_NOSTR_SECRET
 ```
 
 ### strfry Hardening
@@ -542,8 +597,7 @@ The trust anchor is the **GitHub Release** — not the running application. The 
 |----------|---------------|-----------|
 | Client JS bundles | Yes (`SOURCE_DATE_EPOCH`, content-hashed filenames) | Yes |
 | Client CSS bundles | Yes | Yes |
-| Worker/server bundle (CF) | No (Cloudflare modifies during deploy) | No |
-| Worker/server bundle (Node.js) | Yes | Yes (via Docker build) |
+| Server bundle (Bun) | Yes | Yes (via Docker build) |
 
 ### CI Integration
 
@@ -563,25 +617,39 @@ For detailed operational procedures including secret rotation steps, backup/reco
 
 1. **Admin keypair**: Generate with `bun run bootstrap-admin`. Store the nsec in a password manager or hardware security module. NEVER reuse this keypair on public Nostr relays or other services. Note: Epic 76.2 separates the admin identity key from the decryption key — see the [Key Revocation Runbook](KEY_REVOCATION_RUNBOOK.md) for compromise procedures.
 
-2. **Server Nostr secret**: Generate with `openssl rand -hex 32`. Set as `SERVER_NOSTR_SECRET` in `.env` (Docker) or `wrangler secret put SERVER_NOSTR_SECRET` (Cloudflare). The server derives its Nostr keypair from this secret via HKDF. Rotation changes the server's Nostr identity — all clients will see a new server pubkey.
+2. **Server Nostr secret**: Generate with `openssl rand -hex 32`. Set as `SERVER_NOSTR_SECRET` in `.env`. The server derives its Nostr keypair from this secret via HKDF. Rotation changes the server's Nostr identity — all clients will see a new server pubkey.
 
 3. **Hub key**: Generated automatically as `crypto.getRandomValues(32)` by the admin client during hub setup. Distributed via ECIES to each member individually. Rotation is handled via the admin UI — see [Key Revocation Runbook, Section 4](KEY_REVOCATION_RUNBOOK.md#4-hub-key-rotation-ceremony).
 
-4. **Volunteer onboarding**: Use the invite system. Each volunteer generates their own keypair in-browser during onboarding. The nsec never leaves their device.
+4. **JWT secret**: Generate with `openssl rand -hex 32`. Set as `JWT_SECRET` in `.env`. Access tokens are signed with this secret (15-minute TTL). Refresh tokens are httpOnly cookies with revocable jti claims. **Rotation procedure**:
+   - Generate a new secret: `export NEW_SECRET=$(openssl rand -hex 32)`
+   - Set `JWT_SECRET_PREVIOUS` to the current `JWT_SECRET` value (allows validation of existing tokens)
+   - Set `JWT_SECRET` to the new secret
+   - Restart the application
+   - Wait 15 minutes (access token TTL) for all old access tokens to expire
+   - Remove `JWT_SECRET_PREVIOUS` from `.env`
+   - Restart again to finalize
 
-5. **Device decommissioning**: When a volunteer leaves, deactivate their account (revokes all sessions immediately), then rotate the hub key so the departed volunteer cannot decrypt future hub events. See [Key Revocation Runbook](KEY_REVOCATION_RUNBOOK.md) for the full procedure.
+5. **IDP_VALUE_ENCRYPTION_KEY**: Generate with `openssl rand -hex 32`. This key encrypts the `nsec_secret` values stored in Authentik. **Never store this key in Authentik itself** — it must be in the app server's `.env` only. Rotation requires re-encrypting all `nsec_secret` values (a migration script is needed).
+
+6. **Volunteer onboarding**: Use the invite system. Each volunteer generates their own keypair in-browser during onboarding. The nsec is encrypted with multi-factor KEK (PIN + IdP value + optional WebAuthn PRF) and never leaves their device in plaintext.
+
+7. **Device decommissioning**: When a volunteer leaves, deactivate their account (revokes all JWT sessions immediately), disable them in Authentik (prevents IdP value retrieval), then rotate the hub key so the departed volunteer cannot decrypt future hub events. See [Key Revocation Runbook](KEY_REVOCATION_RUNBOOK.md) for the full procedure.
 
 ### Incident Response
 
 1. **Volunteer account compromise**:
-   - Immediately deactivate the account in admin panel (sessions auto-revoked)
-   - The compromised volunteer's V2 notes remain protected by forward secrecy — the attacker cannot decrypt past notes without the per-note ephemeral keys
-   - V1 notes (if any) are exposed — migrate all V1 notes to V2 immediately
-   - Generate a new invite for the volunteer to re-onboard with a fresh keypair
+   - Immediately deactivate the account in admin panel (JWT sessions auto-revoked)
+   - Disable the user in Authentik (prevents IdP value retrieval on any device)
+   - Bulk-revoke all JWT refresh tokens for the user (see Key Revocation Runbook)
+   - The compromised volunteer's notes remain protected by forward secrecy — the attacker cannot decrypt past notes without the per-note ephemeral keys
+   - Generate a new invite for the volunteer to re-onboard with a fresh keypair and new IdP value
 
-2. **Server compromise (Cloudflare/VPS)**:
-   - E2EE notes are safe — server has no plaintext
+2. **Server compromise (VPS)**:
+   - E2EE notes are safe — server has no plaintext; volunteer PII is E2EE (Tier 1)
    - Rotate all telephony credentials (Twilio auth token, etc.)
+   - Rotate `JWT_SECRET` immediately (attacker could forge tokens)
+   - Rotate `IDP_VALUE_ENCRYPTION_KEY` and re-encrypt all nsec_secret values
    - Rotate `ADMIN_PUBKEY` if the server had access to admin operations
    - Review audit logs for unauthorized actions during the compromise window
    - Notify volunteers to re-authenticate (their keys are client-side, not affected)
@@ -612,7 +680,7 @@ For detailed operational procedures including secret rotation steps, backup/reco
 ### GDPR (EU)
 
 - **Data controller**: The organization operating the hotline
-- **Data processor**: Cloud provider (Cloudflare, VPS host)
+- **Data processor**: Cloud provider (VPS host)
 - **Data processing agreement**: Required with the cloud provider
 - **Right to erasure**: Admin can delete volunteer accounts and notes
 - **Data minimization**: Phone numbers hashed, caller numbers not stored in plaintext
@@ -632,6 +700,7 @@ For detailed operational procedures including secret rotation steps, backup/reco
 
 | Date | Version | Changes |
 |------|---------|---------|
+| 2026-04-01 | 2.0 | IdP + JWT Auth Overhaul: Removed Cloudflare Workers deployment section; added Authentik IdP Hardening section (network isolation, Redis security, PostgreSQL isolation, blueprint provisioning, API token rotation); replaced MinIO with RustFS; added JWT secret rotation procedure and `IDP_VALUE_ENCRYPTION_KEY` management; updated incident response for JWT/IdP revocation; updated hardware specs for Authentik; added Authentik to K8s network policies |
 | 2026-02-25 | 1.2 | ZK Architecture Overhaul: Added Secure Ingress (Caddy) section, Nostr Relay Operations (strfry) section, Reproducible Build Verification section; replaced nginx references with Caddy/Traefik recommendations; updated secrets management for SERVER_NOSTR_SECRET and hub key; updated K8s ingress className |
 | 2026-02-23 | 1.1 | Added cross-references to QUICKSTART.md, RUNBOOK.md; updated Ansible tooling to reference in-repo paths at `deploy/ansible/`; documented playbook inventory and roles |
 | 2026-02-23 | 1.0 | Initial deployment hardening guide |

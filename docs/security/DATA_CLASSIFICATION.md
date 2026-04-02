@@ -1,7 +1,7 @@
 # Data Classification Reference
 
-**Version:** 1.1
-**Date:** 2026-02-25
+**Version:** 2.0
+**Date:** 2026-04-01
 
 This document provides a complete inventory of all data stored and processed by Llamenos, with classification levels for security audits, legal review, and GDPR compliance.
 
@@ -9,35 +9,69 @@ This document provides a complete inventory of all data stored and processed by 
 
 | Level | Definition | Examples |
 |-------|------------|----------|
-| **E2EE** | End-to-end encrypted; server stores ciphertext only | Note content, transcriptions |
+| **E2EE (Tier 1)** | End-to-end envelope encrypted (ECIES per-recipient); server stores ciphertext only | Note content, volunteer PII, contact directory PII |
+| **E2EE (Tier 2)** | Hub-key encrypted (XChaCha20-Poly1305 with shared symmetric key); decrypted client-side | Role names, shift names, report type names, custom field labels, team names, tag names |
+| **E2EE (Tier 3)** | Per-artifact forward secrecy (unique random key, ECIES-wrapped per reader) | Call notes, transcriptions, messages |
+| **IdP-Encrypted** | Encrypted server-side with `IDP_VALUE_ENCRYPTION_KEY` via HKDF + XChaCha20-Poly1305 | IdP nsec_secret values |
 | **Hashed** | One-way cryptographic hash; original not recoverable without brute-force | Caller phone numbers |
-| **Encrypted-at-Rest** | Encrypted by infrastructure (database, disk); operator can decrypt | Volunteer personal info |
 | **Plaintext** | Stored unencrypted; accessible to operator and under subpoena | Timestamps, call durations |
 
 ---
 
 ## Data Inventory by Storage Location
 
-### Durable Objects / PostgreSQL (Server-Side)
+### PostgreSQL (Server-Side)
 
-#### IdentityDO — Volunteer Records
+#### `users` Table — Volunteer Records
 
 | Field | Classification | Retention | Notes |
 |-------|---------------|-----------|-------|
 | `pubkey` | Plaintext | Account lifetime | Nostr public key (correlatable) |
-| `name` | Encrypted-at-Rest | Account lifetime | Volunteer's display name |
-| `phone` | Encrypted-at-Rest | Account lifetime | Volunteer's phone number (for routing) |
-| `email` | Encrypted-at-Rest | Account lifetime | Optional contact email |
-| `roles` | Plaintext | Account lifetime | `['volunteer']`, `['admin']`, etc. |
+| `encryptedName` | **E2EE (Tier 1)** | Account lifetime | ECIES envelope-encrypted volunteer display name; server stores ciphertext only |
+| `nameEnvelopes` | **E2EE (Tier 1)** | Account lifetime | ECIES-wrapped keys for each authorized reader (admin + self) |
+| `encryptedPhone` | **E2EE (Tier 1)** | Account lifetime | ECIES envelope-encrypted phone; server stores ciphertext |
+| `phoneEnvelopes` | **E2EE (Tier 1)** | Account lifetime | ECIES-wrapped keys for each authorized reader |
+| `encryptedSecretKey` | **E2EE** | Account lifetime | Multi-factor encrypted nsec (PIN + IdP value + optional WebAuthn PRF) |
+| `roles` | Plaintext | Account lifetime | Role ID array (e.g., `['role-volunteer']`) |
+| `hubRoles` | Plaintext | Account lifetime | Per-hub role assignments |
 | `active` | Plaintext | Account lifetime | Account enabled/disabled |
 | `createdAt` | Plaintext | Account lifetime | Registration timestamp |
-| `lastSeen` | Plaintext | Updated on activity | Last API request timestamp |
-| `webauthnCredentials` | Encrypted-at-Rest | Account lifetime | Passkey credential IDs and public keys |
-| `sessionTokens` | Encrypted-at-Rest | 8-hour TTL | Active session tokens |
 
-#### RecordsDO — Call Records and Notes
+#### `jwtRevocations` Table — Revoked JWT Tokens
 
-Storage keys use `callrecord:` prefix pattern (Epic 77) for per-record isolation.
+| Field | Classification | Retention | Notes |
+|-------|---------------|-----------|-------|
+| `jti` | Plaintext | Until JWT expiry | JWT ID (unique per token) |
+| `pubkey` | Plaintext | Until JWT expiry | Pubkey of the revoked user |
+| `expiresAt` | Plaintext | Automatic cleanup | When the JWT would have expired; rows can be pruned after this |
+
+#### `webauthnCredentials` Table — Passkey Credentials
+
+| Field | Classification | Retention | Notes |
+|-------|---------------|-----------|-------|
+| `id` | Plaintext | Account lifetime | Base64url credential ID |
+| `pubkey` | Plaintext | Account lifetime | Owner's Nostr pubkey |
+| `publicKey` | Plaintext | Account lifetime | WebAuthn credential public key |
+| `encryptedLabel` | **E2EE (Tier 1)** | Account lifetime | User-assigned label for the credential |
+| `counter` | Plaintext | Updated on use | Sign count for clone detection |
+
+#### Authentik IdP — User Attributes
+
+| Field | Classification | Retention | Notes |
+|-------|---------------|-----------|-------|
+| `username` (pubkey) | Plaintext | Account lifetime | Nostr pubkey used as username |
+| `nsec_secret` | **IdP-Encrypted** | Account lifetime | Encrypted with `IDP_VALUE_ENCRYPTION_KEY` via HKDF + XChaCha20-Poly1305; one factor of multi-factor KEK |
+| `previous_nsec_secret` | **IdP-Encrypted** | During rotation only | Previous encrypted secret; cleared after rotation confirmation |
+| `is_active` | Plaintext | Account lifetime | Account enabled/disabled |
+
+#### JWT Tokens (Memory-Only)
+
+| Data | Classification | Lifetime | Notes |
+|------|---------------|----------|-------|
+| Access token | Secret (memory-only) | 15 minutes | Short-lived; contains pubkey + permissions; never persisted to storage |
+| Refresh token | Secret (httpOnly cookie) | Configurable | httpOnly + Secure + SameSite=Strict; revocable via `jwtRevocations` by jti |
+
+#### Call Records and Notes (PostgreSQL)
 
 | Field | Classification | Retention | Notes |
 |-------|---------------|-----------|-------|
@@ -59,20 +93,46 @@ Storage keys use `callrecord:` prefix pattern (Epic 77) for per-record isolation
 | `transcription.authorEnvelope` | **E2EE** | Indefinite | ECIES-wrapped key |
 | `transcription.adminEnvelope` | **E2EE** | Indefinite | ECIES-wrapped key |
 
-#### ShiftManagerDO — Shift Schedules
+#### Shift Schedules (PostgreSQL)
 
 | Field | Classification | Retention | Notes |
 |-------|---------------|-----------|-------|
 | `shiftId` | Plaintext | Indefinite | Unique shift identifier |
 | `volunteerPubkeys` | Plaintext | Indefinite | Who is assigned (routing requires plaintext pubkeys) |
-| `encryptedDetails` | **E2EE** | Indefinite | Encrypted schedule details (label, description) via `LABEL_SHIFT_SCHEDULE` (Epic 77) |
-| `adminEnvelopes[]` | **E2EE** | Indefinite | ECIES-wrapped schedule key (per admin) |
+| `encryptedName` | **E2EE (Tier 2)** | Indefinite | Hub-key encrypted shift name |
 | `startTime` | Plaintext | Indefinite | Shift start time (HH:MM) — plaintext for routing |
 | `endTime` | Plaintext | Indefinite | Shift end time (HH:MM) — plaintext for routing |
 | `daysOfWeek` | Plaintext | Indefinite | Recurring days — plaintext for routing |
 | `ringGroupId` | Plaintext | Indefinite | Associated ring group |
 
-#### CallRouterDO — Active Call State
+#### Hub-Key Encrypted Org Metadata (PostgreSQL, Tier 2)
+
+These fields are encrypted with the hub's shared symmetric key. All members who hold the hub key can decrypt them. The server stores ciphertext only.
+
+| Table | Field | Classification | Notes |
+|-------|-------|---------------|-------|
+| `roles` | `encryptedName`, `encryptedDescription` | **E2EE (Tier 2)** | Custom role names and descriptions |
+| `shifts` | `encryptedName` | **E2EE (Tier 2)** | Shift schedule names |
+| `ringGroups` | `encryptedName` | **E2EE (Tier 2)** | Ring group names |
+| `reportTypes` | `encryptedName`, `encryptedDescription` | **E2EE (Tier 2)** | Report type metadata |
+| `customFields` | `encryptedFieldName`, `encryptedLabel`, `encryptedOptions` | **E2EE (Tier 2)** | Custom field definitions |
+| `teams` | `encryptedName`, `encryptedDescription` | **E2EE (Tier 2)** | Team names and descriptions |
+| `tags` | `encryptedLabel`, `encryptedCategory` | **E2EE (Tier 2)** | Tag labels and categories |
+| `blastLists` | `encryptedName` | **E2EE (Tier 2)** | Blast list names |
+
+#### Contact Directory (PostgreSQL, Tier 1 E2EE)
+
+| Field | Classification | Retention | Notes |
+|-------|---------------|-----------|-------|
+| `encryptedDisplayName` | **E2EE (Tier 1)** | Indefinite | Contact display name (ECIES envelope) |
+| `encryptedFullName` | **E2EE (Tier 1)** | Indefinite | Contact legal name |
+| `encryptedPhone` | **E2EE (Tier 1)** | Indefinite | Contact phone number |
+| `encryptedNotes` | **E2EE (Tier 1)** | Indefinite | Freeform contact notes |
+| `encryptedPII` | **E2EE (Tier 1)** | Indefinite | Additional PII (address, channels, etc.) |
+| `riskLevel` | Plaintext | Indefinite | Risk assessment level (routing metadata) |
+| `tags` | Plaintext (tag IDs) | Indefinite | Tag associations (tag names are hub-key encrypted) |
+
+#### Active Call State (PostgreSQL, in-memory)
 
 | Field | Classification | Retention | Notes |
 |-------|---------------|-----------|-------|
@@ -81,7 +141,7 @@ Storage keys use `callrecord:` prefix pattern (Epic 77) for per-record isolation
 | `callState` | Plaintext | Call duration | `ringing`, `connected`, `completed` |
 | `callerHash` | Hashed (HMAC-SHA256) | Call duration | For ban list checking |
 
-#### ConversationDO — Messaging Threads
+#### Messaging Threads (PostgreSQL)
 
 | Field | Classification | Retention | Notes |
 |-------|---------------|-----------|-------|
@@ -99,19 +159,19 @@ Storage keys use `callrecord:` prefix pattern (Epic 77) for per-record isolation
 
 **Important**: Messages are now E2EE at rest (Epic 74). The server encrypts inbound messages on webhook receipt and immediately discards the plaintext. Outbound SMS/WhatsApp messages are momentarily visible to the server during the send flow (inherent provider limitation) but are stored only in encrypted form. See [Threat Model: SMS/WhatsApp Outbound Message Limitation](THREAT_MODEL.md#smswhatsapp-outbound-message-limitation).
 
-#### SettingsDO — Application Configuration
+#### Application Configuration (PostgreSQL)
 
 | Field | Classification | Retention | Notes |
 |-------|---------------|-----------|-------|
-| `telephonyProviders` | Encrypted-at-Rest | Indefinite | Provider API credentials |
-| `messagingProviders` | Encrypted-at-Rest | Indefinite | Provider API credentials |
-| `customFieldDefinitions` | Plaintext | Indefinite | Field names, types, options (no values) |
+| `telephonyProviders` | **E2EE (Tier 1)** | Indefinite | Provider API credentials (encrypted credentials column) |
+| `messagingProviders` | **E2EE (Tier 1)** | Indefinite | Provider API credentials |
+| `customFieldDefinitions` | **E2EE (Tier 2)** | Indefinite | Field names, labels, options — all hub-key encrypted |
 | `banList` | Hashed (HMAC-SHA256) | Indefinite | Banned phone hashes |
 | `spamMitigation` | Plaintext | Indefinite | CAPTCHA settings, rate limits |
 
-#### AuditDO — Audit Logs
+#### Audit Logs (PostgreSQL)
 
-Audit logs use a hash-chained integrity mechanism (Epic 77) to detect tampering.
+Audit logs use a hash-chained integrity mechanism to detect tampering.
 
 | Field | Classification | Retention | Notes |
 |-------|---------------|-----------|-------|
@@ -129,14 +189,16 @@ Audit logs use a hash-chained integrity mechanism (Epic 77) to detect tampering.
 
 | Key | Classification | Retention | Notes |
 |-----|---------------|-----------|-------|
-| `llamenos-encrypted-key` | **E2EE** (PIN-encrypted) | Until logout | Contains encrypted nsec |
+| `llamenos-encrypted-key` | **E2EE** (multi-factor encrypted) | Until logout | Contains encrypted nsec; requires PIN + IdP value + optional WebAuthn PRF to decrypt |
 | `llamenos-draft:{callId}` | **E2EE** | Until submitted | Encrypted draft note |
 | `llamenos-settings` | Plaintext | Indefinite | UI preferences |
 
 **Important**: The volunteer's secret key (nsec) is NEVER stored in plaintext. It exists only:
-1. Encrypted in localStorage (PIN-protected)
+1. Multi-factor encrypted in localStorage (PIN + IdP value + optional WebAuthn PRF)
 2. In a JavaScript closure variable during an unlocked session
 3. Zeroed from memory on lock/logout
+
+The IdP value (one encryption factor) is fetched from Authentik on unlock and held in memory only — it is never persisted client-side.
 
 ---
 
@@ -164,13 +226,13 @@ Audit logs use a hash-chained integrity mechanism (Epic 77) to detect tampering.
 | Call detail records | Plaintext | Provider-controlled | Timestamps, numbers, durations |
 | Webhook payloads | Transient | Request duration | Validated via HMAC signature |
 
-#### Cloudflare (Workers Deployment)
+#### RustFS (Self-Hosted S3-Compatible Storage)
 
 | Data | Classification | Notes |
 |------|---------------|-------|
-| Durable Object storage | Ciphertext for E2EE data | Cloudflare can access encrypted blobs |
-| R2 file storage | Ciphertext | Files encrypted client-side |
-| Worker logs | Minimal | Request metadata only; no PII logged |
+| Voicemail recordings | Ciphertext | Encrypted client-side before upload |
+| File attachments | Ciphertext | Encrypted client-side before upload |
+| Encrypted exports | Ciphertext | E2EE export bundles |
 
 #### Transcription (Client-Side WASM Whisper)
 
@@ -218,7 +280,7 @@ Audit logs use a hash-chained integrity mechanism (Epic 77) to detect tampering.
 ┌─────────────────────────────────────────────────────────────────┐
 │ SERVER (no access to plaintext)                                 │
 │ ┌─────────────────────────────────────────────────────────────┐ │
-│ │ RecordsDO stores encrypted note as-is                       │ │
+│ │ PostgreSQL stores encrypted note as-is                      │ │
 │ │ Server can see: authorPubkey, createdAt, callId            │ │
 │ │ Server cannot see: note text, custom field values          │ │
 │ └─────────────────────────────────────────────────────────────┘ │
@@ -275,7 +337,8 @@ Audit logs use a hash-chained integrity mechanism (Epic 77) to detect tampering.
 | Call notes | 7 years or legal requirement | Crisis documentation |
 | Call metadata | 2 years | Operational analysis |
 | Audit logs | 1 year | Security review |
-| Session tokens | 8 hours (automatic) | Security best practice |
+| JWT access tokens | 15 minutes (automatic) | Short-lived, non-revocable |
+| JWT refresh tokens | Configurable (revocable) | Revoked via `jwtRevocations` table |
 | Messaging content | 1 year | Follow-up reference |
 | Volunteer records | Account lifetime + 90 days | Post-departure access |
 
@@ -287,5 +350,6 @@ Note: Llamenos does not currently enforce automated retention policies. Operator
 
 | Date | Version | Changes |
 |------|---------|---------|
-| 2026-02-25 | 1.1 | ZK Architecture Overhaul: Updated ConversationDO to E2EE envelope encryption (Epic 74), ShiftManagerDO encrypted details (Epic 77), AuditDO hash chain fields (Epic 77), RecordsDO callrecord: prefix, client-side transcription (Epic 78), hub key in memory-only section, replaced WebSocket broadcast with Nostr relay event |
+| 2026-04-01 | 2.0 | IdP + JWT Auth Overhaul: Replaced IdentityDO with PostgreSQL `users` table; updated volunteer name/phone from Encrypted-at-Rest to E2EE Tier 1 envelope encryption; added `jwtRevocations`, `webauthnCredentials` tables, Authentik IdP data store, JWT tokens (memory-only), hub-key encrypted org metadata (Tier 2), contact directory (Tier 1 E2EE); replaced Cloudflare/R2 with RustFS; updated client-side key storage to multi-factor; updated session retention for JWT tokens |
+| 2026-02-25 | 1.1 | ZK Architecture Overhaul: Updated ConversationDO to E2EE envelope encryption, ShiftManagerDO encrypted details, AuditDO hash chain fields, RecordsDO callrecord: prefix, client-side transcription, hub key in memory-only section, replaced WebSocket broadcast with Nostr relay event |
 | 2026-02-25 | 1.0 | Initial data classification document |

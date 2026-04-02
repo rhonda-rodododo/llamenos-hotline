@@ -1,7 +1,7 @@
 # Llamenos Security Documentation
 
-**Last Updated:** 2026-02-25
-**Protocol Version:** 1.0
+**Last Updated:** 2026-04-01
+**Protocol Version:** 2.0
 **Audit Status:** Round 6 complete (2026-02-23)
 
 This directory contains security documentation for Llamenos, a crisis response hotline designed to protect volunteer and caller identity against well-funded adversaries.
@@ -18,18 +18,31 @@ This directory contains security documentation for Llamenos, a crisis response h
 
 ## Security Architecture Summary
 
+### Encryption Tiers
+
+| Tier | Mechanism | Data Protected | Server Access |
+|------|-----------|---------------|---------------|
+| **Tier 1: E2EE Envelope** | ECIES per-recipient key wrapping | Volunteer PII (name, phone), contact directory PII | None — ciphertext only |
+| **Tier 2: Hub-Key** | XChaCha20-Poly1305 with shared hub key | Role names, shift names, report types, custom fields, teams, tags | None — hub key held by members only |
+| **Tier 3: Per-Artifact Forward Secrecy** | Unique random key per note/message, ECIES-wrapped per reader | Call notes, transcriptions, messages, reports | None — per-artifact ephemeral keys |
+| **IdP-Encrypted** | XChaCha20-Poly1305 with HKDF-derived key | IdP nsec_secret values (one KEK factor) | Accessible only with `IDP_VALUE_ENCRYPTION_KEY` |
+
 ### End-to-End Encrypted (Zero-Knowledge)
 
 The server **cannot read** these, even under legal compulsion:
 
 | Data | Encryption | Forward Secrecy |
 |------|-----------|-----------------|
-| Call notes (text + custom fields) | XChaCha20-Poly1305 + ECIES | Yes (per-note ephemeral key) |
-| Call transcriptions | XChaCha20-Poly1305 + ECIES | Yes (per-transcription ephemeral key) |
-| Encrypted reports | XChaCha20-Poly1305 + ECIES | Yes (per-report ephemeral key) |
-| File attachments | XChaCha20-Poly1305 + ECIES | Yes (per-file ephemeral key) |
+| Call notes (text + custom fields) | XChaCha20-Poly1305 + ECIES (Tier 3) | Yes (per-note ephemeral key) |
+| Call transcriptions | XChaCha20-Poly1305 + ECIES (Tier 3) | Yes (per-transcription ephemeral key) |
+| Encrypted reports | XChaCha20-Poly1305 + ECIES (Tier 3) | Yes (per-report ephemeral key) |
+| File attachments | XChaCha20-Poly1305 + ECIES (Tier 3) | Yes (per-file ephemeral key) |
+| Volunteer name | ECIES envelope (Tier 1) | No (re-encrypted on key rotation) |
+| Volunteer phone | ECIES envelope (Tier 1) | No (re-encrypted on key rotation) |
+| Contact directory PII | ECIES envelope (Tier 1) | No (re-encrypted on key rotation) |
+| Org metadata (role/shift/team names) | Hub-key XChaCha20 (Tier 2) | No (rotated with hub key) |
 | Draft notes | XChaCha20-Poly1305 | No (deterministic key, local-only) |
-| Volunteer secret keys (nsec) | PBKDF2 + XChaCha20-Poly1305 | N/A (local storage only) |
+| Volunteer secret keys (nsec) | Multi-factor KEK (PIN + IdP + optional PRF) | N/A (local storage only) |
 
 ### Server-Accessible Under Subpoena
 
@@ -40,10 +53,10 @@ If a hosting provider is legally compelled to provide data, they **can access**:
 | Call metadata | Plaintext | Timestamps, durations, which volunteer answered, call IDs |
 | Caller phone hashes | HMAC-SHA256 | Irreversible without the HMAC secret; last 4 digits stored plaintext |
 | Volunteer public keys | Plaintext | Nostr npub format; correlatable with other Nostr activity |
-| Shift schedules | Plaintext | Who was on-call when |
+| Shift schedule times | Plaintext | Start/end times, days (names are hub-key encrypted) |
 | Audit logs | Plaintext | IP hashes (truncated), timestamps, actions |
-| SMS/WhatsApp messages | E2EE at rest | Encrypted on receipt (Epic 74); plaintext only in transit to/from provider (inherent channel limitation) |
-| Encrypted blobs | Ciphertext | Notes, transcripts, files — encrypted but present |
+| SMS/WhatsApp messages | E2EE at rest | Encrypted on receipt; plaintext only in transit to/from provider (inherent channel limitation) |
+| Encrypted blobs | Ciphertext | Notes, transcripts, files, volunteer PII — encrypted but present |
 
 ### Transient Access (During Processing)
 
@@ -55,7 +68,7 @@ If a hosting provider is legally compelled to provide data, they **can access**:
 
 ## Legal Compulsion Scenarios
 
-### Scenario 1: Hosting Provider Subpoena (Cloudflare, VPS)
+### Scenario 1: Hosting Provider Subpoena (VPS)
 
 **What they can provide:**
 - Encrypted database blobs (useless without volunteer/admin private keys)
@@ -83,14 +96,15 @@ If a hosting provider is legally compelled to provide data, they **can access**:
 
 ### Scenario 3: Device Seizure
 
-**Without PIN:**
-- Encrypted key blob in localStorage (requires PIN brute-force)
-- 600,000 PBKDF2 iterations + 4-6 digit PIN = ~10-60 seconds per attempt on GPU
+**Without PIN + IdP value:**
+- Multi-factor KEK requires PIN + IdP value (from Authentik) + optional WebAuthn PRF
+- PIN alone is insufficient — even with brute-force, the IdP factor is missing
+- Admin can immediately disable the user in Authentik (prevents IdP value retrieval) and revoke all JWT tokens
 
-**With PIN:**
+**With all factors:**
 - Access to that volunteer's notes only (not other volunteers')
 - Per-note forward secrecy means compromising identity key doesn't reveal past notes
-- Session tokens (8-hour TTL, revocable by admin)
+- JWT access tokens expire in 15 minutes; refresh tokens revocable by admin
 
 ### Scenario 4: Admin Key Compromise
 
@@ -104,31 +118,47 @@ If a hosting provider is legally compelled to provide data, they **can access**:
 - Never use admin keypair on public Nostr relays
 - Consider key rotation procedures (documented in [Deployment Hardening](DEPLOYMENT_HARDENING.md))
 
+## Authentication Model
+
+| Layer | Mechanism | Notes |
+|-------|-----------|-------|
+| **Login** | BIP-340 Schnorr signature challenge | Proves possession of nsec |
+| **Session** | JWT access token (15min) + refresh token (httpOnly cookie) | Access token in `Authorization: Bearer`; refresh via `/api/auth/refresh` |
+| **Key Unlock** | Multi-factor KEK: PIN + IdP value + optional WebAuthn PRF | KEK decrypts the nsec from localStorage |
+| **API Authorization** | PBAC (Permission-Based Access Control) | Permissions embedded in JWT; checked by middleware |
+| **Remote Revocation** | IdP disable + JWT jti revocation | Immediate lockout across all devices |
+
 ## Cryptographic Primitives
 
 | Primitive | Library | Usage |
 |-----------|---------|-------|
 | secp256k1 ECDH | @noble/curves | Key agreement for ECIES |
-| BIP-340 Schnorr | @noble/curves | Authentication signatures |
-| XChaCha20-Poly1305 | @noble/ciphers | Symmetric encryption (256-bit) |
-| SHA-256 | @noble/hashes | HKDF, domain separation |
+| BIP-340 Schnorr | @noble/curves | Login authentication signatures |
+| XChaCha20-Poly1305 | @noble/ciphers | Symmetric encryption (256-bit) — notes, hub key, IdP values |
+| SHA-256 | @noble/hashes | HKDF, domain separation, audit log hash chain |
 | PBKDF2-SHA256 | Web Crypto API | PIN key derivation (600K iterations) |
-| HMAC-SHA256 | @noble/hashes | Phone/IP hashing (with operator secret) |
+| HMAC-SHA256 | @noble/hashes | Phone/IP hashing, JWT signing |
 
 All cryptographic code uses audited, constant-time implementations from the `@noble` family. No custom cryptographic constructions.
 
 ## Additional Security Features
 
-| Feature | Mechanism | Epic |
-|---------|-----------|------|
-| Real-time event encryption | Hub key (random 32 bytes) encrypts all Nostr relay events; generic tags prevent event-type analysis | 76/76.2 |
-| Hub key distribution | ECIES-wrapped individually per member; rotation excludes departed members | 76.2 |
-| Envelope encryption (messages) | Per-message random key, ECIES-wrapped for volunteer + each admin | 74 |
-| Hash-chained audit log | SHA-256 chain with `previousEntryHash` + `entryHash` for tamper detection | 77 |
-| Encrypted metadata | Call assignments (`LABEL_CALL_META`) and shift schedules (`LABEL_SHIFT_SCHEDULE`) encrypted | 77 |
-| Client-side transcription | WASM Whisper in-browser; audio never leaves device | 78 |
-| Reproducible builds | `SOURCE_DATE_EPOCH`, `CHECKSUMS.txt` in GitHub Releases, SLSA provenance | 79 |
-| Admin key separation | Identity key (signing) separate from decryption key (envelope unwrap) | 76.2 |
+| Feature | Mechanism | Status |
+|---------|-----------|--------|
+| Multi-factor key encryption | PIN + IdP value (Authentik) + optional WebAuthn PRF for KEK derivation | Shipped |
+| JWT session management | Short-lived access tokens (15min) + revocable refresh tokens (httpOnly) | Shipped |
+| IdP remote kill-switch | Disable user in Authentik = immediate lockout across all devices | Shipped |
+| PBAC permission system | Colon-separated permissions (`domain:action`), role bundles, hub-scoped | Shipped |
+| Real-time event encryption | Hub key (random 32 bytes) encrypts all Nostr relay events; generic tags prevent event-type analysis | Shipped |
+| Hub key distribution | ECIES-wrapped individually per member; rotation excludes departed members | Shipped |
+| E2EE volunteer PII | Tier 1 envelope encryption for name, phone (server stores ciphertext only) | Shipped |
+| Hub-key org metadata | Tier 2 encryption for role names, shift names, report types, custom fields, teams, tags | Shipped |
+| E2EE contact directory | Tier 1 envelope encryption for all contact PII (display name, legal name, phone, notes) | Shipped |
+| Envelope encryption (messages) | Per-message random key, ECIES-wrapped for volunteer + each admin | Shipped |
+| Hash-chained audit log | SHA-256 chain with `previousEntryHash` + `entryHash` for tamper detection | Shipped |
+| Client-side transcription | WASM Whisper in-browser; audio never leaves device | Shipped |
+| Reproducible builds | `SOURCE_DATE_EPOCH`, `CHECKSUMS.txt` in GitHub Releases, SLSA provenance | Shipped |
+| Admin key separation | Identity key (signing) separate from decryption key (envelope unwrap) | Shipped |
 
 ## What We Do NOT Claim
 
@@ -136,8 +166,8 @@ All cryptographic code uses audited, constant-time implementations from the `@no
 - **Metadata confidentiality**: The server needs timestamps and routing data to function.
 - **SMS/WhatsApp transport E2EE**: These channels require provider-side plaintext during transit. Messages are E2EE at rest on the server, but the provider sees plaintext.
 - **Nostr relay metadata privacy**: The relay can observe event metadata (pubkeys, timestamps, sizes, frequency) — only content is encrypted.
-- **PIN brute-force resistance (offline)**: 4-6 digits is ~20 bits of entropy. With a seized encrypted blob and GPU resources, this is brute-forceable in hours.
-- **Deletion verification**: We cannot cryptographically prove that Cloudflare/VPS providers deleted data when requested.
+- **Authentik compromise immunity**: If both Authentik and `IDP_VALUE_ENCRYPTION_KEY` are compromised, the IdP factor of multi-factor key encryption is defeated. PIN (and optionally WebAuthn PRF) remain as the remaining factors. Network-isolate Authentik and protect the encryption key.
+- **Deletion verification**: We cannot cryptographically prove that VPS providers deleted data when requested.
 
 ## Audit History
 
