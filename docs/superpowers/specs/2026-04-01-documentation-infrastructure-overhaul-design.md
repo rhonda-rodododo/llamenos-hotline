@@ -1,9 +1,10 @@
-# Design: Documentation & Infrastructure Overhaul
+# Design: Core Documentation & CI/CD Overhaul (Spec A+B)
 
-**Version:** 1.0
+**Version:** 2.0
 **Date:** 2026-04-01
 **Status:** Draft
 **Supersedes:** `2026-03-28-idp-auth-docs-overhaul-design.md` (absorbed — that spec's scope is a subset of this one)
+**Companion spec:** `2026-04-01-doc-site-redesign-design.md` (Spec C — site IA, visual design, content, translations)
 
 ## Problem
 
@@ -23,6 +24,7 @@ The project has undergone rapid, transformative changes over the past month:
 - WebRTC/SIP calling via JsSIP + Asterisk bridge
 
 None of these changes are reflected in:
+
 - The marketing/docs site (19 doc pages + 3 marketing pages, 13 locales)
 - Internal developer docs (QUICKSTART, RUNBOOK, security docs, architecture docs)
 - Protocol specification
@@ -30,6 +32,7 @@ None of these changes are reflected in:
 - CI/CD pipeline (site deploy to Cloudflare Pages missing, monolithic ci.yml)
 
 Additionally, the doc site needs structural improvements:
+
 - No tag-based browsing or semantic search
 - Role-based guides hardcode "Admin/Volunteer/Reporter" (but roles are configurable via PBAC)
 - No feature-focused articles (Contact Directory, Shifts, Encryption, Voicemail, etc.)
@@ -46,14 +49,31 @@ Additionally, the doc site needs structural improvements:
 
 ## Scope
 
-### In Scope
-- All 7 layers described below
-- English content complete; translation stubs updated for all 12 non-English locales
-- CI/CD pipeline restructuring
-- Site architecture changes (tag system, search, new content collection)
-- All deployment config fixes
+This is **Spec A+B** — the canonical technical documentation and infrastructure work. It covers Layers 1-4 only:
 
-### Out of Scope
+- **Spec A** (Layers 1-3): Protocol, architecture, security, internal docs, deploy configs
+- **Spec B** (Layer 4): CI/CD pipeline restructuring
+
+**Spec C** (doc site redesign — information architecture, visual design, tag system, search, content rewrite, translations) is a separate spec that depends on A being complete so the content it presents is accurate.
+
+### In Scope
+
+- Protocol & architecture documentation overhaul (Layer 1)
+- Internal developer/operator documentation overhaul (Layer 2)
+- Deployment configuration fixes (Layer 3)
+- CI/CD pipeline split and site deploy addition (Layer 4)
+
+### Out of Scope (deferred to Spec C)
+
+- Doc site information architecture redesign (user-facing vs technical separation)
+- Tag-based guide system with audience + task tags
+- Pagefind semantic search
+- Site content overhaul (security page, features page, guide articles)
+- Frontend visual design
+- Translation updates
+
+### Out of Scope (not planned)
+
 - Full professional translation of all 12 locales (follow-up — content must stabilize first)
 - API reference docs (auto-generated via OpenAPI at `/api/docs` — link to it, don't duplicate)
 - Desktop/Tauri app docs (app not ready)
@@ -68,17 +88,20 @@ The canonical source of truth. Everything downstream derives from these.
 ### 1.1 Overhaul: `docs/protocol/llamenos-protocol.md`
 
 **Key derivation** — Replace PIN-only PBKDF2 with multi-factor:
+
 ```
 KEK = PBKDF2(PIN, salt, 600K) ⊕ HKDF(idpValue, LABEL_NSEC_KEK_2F) [⊕ HKDF(prfOutput, LABEL_NSEC_KEK_3F)]
 ```
 
 **Auth flow** — Replace Schnorr challenge-response with:
+
 - JWT access token (HS256, 15min) + httpOnly refresh cookie
 - Authentik OIDC flow (authorization code + PKCE)
 - Silent refresh lifecycle
 - Session binding to IdP session
 
 **Key store** — Document v2 blob format:
+
 - Fields: salt, nonce, ciphertext, idpIssuer, prfEnabled, version
 - Migration: v1 blobs auto-upgrade on next unlock when IdP is available
 
@@ -91,6 +114,7 @@ KEK = PBKDF2(PIN, salt, 600K) ⊕ HKDF(idpValue, LABEL_NSEC_KEK_2F) [⊕ HKDF(pr
 ### 1.2 Overhaul: `docs/architecture/E2EE_ARCHITECTURE.md`
 
 Add sections for:
+
 - **Multi-factor KEK derivation** — diagram showing PIN + IdP value + optional PRF → XOR → KEK
 - **Three encryption tiers** — envelope-encrypted PII, hub-key encrypted org metadata, per-note forward secrecy
 - **Web Worker isolation** — nsec lives in dedicated Worker, never on main thread. Diagram: main thread → postMessage → crypto worker → result
@@ -99,6 +123,7 @@ Add sections for:
 - **Hub key distribution** — random 32 bytes, ECIES-wrapped per member, rotation on departure
 
 Update existing sections:
+
 - Data-at-rest table: add JWT tokens (not E2EE, server-issued), Authentik credentials (external), volunteer name (now E2EE via envelopes), org metadata (hub-key encrypted)
 - Key hierarchy diagram: add IdP-bound factor, WebAuthn PRF factor
 - Server layer: add Authentik as dependency
@@ -152,6 +177,7 @@ Update existing sections:
 ### 1.8 Create: `docs/architecture/PBAC_ARCHITECTURE.md`
 
 New document covering:
+
 - Permission-based access control design
 - Default roles (admin, volunteer, reporter) as templates, not fixed
 - Permission scoping hierarchy (hub → team → individual)
@@ -161,6 +187,7 @@ New document covering:
 ### 1.9 Create: `docs/architecture/CONTACT_DIRECTORY.md`
 
 New document covering:
+
 - Contact data model (contacts, relationships, tags, teams)
 - Auto-linking: call/message → contact matching via phone hash
 - Intake workflows: how new contacts enter the system
@@ -244,7 +271,7 @@ For operators and contributors. References Layer 1 for deep technical detail.
 - Add to Key Technical Patterns: IdP adapter, auth facade, crypto Web Worker, decrypt-on-fetch, key-store-v2
 - Update directory structure: `src/server/idp/`, `src/server/routes/auth-facade.ts`, `src/client/lib/key-store-v2.ts`, `src/client/lib/crypto-worker*.ts`
 - Add gotchas: worker singleton, decrypt rate limiter, synthetic IdP values, auth facade endpoints
-- Add new env vars: JWT_SECRET, IDP_VALUE_ENCRYPTION_KEY, AUTHENTIK_*, AUTH_WEBAUTHN_*
+- Add new env vars: JWT*SECRET, IDP_VALUE_ENCRYPTION_KEY, AUTHENTIK*_, AUTH*WEBAUTHN*_
 - Add Authentik to core services, note first-boot wait (~60s)
 
 ---
@@ -256,19 +283,20 @@ Make configs match reality. Ansible is already complete — Helm and scripts are
 ### 3.1 Fix: `deploy/helm/llamenos/values.yaml`
 
 Add IdP configuration section:
+
 ```yaml
 idp:
   adapter: authentik
   authentikUrl: http://authentik-server:9000
 
 secrets:
-  jwtSecret: ""                    # Required — 32+ hex chars
-  idpValueEncryptionKey: ""        # Required — base64, 32 bytes
-  authentikSecretKey: ""           # Required — 50+ chars
-  authentikBootstrapToken: ""      # Required — 32+ hex bytes
-  webauthnRpId: ""                 # Defaults to ingress host
+  jwtSecret: "" # Required — 32+ hex chars
+  idpValueEncryptionKey: "" # Required — base64, 32 bytes
+  authentikSecretKey: "" # Required — 50+ chars
+  authentikBootstrapToken: "" # Required — 32+ hex bytes
+  webauthnRpId: "" # Defaults to ingress host
   webauthnRpName: "Hotline"
-  webauthnOrigin: ""               # Defaults to https://{ingress.host}
+  webauthnOrigin: "" # Defaults to https://{ingress.host}
 ```
 
 ### 3.2 Fix: `deploy/helm/llamenos/templates/secret.yaml`
@@ -282,6 +310,7 @@ Add env vars from secrets for all IdP/auth configuration
 ### 3.4 Fix: `scripts/docker-setup.sh`
 
 Add generation of:
+
 - `JWT_SECRET` (64 hex chars via `openssl rand -hex 32`)
 - `IDP_VALUE_ENCRYPTION_KEY` (base64 via `openssl rand -base64 32`)
 - `AUTHENTIK_SECRET_KEY` (64 chars via `openssl rand -hex 32`)
@@ -306,17 +335,20 @@ Split the monolithic `ci.yml` and add site deployment.
 ### 4.1 Restructure: Split into 3 workflows
 
 **`ci.yml`** (PR validation only):
+
 - Trigger: `pull_request` only
 - Jobs: detect-changes, lint, build (app + site), audit, unit-tests, integration-tests, api-tests, e2e-tests, ansible-validate
 - No versioning, no releases, no deployment
 - Fast feedback for contributors
 
 **`release.yml`** (main branch releases):
+
 - Trigger: `push` to `main` (excluding docs-only changes)
 - Jobs: detect-changes, version-bump (conventional commits → semver), changelog (git-cliff), create GitHub Release, CHECKSUMS.txt, GPG signing
 - Triggers: `docker.yml` (via tag), `auto-deploy-demo.yml` (via release event)
 
 **`deploy-site.yml`** (marketing site deployment):
+
 - Trigger: `release: published` OR `push` to `main` with `site/**` path filter OR `workflow_dispatch`
 - Jobs: build Astro site, deploy to Cloudflare Pages via `cloudflare/wrangler-action@v3`
 - Secrets required: `CF_API_TOKEN`, `CF_ACCOUNT_ID`
@@ -332,295 +364,28 @@ Split the monolithic `ci.yml` and add site deployment.
 
 ---
 
-## Layer 5: Site Architecture
-
-New content collection, tag system, semantic search, and sidebar reorganization.
-
-### 5.1 New content collection: `guides`
-
-Add to `content.config.ts`:
-```typescript
-const guides = defineCollection({
-  loader: glob({ pattern: '**/*.md', base: './src/content/guides' }),
-  schema: z.object({
-    title: z.string(),
-    description: z.string(),
-    audience: z.array(z.enum(['operator', 'staff', 'caller'])),
-    task: z.array(z.enum(['setup', 'daily-use', 'configuration', 'troubleshooting', 'security'])),
-    feature: z.string().optional(),  // e.g. "contact-directory", "shifts", "encryption"
-    order: z.number().optional(),    // sort order within feature group
-  }),
-});
-```
-
-Content lives in `site/src/content/guides/en/` with one `.md` per article. Example:
-```
-guides/en/contact-directory.md        — audience: [operator, staff], task: [daily-use, configuration]
-guides/en/shifts-scheduling.md        — audience: [operator], task: [configuration, daily-use]
-guides/en/call-handling.md            — audience: [staff], task: [daily-use]
-guides/en/encryption-keys.md          — audience: [operator, staff], task: [security, setup]
-guides/en/voicemail.md                — audience: [operator, staff], task: [configuration, daily-use]
-guides/en/messaging-channels.md       — audience: [operator], task: [setup, configuration]
-guides/en/reports-submissions.md      — audience: [staff], task: [daily-use]
-guides/en/ban-lists-spam.md           — audience: [operator], task: [configuration, troubleshooting]
-guides/en/transcription.md            — audience: [operator, staff], task: [configuration, daily-use]
-guides/en/browser-calling.md          — audience: [operator, staff], task: [setup, daily-use]
-guides/en/notifications-presence.md   — audience: [staff], task: [daily-use, configuration]
-guides/en/teams-permissions.md        — audience: [operator], task: [configuration, security]
-guides/en/data-export.md              — audience: [operator, staff], task: [daily-use, security]
-guides/en/audit-logging.md            — audience: [operator], task: [security, troubleshooting]
-guides/en/account-recovery.md         — audience: [operator, staff], task: [troubleshooting, security]
-```
-
-### 5.2 Guides hub page: `/docs/guides/`
-
-New page at `site/src/pages/docs/guides/index.astro`:
-- Displays all guide articles as cards (title + description + tags)
-- Tag filter bar at top: audience pills (Operator, Staff) + task pills (Setup, Daily Use, etc.)
-- Clicking a tag filters the card grid (client-side JS, no page reload)
-- Cards show colored tag badges
-- Mobile: horizontal scroll for tag bar, stacked cards
-
-### 5.3 Guide article pages: `/docs/guides/[slug]`
-
-New dynamic route `site/src/pages/docs/guides/[...slug].astro`:
-- Renders guide content in DocsLayout
-- Shows audience + task tags at top of article
-- "Related guides" section at bottom (same feature or overlapping tags)
-
-### 5.4 Semantic search
-
-Add a search component to the docs layout:
-- Client-side search using a pre-built index (generated at build time)
-- Use Pagefind (Astro-compatible static search) — indexes all content at build time, ships a small WASM runtime
-- Search input in the sidebar header, results as dropdown
-- Searches guide titles, descriptions, and content
-- No external dependencies, works offline (PWA-compatible)
-- Pagefind automatically indexes the static site output; add `pagefind: true` to astro build pipeline
-
-### 5.5 Sidebar update
-
-Update `DocsLayout.astro` sidebar sections:
-
-```
-Setup & Deployment (existing — keep)
-  Overview, Getting Started, Self-Hosting, Deploy Docker, Deploy K8s, Deploy Co-op Cloud
-
-Guides (NEW)
-  Browse All Guides → /docs/guides/
-  (dynamically list top ~5 most relevant based on current page context, or just link to hub)
-
-Voice Providers (existing — keep)
-  ...
-
-Messaging Channels (existing — keep)
-  ...
-```
-
-Remove the "User Guides" section (admin-guide, volunteer-guide, reporter-guide). These are replaced by the tag-based guides collection. The existing content migrates into feature-focused guide articles.
-
-### 5.6 i18n for guides
-
-- English guides are the source of truth
-- Create stub files for all 12 locales with `title` and `description` translated (machine translation acceptable for stubs)
-- Full professional translation is a follow-up
-
----
-
-## Layer 6: Site Content Overhaul
-
-All user-facing content updated to reflect current reality.
-
-### 6.1 Security page overhaul (`site/src/content/pages/en/security.md`)
-
-This is the crown jewel — users praise it for being understandable by non-technical readers. Preserve the voice: plain language, "what they can/can't see" tables, organized by feature.
-
-**Subpoena table updates:**
-- "They CANNOT provide" column: add volunteer names (now E2EE), contact directory records, message content (now E2EE)
-- Update: "Decryption keys (stored on your devices)" → "Decryption keys (protected by your PIN, your identity provider account, and optionally your hardware security key)"
-
-**Voice calls section:**
-- Update transcription: "During transcription, audio is processed **entirely in your browser** using on-device AI. Audio never leaves your device. Only the encrypted transcript is stored." (Previously said Cloudflare Workers AI.)
-
-**Text messaging section:**
-- Remove "Future improvement" for E2EE message storage — it's shipped
-- Update SMS/WhatsApp/Signal rows: server storage column → "Encrypted" (not "Plaintext")
-- Add explanation: "Messages are encrypted the moment they arrive at your server. The server stores only ciphertext. Your telephony provider may still have the original message."
-
-**Notes section:**
-- Add field-level encryption: "Custom fields, report content, and file attachments are all individually encrypted"
-- Update device seizure: "Without your PIN **and** access to your identity provider account, attackers get an encrypted blob that is computationally infeasible to decrypt. If you also use a hardware security key, three independent factors protect your data."
-
-**Volunteer identity section:**
-- Update: names are now E2EE (not just "encrypted at rest")
-- Update table: "Volunteer identities" → "E2EE" (was "Encrypted at rest"), "Obtainable under subpoena" → "Ciphertext only" (was "Yes (with effort)")
-
-**"What's planned" section:**
-Move shipped items to a "Recently shipped" celebration:
-- E2EE message storage → SHIPPED
-- Client-side transcription → SHIPPED
-- Reproducible builds → SHIPPED
-
-Update remaining planned items:
-- Native call-receiving apps → still planned
-- Add: Hardware security key support (WebAuthn PRF) → shipped
-- Add: Multi-factor key protection → shipped
-- Add: Contact directory with encrypted records → shipped
-
-**Summary table:**
-- Volunteer identities: "Encrypted at rest" → "Yes (E2EE)"
-- SMS/WhatsApp/Signal content: "No" → "Yes (encrypted on your server)" with note: "Your telephony/messaging provider may retain the original unencrypted message. Encryption protects against server seizure, not provider subpoena."
-- Add rows: Contact records (E2EE), Team/role metadata (Encrypted), Custom field definitions (Encrypted)
-
-**For security auditors section:**
-- Verify all GitHub links point to correct paths
-- Add link to OpenAPI spec (`/api/docs`)
-
-### 6.2 Features page overhaul (`site/src/content/pages/en/features.md`)
-
-**Subtitle:** Replace "built on Cloudflare Workers with zero servers to manage" → "Everything a crisis response platform needs, in one open-source package. Voice, SMS, WhatsApp, Signal, and encrypted reports — self-hosted for maximum control."
-
-**Transcription section:**
-- Replace "Cloudflare Workers AI" → "on-device AI (Whisper)" 
-- Add: "Audio is processed entirely in the volunteer's browser. No audio data ever leaves the device."
-- Remove toggle for server-side transcription (it's all client-side now)
-
-**Spam mitigation:**
-- Replace "Durable Object storage" → "database-backed storage"
-
-**Auth section — complete rewrite:**
-- Multi-factor key protection: PIN + identity provider + optional hardware key
-- Identity provider integration (self-hosted, you control it)
-- Automatic session management with silent refresh
-- Web Worker isolation for cryptographic keys
-- Invite-based onboarding (no sharing secret keys)
-- Remote session revocation
-- Device linking via secure provisioning
-
-**Contact Directory — NEW SECTION:**
-- Encrypted contact records with relationship tracking
-- Team-based access control
-- Tag management for organizing contacts
-- Bulk import/export with encryption
-- Auto-linking: incoming calls and messages automatically associated with known contacts
-- Intake workflows for new contact creation
-
-**PBAC — NEW SECTION (or fold into existing):**
-- Configurable roles and permissions
-- Team-based access scoping
-- Permission hierarchy: organization → team → individual
-
-**Messaging section:**
-- Update: messages now stored encrypted (not plaintext)
-- Remove "WebSocket" references → "real-time updates"
-
-### 6.3 Getting Started overhaul (`site/src/content/docs/en/getting-started.md`)
-
-- Update setup wizard: IdP account creation replaces keypair generation
-- Update "Add your first volunteer": invite-based flow, not nsec sharing
-- Fix webhook URLs: add `/api/` prefix
-- Add Contact Directory to feature overview
-- Update Mermaid diagram if it shows old auth flow
-
-### 6.4 Deployment guides overhaul
-
-**`deploy-docker.md`:**
-- Add Authentik to services table (authentik-server, authentik-worker)
-- Add IdP secret generation to setup section
-- Add "Authentik Configuration" subsection
-- MinIO → RustFS (verify — may already be correct)
-
-**`deploy-kubernetes.md`:**
-- Replace MinIO with RustFS in Helm values, PVCs, backup
-- Add IdP Helm values section
-- Add Authentik deployment guidance
-- Remove `bootstrap-admin` — replaced by setup wizard
-
-**`deploy-coopcloud.md`:**
-- Replace MinIO with RustFS in services table, secrets, config, backup
-- Add Authentik service to stack
-- Add IdP secrets to Swarm secret creation
-
-**`self-hosting.md`:**
-- Add "Identity Provider" row (Authentik, self-hosted OIDC)
-- Update hardware requirements (+512MB for Authentik)
-- MinIO → RustFS (verify)
-
-### 6.5 Telephony setup guides — fix webhook URLs
-
-All 5 provider setup guides have webhook URLs missing the `/api/` prefix:
-- `setup-twilio.md`: `/telephony/incoming` → `/api/telephony/incoming`, `/telephony/status` → `/api/telephony/status`
-- `setup-signalwire.md`: same pattern
-- `setup-vonage.md`: same pattern
-- `setup-plivo.md`: same pattern
-- `setup-asterisk.md`: callback URL needs `/api` prefix
-
-### 6.6 Retire role-based guides → migrate to feature guides
-
-The existing guides contain valuable content that should be redistributed:
-
-**`admin-guide.md`** content migrates to:
-- `guides/en/shifts-scheduling.md` — shift management content
-- `guides/en/teams-permissions.md` — volunteer/role management
-- `guides/en/ban-lists-spam.md` — ban list management
-- `guides/en/audit-logging.md` — audit log content
-- `guides/en/contact-directory.md` — new content for CMS
-- Various setup guides for channel configuration
-
-**`volunteer-guide.md`** content migrates to:
-- `guides/en/call-handling.md` — answering calls, taking notes
-- `guides/en/encryption-keys.md` — PIN, key management, device linking
-- `guides/en/notifications-presence.md` — notifications, break mode
-- `guides/en/account-recovery.md` — recovery procedures
-
-**`reporter-guide.md`** content migrates to:
-- `guides/en/reports-submissions.md` — report creation and tracking
-
-The old admin-guide.md, volunteer-guide.md, reporter-guide.md pages become redirect stubs pointing to `/docs/guides/` with appropriate tag filters (e.g., admin-guide redirects to `/docs/guides/?audience=operator`).
-
----
-
-## Layer 7: Translation Updates
-
-### 7.1 Update existing locale files
-
-All 12 non-English locale directories have translated versions of the existing doc pages. These need:
-- Same structural changes as English (MinIO → RustFS, webhook URL fixes, auth flow updates)
-- For now: update technical terms (MinIO → RustFS, nsec → identity provider terminology) and structural changes
-- Mark updated files with a comment: `<!-- Updated 2026-04-01 — full translation review needed -->`
-
-### 7.2 Stub guide translations
-
-Create stub files in each locale's guides directory with:
-- Translated `title` and `description` (machine translation acceptable)
-- English body content with a notice: "This guide is available in English. Translation coming soon."
-
-### 7.3 Update i18n translation keys
-
-Update `site/src/i18n/translations/common.ts`:
-- Add sidebar section label for "Guides"
-- Add audience labels: "Operator", "Staff", "Caller"
-- Add task labels: "Setup", "Daily Use", "Configuration", "Troubleshooting", "Security"
-- Translate these for all 12 locales
-
----
-
 ## Implementation Strategy
 
 Execute core-out, layer by layer. Each layer is a logical commit boundary.
 
-**Layer 1** (Protocol & Architecture): 9 files — can parallelize across security docs vs architecture docs
-**Layer 2** (Internal Docs): 8 files — depends on Layer 1 for accuracy
+**Layer 1** (Protocol & Architecture): 11 files — can parallelize across security docs vs architecture docs
+**Layer 2** (Internal Docs): 10 files — depends on Layer 1 for accuracy
 **Layer 3** (Deploy Configs): 5 files — independent of Layers 1-2, can parallelize
 **Layer 4** (CI/CD): 3 workflow files — independent, can parallelize with Layer 3
-**Layer 5** (Site Architecture): New collection, components, layout changes — independent of content
-**Layer 6** (Site Content): 20+ files — depends on Layers 1-2 for technical accuracy, Layer 5 for guide infrastructure
-**Layer 7** (Translations): 130+ files — depends on Layer 6 for English content
 
 Layers 3 and 4 can execute in parallel with Layers 1-2.
-Layer 5 can start once the guide article list is finalized (after Layer 6 planning).
-Layer 6 is the bulk of the work.
-Layer 7 is mechanical once Layer 6 is complete.
+Layer 2 depends on Layer 1 for technical accuracy.
+
+After this spec is complete, **Spec C** (doc site redesign) begins with its own brainstorm using the `frontend-design` skill for visual/UX treatment. Spec C covers:
+- Information architecture: clean separation of user-facing content (About, Guides) from technical content (Deploy, Reference)
+- Tag-based guide system with audience (Operator, Staff, Caller) + task (Setup, Daily Use, Configuration, Troubleshooting, Security) dimensions
+- Pagefind semantic search integration
+- Security page overhaul (preserving the beloved plain-language voice)
+- Features page overhaul (reflecting all shipped improvements)
+- New feature guide articles (Contact Directory, Shifts, Encryption, etc.)
+- Retirement of role-based guides → migration to feature-focused tag-filtered articles
+- Frontend visual design for new layouts, tag filtering, search UI
+- Translation stub updates for all 12 non-English locales
 
 ## Non-Goals
 
