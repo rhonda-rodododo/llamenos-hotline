@@ -1,0 +1,14 @@
+---
+title: "قوائم الحظر ومنع البريد المزعج"
+description: "Managing banned numbers, voice CAPTCHA, and rate limiting to protect your hotline from abuse."
+audience: [operator]
+task: [configuration, troubleshooting]
+feature: "bans"
+order: 10
+---
+
+<!-- Updated 2026-04-01 — full translation review needed -->
+
+This guide is available in English. Translation coming soon.
+
+هذا الدليل متاح باللغة الإنجليزية. الترجمة ستكون متاحة قريباً.
