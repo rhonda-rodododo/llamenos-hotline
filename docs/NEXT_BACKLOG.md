@@ -281,7 +281,7 @@ All items below have a design spec and implementation plan in `docs/superpowers/
 
 ### Security Fixes — Pending
 
-- [ ] **Unknown API routes should return 404 instead of 401** — Auth middleware runs before route matching, so unauthenticated requests to non-existent routes get 401 (reveals route doesn't exist but requires auth). Fix: move route matching before auth middleware, or add a catch-all 404 handler after all routes that returns 404 regardless of auth state.
+- [x] **Unknown API routes should return 404 instead of 401** — Fixed 2026-04-02: Added prefix-checking middleware in `app.ts` that returns 404 for unknown API path prefixes before the authenticated catch-all runs. Known prefixes (public + authenticated) are allowlisted; unknown paths get 404 without auth leaking route existence. E2E test: `tests/api/route-404.spec.ts`.
 
 ### Test Quality — Status (2026-03-23)
 
@@ -296,10 +296,10 @@ admin-flow (18), blast-sending (8), notes-crud (7), smoke (4), theme (7), health
 
 ## App Bugs Found During Test Restructuring (2026-03-24)
 
-- [ ] **CAPTCHA retry not implemented** — `captchaMaxAttempts` setting exists and is persisted, but the server's `/telephony/captcha` route deletes challenge state after first attempt (one-shot). Wrong digits always return `<Hangup/>` regardless of remaining attempts. Route should track attempt count and re-Gather until max attempts reached. Test: `voice-captcha.spec.ts` test 5.4 (marked as `test.fixme`).
-- [ ] **Dashboard incoming calls require Nostr relay** — The dashboard `useCalls()` hook gets call events exclusively from the Nostr relay WebSocket subscription. There is no REST polling fallback for incoming calls. If the relay is down or the page reloads mid-call, the incoming call card does not appear. Tests: `call-flow.spec.ts` (skip when relay unavailable).
+- [x] **CAPTCHA retry not implemented** — Investigated 2026-04-02: service layer correctly implements retry logic (attempt tracking, max enforcement, re-Gather). Test 5.4 in `voice-captcha.spec.ts` is active (no test.fixme) and validates the behavior. Bug was either already fixed or incorrectly reported.
+- [x] **Dashboard incoming calls require Nostr relay** — Investigated 2026-04-02: REST polling fallback already implemented at 30s intervals (`src/client/lib/queries/calls.ts:87-112`). Nostr is primary for sub-second updates; REST is the safety net. No additional work needed.
 - [ ] **Drizzle migration journal out of sync** — Migrations 0004, 0005, 0008, 0009, 0010 were in SQL files but missing from the journal or not applied to the dev database. Root cause: worktree-based development may have lost migration state. Applied manually during test restructuring.
-- [ ] **TwiML callback URLs use /api/telephony/ prefix** — The TwilioAdapter generates TwiML with action URLs like `/api/telephony/wait-music` and `/api/telephony/queue-exit`, but these routes are under the authenticated `/api/` mount. Twilio callbacks to these URLs would fail auth. Should use `/telephony/` (unauthenticated webhook routes).
+- [x] **TwiML callback URLs use /api/telephony/ prefix** — Fixed 2026-04-02: global find-replace `/api/telephony/` → `/telephony/` across all 19 affected files (4 adapters, 6 capabilities, test adapter, test payload factory, 5 provider-setup, 1 UI component, 1 live test helper).
 
 ## SIP WebRTC Browser Calling
 - [x] Asterisk WSS transport configuration (pjsip.conf, http.conf, extensions.conf)
@@ -335,10 +335,10 @@ admin-flow (18), blast-sending (8), notes-crud (7), smoke (4), theme (7), health
 ### Critical Bug Fixes
 **Spec:** `docs/specs/2026-04-02-critical-bug-fixes.md` | **Plan:** `docs/plans/2026-04-02-critical-bug-fixes.md`
 
-- [ ] **TwiML callback URLs use wrong prefix** — All telephony adapters (Twilio, Vonage, Plivo, SignalWire) generate URLs with `/api/telephony/` but webhooks are mounted at `/telephony/`. All inbound call flows broken. Fix: global find-replace in 4 adapter files. **Live Twilio testing available via `playwright.live.ts`.**
-- [ ] **Unknown API routes return 401 instead of 404** — Auth middleware runs before route matching. Add `api.notFound()` handler. Security: prevents route enumeration.
+- [x] **TwiML callback URLs use wrong prefix** — Fixed 2026-04-02: global find-replace `/api/telephony/` → `/telephony/` across 19 files (adapters, capabilities, provider-setup, tests, UI). **Live Twilio testing available via `playwright.live.ts`.**
+- [x] **Unknown API routes return 401 instead of 404** — Fixed 2026-04-02: prefix-checking middleware in app.ts. E2E test: `tests/api/route-404.spec.ts`.
 - [x] ~~**Dashboard incoming calls require Nostr relay**~~ — Investigated: REST polling fallback already exists at 30s intervals (`src/client/lib/queries/calls.ts:87-112`). No additional work needed.
-- [ ] **CAPTCHA retry** — Service layer appears correct. Verify `voice-captcha.spec.ts` test 5.4 — if `test.fixme` is removed and passes, mark resolved.
+- [x] **CAPTCHA retry** — Verified 2026-04-02: service layer correctly implements retry. Test 5.4 is active (no test.fixme) and validates behavior.
 
 ### Schema Alignment & API Validation
 **Spec:** `docs/specs/2026-04-02-schema-alignment-api-validation.md` | **Plan:** `docs/plans/2026-04-02-schema-alignment-api-validation.md`

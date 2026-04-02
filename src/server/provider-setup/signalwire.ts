@@ -63,8 +63,8 @@ export class SignalWireProvider {
   ): Promise<void> {
     const body: Record<string, string> = {
       call_handler: 'relay_rest_api',
-      call_request_url: `https://${domain}/api/telephony/incoming`,
-      call_status_callback_url: `https://${domain}/api/telephony/status`,
+      call_request_url: `https://${domain}/telephony/incoming`,
+      call_status_callback_url: `https://${domain}/telephony/status`,
     }
 
     if (enableSms) {

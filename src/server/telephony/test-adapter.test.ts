@@ -168,8 +168,8 @@ describe('TestAdapter', () => {
   test('verifyWebhookConfig returns configured with matching URLs', async () => {
     const result = await adapter.verifyWebhookConfig('+15551234567', 'https://app.example.com')
     expect(result.configured).toBe(true)
-    expect(result.expectedUrl).toBe('https://app.example.com/api/telephony/incoming')
-    expect(result.actualUrl).toBe('https://app.example.com/api/telephony/incoming')
+    expect(result.expectedUrl).toBe('https://app.example.com/telephony/incoming')
+    expect(result.actualUrl).toBe('https://app.example.com/telephony/incoming')
     expect(result.warning).toBeUndefined()
   })
 })

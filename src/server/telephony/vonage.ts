@@ -142,7 +142,7 @@ export class VonageAdapter implements TelephonyAdapter {
         {
           action: 'notify',
           payload: { lang, auto: true },
-          eventUrl: [`/api/telephony/language-selected?auto=1&forceLang=${lang}${hp}`],
+          eventUrl: [`/telephony/language-selected?auto=1&forceLang=${lang}${hp}`],
           eventMethod: 'POST',
         },
       ])
@@ -162,7 +162,7 @@ export class VonageAdapter implements TelephonyAdapter {
         action: 'input',
         type: ['dtmf'],
         dtmf: { maxDigits: 1, timeOut: 8 },
-        eventUrl: [`/api/telephony/language-selected${hubQPFirst(params.hubId)}`],
+        eventUrl: [`/telephony/language-selected${hubQPFirst(params.hubId)}`],
         eventMethod: 'POST',
       },
       ...talkActions,
@@ -193,7 +193,7 @@ export class VonageAdapter implements TelephonyAdapter {
           action: 'input',
           type: ['dtmf'],
           dtmf: { maxDigits: 4, timeOut: 10 },
-          eventUrl: [`/api/telephony/captcha?callSid=${params.callSid}&lang=${lang}${hp}`],
+          eventUrl: [`/telephony/captcha?callSid=${params.callSid}&lang=${lang}${hp}`],
           eventMethod: 'POST',
         },
       ])
@@ -208,7 +208,7 @@ export class VonageAdapter implements TelephonyAdapter {
         name: params.callSid,
         startOnEnter: false,
         endOnExit: false,
-        musicOnHoldUrl: [`/api/telephony/wait-music?lang=${lang}${hp}`],
+        musicOnHoldUrl: [`/telephony/wait-music?lang=${lang}${hp}`],
       },
     ])
   }
@@ -225,7 +225,7 @@ export class VonageAdapter implements TelephonyAdapter {
           name: params.callSid,
           startOnEnter: false,
           endOnExit: false,
-          musicOnHoldUrl: [`/api/telephony/wait-music?lang=${lang}${hp}`],
+          musicOnHoldUrl: [`/telephony/wait-music?lang=${lang}${hp}`],
         },
       ])
     }
@@ -240,7 +240,7 @@ export class VonageAdapter implements TelephonyAdapter {
           action: 'input',
           type: ['dtmf'],
           dtmf: { maxDigits: 4, timeOut: 10 },
-          eventUrl: [`/api/telephony/captcha?callSid=${params.callSid}&lang=${lang}${hp}`],
+          eventUrl: [`/telephony/captcha?callSid=${params.callSid}&lang=${lang}${hp}`],
           eventMethod: 'POST',
         },
       ])
@@ -259,7 +259,7 @@ export class VonageAdapter implements TelephonyAdapter {
         endOnExit: true,
         record: true,
         eventUrl: [
-          `${params.callbackUrl}/api/telephony/call-recording?parentCallSid=${params.parentCallSid}&pubkey=${params.userPubkey}${hp}`,
+          `${params.callbackUrl}/telephony/call-recording?parentCallSid=${params.parentCallSid}&pubkey=${params.userPubkey}${hp}`,
         ],
         eventMethod: 'POST',
       },
@@ -302,7 +302,7 @@ export class VonageAdapter implements TelephonyAdapter {
         beepStart: true,
         timeOut: params.maxRecordingSeconds ?? 120,
         eventUrl: [
-          `${params.callbackUrl}/api/telephony/voicemail-recording?callSid=${params.callSid}${hp}`,
+          `${params.callbackUrl}/telephony/voicemail-recording?callSid=${params.callSid}${hp}`,
         ],
         eventMethod: 'POST',
       },
@@ -353,11 +353,11 @@ export class VonageAdapter implements TelephonyAdapter {
           to: target.to,
           from: { type: 'phone', number: this.phoneNumber.replace('+', '') },
           answer_url: [
-            `${params.callbackUrl}/api/telephony/user-answer?parentCallSid=${params.callSid}&pubkey=${target.pubkey}${hubParam}`,
+            `${params.callbackUrl}/telephony/user-answer?parentCallSid=${params.callSid}&pubkey=${target.pubkey}${hubParam}`,
           ],
           answer_method: 'POST',
           event_url: [
-            `${params.callbackUrl}/api/telephony/call-status?parentCallSid=${params.callSid}&pubkey=${target.pubkey}${hubParam}`,
+            `${params.callbackUrl}/telephony/call-status?parentCallSid=${params.callSid}&pubkey=${target.pubkey}${hubParam}`,
           ],
           event_method: 'POST',
           ringing_timer: 30,
@@ -600,7 +600,7 @@ export class VonageAdapter implements TelephonyAdapter {
     // voice webhook URLs directly. Return a warning for now.
     return {
       configured: true,
-      expectedUrl: `${expectedBaseUrl}/api/telephony/incoming`,
+      expectedUrl: `${expectedBaseUrl}/telephony/incoming`,
       warning:
         'Vonage webhook verification not yet implemented — please verify webhook URL in the Vonage Dashboard',
     }

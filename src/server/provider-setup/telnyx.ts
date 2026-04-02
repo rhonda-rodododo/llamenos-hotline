@@ -92,8 +92,8 @@ export class TelnyxProvider {
     // Create or update a Call Control Application
     const appBody: Record<string, unknown> = {
       application_name: `Llamenos - ${domain}`,
-      webhook_event_url: `https://${domain}/api/telephony/incoming`,
-      webhook_event_failover_url: `https://${domain}/api/telephony/status`,
+      webhook_event_url: `https://${domain}/telephony/incoming`,
+      webhook_event_failover_url: `https://${domain}/telephony/status`,
       active: true,
     }
 

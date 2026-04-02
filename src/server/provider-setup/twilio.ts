@@ -135,9 +135,9 @@ export class TwilioProvider {
     const authHeader = `Basic ${btoa(`${sid}:${credentials.accessToken}`)}`
 
     const params = new URLSearchParams({
-      VoiceUrl: `https://${domain}/api/telephony/incoming`,
+      VoiceUrl: `https://${domain}/telephony/incoming`,
       VoiceMethod: 'POST',
-      StatusCallback: `https://${domain}/api/telephony/status`,
+      StatusCallback: `https://${domain}/telephony/status`,
       StatusCallbackMethod: 'POST',
     })
 

@@ -85,8 +85,8 @@ export function VoiceSmsProviderForm({ data, onChange }: Props) {
 
   const webhookUrls = useMemo(() => {
     const urls = [
-      { label: t('setup.webhooks.voiceIncoming'), url: `${origin}/api/telephony/incoming` },
-      { label: t('setup.webhooks.voiceStatus'), url: `${origin}/api/telephony/status` },
+      { label: t('setup.webhooks.voiceIncoming'), url: `${origin}/telephony/incoming` },
+      { label: t('setup.webhooks.voiceStatus'), url: `${origin}/telephony/status` },
     ]
     if (data.selectedChannels.includes('sms')) {
       urls.push({

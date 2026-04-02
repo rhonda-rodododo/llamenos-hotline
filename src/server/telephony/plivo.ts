@@ -137,7 +137,7 @@ export class PlivoAdapter implements TelephonyAdapter {
     if (activeLanguages.length <= 1) {
       const lang = activeLanguages[0] || DEFAULT_LANGUAGE
       return this.plivoXml(`
-        <Redirect method="POST">/api/telephony/language-selected?auto=1&amp;forceLang=${lang}${hp}</Redirect>
+        <Redirect method="POST">/telephony/language-selected?auto=1&amp;forceLang=${lang}${hp}</Redirect>
       `)
     }
 
@@ -151,10 +151,10 @@ export class PlivoAdapter implements TelephonyAdapter {
       .join('\n      ')
 
     return this.plivoXml(`
-      <GetDigits numDigits="1" action="/api/telephony/language-selected${params.hubId ? `?hub=${escapeXml(encodeURIComponent(params.hubId))}` : ''}" method="POST" timeout="8" redirect="true">
+      <GetDigits numDigits="1" action="/telephony/language-selected${params.hubId ? `?hub=${escapeXml(encodeURIComponent(params.hubId))}` : ''}" method="POST" timeout="8" redirect="true">
         ${speakElements}
       </GetDigits>
-      <Redirect method="POST">/api/telephony/language-selected?auto=1${hp}</Redirect>
+      <Redirect method="POST">/telephony/language-selected?auto=1${hp}</Redirect>
     `)
   }
 
@@ -177,7 +177,7 @@ export class PlivoAdapter implements TelephonyAdapter {
       const digits = params.captchaDigits
       const captchaXml = sayOrPlay('captchaPrompt', lang, params.audioUrls)
       return this.plivoXml(`
-        <GetDigits numDigits="4" action="/api/telephony/captcha?callSid=${params.callSid}&amp;lang=${lang}${hp}" method="POST" timeout="10" redirect="true">
+        <GetDigits numDigits="4" action="/telephony/captcha?callSid=${params.callSid}&amp;lang=${lang}${hp}" method="POST" timeout="10" redirect="true">
           ${greetingXml}
           ${captchaXml}
           ${speak(`${digits.split('').join(', ')}.`, lang)}
@@ -191,7 +191,7 @@ export class PlivoAdapter implements TelephonyAdapter {
     return this.plivoXml(`
       ${greetingXml}
       ${holdXml}
-      <Conference waitSound="/api/telephony/wait-music?lang=${lang}${hp}" action="/api/telephony/queue-exit?callSid=${params.callSid}&amp;lang=${lang}${hp}" method="POST" startConferenceOnEnter="false" endConferenceOnExit="false" stayAlone="true">${params.callSid}</Conference>
+      <Conference waitSound="/telephony/wait-music?lang=${lang}${hp}" action="/telephony/queue-exit?callSid=${params.callSid}&amp;lang=${lang}${hp}" method="POST" startConferenceOnEnter="false" endConferenceOnExit="false" stayAlone="true">${params.callSid}</Conference>
     `)
   }
 
@@ -202,7 +202,7 @@ export class PlivoAdapter implements TelephonyAdapter {
     if (params.digits === params.expectedDigits) {
       return this.plivoXml(`
         ${speak(getPrompt('captchaSuccess', lang), lang)}
-        <Conference waitSound="/api/telephony/wait-music?lang=${lang}${hp}" action="/api/telephony/queue-exit?callSid=${params.callSid}&amp;lang=${lang}${hp}" method="POST" startConferenceOnEnter="false" endConferenceOnExit="false" stayAlone="true">${params.callSid}</Conference>
+        <Conference waitSound="/telephony/wait-music?lang=${lang}${hp}" action="/telephony/queue-exit?callSid=${params.callSid}&amp;lang=${lang}${hp}" method="POST" startConferenceOnEnter="false" endConferenceOnExit="false" stayAlone="true">${params.callSid}</Conference>
       `)
     }
 
@@ -210,7 +210,7 @@ export class PlivoAdapter implements TelephonyAdapter {
     if (params.remainingAttempts && params.remainingAttempts > 0 && params.newCaptchaDigits) {
       const retryDigits = params.newCaptchaDigits
       return this.plivoXml(`
-        <GetDigits numDigits="4" action="/api/telephony/captcha?callSid=${params.callSid}&amp;lang=${lang}${hp}" method="POST" timeout="10" redirect="true">
+        <GetDigits numDigits="4" action="/telephony/captcha?callSid=${params.callSid}&amp;lang=${lang}${hp}" method="POST" timeout="10" redirect="true">
           ${speak(getPrompt('captchaRetry', lang), lang)}
           ${speak(`${retryDigits.split('').join(', ')}.`, lang)}
         </GetDigits>
@@ -228,7 +228,7 @@ export class PlivoAdapter implements TelephonyAdapter {
   async handleCallAnswered(params: CallAnsweredParams): Promise<TelephonyResponse> {
     const hp = hubXmlParam(params.hubId)
     return this.plivoXml(`
-      <Conference record="true" recordFileFormat="mp3" callbackUrl="${escapeXml(params.callbackUrl)}/api/telephony/call-recording?parentCallSid=${params.parentCallSid}&amp;pubkey=${params.userPubkey}${hp}" callbackMethod="POST" startConferenceOnEnter="true" endConferenceOnExit="true">${params.parentCallSid}</Conference>
+      <Conference record="true" recordFileFormat="mp3" callbackUrl="${escapeXml(params.callbackUrl)}/telephony/call-recording?parentCallSid=${params.parentCallSid}&amp;pubkey=${params.userPubkey}${hp}" callbackMethod="POST" startConferenceOnEnter="true" endConferenceOnExit="true">${params.parentCallSid}</Conference>
     `)
   }
 
@@ -256,7 +256,7 @@ export class PlivoAdapter implements TelephonyAdapter {
     const voicemailXml = sayOrPlay('voicemailPrompt', lang, params.audioUrls)
     return this.plivoXml(`
       ${voicemailXml}
-      <Record maxLength="${params.maxRecordingSeconds ?? 120}" action="/api/telephony/voicemail-complete?callSid=${params.callSid}&amp;lang=${lang}${hp}" method="POST" callbackUrl="${escapeXml(params.callbackUrl)}/api/telephony/voicemail-recording?callSid=${params.callSid}${hp}" callbackMethod="POST" finishOnKey="#" />
+      <Record maxLength="${params.maxRecordingSeconds ?? 120}" action="/telephony/voicemail-complete?callSid=${params.callSid}&amp;lang=${lang}${hp}" method="POST" callbackUrl="${escapeXml(params.callbackUrl)}/telephony/voicemail-recording?callSid=${params.callSid}${hp}" callbackMethod="POST" finishOnKey="#" />
       <Hangup/>
     `)
   }
@@ -301,11 +301,11 @@ export class PlivoAdapter implements TelephonyAdapter {
         const body: Record<string, unknown> = {
           from: this.phoneNumber,
           to: target.to,
-          answer_url: `${params.callbackUrl}/api/telephony/user-answer?parentCallSid=${params.callSid}&pubkey=${target.pubkey}${hubParam}`,
+          answer_url: `${params.callbackUrl}/telephony/user-answer?parentCallSid=${params.callSid}&pubkey=${target.pubkey}${hubParam}`,
           answer_method: 'POST',
-          hangup_url: `${params.callbackUrl}/api/telephony/call-status?parentCallSid=${params.callSid}&pubkey=${target.pubkey}${hubParam}`,
+          hangup_url: `${params.callbackUrl}/telephony/call-status?parentCallSid=${params.callSid}&pubkey=${target.pubkey}${hubParam}`,
           hangup_method: 'POST',
-          ring_url: `${params.callbackUrl}/api/telephony/call-status?parentCallSid=${params.callSid}&pubkey=${target.pubkey}${hubParam}`,
+          ring_url: `${params.callbackUrl}/telephony/call-status?parentCallSid=${params.callSid}&pubkey=${target.pubkey}${hubParam}`,
           ring_method: 'POST',
           ring_timeout: 30,
         }
@@ -526,7 +526,7 @@ export class PlivoAdapter implements TelephonyAdapter {
     phoneNumber: string,
     expectedBaseUrl: string
   ): Promise<WebhookVerificationResult> {
-    const expectedVoiceUrl = `${expectedBaseUrl}/api/telephony/incoming`
+    const expectedVoiceUrl = `${expectedBaseUrl}/telephony/incoming`
     try {
       // Plivo numbers API uses the number without the leading '+'
       const num = phoneNumber.replace(/^\+/, '')
