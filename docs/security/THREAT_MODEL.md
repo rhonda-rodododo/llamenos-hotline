@@ -350,11 +350,11 @@ Authentik is self-hosted and operator-controlled. It stores an encrypted `nsec_s
 
 ## Deployment-Specific Threats
 
-### Cloudflare Workers Deployment
+### Authentik IdP Deployment
 
-- **Cloudflare as trusted party**: Cloudflare can read memory, intercept requests, access DO storage. E2EE ensures they cannot read note content, but they see all metadata and traffic patterns.
-- **Cloudflare account compromise**: Attacker gains full access to Worker code, secrets, and DO storage. Mitigate with 2FA, access logs, and key rotation procedures.
-- **`workers.dev` subdomain disabled**: Prevents alternate origin that bypasses domain-specific security policies.
+- **Authentik as operator-controlled party**: Self-hosted; stores encrypted IdP values (one KEK factor). If compromised alone: insufficient for key recovery without PIN + optional WebAuthn PRF.
+- **Authentik account/API compromise**: Attacker can disable/enable users, modify attributes, create sessions. Cannot forge JWTs (separate secret). Combined with `IDP_VALUE_ENCRYPTION_KEY` compromise: reduces multi-factor to fewer factors.
+- **Network isolation**: Authentik should be accessible only from the app server, not from the public internet. See [Deployment Hardening, Section 3](DEPLOYMENT_HARDENING.md#3-authentik-idp-hardening).
 
 ### Docker/Node.js Self-Hosted Deployment
 
@@ -415,54 +415,43 @@ Push notification infrastructure is a **necessary trusted party** for mobile dep
 
 ---
 
-## Cloudflare Trust Boundary (Honest Assessment)
+## Cloud Provider Trust Boundary (Honest Assessment)
 
-Cloudflare Workers is a primary deployment target for Llamenos. The zero-knowledge architecture (E2EE notes, encrypted Nostr events via Nosflare) is designed to minimize what the server can access. This section provides an honest assessment of what these protections achieve and what they do not.
+**Note**: The primary deployment model is self-hosted (Docker Compose / Kubernetes). This section documents the general trust analysis for any cloud provider hosting Llamenos, and historically addressed Cloudflare Workers as a deployment target. The zero-knowledge architecture (E2EE notes, encrypted Nostr events) minimizes what any infrastructure provider can access.
 
-### What Nosflare / E2EE Protects Against
+### What E2EE Protects Against (Any Provider)
 
 | Threat | Protection Level | Explanation |
 |--------|-----------------|-------------|
-| Database-only subpoena | **Strong** | If only Durable Object storage is obtained (e.g., via legal process targeting stored data), the attacker gets encrypted blobs — ciphertext for notes, encrypted Nostr events, hashed phone numbers. Without volunteer/admin private keys, this data is useless. |
-| Rogue Cloudflare employee with DB access | **Strong** | An employee with access to DO storage (but not the Workers runtime) sees only encrypted blobs. This is a realistic scenario — large organizations have many employees with partial infrastructure access. |
-| Third-party breach of Cloudflare storage | **Strong** | If an attacker compromises Cloudflare's storage layer (e.g., S3-equivalent) without gaining runtime access, all E2EE data is protected. |
+| Database-only subpoena | **Strong** | If only PostgreSQL data is obtained (e.g., via legal process targeting stored data), the attacker gets encrypted blobs — ciphertext for notes, volunteer PII, org metadata, hashed phone numbers. Without volunteer/admin private keys, this data is useless. |
+| Rogue provider employee with DB access | **Strong** | An employee with access to database storage (but not the application runtime) sees only encrypted blobs. This is a realistic scenario — large organizations have many employees with partial infrastructure access. |
+| Third-party breach of storage layer | **Strong** | If an attacker compromises the storage layer (RustFS, PostgreSQL backups) without gaining runtime access, all E2EE data is protected. |
 | Passive network observer | **Strong** | TLS protects data in transit. An observer on the network path sees encrypted Nostr relay events only. |
 
-### What Nosflare / E2EE Does NOT Protect Against
+### What E2EE Does NOT Protect Against
 
 | Threat | Protection Level | Explanation |
 |--------|-----------------|-------------|
-| Cloudflare as a willing adversary | **None** | Cloudflare operates the Workers runtime. They can inspect memory during execution, intercept requests before encryption, modify Worker code, and read all data that passes through the runtime. E2EE encrypts data before it reaches the server, but Cloudflare controls the server that serves the client code — they could serve modified JavaScript that exfiltrates keys. Reproducible builds (Epic 79) allow operators and auditors to verify that deployed client code matches public source — but Cloudflare could serve different code selectively. |
-| Legal compulsion of Cloudflare (with runtime access) | **None** | A court order compelling Cloudflare to instrument the Workers runtime would defeat E2EE. Cloudflare would not need private keys — they could capture data in transit through the Worker. |
-| Cloudflare account compromise | **None** | An attacker who gains access to the Cloudflare account can deploy modified Worker code, read secrets, and access DO storage. They could serve a backdoored client that exfiltrates volunteer private keys. |
+| VPS provider as a willing adversary | **None** | The VPS provider can image the VM, access disk, and intercept network traffic. They could modify the served JavaScript to exfiltrate keys. Reproducible builds allow verification of deployed client code — but a compromised server could serve different code selectively. |
+| Legal compulsion with runtime access | **None** | A court order compelling the VPS provider to instrument the runtime would defeat E2EE for in-flight data. The provider would not need private keys — they could capture data in transit. |
+| Server compromise | **None** | An attacker with root access can modify server code, read secrets (`JWT_SECRET`, `IDP_VALUE_ENCRYPTION_KEY`), and intercept requests. E2EE protects data at rest but not data in transit through a compromised server. |
 
-### What Cloudflare Can Always Observe (Regardless of E2EE)
+### What the Infrastructure Provider Can Always Observe
 
-- **Nostr relay connections (Nosflare)**: IP addresses, connection timing, duration, event frequency and sizes
 - **HTTP request metadata**: All API request URLs, headers, query parameters, source IPs
-- **Worker execution**: If logging is enabled, full request/response bodies. Even with logging disabled, Cloudflare has the technical capability to instrument the runtime.
-- **DO storage contents at rest**: Cloudflare holds the encryption keys for Durable Object storage — the "encryption at rest" protects against disk theft, not against Cloudflare itself
-- **Worker deployment history**: All code versions, environment variables, secrets (encrypted but Cloudflare holds the master key)
-- **DNS and TLS termination**: All domain resolution and certificate management passes through Cloudflare
-
-### Required Operational Actions
-
-1. **Disable all application-level logging** in Nosflare configuration — no request logging, no event logging, no error logging that captures user data
-2. **Disable Cloudflare Workers analytics and observability** where possible — Workers Trace Events, Tail Workers, and Logpush can capture request data
-3. **Use Cloudflare Access or Zero Trust** to restrict access to the Cloudflare dashboard, limiting who can deploy code changes
-4. **Enable audit logs** on the Cloudflare account to detect unauthorized access
+- **Nostr relay connections**: IP addresses, connection timing, duration, event frequency and sizes
+- **Database contents at rest**: Encrypted blobs are present on disk; provider sees ciphertext
+- **DNS and TLS termination**: All domain resolution passes through the provider (unless using custom DNS)
+- **Application secrets**: If the provider images the VM disk, `.env` files containing `JWT_SECRET`, `IDP_VALUE_ENCRYPTION_KEY`, etc. are accessible
 
 ### Recommendation for Maximum Privacy Deployments
 
-For organizations where Cloudflare as an adversary is within the threat model (e.g., operating in jurisdictions where US-based companies can be legally compelled), **deploy Llamenos self-hosted with a strfry Nostr relay instead of Nosflare**.
+For organizations operating under extreme threat models, **deploy Llamenos self-hosted on dedicated hardware** with full-disk encryption and a self-hosted strfry Nostr relay:
 
-strfry is an open-source, self-hosted Nostr relay written in C++ that:
-- Runs entirely on operator-controlled infrastructure
-- Has no cloud provider dependency for the relay layer
-- Can be deployed on air-gapped or Tor-accessible infrastructure
+- strfry is an open-source, self-hosted Nostr relay written in C++ that runs entirely on operator-controlled infrastructure
 - Combined with Llamenos E2EE, provides true operator-only trust (the operator sees encrypted blobs, and controls the infrastructure)
-
-The Cloudflare deployment is appropriate for organizations that trust Cloudflare as an infrastructure provider (most organizations) and want the operational simplicity of a managed platform. The self-hosted deployment is for organizations that cannot accept any third-party infrastructure trust.
+- Can be deployed on air-gapped or Tor-accessible infrastructure
+- No cloud provider dependency for any component
 
 ---
 
@@ -705,7 +694,7 @@ For Llamenos, the npm supply chain is a **medium-severity, low-probability** ris
 
 ## Nostr Relay Trust Boundary
 
-The Nostr relay (strfry for self-hosted, Nosflare for Cloudflare) replaces the former WebSocket server for all real-time communication. Understanding what the relay can and cannot observe is critical for threat modeling.
+The Nostr relay (strfry, self-hosted) handles all real-time communication. Understanding what the relay can and cannot observe is critical for threat modeling.
 
 ### What the Relay Can Observe
 
@@ -825,7 +814,7 @@ The trust anchor is the **GitHub Release** (not the running application). The ap
 
 ## Client-Side Transcription Trust Model
 
-Epic 78 moved transcription from Cloudflare Workers AI to in-browser WASM (Whisper via `@huggingface/transformers`).
+Transcription runs entirely in-browser via WASM (Whisper via `@huggingface/transformers`).
 
 ### Security Properties
 
