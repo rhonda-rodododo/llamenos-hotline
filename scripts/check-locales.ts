@@ -6,12 +6,15 @@
  * Usage: bun run check:locales
  */
 
-import en from '../src/client/locales/en.json'
+import { LANGUAGE_CODES } from '../src/shared/languages'
 
-const LOCALES = ['es', 'zh', 'tl', 'vi', 'ar', 'fr', 'ht', 'ko', 'ru', 'hi', 'pt', 'de'] as const
-type Locale = (typeof LOCALES)[number]
+const NON_EN_CODES = LANGUAGE_CODES.filter((c) => c !== 'en')
 
-function deepMissingKeys(reference: Record<string, unknown>, translation: Record<string, unknown>, prefix = ''): string[] {
+function deepMissingKeys(
+  reference: Record<string, unknown>,
+  translation: Record<string, unknown>,
+  prefix = ''
+): string[] {
   const missing: string[] = []
   for (const key of Object.keys(reference)) {
     const fullKey = prefix ? `${prefix}.${key}` : key
@@ -40,13 +43,17 @@ function deepMissingKeys(reference: Record<string, unknown>, translation: Record
   return missing
 }
 
+const en = (await import('../public/locales/en.json')) as Record<string, unknown>
+const enData = ('default' in en ? en.default : en) as Record<string, unknown>
+
 let hasErrors = false
 
-for (const locale of LOCALES) {
-  const translation = (await import(`../src/client/locales/${locale}.json`)) as Record<string, unknown>
-  // Dynamic imports include a `default` key
-  const translationData = ('default' in translation ? translation.default : translation) as Record<string, unknown>
-  const enData = en as unknown as Record<string, unknown>
+for (const locale of NON_EN_CODES) {
+  const translation = (await import(`../public/locales/${locale}.json`)) as Record<string, unknown>
+  const translationData = ('default' in translation ? translation.default : translation) as Record<
+    string,
+    unknown
+  >
 
   const missing = deepMissingKeys(enData, translationData)
 

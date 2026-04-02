@@ -64,6 +64,7 @@
     "fflate": "^0.8.2",
     "hono": "^4.12.9",
     "i18next": "^25.10.10",
+    "i18next-http-backend": "^3.0.4",
     "jose": "^6.2.2",
     "jssip": "^3.13.6",
     "lucide-react": "^1.7.0",
