@@ -1,7 +1,7 @@
 # Llámenos Cryptographic Protocol Specification
 
-**Version:** 2.0
-**Date:** 2026-02-25
+**Version:** 3.0
+**Date:** 2026-04-01
 **Status:** Normative
 
 **Related Documents**:
@@ -15,9 +15,9 @@
 
 Llámenos uses a layered cryptographic architecture designed to protect volunteer and caller identity against well-funded adversaries. The system is built on three principles:
 
-1. **Key material never persists in plaintext** — the identity key (nsec) is always PIN-encrypted at rest and held in a closure variable during use, never in sessionStorage or global scope.
+1. **Key material never persists in plaintext** — the identity key (nsec) is always encrypted at rest under a multi-factor KEK (PIN + IdP-bound value + optional WebAuthn PRF output) and held in a Web Worker during use, never in sessionStorage or global scope.
 2. **Per-artifact encryption** — each note, message, and file uses a fresh random key, wrapped per-recipient via ECIES, providing forward secrecy at the data layer.
-3. **Device-centric auth** — the nsec is a recovery-only secret. Day-to-day authentication uses PIN unlock of the local encrypted key store.
+3. **Device-centric auth** — the nsec is a recovery-only secret. Day-to-day authentication uses WebAuthn passkeys with JWT session tokens.
 
 ## 2. Key Hierarchy
 
@@ -26,26 +26,26 @@ Identity Key (nsec / secretKey)
   32-byte secp256k1 scalar
   Generated once during onboarding
   BIP-340 x-only public key (npub)
-  └── PIN-Encrypted Local Store (Section 3)
+  └── Multi-Factor Encrypted Local Store (Section 3)
   └── Recovery Key Encryption (Section 9)
-  └── Auth Token Signing (Section 4)
   └── ECIES Key Agreement (Sections 5-7)
   └── NIP-42 Relay Authentication (Section 4.3)
 
-Admin Decryption Key (Epic 76.2)
+Admin Decryption Key
   Separate secp256k1 keypair from identity key
   └── Note admin envelope unwrapping (Section 5)
   └── Message admin envelope unwrapping (Section 6)
   └── Metadata decryption (Section 14)
 
-Hub Key (Epic 76.2)
+Hub Key
   32-byte random: crypto.getRandomValues(new Uint8Array(32))
   NOT derived from any identity key
   └── Nostr event content encryption (XChaCha20-Poly1305 + HKDF per-event)
   └── Presence encryption (volunteer-tier: boolean only)
+  └── Hub-key encrypted org metadata (role names, shift names, etc.)
   └── Distribution: ECIES-wrapped individually per member ("llamenos:hub-key-wrap")
 
-Server Nostr Key (Epic 76.1)
+Server Nostr Key
   Derived: HKDF-SHA256(SERVER_NOSTR_SECRET, "llamenos:server-nostr-key", "llamenos:server-nostr-key:v1")
   └── Signs server-authoritative Nostr events (call:ring, call:answered)
   └── Clients verify server pubkey for authoritative events
@@ -57,7 +57,7 @@ Per-Note Key
   └── ECIES-wrapped for author (Section 5)
   └── ECIES-wrapped for each admin (Section 5)
 
-Per-Message Key (Epic 74)
+Per-Message Key
   32-byte random
   Generated per message
   └── ECIES-wrapped for assigned volunteer ("llamenos:message")
@@ -74,7 +74,7 @@ Draft Encryption Key
 
 ### 2.1 Domain Separation Labels
 
-Every cryptographic operation uses a unique domain separation string to prevent cross-context key reuse attacks. The authoritative source is `src/shared/crypto-labels.ts`; this table must match that file exactly (25 constants).
+Every cryptographic operation uses a unique domain separation string to prevent cross-context key reuse attacks. The authoritative source is `src/shared/crypto-labels.ts`; this table must match that file exactly (48 constants).
 
 #### ECIES Key Wrapping
 
@@ -85,12 +85,13 @@ Every cryptographic operation uses a unique domain separation string to prevent 
 | `LABEL_FILE_METADATA` | `"llamenos:file-metadata"` | File metadata ECIES encryption | 7 |
 | `LABEL_HUB_KEY_WRAP` | `"llamenos:hub-key-wrap"` | Hub key ECIES distribution to members | 14 |
 
-#### Content Encryption
+#### ECIES Content Encryption
 
 | Constant | Label | Purpose | Section |
 |----------|-------|---------|---------|
 | `LABEL_TRANSCRIPTION` | `"llamenos:transcription"` | Transcription ECIES encryption | 6 |
 | `LABEL_MESSAGE` | `"llamenos:message"` | E2EE message envelope encryption | 6 |
+| `LABEL_BLAST_CONTENT` | `"llamenos:blast-content"` | Blast content ECIES envelope encryption | — |
 | `LABEL_CALL_META` | `"llamenos:call-meta"` | Encrypted call record metadata (assignments) | 14 |
 | `LABEL_SHIFT_SCHEDULE` | `"llamenos:shift-schedule"` | Encrypted shift schedule details | 14 |
 
@@ -117,11 +118,11 @@ Every cryptographic operation uses a unique domain separation string to prevent 
 | `SAS_SALT` | `"llamenos:sas"` | SAS HKDF salt for provisioning verification | 10 |
 | `SAS_INFO` | `"llamenos:provisioning-sas"` | SAS HKDF info parameter | 10 |
 
-#### Authentication
+#### Authentication (Deprecated)
 
 | Constant | Label | Purpose | Section |
 |----------|-------|---------|---------|
-| `AUTH_PREFIX` | `"llamenos:auth:"` | Schnorr auth token message prefix | 4 |
+| `AUTH_PREFIX` | `"llamenos:auth:"` | Schnorr auth token message prefix (deprecated; retained for backward compatibility during transition) | — |
 
 #### HMAC Domain Separation
 
@@ -147,97 +148,295 @@ Every cryptographic operation uses a unique domain separation string to prevent 
 | `LABEL_SERVER_NOSTR_KEY` | `"llamenos:server-nostr-key"` | HKDF derivation for server Nostr keypair from `SERVER_NOSTR_SECRET` | 14 |
 | `LABEL_SERVER_NOSTR_KEY_INFO` | `"llamenos:server-nostr-key:v1"` | HKDF info parameter for server Nostr key (versioned for rotation) | 14 |
 
+#### Push Notification Encryption
+
+| Constant | Label | Purpose | Section |
+|----------|-------|---------|---------|
+| `LABEL_PUSH_WAKE` | `"llamenos:push-wake"` | Wake-tier ECIES push payload — decryptable without PIN (minimal metadata only) | — |
+| `LABEL_PUSH_FULL` | `"llamenos:push-full"` | Full-tier ECIES push payload — decryptable only with user's nsec | — |
+
+#### Contact Identifier Encryption
+
+| Constant | Label | Purpose | Section |
+|----------|-------|---------|---------|
+| `LABEL_CONTACT_ID` | `"llamenos:contact-identifier"` | HKDF context for contact identifier encryption at rest | — |
+
+#### Provider Credential Encryption
+
+| Constant | Label | Purpose | Section |
+|----------|-------|---------|---------|
+| `LABEL_PROVIDER_CREDENTIAL_WRAP` | `"llamenos:provider-credential-wrap:v1"` | ECIES wrapping of provider OAuth/API credentials | — |
+
+#### Voicemail Encryption
+
+| Constant | Label | Purpose | Section |
+|----------|-------|---------|---------|
+| `LABEL_VOICEMAIL_WRAP` | `"llamenos:voicemail-audio"` | Voicemail audio symmetric key wrapping (ECIES) | — |
+| `LABEL_VOICEMAIL_TRANSCRIPT` | `"llamenos:voicemail-transcript"` | Voicemail transcript encryption (domain-separated from generic `LABEL_MESSAGE`) | — |
+
+#### Contact Intake Encryption
+
+| Constant | Label | Purpose | Section |
+|----------|-------|---------|---------|
+| `LABEL_CONTACT_INTAKE` | `"llamenos:contact-intake:v1"` | Contact intake payload — E2EE, enveloped for submitter + triage users | — |
+
+#### Contact Directory Encryption
+
+| Constant | Label | Purpose | Section |
+|----------|-------|---------|---------|
+| `LABEL_CONTACT_SUMMARY` | `"llamenos:contact-summary"` | Contact summary (Tier 1) — display name, notes, languages | — |
+| `LABEL_CONTACT_PII` | `"llamenos:contact-pii"` | Contact PII (Tier 2) — full name, phone, email, address, DOB | — |
+| `LABEL_CONTACT_RELATIONSHIP` | `"llamenos:contact-relationship"` | Contact relationship payload — fully E2EE | — |
+
+#### Storage Credential Encryption
+
+| Constant | Label | Purpose | Section |
+|----------|-------|---------|---------|
+| `LABEL_STORAGE_CREDENTIAL_WRAP` | `"llamenos:storage-credential"` | Hub storage credential (IAM secret key) wrapping with hub key | — |
+
+#### IdP Auth Hardening (KEK Multi-Factor)
+
+| Constant | Label | Purpose | Section |
+|----------|-------|---------|---------|
+| `LABEL_KEK_PRF` | `"llamenos:kek-prf"` | WebAuthn PRF evaluation salt for KEK derivation | 3.1 |
+| `LABEL_NSEC_KEK_3F` | `"llamenos:nsec-kek:3f"` | HKDF info for 3-factor (PIN + PRF + IdP) KEK derivation | 3.1 |
+| `LABEL_NSEC_KEK_2F` | `"llamenos:nsec-kek:2f"` | HKDF info for 2-factor (PIN + IdP) KEK derivation | 3.1 |
+| `LABEL_IDP_VALUE_WRAP` | `"llamenos:idp-value-wrap"` | Envelope encryption of IdP-bound value at rest in the IdP | 3.2 |
+
+#### Field-Level Encryption (Phase 2A — Server-Key)
+
+| Constant | Label | Purpose | Section |
+|----------|-------|---------|---------|
+| `LABEL_AUDIT_EVENT` | `"llamenos:audit-event:v1"` | Server-key encryption of audit log events and details | 15 |
+| `LABEL_IVR_AUDIO` | `"llamenos:ivr-audio:v1"` | Server-key encryption of IVR audio prompt data | — |
+| `LABEL_BLAST_SETTINGS` | `"llamenos:blast-settings:v1"` | Server-key encryption of blast settings messages | — |
+
+#### Field-Level Encryption (Phase 1 — Server-Key)
+
+| Constant | Label | Purpose | Section |
+|----------|-------|---------|---------|
+| `LABEL_USER_PII` | `"llamenos:volunteer-pii:v1"` | Server-key encryption of user/invite PII (phone numbers) | — |
+| `LABEL_EPHEMERAL_CALL` | `"llamenos:ephemeral-call:v1"` | Server-key encryption of ephemeral call data (caller numbers) | — |
+| `LABEL_PUSH_CREDENTIAL` | `"llamenos:push-credential:v1"` | Server-key encryption of push notification credentials | — |
+
 ## 3. Local Key Protection
 
-### 3.1 PIN-Encrypted Key Store
+### 3.1 Multi-Factor Encrypted Key Store (v2)
 
-The identity key is stored in `localStorage` encrypted under a PIN-derived Key Encryption Key (KEK).
+The identity key is stored in `localStorage` encrypted under a multi-factor Key Encryption Key (KEK). The v2 format supersedes the v1 PIN-only format.
 
-**Key Derivation:**
+**Key Derivation (Multi-Factor KEK):**
+
 ```
-PIN (4-6 digits, UTF-8 encoded)
-  → PBKDF2-SHA256(PIN, salt, 600,000 iterations)
-  → 32-byte KEK
+Factors:
+  PIN (6-8 digits, UTF-8 encoded)
+  idpValue (32 bytes — per-user secret stored in IdP, retrieved via /api/auth/userinfo)
+  prfOutput (32 bytes — optional WebAuthn PRF evaluation output)
+
+Step 1: PIN → PBKDF2-SHA256(PIN, salt, 600,000 iterations) → 32-byte pinDerived
+
+Step 2: Concatenate available factors:
+  2-factor: ikm = pinDerived ‖ idpValue        (64 bytes)
+  3-factor: ikm = pinDerived ‖ prfOutput ‖ idpValue  (96 bytes)
+
+Step 3: KEK = HKDF-SHA256(ikm, salt, info, 32)
+  where info = "llamenos:nsec-kek:2f" (2-factor) or "llamenos:nsec-kek:3f" (3-factor)
 ```
+
+The domain separation between 2-factor and 3-factor modes via distinct HKDF info labels ensures that a 2-factor KEK cannot accidentally decrypt a 3-factor blob or vice versa.
 
 **Encryption:**
 ```
-nsec (bech32 string, UTF-8 encoded)
+nsec hex string (UTF-8 encoded)
   → XChaCha20-Poly1305(KEK, random_nonce_24)
   → ciphertext
 ```
 
-**Storage format (localStorage `llamenos-encrypted-key`):**
+**Storage format (localStorage `llamenos-encrypted-key-v2`):**
 ```json
 {
-  "salt": "<hex, 16 bytes>",
-  "iterations": 600000,
+  "version": 2,
+  "kdf": "pbkdf2-sha256",
+  "cipher": "xchacha20-poly1305",
+  "salt": "<hex, 32 bytes>",
   "nonce": "<hex, 24 bytes>",
   "ciphertext": "<hex>",
-  "pubkey": "<truncated SHA-256 hash of pubkey, 8 bytes hex>"
+  "pubkeyHash": "<truncated SHA-256 of HMAC_KEYID_PREFIX + pubkey, 8 bytes hex>",
+  "prfUsed": false,
+  "idpIssuer": "https://auth.example.com"
 }
 ```
 
-The `pubkey` field is a truncated hash (not the plaintext pubkey) to allow identification of which key is stored without leaking identity.
+The `pubkeyHash` field is a truncated hash (not the plaintext pubkey) to allow identification of which key is stored without leaking identity. The `prfUsed` flag indicates whether 3-factor mode was used. The `idpIssuer` identifies which IdP session context produced the `idpValue` factor.
+
+**IdP-bound value (`idpValue`):**
+
+Each user has a per-user random 32-byte secret (`nsec_secret`) stored in the IdP (Authentik) as an encrypted user attribute. This value is:
+
+1. Generated on user creation by the IdP adapter (32 random bytes)
+2. Encrypted at rest in the IdP using `LABEL_IDP_VALUE_WRAP` domain-separated HKDF + XChaCha20-Poly1305 with the server's `IDP_VALUE_ENCRYPTION_KEY`
+3. Retrieved by the client via `GET /api/auth/userinfo` (requires valid JWT)
+4. Used as one factor in KEK derivation — if the IdP is offline or the user is deactivated, the key store cannot be unlocked
+
+This binds key store access to an active IdP session: even with the correct PIN, the nsec cannot be decrypted without the IdP-provided value.
+
+**Synthetic IdP values (transitional):**
+
+During device linking and certain fallback flows where no real IdP session exists yet, a deterministic synthetic value is derived: `SHA-256("llamenos:synthetic:{issuer}")`. The key store records the synthetic issuer. On first unlock with a real IdP session available, the key store is automatically re-encrypted with the real IdP value (auto-rotation).
+
+**WebAuthn PRF (optional 3rd factor):**
+
+When the user's WebAuthn credential supports the PRF extension, the browser evaluates `LABEL_KEK_PRF` as the salt during authentication, producing a 32-byte PRF output that serves as an additional KEK factor. This provides hardware-bound key protection even if the PIN and IdP value are compromised.
 
 ### 3.2 Key Manager (Runtime)
 
-The Key Manager (`key-manager.ts`) is a singleton that holds the decrypted secret key in a module-scoped closure variable — never on `window`, `sessionStorage`, or any globally accessible object.
+The Key Manager (`key-manager.ts`) delegates all secret key operations to a dedicated Web Worker (`crypto-worker`). The secret key is held inside the worker's scope — never on the main thread, `window`, `sessionStorage`, or any globally accessible object.
 
 **States:**
-- **Locked**: `secretKey === null`. Only session-token-based auth (WebAuthn) is available. Crypto operations that require the secret key are unavailable.
-- **Unlocked**: `secretKey` is a `Uint8Array` in memory. Full crypto operations available.
+- **Locked**: Worker holds no key material. Only JWT-authenticated API calls are available. Crypto operations that require the secret key are unavailable.
+- **Unlocked**: Worker holds the `secretKey` as a `Uint8Array`. Full crypto operations available.
 
 **Operations:**
-- `unlock(pin)` — Decrypts nsec from localStorage via PBKDF2+XChaCha20, derives secretKey, validates against server.
-- `lock()` — Zeros out the secretKey bytes (`secretKey.fill(0)`), sets to null.
-- `importKey(nsec, pin)` — For onboarding/recovery: encrypts nsec to localStorage, loads into memory.
-- `getSecretKey()` — Returns secretKey or throws `KeyLockedError`.
-- `getPublicKey()` — Returns hex pubkey (available even when locked, from stored key ID and server profile).
-- `createAuthToken(timestamp)` — Creates Schnorr-signed auth token.
+- `unlock(pin)` — Derives multi-factor KEK (PIN + IdP value + optional PRF), decrypts nsec from localStorage, sends to worker for validation.
+- `lock()` — Instructs the worker to zero and discard the secret key bytes.
+- `importKey(nsecHex, pin, pubkey, idpValue, prfOutput?, idpIssuer)` — For onboarding/recovery: encrypts nsec to localStorage with v2 format, loads into worker.
+- `getPublicKeyHex()` — Returns hex pubkey from the worker (available only when unlocked).
+- `wipeKey()` — Locks the key manager and removes the encrypted key from localStorage entirely.
 
 **Auto-lock triggers:**
 - Configurable idle timeout (default: 5 minutes of no API activity)
-- `document.visibilitychange` when `document.hidden === true` (tab backgrounded)
+- `document.visibilitychange` when `document.hidden === true` (tab backgrounded), with configurable delay
 - Explicit `lock()` call
 
-## 4. Authentication Tokens
+### 3.3 Key Store v1 to v2 Migration
 
-### 4.1 Schnorr Signature Token
+> **Historical note:** v1 key stores used PIN-only PBKDF2 (no IdP factor, no PRF). The v1 format stored under `llamenos-encrypted-key` with fields: `salt` (16 bytes), `iterations`, `nonce` (24 bytes), `ciphertext`, and a truncated `pubkey` hash. v1 blobs are detected by the absence of a `version` field or `version !== 2`. On first unlock with an available IdP session, the client decrypts with the PIN-only KEK, then re-encrypts using the v2 multi-factor KEK and stores under the v2 key. The v1 blob is removed.
 
-Used when the Key Manager is unlocked.
+## 4. Authentication and Session Model
 
+### 4.1 JWT Access Tokens
+
+All authenticated API requests use short-lived JWT access tokens.
+
+**Token structure (HS256):**
+```json
+{
+  "alg": "HS256",
+  "typ": "JWT"
+}
+{
+  "sub": "<pubkey_hex>",
+  "permissions": ["calls:read", "notes:create", ...],
+  "jti": "<uuid>",
+  "iat": 1711929600,
+  "exp": 1711930500,
+  "iss": "llamenos"
+}
 ```
-message = "llamenos:auth:{pubkey_hex}:{timestamp_ms}"
-hash = SHA-256(message)
-signature = BIP-340 Schnorr Sign(hash, secretKey)
-token = JSON({ pubkey, timestamp, token: hex(signature) })
-```
 
-**Wire format:** `Authorization: Bearer <token_json>`
+**Properties:**
+- Algorithm: HS256 (HMAC-SHA256) with `JWT_SECRET` environment variable
+- Default expiry: 15 minutes from issuance
+- Issuer: `"llamenos"`
+- Subject (`sub`): user's Nostr public key (hex)
+- Unique ID (`jti`): UUID v4, used for jti-based revocation
+- Permissions: resolved from the user's assigned roles at token issuance time
+
+**Wire format:** `Authorization: Bearer <jwt>`
 
 **Server validation:**
-- Parse JSON, extract pubkey, timestamp, signature
-- Reject if `|now - timestamp| > 5 minutes`
-- Verify BIP-340 signature over `SHA-256("llamenos:auth:{pubkey}:{timestamp}")`
-- Look up volunteer record by pubkey
+1. Verify HS256 signature against `JWT_SECRET`
+2. Check `iss === "llamenos"` and `exp > now`
+3. Extract `sub` as the authenticated pubkey
+4. Extract `permissions` for authorization checks
+5. (Optional) Check `jti` against `jwt_revocations` table for revoked tokens
 
-### 4.2 Session Token
+### 4.2 Refresh Tokens
 
-Used for WebAuthn-authenticated sessions and as fallback when Key Manager is locked.
+Refresh tokens are long-lived JWTs stored as httpOnly cookies, used to obtain new access tokens without re-authentication.
+
+**Token structure:**
+```json
+{
+  "type": "refresh",
+  "sub": "<pubkey_hex>",
+  "jti": "<uuid>",
+  "iat": 1711929600,
+  "exp": 1714521600,
+  "iss": "llamenos"
+}
+```
+
+**Properties:**
+- Algorithm: HS256 with `JWT_SECRET`
+- Expiry: 30 days
+- Cookie name: `llamenos-refresh`
+- Cookie attributes: `httpOnly`, `secure`, `sameSite=Strict`, `path=/api/auth/token`
+- Contains `type: "refresh"` claim to distinguish from access tokens
+
+**Refresh flow (`POST /api/auth/token/refresh`):**
+1. Server reads the `llamenos-refresh` cookie
+2. Verifies the refresh JWT (signature, expiry, `type === "refresh"`)
+3. Validates the user is still active in the IdP via `idpAdapter.refreshSession(pubkey)`
+4. If valid, issues a new access token with current permissions
+5. If the IdP session is invalid, returns 401 — the user must re-authenticate
+
+**CSRF protection:** The refresh endpoint requires `Content-Type: application/json`, preventing simple cross-origin form submissions.
+
+### 4.3 WebAuthn Authentication Flow
+
+WebAuthn passkeys are the primary authentication mechanism. The flow issues JWT tokens on successful assertion.
 
 ```
-token = 32 random bytes, hex-encoded
+Client                                    Server
+  |                                          |
+  |-- 1. POST /api/auth/webauthn/login-options -->|
+  |                                          |-- 2. Generate challenge, store with UUID
+  |<-- 3. { options, challengeId } ----------|
+  |                                          |
+  |-- 4. navigator.credentials.get(options)  |
+  |      (user taps authenticator)           |
+  |                                          |
+  |-- 5. POST /api/auth/webauthn/login-verify -->|
+  |      { assertion, challengeId }          |
+  |                                          |-- 6. Retrieve stored challenge
+  |                                          |-- 7. Verify assertion signature
+  |                                          |-- 8. Update credential counter
+  |                                          |-- 9. Resolve user permissions
+  |                                          |-- 10. Sign access token (15min)
+  |                                          |-- 11. Sign refresh token (30d)
+  |                                          |-- 12. Set refresh cookie (httpOnly)
+  |<-- 13. { accessToken, pubkey } ----------|
 ```
 
-**Wire format:** `Authorization: Session <token_hex>`
+**Rate limiting:** Login endpoints are rate-limited per IP hash (10 requests per 5-minute window).
 
-**Server validation:**
-- Look up `session:{token}` in IdentityDO storage
-- Check expiry (8 hours from creation)
-- Extract associated pubkey
+### 4.4 Token Revocation
 
-### 4.3 Nostr Relay Authentication (NIP-42)
+Tokens can be revoked by inserting their `jti` into the `jwt_revocations` PostgreSQL table:
+
+```sql
+CREATE TABLE jwt_revocations (
+  jti TEXT PRIMARY KEY,
+  pubkey TEXT NOT NULL,
+  expires_at TIMESTAMP NOT NULL,
+  created_at TIMESTAMP DEFAULT NOW() NOT NULL
+);
+```
+
+The `expires_at` column matches the token's `exp` claim, allowing periodic cleanup of expired revocation rows. Revocations are used for:
+- Explicit session revocation (`POST /api/auth/session/revoke`)
+- Admin-initiated re-enrollment (`POST /api/auth/admin/re-enroll/:pubkey`)
+- GDPR erasure (all user tokens revoked)
+
+### 4.5 Session Revocation
+
+`POST /api/auth/session/revoke` performs a full session teardown:
+1. Revokes the user's session in the IdP via `idpAdapter.revokeSession(pubkey)`
+2. Clears the `llamenos-refresh` cookie (sets `maxAge=0`)
+3. The access token naturally expires within 15 minutes (or can be jti-revoked for immediate invalidation)
+
+### 4.6 Nostr Relay Authentication (NIP-42)
 
 Clients authenticate to the Nostr relay using the NIP-42 protocol:
 
@@ -248,6 +447,15 @@ Clients authenticate to the Nostr relay using the NIP-42 protocol:
 5. Relay verifies the signature and grants access to publish/subscribe
 
 Only authenticated clients can publish events or subscribe to hub-scoped events. The relay enforces a write policy that restricts publishing to known server and member pubkeys.
+
+### 4.7 Relationship Between Auth and Key Manager
+
+JWT authentication and key manager unlock are independent tiers:
+
+- **Authenticated but locked**: User has a valid JWT (via WebAuthn login). Can see call events, shift status, presence. Cannot read encrypted content. The client can call `GET /api/auth/userinfo` to retrieve the `nsecSecret` for KEK derivation, but the key store remains locked until the user enters their PIN.
+- **Authenticated and unlocked**: User has a valid JWT AND has entered their PIN to unlock the key manager. Full access to all encrypted content.
+
+This separation ensures that a compromised JWT cannot access encrypted data without also knowing the PIN (and having the IdP-bound value).
 
 ## 5. Note Encryption (Per-Note Forward Secrecy)
 
@@ -302,7 +510,7 @@ Legacy notes are identified by the absence of `authorEnvelope`/`adminEnvelope` f
 
 ## 6. Message Encryption (Envelope Pattern)
 
-Messages (SMS, WhatsApp, Signal conversations) use per-message envelope encryption (Epic 74), matching the note encryption pattern from Section 5.
+Messages (SMS, WhatsApp, Signal conversations) use per-message envelope encryption, matching the note encryption pattern from Section 5.
 
 ### 6.1 Encryption
 
@@ -339,7 +547,7 @@ wrapKeyForPubkey(plainKey, recipientPubkeyHex, label):
 
 ### 6.3 Inbound Message Flow
 
-For inbound messages (SMS/WhatsApp webhook → server):
+For inbound messages (SMS/WhatsApp webhook -> server):
 
 1. Server receives plaintext from telephony provider (inherent limitation)
 2. Server encrypts immediately using the assigned volunteer's pubkey and all admin pubkeys
@@ -348,7 +556,7 @@ For inbound messages (SMS/WhatsApp webhook → server):
 
 ### 6.4 Outbound Message Flow
 
-For outbound messages (volunteer → SMS/WhatsApp):
+For outbound messages (volunteer -> SMS/WhatsApp):
 
 1. Client encrypts the message and creates all envelopes
 2. Client sends both `plaintextForSending` (for the provider) and encrypted fields to the server
@@ -460,12 +668,17 @@ New Device (N)                         Primary Device (P)
   |        matches primaryPK             |
   |                                      |
   |-- 13. Prompt for PIN                 |
-  |-- 14. storeEncryptedKey(nsec, pin)   |
+  |-- 14. importKey(nsec, pin,           |
+  |        syntheticIdpValue)            |
+  |        (v2 format with synthetic     |
+  |        issuer "device-link")         |
   |                                      |
   |-- 15. WS send: { type: "ack" }      |
   |                                      |
   |                                      |<- 16. Receive ack, show success
 ```
+
+The new device stores the nsec using a synthetic IdP value (see Section 3.1). On first unlock with a real IdP session, the key store auto-rotates to the real IdP-bound value.
 
 ### 10.2 Security Properties
 
@@ -480,29 +693,40 @@ For devices without cameras, the new device displays a short alphanumeric code (
 
 ## 11. Session Management
 
-### 11.1 WebAuthn Sessions
-
-- Created after successful WebAuthn assertion
-- 32-byte random token stored in IdentityDO as `session:{token}`
-- 8-hour expiry, enforced server-side
-- Single-use challenge: deleted after verification
-- Credential counter tracking for clone detection
-
-### 11.2 Session Lifecycle
+### 11.1 JWT Session Lifecycle
 
 ```
-Login → Create session token → Store in sessionStorage
-  └── On each API request: Authorization: Session {token}
-  └── On logout: POST /auth/me/logout → server deletes session
-  └── On expiry: server returns 401 → client shows re-auth prompt
+WebAuthn Login
+  → Server verifies assertion
+  → Server signs access token (15min, HS256)
+  → Server signs refresh token (30d, HS256)
+  → Refresh token set as httpOnly cookie (path=/api/auth/token)
+  → Access token returned in response body
+  └── On each API request: Authorization: Bearer <jwt>
+  └── On token expiry: POST /api/auth/token/refresh → new access token
+  └── On refresh: server checks IdP session is still valid
+  └── On logout: POST /api/auth/session/revoke → IdP session revoked, cookie cleared
+  └── On IdP deactivation: next refresh fails → user forced to re-authenticate
 ```
 
-### 11.3 Relationship to Key Manager
+### 11.2 Idle and Visibility Locking
 
-WebAuthn sessions authenticate the user but do not unlock crypto operations. The Key Manager must be separately unlocked with PIN to decrypt notes, messages, and files. This creates two tiers:
+The key manager (not the JWT session) implements auto-locking:
 
-- **Authenticated but locked**: Can see call events, shift status, presence. Cannot read encrypted content.
-- **Authenticated and unlocked**: Full access to all encrypted content.
+- **Idle timeout**: After configurable period (default 5 minutes) of no API activity, the key manager locks. The JWT session remains valid — the user stays authenticated but cannot access encrypted content until they re-enter their PIN.
+- **Visibility lock**: When the tab is backgrounded (`document.hidden === true`), the key manager locks after a configurable delay (default: immediate). Returning to the tab prompts for PIN.
+
+These auto-lock behaviors apply only to the key manager. The JWT access token and refresh cookie are unaffected — they expire on their own schedules.
+
+### 11.3 Multi-Device Sessions
+
+Each device maintains its own:
+- WebAuthn credential (passkey)
+- JWT access + refresh token pair
+- Encrypted key store (v2 blob in localStorage)
+- Key manager state (locked/unlocked)
+
+Sessions are independent across devices. Revoking a session on one device does not affect others unless an admin performs a full re-enrollment (`POST /api/auth/admin/re-enroll/:pubkey`), which revokes all IdP sessions and deletes all WebAuthn credentials.
 
 ## 12. Cryptographic Library Dependencies
 
@@ -510,9 +734,10 @@ WebAuthn sessions authenticate the user but do not unlock crypto operations. The
 |---------|---------|-------|
 | `@noble/curves` | ^1.x | secp256k1 ECDH, BIP-340 Schnorr signatures |
 | `@noble/ciphers` | ^1.x | XChaCha20-Poly1305 symmetric encryption |
-| `@noble/hashes` | ^1.x | SHA-256, HKDF-SHA256, hex/utf8 encoding |
+| `@noble/hashes` | ^1.x | SHA-256, HKDF-SHA256, PBKDF2-SHA256, hex/utf8 encoding |
 | `nostr-tools` | ^2.x | Key generation, bech32 nsec/npub encoding |
-| Web Crypto API | — | PBKDF2 key derivation, random bytes |
+| `jose` | ^6.x | JWT signing (HS256), verification, claims parsing |
+| Web Crypto API | — | Random bytes generation |
 
 All cryptographic operations use audited, constant-time implementations. No custom crypto primitives.
 
@@ -520,13 +745,16 @@ All cryptographic operations use audited, constant-time implementations. No cust
 
 | Threat | Mitigation |
 |--------|-----------|
-| XSS stealing nsec | Key Manager holds secretKey in closure, not sessionStorage. Auto-lock on tab hide. |
-| Browser extension reading storage | localStorage contains only PIN-encrypted ciphertext. PIN brute-force mitigated by 600k PBKDF2 iterations. |
-| Server compromise | Server never sees plaintext notes/messages/files. ECIES ensures server can't decrypt. |
-| Device seizure | PIN-encrypted key in localStorage. 4-6 digit PIN + 600k iterations ≈ 10-60 seconds per attempt. |
-| Network MITM | HTTPS/WSS. Schnorr tokens expire in 5 minutes. |
+| XSS stealing nsec | Key Manager holds secretKey in Web Worker, not main thread. Auto-lock on tab hide. |
+| Browser extension reading storage | localStorage contains only multi-factor encrypted ciphertext. PIN brute-force mitigated by 600k PBKDF2 iterations + IdP-bound value requirement. |
+| Server compromise | Server never sees plaintext notes/messages/files. ECIES ensures server can't decrypt. IdP-bound value is encrypted at rest in IdP. |
+| Device seizure | Multi-factor encrypted key in localStorage. Requires PIN + IdP value (+ optional PRF) to decrypt. Offline brute-force of PIN alone is insufficient. |
+| Network MITM | HTTPS/WSS. JWT access tokens expire in 15 minutes. Refresh tokens are httpOnly/secure/sameSite=Strict. |
 | Compromised identity key | Per-note/per-message ephemeral keys provide forward secrecy — compromising the identity key doesn't reveal past content without also obtaining the per-artifact envelopes. |
-| Lost device | Recovery key + backup file restores access on new device. Old device's encrypted store is useless without PIN. |
+| Lost device | Recovery key + backup file restores access on new device. Old device's encrypted store is useless without PIN + IdP value. |
+| Stolen JWT | Access tokens expire in 15 minutes. Refresh tokens are httpOnly (not accessible to JS). jti-based revocation available for immediate invalidation. |
+| IdP compromise | IdP stores only envelope-encrypted `nsec_secret` values (encrypted with server's `IDP_VALUE_ENCRYPTION_KEY`). The IdP cannot derive KEKs or decrypt key stores. |
+| CSRF on refresh | Refresh cookie is `sameSite=Strict` and endpoint requires `Content-Type: application/json`. |
 
 ## 14. Hub Event Encryption
 
@@ -585,7 +813,7 @@ serverPubkey = secp256k1.getPublicKey(serverSecretKey)
 
 Clients learn the server pubkey during authentication and verify it on all server-signed events. This prevents event injection by unauthorized parties.
 
-### 14.4 Encrypted Metadata (Epic 77)
+### 14.4 Encrypted Metadata
 
 Call record metadata and shift schedule details are encrypted using their respective domain labels:
 
@@ -611,7 +839,7 @@ adminEnvelopes = [wrapKeyForPubkey(scheduleKey, adminPubkey, "llamenos:shift-sch
 
 ## 15. Audit Log Integrity
 
-Audit logs use a hash-chained integrity mechanism (Epic 77) for tamper detection.
+Audit logs use a hash-chained integrity mechanism for tamper detection.
 
 ### 15.1 Hash Chain Construction
 
