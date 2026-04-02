@@ -7,10 +7,12 @@ import { common } from '../../../i18n/translations/common';
 
 export async function getStaticPaths() {
   const guides = await getCollection('guides');
-  return guides.map(guide => ({
-    params: { slug: guide.id.split('/').slice(1).join('/') },
-    props: { guide },
-  }));
+  return guides
+    .filter(g => g.id.startsWith(`${defaultLang}/`))
+    .map(guide => ({
+      params: { slug: guide.id.split('/').slice(1).join('/') },
+      props: { guide },
+    }));
 }
 
 const { guide } = Astro.props;
