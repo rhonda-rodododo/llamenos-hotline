@@ -110,6 +110,15 @@ STORAGE_ACCESS_KEY=$(openssl rand -base64 16 | tr -d '/+=')
 STORAGE_SECRET_KEY=$(openssl rand -base64 24 | tr -d '/+=')
 SERVER_NOSTR_SECRET=$(openssl rand -hex 32)
 
+# IdP Auth (Authentik)
+JWT_SECRET=$(openssl rand -hex 32)
+IDP_VALUE_ENCRYPTION_KEY=$(openssl rand -base64 32)
+AUTHENTIK_SECRET_KEY=$(openssl rand -hex 32)
+AUTHENTIK_BOOTSTRAP_TOKEN=$(openssl rand -hex 32)
+AUTH_WEBAUTHN_RP_ID=${DOMAIN}
+AUTH_WEBAUTHN_RP_NAME=Hotline
+AUTH_WEBAUTHN_ORIGIN=${CADDY_SITE_ADDRESS:-https://${DOMAIN}}
+
 DOMAIN=${DOMAIN}
 CADDY_SITE_ADDRESS=${CADDY_SITE_ADDRESS}
 ${HTTP_PORT:+HTTP_PORT=${HTTP_PORT}}
@@ -134,6 +143,17 @@ docker compose $COMPOSE_FILES $COMPOSE_PROFILES build --quiet 2>&1 | tail -5
 
 echo "Starting services..."
 docker compose $COMPOSE_FILES $COMPOSE_PROFILES up -d
+
+# ── Wait for Authentik ──────────────────────────────────────────
+
+echo "Waiting for Authentik to be ready..."
+for i in $(seq 1 60); do
+  if curl -sf http://localhost:9100/-/health/ready/ > /dev/null 2>&1; then
+    echo "Authentik ready"
+    break
+  fi
+  sleep 2
+done
 
 # ── Wait for health ──────────────────────────────────────────────
 
