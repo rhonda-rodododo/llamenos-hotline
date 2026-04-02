@@ -1,0 +1,40 @@
+---
+import DocsLayout from '../../../../layouts/DocsLayout.astro';
+import { getEntry, render } from 'astro:content';
+
+const slugMap: Record<string, string> = {
+  'twilio': 'en/deploy/providers/twilio',
+  'signalwire': 'en/deploy/providers/signalwire',
+  'vonage': 'en/deploy/providers/vonage',
+  'plivo': 'en/deploy/providers/plivo',
+  'asterisk': 'en/deploy/providers/asterisk',
+  'sms': 'en/deploy/providers/sms',
+  'whatsapp': 'en/deploy/providers/whatsapp',
+  'signal': 'en/deploy/providers/signal',
+  'webrtc': 'en/deploy/providers/webrtc',
+};
+
+export function getStaticPaths() {
+  return [
+    { params: { slug: 'twilio' } },
+    { params: { slug: 'signalwire' } },
+    { params: { slug: 'vonage' } },
+    { params: { slug: 'plivo' } },
+    { params: { slug: 'asterisk' } },
+    { params: { slug: 'sms' } },
+    { params: { slug: 'whatsapp' } },
+    { params: { slug: 'signal' } },
+    { params: { slug: 'webrtc' } },
+  ];
+}
+
+const { slug } = Astro.params;
+const entryId = slugMap[slug!];
+const entry = (await getEntry('docs', entryId))!;
+const { Content } = await render(entry);
+---
+
+<DocsLayout title={entry.data.title}>
+  <h1>{entry.data.title}</h1>
+  <Content />
+</DocsLayout>

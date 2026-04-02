@@ -5,58 +5,52 @@ guidesHeading: Guides
 guides:
   - title: Getting Started
     description: Prerequisites, installation, setup wizard, and your first deployment.
-    href: /docs/getting-started
+    href: /docs/deploy/
   - title: Self-Hosting Overview
     description: Deploy on your own infrastructure with Docker Compose or Kubernetes.
-    href: /docs/self-hosting
+    href: /docs/deploy/self-hosting
   - title: "Deploy: Docker Compose"
     description: Single-server self-hosted deployment with automatic HTTPS.
-    href: /docs/deploy-docker
+    href: /docs/deploy/docker
   - title: "Deploy: Kubernetes (Helm)"
     description: Deploy to Kubernetes with the official Helm chart.
-    href: /docs/deploy-kubernetes
+    href: /docs/deploy/kubernetes
   - title: "Deploy: Co-op Cloud"
     description: Deploy as a standardized recipe for cooperative hosting collectives.
-    href: /docs/deploy-coopcloud
-  - title: Admin Guide
-    description: Manage volunteers, shifts, channels, ban lists, reports, and settings.
-    href: /docs/admin-guide
-  - title: Volunteer Guide
-    description: Log in, receive calls, respond to messages, write notes, and use transcription.
-    href: /docs/volunteer-guide
-  - title: Reporter Guide
-    description: Submit encrypted reports and track their status.
-    href: /docs/reporter-guide
+    href: /docs/deploy/coopcloud
+  - title: Guides
+    description: Browse guides by audience and topic — operators, staff, and callers.
+    href: /docs/guides/
   - title: Telephony Providers
     description: Compare supported telephony providers and choose the best fit for your hotline.
-    href: /docs/telephony-providers
+    href: /docs/deploy/providers/
   - title: "Setup: SMS"
     description: Enable inbound/outbound SMS messaging via your telephony provider.
-    href: /docs/setup-sms
+    href: /docs/deploy/providers/sms
   - title: "Setup: WhatsApp"
     description: Connect WhatsApp Business via the Meta Cloud API.
-    href: /docs/setup-whatsapp
+    href: /docs/deploy/providers/whatsapp
   - title: "Setup: Signal"
     description: Set up the Signal channel via the signal-cli bridge.
-    href: /docs/setup-signal
+    href: /docs/deploy/providers/signal
   - title: "Setup: Twilio"
     description: Step-by-step guide to configure Twilio as your telephony provider.
-    href: /docs/setup-twilio
+    href: /docs/deploy/providers/twilio
   - title: "Setup: SignalWire"
     description: Step-by-step guide to configure SignalWire as your telephony provider.
-    href: /docs/setup-signalwire
+    href: /docs/deploy/providers/signalwire
   - title: "Setup: Vonage"
     description: Step-by-step guide to configure Vonage as your telephony provider.
-    href: /docs/setup-vonage
+    href: /docs/deploy/providers/vonage
   - title: "Setup: Plivo"
     description: Step-by-step guide to configure Plivo as your telephony provider.
-    href: /docs/setup-plivo
+    href: /docs/deploy/providers/plivo
   - title: "Setup: Asterisk (Self-Hosted)"
     description: Deploy Asterisk with the ARI bridge for maximum privacy and control.
-    href: /docs/setup-asterisk
+    href: /docs/deploy/providers/asterisk
   - title: WebRTC Browser Calling
     description: Enable in-browser call answering for volunteers using WebRTC.
-    href: /docs/webrtc-calling
+    href: /docs/deploy/providers/webrtc
   - title: Security Model
     description: Understand what's encrypted, what isn't, and the threat model.
     href: /security

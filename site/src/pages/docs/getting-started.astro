@@ -1,12 +1,14 @@
 ---
-import DocsLayout from '../../layouts/DocsLayout.astro';
-import { getEntry, render } from 'astro:content';
-
-const entry = (await getEntry('docs', 'en/getting-started'))!;
-const { Content } = await render(entry);
+// 301 redirect: /docs/getting-started -> /docs/deploy/
 ---
 
-<DocsLayout title={entry.data.title}>
-  <h1>{entry.data.title}</h1>
-  <Content />
-</DocsLayout>
+<html>
+  <head>
+    <meta http-equiv="refresh" content="0;url=/docs/deploy/" />
+    <link rel="canonical" href="/docs/deploy/" />
+    <title>Redirecting...</title>
+  </head>
+  <body>
+    <p>This page has moved. <a href="/docs/deploy/">Click here</a> if you are not redirected.</p>
+  </body>
+</html>
