@@ -1,7 +1,7 @@
 # Llamenos Security Documentation
 
 **Last Updated:** 2026-04-01
-**Protocol Version:** 2.0
+**Protocol Version:** 3.0
 **Audit Status:** Round 6 complete (2026-02-23)
 
 This directory contains security documentation for Llamenos, a crisis response hotline designed to protect volunteer and caller identity against well-funded adversaries.
