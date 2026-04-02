@@ -69,8 +69,9 @@ flowchart TD
 - **WebRTC browser calling** — volunteers can answer calls directly in the browser
 - **Automated shift scheduling** — recurring schedules with fallback ring groups
 - **Call spam mitigation** — real-time ban lists, voice CAPTCHA, rate limiting
-- **AI transcription** — self-hosted Whisper, E2EE with dual-key encryption
+- **Client-side transcription** — WASM Whisper via ONNX runtime, audio never leaves the browser
 - **Voicemail** — automatic fallback when no volunteers are available
+- **Reproducible builds** — deterministic Docker builds with SLSA provenance and checksum verification
 
 ### Multi-Channel Messaging
 - **SMS** — inbound/outbound SMS via Twilio, SignalWire, Vonage, or Plivo
@@ -78,12 +79,19 @@ flowchart TD
 - **Signal** — via signal-cli-rest-api bridge with voice message transcription
 - **Threaded conversations** — all messaging channels flow into a unified conversation view with message bubbles, timestamps, and direction indicators
 - **Real-time updates** — new messages and conversations appear instantly via WebSocket
+- **E2EE messaging** — per-message envelope encryption; server never sees plaintext
 
 ### Encrypted Notes & Reports
 - **End-to-end encrypted notes** — the server never sees plaintext
 - **Custom note fields** — admin-configurable fields (text, number, select, checkbox)
 - **Reporter role** — dedicated portal for submitting encrypted reports with file attachments
 - **Report workflow** — categories, status tracking (open/claimed/resolved), threaded replies
+
+### Contact Directory
+- **E2EE contact records** — organizations, individuals, and relationships with encrypted fields
+- **PBAC (policy-based access control)** — team-scoped visibility and granular permissions
+- **Tags and intake forms** — categorize contacts and capture structured data
+- **Bulk operations** — import, export, and batch updates with encryption
 
 ### Volunteer Experience
 - **Command palette** — Ctrl/Cmd+K for quick navigation, search, and one-click note creation
@@ -148,7 +156,7 @@ Runs at http://localhost:8000 with plain HTTP.
 
 Caddy auto-provisions TLS certificates via Let's Encrypt. The `--domain` flag activates the production Docker Compose overlay (`docker-compose.production.yml`) which adds TLS termination, log rotation, and resource limits.
 
-**Core services:** app, PostgreSQL, Caddy (reverse proxy), MinIO (file storage), strfry (Nostr relay).
+**Core services:** app, PostgreSQL, Caddy (reverse proxy), RustFS (S3-compatible blob storage), strfry (Nostr relay), Authentik (authentik-server + authentik-worker, IdP/OIDC).
 
 **Optional profiles:**
 
@@ -169,8 +177,8 @@ See the full [self-hosting guide](https://llamenos-hotline.com/docs/self-hosting
 
 ```bash
 helm install llamenos deploy/helm/llamenos/ \
-  --set secrets.minioAccessKey=your-access-key \
-  --set secrets.minioSecretKey=your-secret-key \
+  --set secrets.storageAccessKey=your-access-key \
+  --set secrets.storageSecretKey=your-secret-key \
   --set ingress.hosts[0].host=hotline.yourdomain.com
 ```
 
@@ -233,7 +241,8 @@ src/
     services/      # PostgreSQL-backed business logic services
     telephony/     # Voice provider adapters (Twilio, SignalWire, Vonage, Plivo, Asterisk)
     messaging/     # Messaging channel adapters (SMS, WhatsApp, Signal)
-    routes/        # API route handlers
+    idp/           # Identity provider adapter interface + Authentik implementation
+    routes/        # API route handlers (includes auth-facade.ts for /api/auth/*)
     db/            # Drizzle ORM schema + migrations
     lib/           # Server utilities (auth, crypto, webauthn)
   shared/          # Code shared between client and server
@@ -250,7 +259,7 @@ site/              # Marketing site (Astro + Tailwind, Cloudflare Pages)
 ### Security model
 
 - **Self-hosted by design** — all data stays on your infrastructure
-- **Authentication**: Nostr keypairs (BIP-340 Schnorr) + WebAuthn passkeys
+- **Authentication**: JWT + Authentik IdP (OIDC) + multi-factor KEK + WebAuthn passkeys
 - **Local key protection**: PIN-encrypted key store (PBKDF2 600K iterations + XChaCha20-Poly1305); raw nsec never in sessionStorage — in-memory closure only, zeroed on lock
 - **Note encryption**: Per-note forward secrecy — each note encrypted with a unique random key, wrapped via ECIES for each authorized reader
 - **Transcription encryption**: ECIES (ephemeral ECDH + XChaCha20-Poly1305) dual-key
@@ -275,7 +284,7 @@ Requires [Bun](https://bun.sh/) and [Docker](https://docs.docker.com/get-docker/
 
 ```bash
 bun install
-bun run dev:docker   # Start backing services (postgres, rustfs, strfry)
+bun run dev:docker   # Start backing services (postgres, rustfs, strfry, authentik)
 bun run migrate      # Apply database migrations
 bun run dev          # Vite dev server (frontend)
 bun run dev:server   # Bun watch server (backend, localhost:3000)
