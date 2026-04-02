@@ -856,7 +856,7 @@ docker compose exec app curl -v http://localhost:3000/api/health
 docker compose exec postgres pg_isready -U llamenos
 
 # If RustFS is failing
-curl -sf http://localhost:9002/minio/health/live
+curl -sf http://localhost:9002/health
 
 # If Authentik is failing
 curl -sf http://localhost:9000/idp/-/health/ready/
