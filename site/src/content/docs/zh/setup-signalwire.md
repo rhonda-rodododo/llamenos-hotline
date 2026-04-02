@@ -33,8 +33,8 @@ SignalWire 是 Twilio 的一个经济实惠的替代方案，具有兼容的 API
 2. 点击您的热线号码
 3. 在 **Voice Settings** 下，设置：
    - **Handle calls using**：LaML Webhooks
-   - **When a call comes in**：`https://your-worker-url.com/telephony/incoming`（POST）
-   - **Call status callback**：`https://your-worker-url.com/telephony/status`（POST）
+   - **When a call comes in**：`https://your-domain.com/telephony/incoming`（POST）
+   - **Call status callback**：`https://your-domain.com/telephony/status`（POST）
 
 ## 5. 在 Llamenos 中配置
 
@@ -59,7 +59,7 @@ SignalWire WebRTC 使用与 Twilio 相同的 API Key 模式：
 1. 在 SignalWire 仪表板中，在 **API** > **Tokens** 下创建一个 **API Key**
 2. 创建一个 **LaML Application**：
    - 转到 **LaML** > **LaML Applications**
-   - 将 Voice URL 设置为 `https://your-worker-url.com/telephony/webrtc-incoming`
+   - 将 Voice URL 设置为 `https://your-domain.com/telephony/webrtc-incoming`
    - 记录 Application SID
 3. 在 Llamenos 中，转到**设置** > **电话服务提供商**
 4. 开启 **WebRTC 通话**

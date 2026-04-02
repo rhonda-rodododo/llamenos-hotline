@@ -28,8 +28,8 @@ Plivo sử dụng "XML Applications" để định tuyến cuộc gọi:
 2. Nhấn **Add New Application**
 3. Cấu hình:
    - **Application Name**: Llamenos Hotline
-   - **Answer URL**: `https://your-worker-url.com/telephony/incoming` (POST)
-   - **Hangup URL**: `https://your-worker-url.com/telephony/status` (POST)
+   - **Answer URL**: `https://your-domain.com/telephony/incoming` (POST)
+   - **Hangup URL**: `https://your-domain.com/telephony/status` (POST)
 4. Lưu ứng dụng
 
 ## 4. Liên kết số điện thoại

@@ -10,7 +10,7 @@ Llamenos soporta mensajeria Signal a traves de un bridge [signal-cli-rest-api](h
 - Un servidor Linux o VM para el bridge (puede ser el mismo servidor que Asterisk, o separado)
 - Docker instalado en el servidor del bridge
 - Un numero de telefono dedicado para el registro en Signal
-- Acceso de red desde el bridge a tu Cloudflare Worker
+- Acceso de red desde el bridge a tu servidor Llamenos
 
 ## Arquitectura
 
@@ -18,10 +18,10 @@ Llamenos soporta mensajeria Signal a traves de un bridge [signal-cli-rest-api](h
 flowchart LR
     User["Usuario Signal"] --> Servers["Servidores Signal"]
     Servers --> Bridge["Bridge signal-cli<br/>(autoalojado)"]
-    Bridge --> Worker["Worker Llamenos<br/>(Cloudflare)"]
+    Bridge --> Worker["Servidor Llamenos"]
 ```
 
-El bridge signal-cli se ejecuta en tu infraestructura y reenvia mensajes a tu Worker via webhooks HTTP. Esto significa que controlas toda la ruta del mensaje desde Signal hasta tu aplicacion.
+El bridge signal-cli se ejecuta en tu infraestructura y reenvia mensajes a tu servidor Llamenos via webhooks HTTP. Esto significa que controlas toda la ruta del mensaje desde Signal hasta tu aplicacion.
 
 ## 1. Desplegar el bridge signal-cli
 
@@ -51,14 +51,14 @@ curl -X POST http://localhost:8080/v1/register/+1234567890/verify/123456
 
 ## 3. Configurar el reenvio de webhooks
 
-Configura el bridge para reenviar mensajes entrantes a tu Worker:
+Configura el bridge para reenviar mensajes entrantes a tu servidor Llamenos:
 
 ```bash
 curl -X PUT http://localhost:8080/v1/about \
   -H "Content-Type: application/json" \
   -d '{
     "webhook": {
-      "url": "https://tu-worker.tu-dominio.com/api/messaging/signal/webhook",
+      "url": "https://tu-dominio.com/api/messaging/signal/webhook",
       "headers": {
         "Authorization": "Bearer tu-secreto-de-webhook"
       }

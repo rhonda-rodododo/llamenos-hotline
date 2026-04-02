@@ -35,10 +35,10 @@ Navigieren Sie in der Twilio-Konsole zur Konfiguration Ihrer Telefonnummer:
 1. Gehen Sie zu **Phone Numbers** > **Manage** > **Active Numbers**
 2. Klicken Sie auf Ihre Hotline-Nummer
 3. Unter **Voice Configuration** setzen Sie:
-   - **A call comes in**: Webhook, `https://your-worker-url.com/telephony/incoming`, HTTP POST
-   - **Call status changes**: `https://your-worker-url.com/telephony/status`, HTTP POST
+   - **A call comes in**: Webhook, `https://your-domain.com/telephony/incoming`, HTTP POST
+   - **Call status changes**: `https://your-domain.com/telephony/status`, HTTP POST
 
-Ersetzen Sie `your-worker-url.com` durch Ihre tatsaechliche Cloudflare Worker URL.
+Ersetzen Sie `your-domain.com` durch Ihre tatsaechliche Llamenos server URL.
 
 ## 5. In Llamenos konfigurieren
 
@@ -70,7 +70,7 @@ Um Freiwilligen zu ermoeglichen, Anrufe in ihrem Browser statt auf ihrem Telefon
 
 1. Gehen Sie zu **Voice** > **Manage** > **TwiML Apps**
 2. Klicken Sie auf **Create new TwiML App**
-3. Setzen Sie die **Voice Request URL** auf `https://your-worker-url.com/telephony/webrtc-incoming`
+3. Setzen Sie die **Voice Request URL** auf `https://your-domain.com/telephony/webrtc-incoming`
 4. Speichern Sie und notieren Sie die **App SID**
 
 ### In Llamenos aktivieren

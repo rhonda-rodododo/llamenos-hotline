@@ -48,7 +48,7 @@ In the Meta developer dashboard:
 1. Go to WhatsApp > Configuration > Webhook
 2. Set the Callback URL to:
    ```
-   https://your-worker.your-domain.com/api/messaging/whatsapp/webhook
+   https://your-domain.com/api/messaging/whatsapp/webhook
    ```
 3. Set the Verify Token to the same string you'll enter in Llamenos admin settings
 4. Subscribe to the `messages` webhook field

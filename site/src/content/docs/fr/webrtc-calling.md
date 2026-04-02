@@ -36,7 +36,7 @@ Chaque fournisseur de telephonie necessite des identifiants differents pour WebR
 ### Twilio / SignalWire
 
 1. Creez une **cle API** dans la console du fournisseur
-2. Creez une **application TwiML/LaML** avec le Voice URL defini sur `https://your-worker-url.com/telephony/webrtc-incoming`
+2. Creez une **application TwiML/LaML** avec le Voice URL defini sur `https://your-domain.com/telephony/webrtc-incoming`
 3. Dans Llamenos, saisissez le API Key SID, le API Key Secret et le Application SID
 
 ### Vonage

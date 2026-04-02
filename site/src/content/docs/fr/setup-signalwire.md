@@ -33,8 +33,8 @@ Inscrivez-vous sur [signalwire.com/signup](https://signalwire.com/signup). Lors 
 2. Cliquez sur votre numero de ligne
 3. Sous **Voice Settings**, definissez :
    - **Handle calls using** : LaML Webhooks
-   - **When a call comes in** : `https://your-worker-url.com/telephony/incoming` (POST)
-   - **Call status callback** : `https://your-worker-url.com/telephony/status` (POST)
+   - **When a call comes in** : `https://your-domain.com/telephony/incoming` (POST)
+   - **Call status callback** : `https://your-domain.com/telephony/status` (POST)
 
 ## 5. Configurer dans Llamenos
 
@@ -59,7 +59,7 @@ SignalWire WebRTC utilise le meme schema de cle API que Twilio :
 1. Dans votre tableau de bord SignalWire, creez une **cle API** sous **API** > **Tokens**
 2. Creez une **application LaML** :
    - Allez dans **LaML** > **LaML Applications**
-   - Definissez le Voice URL sur `https://your-worker-url.com/telephony/webrtc-incoming`
+   - Definissez le Voice URL sur `https://your-domain.com/telephony/webrtc-incoming`
    - Notez le Application SID
 3. Dans Llamenos, allez dans **Parametres** > **Fournisseur de telephonie**
 4. Activez **Appels WebRTC**

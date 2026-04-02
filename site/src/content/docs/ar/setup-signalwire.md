@@ -33,8 +33,8 @@ SignalWire هو بديل فعال من حيث التكلفة لـ Twilio مع و
 2. انقر على رقم خط الطوارئ الخاص بك
 3. ضمن **Voice Settings**، عيّن:
    - **Handle calls using**: LaML Webhooks
-   - **When a call comes in**: `https://your-worker-url.com/telephony/incoming` (POST)
-   - **Call status callback**: `https://your-worker-url.com/telephony/status` (POST)
+   - **When a call comes in**: `https://your-domain.com/telephony/incoming` (POST)
+   - **Call status callback**: `https://your-domain.com/telephony/status` (POST)
 
 ## 5. التكوين في Llamenos
 
@@ -59,7 +59,7 @@ SignalWire هو بديل فعال من حيث التكلفة لـ Twilio مع و
 1. في لوحة تحكم SignalWire، أنشئ **API Key** ضمن **API** > **Tokens**
 2. أنشئ **تطبيق LaML**:
    - انتقل إلى **LaML** > **LaML Applications**
-   - عيّن Voice URL إلى `https://your-worker-url.com/telephony/webrtc-incoming`
+   - عيّن Voice URL إلى `https://your-domain.com/telephony/webrtc-incoming`
    - لاحظ Application SID
 3. في Llamenos، انتقل إلى **الإعدادات** > **مزود خدمة الاتصالات**
 4. فعّل **الاتصال عبر WebRTC**

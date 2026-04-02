@@ -40,17 +40,21 @@ guides:
 
 ## نظرة عامة على البنية
 
-Llamenos هو تطبيق صفحة واحدة (SPA) مدعوم بـ Cloudflare Workers و Durable Objects. لا توجد خوادم تقليدية تحتاج إلى إدارتها.
+Llamenos هو تطبيق صفحة واحدة (SPA) مستضاف ذاتياً، يُنشر عبر **Docker Compose** أو **Kubernetes**. يدعم المكالمات الصوتية والرسائل النصية وWhatsApp وSignal — الكل يُوجَّه إلى الموظفين المناوبين عبر واجهة موحدة.
 
 | المكوّن | التقنية |
 |---|---|
 | الواجهة الأمامية | Vite + React + TanStack Router |
-| الواجهة الخلفية | Cloudflare Workers + Durable Objects |
-| الاتصالات الهاتفية | Twilio أو SignalWire أو Vonage أو Plivo أو Asterisk (عبر واجهة TelephonyAdapter) |
-| المصادقة | مفاتيح Nostr (BIP-340 Schnorr) + WebAuthn |
-| التشفير | ECIES (secp256k1 + XChaCha20-Poly1305) |
-| النسخ التلقائي | Whisper من جانب العميل (WASM) |
-| تعدد اللغات | i18next (أكثر من 12 لغة) |
+| الواجهة الخلفية | Bun + Hono + PostgreSQL |
+| التخزين | RustFS (متوافق مع S3) |
+| مزود الهوية | Authentik (OIDC مستضاف ذاتياً) |
+| الاتصالات الهاتفية | Twilio أو SignalWire أو Vonage أو Plivo أو Asterisk |
+| المراسلة | SMS، WhatsApp Business، Signal |
+| المصادقة | JWT + KEK متعدد العوامل + مفاتيح WebAuthn |
+| التشفير | ECIES (secp256k1 + XChaCha20-Poly1305)، 3 مستويات |
+| النسخ التلقائي | Whisper من جانب العميل (WASM) — الصوت لا يغادر المتصفح أبداً |
+| الوقت الفعلي | مُرحّل Nostr (strfry) |
+| تعدد اللغات | i18next (13 لغة) |
 
 ## الأدوار
 

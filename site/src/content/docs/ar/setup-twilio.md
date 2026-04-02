@@ -35,10 +35,10 @@ Twilio هو مزود خدمة الاتصالات الافتراضي لـ Llameno
 1. انتقل إلى **Phone Numbers** > **Manage** > **Active Numbers**
 2. انقر على رقم خط الطوارئ الخاص بك
 3. ضمن **Voice Configuration**، عيّن:
-   - **A call comes in**: Webhook، `https://your-worker-url.com/telephony/incoming`، HTTP POST
-   - **Call status changes**: `https://your-worker-url.com/telephony/status`، HTTP POST
+   - **A call comes in**: Webhook، `https://your-domain.com/telephony/incoming`، HTTP POST
+   - **Call status changes**: `https://your-domain.com/telephony/status`، HTTP POST
 
-استبدل `your-worker-url.com` بعنوان URL الفعلي لـ Cloudflare Worker الخاص بك.
+استبدل `your-domain.com` بعنوان URL الفعلي لـ Llamenos server الخاص بك.
 
 ## 5. التكوين في Llamenos
 
@@ -70,7 +70,7 @@ Twilio هو مزود خدمة الاتصالات الافتراضي لـ Llameno
 
 1. انتقل إلى **Voice** > **Manage** > **TwiML Apps**
 2. انقر على **Create new TwiML App**
-3. عيّن **Voice Request URL** إلى `https://your-worker-url.com/telephony/webrtc-incoming`
+3. عيّن **Voice Request URL** إلى `https://your-domain.com/telephony/webrtc-incoming`
 4. احفظ ولاحظ **App SID**
 
 ### التفعيل في Llamenos

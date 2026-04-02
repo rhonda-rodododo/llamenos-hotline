@@ -36,7 +36,7 @@ WebRTC (Web Real-Time Communication) वॉलंटियर्स को स�
 ### Twilio / SignalWire
 
 1. प्रदाता कंसोल में एक **API Key** बनाएँ
-2. एक **TwiML/LaML Application** बनाएँ जिसमें Voice URL `https://your-worker-url.com/telephony/webrtc-incoming` पर सेट हो
+2. एक **TwiML/LaML Application** बनाएँ जिसमें Voice URL `https://your-domain.com/telephony/webrtc-incoming` पर सेट हो
 3. Llamenos में, API Key SID, API Key Secret, और Application SID दर्ज करें
 
 ### Vonage

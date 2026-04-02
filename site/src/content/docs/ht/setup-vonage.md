@@ -27,8 +27,8 @@ Vonage regwoupe konfigirasyon nan "Applications":
 1. Ale nan **Applications** > **Create a new application**
 2. Antre yon non (pa egzanp, "Llamenos Hotline")
 3. Anba **Voice**, aktive li epi mete:
-   - **Answer URL**: `https://your-worker-url.com/telephony/incoming` (POST)
-   - **Event URL**: `https://your-worker-url.com/telephony/status` (POST)
+   - **Answer URL**: `https://your-domain.com/telephony/incoming` (POST)
+   - **Event URL**: `https://your-domain.com/telephony/status` (POST)
 4. Klike sou **Generate new application**
 5. Sere **Application ID** ki parèt sou paj konfimasyon an
 6. Telechaje fichye **private key** a -- w ap bezwen kontni li pou konfigirasyon

@@ -28,8 +28,8 @@ Plivo verwendet "XML-Anwendungen" zur Anrufweiterleitung:
 2. Klicken Sie auf **Add New Application**
 3. Konfigurieren Sie:
    - **Application Name**: Llamenos Hotline
-   - **Answer URL**: `https://your-worker-url.com/telephony/incoming` (POST)
-   - **Hangup URL**: `https://your-worker-url.com/telephony/status` (POST)
+   - **Answer URL**: `https://your-domain.com/telephony/incoming` (POST)
+   - **Hangup URL**: `https://your-domain.com/telephony/status` (POST)
 4. Speichern Sie die Anwendung
 
 ## 4. Telefonnummer verknuepfen

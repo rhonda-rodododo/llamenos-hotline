@@ -40,17 +40,21 @@ guides:
 
 ## आर्किटेक्चर अवलोकन
 
-Llamenos एक सिंगल-पेज एप्लिकेशन (SPA) है जो Cloudflare Workers और Durable Objects द्वारा समर्थित है। प्रबंधित करने के लिए कोई पारंपरिक सर्वर नहीं है।
+Llamenos एक सेल्फ़-होस्टेड सिंगल-पेज एप्लिकेशन (SPA) है जो **Docker Compose** या **Kubernetes** के माध्यम से तैनात किया जाता है। यह वॉइस कॉल, SMS, WhatsApp और Signal का समर्थन करता है — सभी एक एकीकृत इंटरफ़ेस के माध्यम से ड्यूटी पर मौजूद कर्मचारियों को रूट किया जाता है।
 
 | घटक | तकनीक |
 |---|---|
 | फ्रंटएंड | Vite + React + TanStack Router |
-| बैकएंड | Cloudflare Workers + Durable Objects |
-| टेलीफ़ोनी | Twilio, SignalWire, Vonage, Plivo, या Asterisk (TelephonyAdapter इंटरफ़ेस के माध्यम से) |
-| प्रमाणीकरण | Nostr कीपेयर (BIP-340 Schnorr) + WebAuthn |
-| एन्क्रिप्शन | ECIES (secp256k1 + XChaCha20-Poly1305) |
-| ट्रांसक्रिप्शन | क्लाइंट-साइड Whisper (WASM) |
-| बहुभाषा समर्थन | i18next (12+ भाषाएँ) |
+| बैकएंड | Bun + Hono + PostgreSQL |
+| स्टोरेज | RustFS (S3-संगत) |
+| पहचान प्रदाता | Authentik (सेल्फ़-होस्टेड OIDC) |
+| टेलीफ़ोनी | Twilio, SignalWire, Vonage, Plivo, या Asterisk |
+| मैसेजिंग | SMS, WhatsApp Business, Signal |
+| प्रमाणीकरण | JWT + मल्टी-फ़ैक्टर KEK + WebAuthn पासकी |
+| एन्क्रिप्शन | ECIES (secp256k1 + XChaCha20-Poly1305), 3 स्तर |
+| ट्रांसक्रिप्शन | क्लाइंट-साइड Whisper (WASM) — ऑडियो कभी ब्राउज़र नहीं छोड़ता |
+| रियल-टाइम | Nostr रिले (strfry) |
+| बहुभाषा समर्थन | i18next (13 भाषाएँ) |
 
 ## भूमिकाएँ
 

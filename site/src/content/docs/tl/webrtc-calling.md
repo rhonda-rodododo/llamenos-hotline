@@ -36,7 +36,7 @@ Nangangailangan ang bawat telephony provider ng iba-ibang mga kredensyal para sa
 ### Twilio / SignalWire
 
 1. Lumikha ng **API Key** sa provider console
-2. Lumikha ng **TwiML/LaML Application** na may Voice URL na nakatakda sa `https://your-worker-url.com/telephony/webrtc-incoming`
+2. Lumikha ng **TwiML/LaML Application** na may Voice URL na nakatakda sa `https://your-domain.com/telephony/webrtc-incoming`
 3. Sa Llamenos, ilagay ang API Key SID, API Key Secret, at Application SID
 
 ### Vonage

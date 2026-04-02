@@ -35,10 +35,10 @@ Twilio Console에서 전화번호 구성으로 이동합니다:
 1. **Phone Numbers** > **Manage** > **Active Numbers**로 이동
 2. 핫라인 번호 클릭
 3. **Voice Configuration** 아래에서 설정:
-   - **A call comes in**: Webhook, `https://your-worker-url.com/telephony/incoming`, HTTP POST
-   - **Call status changes**: `https://your-worker-url.com/telephony/status`, HTTP POST
+   - **A call comes in**: Webhook, `https://your-domain.com/telephony/incoming`, HTTP POST
+   - **Call status changes**: `https://your-domain.com/telephony/status`, HTTP POST
 
-`your-worker-url.com`을 실제 Cloudflare Worker URL로 교체하세요.
+`your-domain.com`을 실제 Llamenos server URL로 교체하세요.
 
 ## 5. Llamenos에서 구성
 
@@ -70,7 +70,7 @@ Twilio Console에서 전화번호 구성으로 이동합니다:
 
 1. **Voice** > **Manage** > **TwiML Apps**로 이동
 2. **Create new TwiML App** 클릭
-3. **Voice Request URL**을 `https://your-worker-url.com/telephony/webrtc-incoming`으로 설정
+3. **Voice Request URL**을 `https://your-domain.com/telephony/webrtc-incoming`으로 설정
 4. 저장하고 **App SID** 기록
 
 ### Llamenos에서 활성화

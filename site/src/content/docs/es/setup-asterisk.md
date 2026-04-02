@@ -130,7 +130,7 @@ exten => _X.,1,NoOp(Llamada saliente a ${EXTEN})
 
 ## 5. Desplegar el servicio bridge ARI
 
-El bridge ARI es un servicio pequeno que traduce entre los webhooks de Llamenos y los eventos ARI. Se ejecuta junto a Asterisk y se conecta tanto al WebSocket de ARI como a tu Worker de Llamenos.
+El bridge ARI es un servicio pequeno que traduce entre los webhooks de Llamenos y los eventos ARI. Se ejecuta junto a Asterisk y se conecta tanto al WebSocket de ARI como a tu servidor Llamenos de Llamenos.
 
 ```bash
 # El servicio bridge esta incluido en el repositorio de Llamenos
@@ -141,7 +141,7 @@ bun run build:ari-bridge
 ASTERISK_ARI_URL=https://tu-servidor-asterisk:8089/ari \
 ASTERISK_ARI_USERNAME=llamenos \
 ASTERISK_ARI_PASSWORD=tu-contrasena-ari-segura \
-LLAMENOS_CALLBACK_URL=https://tu-url-del-worker.com/telephony \
+LLAMENOS_CALLBACK_URL=https://tu-dominio.com/telephony \
 bun run ari-bridge
 ```
 
@@ -153,7 +153,7 @@ docker run -d \
   -e ASTERISK_ARI_URL=https://tu-servidor-asterisk:8089/ari \
   -e ASTERISK_ARI_USERNAME=llamenos \
   -e ASTERISK_ARI_PASSWORD=tu-contrasena-ari-segura \
-  -e LLAMENOS_CALLBACK_URL=https://tu-url-del-worker.com/telephony \
+  -e LLAMENOS_CALLBACK_URL=https://tu-dominio.com/telephony \
   llamenos/ari-bridge
 ```
 
@@ -238,5 +238,5 @@ La configuracion de WebRTC con Asterisk es mas compleja que con proveedores en l
 - **Conexion ARI rechazada**: Verifica que `http.conf` tenga `enabled=yes` y que la direccion de enlace sea correcta.
 - **Sin audio**: Verifica que los puertos RTP (10000-20000/udp) esten abiertos en tu firewall y que el NAT este configurado correctamente.
 - **Fallos en el registro SIP**: Verifica las credenciales de tu trunk SIP y que el DNS resuelva el servidor SIP de tu proveedor.
-- **El bridge no se conecta**: Verifica que el bridge ARI pueda alcanzar tanto el endpoint ARI de Asterisk como la URL de tu Worker de Llamenos.
+- **El bridge no se conecta**: Verifica que el bridge ARI pueda alcanzar tanto el endpoint ARI de Asterisk como la URL de tu servidor Llamenos de Llamenos.
 - **Problemas de calidad de llamada**: Asegurate de que tu servidor tenga suficiente ancho de banda y baja latencia hacia el proveedor de trunk SIP. Considera los codecs (opus para WebRTC, ulaw/alaw para la red telefonica).

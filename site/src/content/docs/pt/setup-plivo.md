@@ -28,8 +28,8 @@ O Plivo usa "Aplicacoes XML" para encaminhar chamadas:
 2. Clique em **Add New Application**
 3. Configure:
    - **Application Name**: Llamenos Hotline
-   - **Answer URL**: `https://your-worker-url.com/telephony/incoming` (POST)
-   - **Hangup URL**: `https://your-worker-url.com/telephony/status` (POST)
+   - **Answer URL**: `https://your-domain.com/telephony/incoming` (POST)
+   - **Hangup URL**: `https://your-domain.com/telephony/status` (POST)
 4. Salve a aplicacao
 
 ## 4. Vincular o numero de telefone

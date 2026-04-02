@@ -36,7 +36,7 @@ description: تمكين المتطوعين من الرد على المكالما
 ### Twilio / SignalWire
 
 1. أنشئ **API Key** في لوحة تحكم المزود
-2. أنشئ **تطبيق TwiML/LaML** مع تعيين Voice URL إلى `https://your-worker-url.com/telephony/webrtc-incoming`
+2. أنشئ **تطبيق TwiML/LaML** مع تعيين Voice URL إلى `https://your-domain.com/telephony/webrtc-incoming`
 3. في Llamenos، أدخل API Key SID و API Key Secret و Application SID
 
 ### Vonage

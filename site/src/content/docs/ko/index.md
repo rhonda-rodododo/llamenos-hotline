@@ -40,17 +40,21 @@ guides:
 
 ## 아키텍처 개요
 
-Llamenos는 Cloudflare Workers와 Durable Objects를 기반으로 하는 단일 페이지 애플리케이션(SPA)입니다. 전통적인 서버를 관리할 필요가 없습니다.
+Llamenos는 **Docker Compose** 또는 **Kubernetes**를 통해 배포되는 자체 호스팅 단일 페이지 애플리케이션(SPA)입니다. 음성 통화, SMS, WhatsApp, Signal을 지원하며 — 모두 통합 인터페이스를 통해 근무 중인 직원에게 라우팅됩니다.
 
 | 구성 요소 | 기술 |
 |---|---|
 | 프론트엔드 | Vite + React + TanStack Router |
-| 백엔드 | Cloudflare Workers + Durable Objects |
-| 전화 서비스 | Twilio, SignalWire, Vonage, Plivo 또는 Asterisk (TelephonyAdapter 인터페이스를 통해) |
-| 인증 | Nostr 키 쌍 (BIP-340 Schnorr) + WebAuthn |
-| 암호화 | ECIES (secp256k1 + XChaCha20-Poly1305) |
-| 음성 변환 | 클라이언트측 Whisper (WASM) |
-| 국제화 | i18next (12개 이상의 언어) |
+| 백엔드 | Bun + Hono + PostgreSQL |
+| 저장소 | RustFS (S3 호환) |
+| ID 공급자 | Authentik (자체 호스팅 OIDC) |
+| 전화 서비스 | Twilio, SignalWire, Vonage, Plivo 또는 Asterisk |
+| 메시징 | SMS, WhatsApp Business, Signal |
+| 인증 | JWT + 다중 요소 KEK + WebAuthn 패스키 |
+| 암호화 | ECIES (secp256k1 + XChaCha20-Poly1305), 3단계 |
+| 음성 변환 | 클라이언트측 Whisper (WASM) — 오디오가 브라우저를 벗어나지 않음 |
+| 실시간 | Nostr 릴레이 (strfry) |
+| 국제화 | i18next (13개 언어) |
 
 ## 역할
 

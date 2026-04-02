@@ -25,10 +25,10 @@ Configura los ajustes de SMS:
 
 ## 2. Configurar el webhook
 
-Apunta el webhook de SMS de tu proveedor de telefonia a tu Worker:
+Apunta el webhook de SMS de tu proveedor de telefonia a tu servidor:
 
 ```
-POST https://tu-worker.tu-dominio.com/api/messaging/sms/webhook
+POST https://tu-dominio.com/api/messaging/sms/webhook
 ```
 
 ### Twilio / SignalWire
@@ -57,7 +57,7 @@ Envia un SMS al numero de telefono de tu linea. Deberas ver la conversacion apar
 
 ## Como funciona
 
-1. Un SMS llega a tu proveedor, que envia un webhook a tu Worker
+1. Un SMS llega a tu proveedor, que envia un webhook a tu servidor Llamenos
 2. El Worker valida la firma del webhook (HMAC especifico del proveedor)
 3. El mensaje se analiza y almacena en el ConversationDO
 4. Los voluntarios en turno son notificados via eventos del relay Nostr

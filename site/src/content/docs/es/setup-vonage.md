@@ -27,8 +27,8 @@ Vonage agrupa la configuracion en "Aplicaciones":
 1. Ve a **Applications** > **Create a new application**
 2. Ingresa un nombre (por ejemplo, "Linea Llamenos")
 3. En **Voice**, activalo y configura:
-   - **Answer URL**: `https://tu-url-del-worker.com/telephony/incoming` (POST)
-   - **Event URL**: `https://tu-url-del-worker.com/telephony/status` (POST)
+   - **Answer URL**: `https://tu-dominio.com/telephony/incoming` (POST)
+   - **Event URL**: `https://tu-dominio.com/telephony/status` (POST)
 4. Haz clic en **Generate new application**
 5. Guarda el **Application ID** que se muestra en la pagina de confirmacion
 6. Descarga el archivo de **clave privada** -- necesitaras su contenido para la configuracion

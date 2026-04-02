@@ -36,7 +36,7 @@ Chak founisè telefoni mande diferan idantifyan pou WebRTC:
 ### Twilio / SignalWire
 
 1. Kreye yon **API Key** nan konsòl founisè a
-2. Kreye yon **TwiML/LaML Application** ak Voice URL mete sou `https://your-worker-url.com/telephony/webrtc-incoming`
+2. Kreye yon **TwiML/LaML Application** ak Voice URL mete sou `https://your-domain.com/telephony/webrtc-incoming`
 3. Nan Llamenos, antre API Key SID, API Key Secret, ak Application SID
 
 ### Vonage

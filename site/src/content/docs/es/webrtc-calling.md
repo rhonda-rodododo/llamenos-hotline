@@ -36,7 +36,7 @@ Cada proveedor de telefonia requiere credenciales diferentes para WebRTC:
 ### Twilio / SignalWire
 
 1. Crea una **clave API** en la consola del proveedor
-2. Crea una **aplicacion TwiML/LaML** con la URL de voz configurada como `https://tu-url-del-worker.com/telephony/webrtc-incoming`
+2. Crea una **aplicacion TwiML/LaML** con la URL de voz configurada como `https://tu-dominio.com/telephony/webrtc-incoming`
 3. En Llamenos, ingresa el API Key SID, API Key Secret y Application SID
 
 ### Vonage

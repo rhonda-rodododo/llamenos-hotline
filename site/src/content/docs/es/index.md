@@ -64,19 +64,21 @@ guides:
 
 ## Arquitectura general
 
-Llamenos es una aplicacion de pagina unica (SPA) que puede ejecutarse en **Cloudflare Workers** o en tu propia infraestructura via **Docker Compose / Kubernetes**. Soporta llamadas de voz, SMS, WhatsApp y Signal — todo enrutado a voluntarios en turno a traves de una interfaz unificada.
+Llamenos es una aplicacion de pagina unica (SPA) autoalojada desplegada via **Docker Compose** o **Kubernetes**. Soporta llamadas de voz, SMS, WhatsApp y Signal — todo enrutado al personal en turno a traves de una interfaz unificada.
 
-| Componente | Cloudflare | Autoalojado |
-|---|---|---|
-| Frontend | Vite + React + TanStack Router | Igual |
-| Backend | Cloudflare Workers + 6 Durable Objects | Node.js + PostgreSQL |
-| Almacenamiento | R2 | RustFS (compatible con S3) |
-| Voz | Twilio, SignalWire, Vonage, Plivo o Asterisk | Igual |
-| Mensajeria | SMS, WhatsApp Business, Signal | Igual |
-| Autenticacion | Claves Nostr (BIP-340 Schnorr) + WebAuthn | Igual |
-| Cifrado | ECIES (secp256k1 + XChaCha20-Poly1305) | Igual |
-| Transcripcion | Whisper del lado del cliente (WASM) | Whisper del lado del cliente (WASM) |
-| i18n | i18next (13 idiomas) | Igual |
+| Componente | Tecnologia |
+|---|---|
+| Frontend | Vite + React + TanStack Router |
+| Backend | Bun + Hono + PostgreSQL |
+| Almacenamiento | RustFS (compatible con S3) |
+| Proveedor de identidad | Authentik (OIDC autoalojado) |
+| Voz | Twilio, SignalWire, Vonage, Plivo o Asterisk |
+| Mensajeria | SMS, WhatsApp Business, Signal |
+| Autenticacion | JWT + KEK multifactor + passkeys WebAuthn |
+| Cifrado | ECIES (secp256k1 + XChaCha20-Poly1305), 3 niveles |
+| Transcripcion | Whisper del lado del cliente (WASM) — el audio nunca sale del navegador |
+| Tiempo real | Relay Nostr (strfry) |
+| i18n | i18next (13 idiomas) |
 
 ## Roles
 

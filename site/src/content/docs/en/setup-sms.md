@@ -25,10 +25,10 @@ Configure the SMS settings:
 
 ## 2. Configure the webhook
 
-Point your telephony provider's SMS webhook to your Worker:
+Point your telephony provider's SMS webhook to your Llamenos server:
 
 ```
-POST https://your-worker.your-domain.com/api/messaging/sms/webhook
+POST https://your-domain.com/api/messaging/sms/webhook
 ```
 
 ### Twilio / SignalWire
@@ -57,7 +57,7 @@ Send an SMS to your hotline phone number. You should see the conversation appear
 
 ## How it works
 
-1. An SMS arrives at your provider, which sends a webhook to your Worker
+1. An SMS arrives at your provider, which sends a webhook to your Llamenos server
 2. The Worker validates the webhook signature (provider-specific HMAC)
 3. The message is parsed and stored in the ConversationDO
 4. On-shift volunteers are notified via Nostr relay events

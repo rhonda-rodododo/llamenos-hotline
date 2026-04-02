@@ -28,8 +28,8 @@ Plivo는 "XML Applications"를 사용하여 통화를 라우팅합니다:
 2. **Add New Application** 클릭
 3. 구성:
    - **Application Name**: Llamenos Hotline
-   - **Answer URL**: `https://your-worker-url.com/telephony/incoming` (POST)
-   - **Hangup URL**: `https://your-worker-url.com/telephony/status` (POST)
+   - **Answer URL**: `https://your-domain.com/telephony/incoming` (POST)
+   - **Hangup URL**: `https://your-domain.com/telephony/status` (POST)
 4. 애플리케이션 저장
 
 ## 4. 전화번호 연결

@@ -33,8 +33,8 @@ SignalWire là giải pháp thay thế tiết kiệm chi phí cho Twilio với A
 2. Nhấn vào số đường dây nóng
 3. Trong phần **Voice Settings**, thiết lập:
    - **Handle calls using**: LaML Webhooks
-   - **When a call comes in**: `https://your-worker-url.com/telephony/incoming` (POST)
-   - **Call status callback**: `https://your-worker-url.com/telephony/status` (POST)
+   - **When a call comes in**: `https://your-domain.com/telephony/incoming` (POST)
+   - **Call status callback**: `https://your-domain.com/telephony/status` (POST)
 
 ## 5. Cấu hình trong Llamenos
 
@@ -59,7 +59,7 @@ SignalWire WebRTC sử dụng cùng mẫu API Key như Twilio:
 1. Trong bảng điều khiển SignalWire, tạo **API Key** dưới **API** > **Tokens**
 2. Tạo một **LaML Application**:
    - Vào **LaML** > **LaML Applications**
-   - Đặt Voice URL thành `https://your-worker-url.com/telephony/webrtc-incoming`
+   - Đặt Voice URL thành `https://your-domain.com/telephony/webrtc-incoming`
    - Ghi lại Application SID
 3. Trong Llamenos, vào **Cài đặt** > **Nhà cung cấp dịch vụ điện thoại**
 4. Bật **Gọi WebRTC**

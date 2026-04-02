@@ -40,17 +40,21 @@ guides:
 
 ## Pangkalahatang-tanaw ng arkitektura
 
-Ang Llamenos ay isang single-page application (SPA) na sinusuportahan ng Cloudflare Workers at Durable Objects. Walang tradisyonal na mga server na kailangang pamahalaan.
+Ang Llamenos ay isang self-hosted single-page application (SPA) na dine-deploy sa pamamagitan ng **Docker Compose** o **Kubernetes**. Sinusuportahan nito ang voice calls, SMS, WhatsApp, at Signal — lahat ay nire-route sa on-shift na staff sa pamamagitan ng isang unified interface.
 
 | Bahagi | Teknolohiya |
 |---|---|
 | Frontend | Vite + React + TanStack Router |
-| Backend | Cloudflare Workers + Durable Objects |
-| Telephony | Twilio, SignalWire, Vonage, Plivo, o Asterisk (sa pamamagitan ng TelephonyAdapter interface) |
-| Auth | Nostr keypairs (BIP-340 Schnorr) + WebAuthn |
-| Encryption | ECIES (secp256k1 + XChaCha20-Poly1305) |
-| Transcription | Client-side Whisper (WASM) |
-| i18n | i18next (12+ na wika) |
+| Backend | Bun + Hono + PostgreSQL |
+| Storage | RustFS (S3-compatible) |
+| Identity Provider | Authentik (self-hosted OIDC) |
+| Telephony | Twilio, SignalWire, Vonage, Plivo, o Asterisk |
+| Messaging | SMS, WhatsApp Business, Signal |
+| Auth | JWT + multi-factor KEK + WebAuthn passkeys |
+| Encryption | ECIES (secp256k1 + XChaCha20-Poly1305), 3 tiers |
+| Transcription | Client-side Whisper (WASM) — hindi umaalis ang audio sa browser |
+| Real-time | Nostr relay (strfry) |
+| i18n | i18next (13 na wika) |
 
 ## Mga Tungkulin
 

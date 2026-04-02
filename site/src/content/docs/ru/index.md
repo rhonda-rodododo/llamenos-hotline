@@ -40,17 +40,21 @@ guides:
 
 ## Обзор архитектуры
 
-Llamenos — это одностраничное приложение (SPA), работающее на базе Cloudflare Workers и Durable Objects. Традиционные серверы для управления не требуются.
+Llamenos — это самостоятельно размещаемое одностраничное приложение (SPA), развёртываемое через **Docker Compose** или **Kubernetes**. Поддерживает голосовые вызовы, SMS, WhatsApp и Signal — всё маршрутизируется дежурному персоналу через единый интерфейс.
 
 | Компонент | Технология |
 |---|---|
 | Фронтенд | Vite + React + TanStack Router |
-| Бэкенд | Cloudflare Workers + Durable Objects |
-| Телефония | Twilio, SignalWire, Vonage, Plivo или Asterisk (через интерфейс TelephonyAdapter) |
-| Аутентификация | Ключевые пары Nostr (BIP-340 Schnorr) + WebAuthn |
-| Шифрование | ECIES (secp256k1 + XChaCha20-Poly1305) |
-| Транскрипция | Whisper на стороне клиента (WASM) |
-| Интернационализация | i18next (более 12 языков) |
+| Бэкенд | Bun + Hono + PostgreSQL |
+| Хранилище | RustFS (совместимо с S3) |
+| Поставщик идентификации | Authentik (самостоятельно размещаемый OIDC) |
+| Телефония | Twilio, SignalWire, Vonage, Plivo или Asterisk |
+| Сообщения | SMS, WhatsApp Business, Signal |
+| Аутентификация | JWT + многофакторный KEK + WebAuthn passkeys |
+| Шифрование | ECIES (secp256k1 + XChaCha20-Poly1305), 3 уровня |
+| Транскрипция | Whisper на стороне клиента (WASM) — аудио никогда не покидает браузер |
+| Реальное время | Nostr-реле (strfry) |
+| Интернационализация | i18next (13 языков) |
 
 ## Роли
 

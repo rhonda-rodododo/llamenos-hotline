@@ -40,20 +40,19 @@ O usa el script de configuracion, que maneja esto automaticamente:
 ./scripts/docker-setup.sh --domain linea.tuorg.com --email a@b    # produccion
 ```
 
-## Diferencias de arquitectura
+## Arquitectura
 
-Ambos objetivos de despliegue ejecutan **exactamente el mismo codigo de aplicacion**. La diferencia esta en la capa de infraestructura:
+Todas las opciones de despliegue ejecutan **exactamente el mismo codigo de aplicacion**. La diferencia esta en la capa de infraestructura:
 
-| Componente | Cloudflare | Autoalojado |
-|------------|------------|-------------|
-| **Runtime del backend** | Cloudflare Workers | Node.js (via Hono) |
-| **Almacenamiento de datos** | Durable Objects (KV) | PostgreSQL |
-| **Almacenamiento de archivos** | R2 | RustFS (compatible con S3) |
-| **Transcripcion** | Whisper del lado del cliente (WASM) | Whisper del lado del cliente (WASM) |
-| **Archivos estaticos** | Workers Assets | Caddy / Hono serveStatic |
-| **Eventos en tiempo real** | Relay Nostr (Nosflare) | Relay Nostr (strfry) |
-| **Terminacion TLS** | Edge de Cloudflare | Caddy (HTTPS automatico) |
-| **Costo** | Basado en uso (plan gratuito disponible) | Costos de tu servidor |
+| Componente | Tecnologia |
+|------------|------------|
+| **Runtime del backend** | Bun + Hono |
+| **Almacenamiento de datos** | PostgreSQL |
+| **Almacenamiento de archivos** | RustFS (compatible con S3) |
+| **Transcripcion** | Whisper del lado del cliente (WASM) — el audio nunca sale del navegador |
+| **Archivos estaticos** | Caddy / Hono serveStatic |
+| **Eventos en tiempo real** | Relay Nostr (strfry) |
+| **Terminacion TLS** | Caddy (HTTPS automatico) |
 
 ## Que necesitas
 

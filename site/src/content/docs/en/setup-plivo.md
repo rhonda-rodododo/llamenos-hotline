@@ -28,8 +28,8 @@ Plivo uses "XML Applications" to route calls:
 2. Click **Add New Application**
 3. Configure:
    - **Application Name**: Llamenos Hotline
-   - **Answer URL**: `https://your-worker-url.com/telephony/incoming` (POST)
-   - **Hangup URL**: `https://your-worker-url.com/telephony/status` (POST)
+   - **Answer URL**: `https://your-domain.com/telephony/incoming` (POST)
+   - **Hangup URL**: `https://your-domain.com/telephony/status` (POST)
 4. Save the application
 
 ## 4. Link the phone number
@@ -76,5 +76,5 @@ The adapter generates time-limited HMAC tokens from your Auth ID and Auth Token 
 
 - **"Auth ID invalid"**: The Auth ID is not your email address. Find it on the Plivo Console dashboard home page.
 - **Calls not routing**: Verify that the phone number is linked to the correct XML Application.
-- **Answer URL errors**: Plivo expects valid XML responses. Check your Worker logs for response errors.
+- **Answer URL errors**: Plivo expects valid XML responses. Check your Llamenos server logs for response errors.
 - **Outbound call restrictions**: Trial accounts have limitations on outbound calling. Upgrade for production use.

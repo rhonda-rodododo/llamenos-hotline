@@ -27,8 +27,8 @@ Vonage 将配置归类到"Applications"中：
 1. 转到 **Applications** > **Create a new application**
 2. 输入名称（例如"Llamenos Hotline"）
 3. 在 **Voice** 下，启用并设置：
-   - **Answer URL**：`https://your-worker-url.com/telephony/incoming`（POST）
-   - **Event URL**：`https://your-worker-url.com/telephony/status`（POST）
+   - **Answer URL**：`https://your-domain.com/telephony/incoming`（POST）
+   - **Event URL**：`https://your-domain.com/telephony/status`（POST）
 4. 点击 **Generate new application**
 5. 保存确认页面上显示的 **Application ID**
 6. 下载**私钥**文件 -- 配置时需要其内容

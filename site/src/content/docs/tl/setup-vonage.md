@@ -27,8 +27,8 @@ Nagsasama ang Vonage ng configuration sa "Applications":
 1. Pumunta sa **Applications** > **Create a new application**
 2. Maglagay ng pangalan (hal., "Llamenos Hotline")
 3. Sa ilalim ng **Voice**, i-toggle ito at itakda ang:
-   - **Answer URL**: `https://your-worker-url.com/telephony/incoming` (POST)
-   - **Event URL**: `https://your-worker-url.com/telephony/status` (POST)
+   - **Answer URL**: `https://your-domain.com/telephony/incoming` (POST)
+   - **Event URL**: `https://your-domain.com/telephony/status` (POST)
 4. I-click ang **Generate new application**
 5. I-save ang **Application ID** na ipinapakita sa confirmation page
 6. I-download ang **private key** file -- kakailanganin mo ang nilalaman nito para sa configuration
