@@ -3,6 +3,7 @@ import type { CryptoService } from '../../lib/crypto-service'
 import type { MessagingAdapter } from '../adapter'
 import { PlivoSMSAdapter } from './plivo'
 import { SignalWireSMSAdapter } from './signalwire'
+import { TelnyxSMSAdapter } from './telnyx'
 import { TwilioSMSAdapter } from './twilio'
 import { VonageSMSAdapter } from './vonage'
 
@@ -84,8 +85,10 @@ export function createSMSAdapter(
     }
 
     case 'telnyx': {
-      // Telnyx SMS adapter not yet implemented
-      throw new Error('Telnyx SMS adapter not yet implemented')
+      if (!telephonyConfig.apiKey) {
+        throw new Error('Telnyx SMS requires apiKey')
+      }
+      return new TelnyxSMSAdapter(telephonyConfig.apiKey, phoneNumber, crypto)
     }
   }
 }
