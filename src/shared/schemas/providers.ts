@@ -27,6 +27,11 @@ export const SignalWireConfigSchema = BaseProviderSchema.extend({
   accountSid: z.string().min(1),
   authToken: z.string().min(1),
   signalwireSpace: z.string().min(1, 'Space name is required (e.g., "myspace")'),
+  // WebRTC support — SignalWire uses Twilio-compatible access tokens
+  webrtcEnabled: z.boolean().optional(),
+  apiKeySid: z.string().optional(),
+  apiKeySecret: z.string().optional(),
+  twimlAppSid: z.string().optional(),
 })
 export type SignalWireConfig = z.infer<typeof SignalWireConfigSchema>
 

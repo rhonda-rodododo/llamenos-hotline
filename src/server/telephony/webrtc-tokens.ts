@@ -1,6 +1,7 @@
 import type {
   AsteriskConfig,
   PlivoConfig,
+  SignalWireConfig,
   TwilioConfig,
   VonageConfig,
 } from '../../shared/schemas/providers'
@@ -21,7 +22,7 @@ export async function generateWebRtcToken(
     case 'twilio':
       return generateTwilioToken(config, identity)
     case 'signalwire':
-      throw new Error('SignalWire WebRTC token generation not yet implemented')
+      return generateSignalWireToken(config, identity)
     case 'vonage':
       return generateVonageToken(config, identity)
     case 'plivo':
@@ -53,8 +54,12 @@ export function isWebRtcConfigured(config: TelephonyProviderConfig | null): bool
         config.twimlAppSid
       )
     case 'signalwire':
-      // SignalWire uses the same token flow as Twilio but config shape differs
-      return false
+      return !!(
+        config.webrtcEnabled &&
+        config.apiKeySid &&
+        config.apiKeySecret &&
+        config.twimlAppSid
+      )
     case 'vonage':
       return !!(config.applicationId && config.privateKey)
     case 'plivo':
@@ -98,6 +103,39 @@ async function generateTwilioToken(
 
   const token = await signJwtHs256(header, payload, config.apiKeySecret)
   return { token, provider: config.type, ttl: 3600 }
+}
+
+// --- SignalWire JWT ---
+// SignalWire uses Twilio-compatible access tokens (HS256 with Voice grant).
+// The only difference is the project ID is used as the accountSid/sub claim.
+
+async function generateSignalWireToken(
+  config: SignalWireConfig,
+  identity: string
+): Promise<{ token: string; provider: TelephonyProviderType; ttl: number }> {
+  if (!config.apiKeySid || !config.apiKeySecret || !config.twimlAppSid) {
+    throw new Error('Missing SignalWire WebRTC config: apiKeySid, apiKeySecret, twimlAppSid')
+  }
+
+  const now = Math.floor(Date.now() / 1000)
+  const header = { typ: 'JWT', alg: 'HS256', cty: 'twilio-fpa;v=1' }
+  const payload = {
+    jti: `${config.apiKeySid}-${now}`,
+    iss: config.apiKeySid,
+    sub: config.accountSid,
+    iat: now,
+    exp: now + 3600,
+    grants: {
+      identity,
+      voice: {
+        incoming: { allow: true },
+        outgoing: { application_sid: config.twimlAppSid },
+      },
+    },
+  }
+
+  const token = await signJwtHs256(header, payload, config.apiKeySecret)
+  return { token, provider: 'signalwire', ttl: 3600 }
 }
 
 // --- Vonage JWT ---
