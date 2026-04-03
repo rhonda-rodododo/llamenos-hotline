@@ -32,6 +32,7 @@ describe('TwilioAdapter TwiML output', () => {
     const result = await adapter.handleIncomingCall({
       callSid: 'CA123',
       callerNumber: '+15559876543',
+      hotlineName: 'Test Hotline',
       voiceCaptchaEnabled: true,
       rateLimited: false,
       callerLanguage: 'en',
@@ -46,6 +47,7 @@ describe('TwilioAdapter TwiML output', () => {
     const result = await adapter.handleIncomingCall({
       callSid: 'CA123',
       callerNumber: '+15559876543',
+      hotlineName: 'Test Hotline',
       voiceCaptchaEnabled: false,
       rateLimited: false,
       callerLanguage: 'en',
