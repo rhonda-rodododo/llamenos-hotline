@@ -73,6 +73,16 @@ export const TelnyxConfigSchema = BaseProviderSchema.extend({
 })
 export type TelnyxConfig = z.infer<typeof TelnyxConfigSchema>
 
+export const BandwidthConfigSchema = BaseProviderSchema.extend({
+  type: z.literal('bandwidth'),
+  accountId: z.string().min(1),
+  apiToken: z.string().min(1),
+  apiSecret: z.string().min(1),
+  applicationId: z.string().min(1),
+  webrtcEnabled: z.boolean().optional(),
+})
+export type BandwidthConfig = z.infer<typeof BandwidthConfigSchema>
+
 // ── Discriminated union of all telephony providers ──
 export const TelephonyProviderConfigSchema = z.discriminatedUnion('type', [
   TwilioConfigSchema,
@@ -81,6 +91,7 @@ export const TelephonyProviderConfigSchema = z.discriminatedUnion('type', [
   PlivoConfigSchema,
   AsteriskConfigSchema,
   TelnyxConfigSchema,
+  BandwidthConfigSchema,
 ])
 export type TelephonyProviderConfig = z.infer<typeof TelephonyProviderConfigSchema>
 
@@ -124,3 +135,13 @@ export const RCSConfigSchema = z.object({
   afterHoursResponse: z.string().optional(),
 })
 export type RCSConfig = z.infer<typeof RCSConfigSchema>
+
+export const TelegramConfigSchema = z.object({
+  enabled: z.boolean(),
+  botToken: z.string().min(1),
+  webhookSecret: z.string().optional(),
+  botUsername: z.string().optional(),
+  autoResponse: z.string().optional(),
+  afterHoursResponse: z.string().optional(),
+})
+export type TelegramConfig = z.infer<typeof TelegramConfigSchema>

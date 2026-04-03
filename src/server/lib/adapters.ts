@@ -13,10 +13,12 @@ import type { MessagingAdapter } from '../messaging/adapter'
 import { createRCSAdapter } from '../messaging/rcs/factory'
 import { createSignalAdapter } from '../messaging/signal/factory'
 import { createSMSAdapter } from '../messaging/sms/factory'
+import { createTelegramAdapter } from '../messaging/telegram/factory'
 import { createWhatsAppAdapter } from '../messaging/whatsapp/factory'
 import type { SettingsService } from '../services/settings'
 import type { TelephonyAdapter } from '../telephony/adapter'
 import { AsteriskAdapter } from '../telephony/asterisk'
+import { BandwidthAdapter } from '../telephony/bandwidth'
 import { PlivoAdapter } from '../telephony/plivo'
 import { SignalWireAdapter } from '../telephony/signalwire'
 import { TelnyxAdapter } from '../telephony/telnyx'
@@ -104,6 +106,10 @@ export async function getMessagingAdapter(
     case 'rcs': {
       if (!config.rcs) throw new Error('RCS is not configured')
       return createRCSAdapter(config.rcs, crypto)
+    }
+    case 'telegram': {
+      if (!config.telegram) throw new Error('Telegram is not configured')
+      return createTelegramAdapter(config.telegram, crypto)
     }
     default:
       throw new Error(`Unknown channel: ${channel}`)
@@ -196,6 +202,20 @@ function createAdapterFromConfig(config: TelephonyProviderConfig): TelephonyAdap
     case 'telnyx': {
       if (!config.apiKey) throw new AppError(500, 'Telnyx config missing apiKey')
       return new TelnyxAdapter(config.apiKey, config.texmlAppId ?? '', config.phoneNumber)
+    }
+    case 'bandwidth': {
+      if (!config.accountId || !config.apiToken || !config.apiSecret || !config.applicationId)
+        throw new AppError(
+          500,
+          'Bandwidth config missing accountId, apiToken, apiSecret, or applicationId'
+        )
+      return new BandwidthAdapter(
+        config.accountId,
+        config.apiToken,
+        config.apiSecret,
+        config.applicationId,
+        config.phoneNumber
+      )
     }
   }
 }

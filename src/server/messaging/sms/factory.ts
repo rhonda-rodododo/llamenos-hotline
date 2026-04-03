@@ -90,5 +90,12 @@ export function createSMSAdapter(
       }
       return new TelnyxSMSAdapter(telephonyConfig.apiKey, phoneNumber, crypto)
     }
+
+    case 'bandwidth': {
+      // Bandwidth has its own Messaging API — use the Bandwidth SMS adapter when implemented
+      throw new Error(
+        'Bandwidth SMS adapter not yet implemented. Use Bandwidth Voice with a separate SMS provider.'
+      )
+    }
   }
 }
