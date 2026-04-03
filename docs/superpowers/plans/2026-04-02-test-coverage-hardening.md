@@ -1,6 +1,6 @@
 # Plan: Test Coverage Hardening
 
-**Spec:** `docs/specs/2026-04-02-test-coverage-hardening.md`
+**Spec:** `docs/superpowers/specs/2026-04-02-test-coverage-hardening.md`
 **Date:** 2026-04-02
 **Estimated effort:** 4-5 sessions (~12-16 hours)
 **Priority:** High

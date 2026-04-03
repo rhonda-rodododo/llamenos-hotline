@@ -1,6 +1,6 @@
 # Plan: Incomplete Adapter Completion
 
-**Spec:** `docs/specs/2026-04-02-adapter-completion.md`
+**Spec:** `docs/superpowers/specs/2026-04-02-adapter-completion.md`
 **Date:** 2026-04-02
 **Estimated effort:** 3-4 sessions (~10-14 hours)
 **Priority:** Medium

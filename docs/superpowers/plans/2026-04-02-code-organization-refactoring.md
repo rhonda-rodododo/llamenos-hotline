@@ -1,6 +1,6 @@
 # Plan: Code Organization & Refactoring
 
-**Spec:** `docs/specs/2026-04-02-code-organization-refactoring.md`
+**Spec:** `docs/superpowers/specs/2026-04-02-code-organization-refactoring.md`
 **Date:** 2026-04-02
 **Estimated effort:** 3-4 sessions (~8-12 hours)
 **Priority:** Medium

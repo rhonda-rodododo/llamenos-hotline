@@ -333,7 +333,7 @@ admin-flow (18), blast-sending (8), notes-crud (7), smoke (4), theme (7), health
 > Specs and plans created from full codebase audit. Organized by priority.
 
 ### Critical Bug Fixes
-**Spec:** `docs/specs/2026-04-02-critical-bug-fixes.md` | **Plan:** `docs/plans/2026-04-02-critical-bug-fixes.md`
+**Spec:** `docs/superpowers/specs/2026-04-02-critical-bug-fixes.md` | **Plan:** `docs/superpowers/plans/2026-04-02-critical-bug-fixes.md`
 
 - [x] **TwiML callback URLs use wrong prefix** — Fixed 2026-04-02: global find-replace `/api/telephony/` → `/telephony/` across 19 files (adapters, capabilities, provider-setup, tests, UI). **Live Twilio testing available via `playwright.live.ts`.**
 - [x] **Unknown API routes return 401 instead of 404** — Fixed 2026-04-02: prefix-checking middleware in app.ts. E2E test: `tests/api/route-404.spec.ts`.
@@ -341,7 +341,7 @@ admin-flow (18), blast-sending (8), notes-crud (7), smoke (4), theme (7), health
 - [x] **CAPTCHA retry** — Verified 2026-04-02: service layer correctly implements retry. Test 5.4 is active (no test.fixme) and validates behavior.
 
 ### Schema Alignment & API Validation
-**Spec:** `docs/specs/2026-04-02-schema-alignment-api-validation.md` | **Plan:** `docs/plans/2026-04-02-schema-alignment-api-validation.md`
+**Spec:** `docs/superpowers/specs/2026-04-02-schema-alignment-api-validation.md` | **Plan:** `docs/superpowers/plans/2026-04-02-schema-alignment-api-validation.md`
 
 - [ ] **Auth facade Zod validation** — 4 public endpoints use raw `as` casts instead of Zod schemas. Not in OpenAPI docs.
 - [ ] **Blast schema alignment** — Shared schema completely misaligned with DB (field names, encryption, status values, channel structure).
@@ -350,7 +350,7 @@ admin-flow (18), blast-sending (8), notes-crud (7), smoke (4), theme (7), health
 - [ ] **Missing OpenAPI documentation** — 19 endpoints bypass `createRoute()`.
 
 ### Test Coverage Hardening
-**Spec:** `docs/specs/2026-04-02-test-coverage-hardening.md` | **Plan:** `docs/plans/2026-04-02-test-coverage-hardening.md`
+**Spec:** `docs/superpowers/specs/2026-04-02-test-coverage-hardening.md` | **Plan:** `docs/superpowers/plans/2026-04-02-test-coverage-hardening.md`
 
 - [ ] **Fix known failing tests** — roles.spec.ts (6/28 fail), hub-access-control.spec.ts (1/4 fail).
 - [ ] **Service unit tests** — CallsService, ShiftsService, GdprService (all zero coverage, high complexity).
@@ -359,7 +359,7 @@ admin-flow (18), blast-sending (8), notes-crud (7), smoke (4), theme (7), health
 - [ ] **Telephony adapter tests** — Most adapters (19 files) lack unit tests.
 
 ### Infrastructure & DevOps Hardening
-**Spec:** `docs/specs/2026-04-02-infrastructure-devops-hardening.md` | **Plan:** `docs/plans/2026-04-02-infrastructure-devops-hardening.md`
+**Spec:** `docs/superpowers/specs/2026-04-02-infrastructure-devops-hardening.md` | **Plan:** `docs/superpowers/plans/2026-04-02-infrastructure-devops-hardening.md`
 
 - [ ] **RustFS blob storage not backed up** — Only PostgreSQL is backed up. Voicemail recordings, uploads at risk.
 - [ ] **No backup failure alerting** — Status JSON exists but no alerts on missed/failed backups.
@@ -368,7 +368,7 @@ admin-flow (18), blast-sending (8), notes-crud (7), smoke (4), theme (7), health
 - [ ] **Watchtower safeguards** — Missing scheduled windows, failure notifications, dry-run mode.
 
 ### Code Organization & Refactoring
-**Spec:** `docs/specs/2026-04-02-code-organization-refactoring.md` | **Plan:** `docs/plans/2026-04-02-code-organization-refactoring.md`
+**Spec:** `docs/superpowers/specs/2026-04-02-code-organization-refactoring.md` | **Plan:** `docs/superpowers/plans/2026-04-02-code-organization-refactoring.md`
 
 - [ ] **Split api.ts** (2,325 lines, 201 functions) → 12 domain-specific modules.
 - [ ] **Split settings.ts service** (1,439 lines, 53 methods) → 8 domain services.
@@ -378,7 +378,7 @@ admin-flow (18), blast-sending (8), notes-crud (7), smoke (4), theme (7), health
 - [ ] **Console.log cleanup** — 17 debug logs in WebRTC adapters and key-manager.
 
 ### Incomplete Adapter Completion
-**Spec:** `docs/specs/2026-04-02-adapter-completion.md` | **Plan:** `docs/plans/2026-04-02-adapter-completion.md`
+**Spec:** `docs/superpowers/specs/2026-04-02-adapter-completion.md` | **Plan:** `docs/superpowers/plans/2026-04-02-adapter-completion.md`
 
 - [ ] **Telnyx telephony adapter** — Full TelephonyAdapter (23 methods) with TeXML format. ~600 lines.
 - [ ] **Telnyx SMS adapter** — MessagingAdapter with JSON webhooks. ~200 lines.

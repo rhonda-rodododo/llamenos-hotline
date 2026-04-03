@@ -1,6 +1,6 @@
 # Plan: Infrastructure & DevOps Hardening
 
-**Spec:** `docs/specs/2026-04-02-infrastructure-devops-hardening.md`
+**Spec:** `docs/superpowers/specs/2026-04-02-infrastructure-devops-hardening.md`
 **Date:** 2026-04-02
 **Estimated effort:** 2-3 sessions (~6-8 hours)
 **Priority:** High

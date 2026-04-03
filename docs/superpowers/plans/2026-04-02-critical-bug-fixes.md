@@ -1,6 +1,6 @@
 # Plan: Critical Bug Fixes
 
-**Spec:** `docs/specs/2026-04-02-critical-bug-fixes.md`
+**Spec:** `docs/superpowers/specs/2026-04-02-critical-bug-fixes-design.md`
 **Date:** 2026-04-02
 **Estimated effort:** 1 session (~2-3 hours)
 **Priority:** Critical

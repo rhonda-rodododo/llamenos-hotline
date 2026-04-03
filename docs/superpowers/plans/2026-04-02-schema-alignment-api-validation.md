@@ -1,6 +1,6 @@
 # Plan: Schema Alignment & API Validation
 
-**Spec:** `docs/specs/2026-04-02-schema-alignment-api-validation.md`
+**Spec:** `docs/superpowers/specs/2026-04-02-schema-alignment-api-validation.md`
 **Date:** 2026-04-02
 **Estimated effort:** 2 sessions (~4-6 hours)
 **Priority:** High
