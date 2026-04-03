@@ -32,6 +32,7 @@ export class AriClient implements BridgeClient {
   private config: BridgeConfig
   private ws: WebSocket | null = null
   private eventHandlers: Array<(event: BridgeEvent) => void> = []
+  private rawEventHandlers: Array<(event: AnyAriEvent) => void> = []
   private reconnectDelay = 1000
   private maxReconnectDelay = 30000
   private shouldReconnect = true
@@ -51,6 +52,15 @@ export class AriClient implements BridgeClient {
   /** Register an event handler for normalized bridge events */
   onEvent(handler: (event: BridgeEvent) => void): void {
     this.eventHandlers.push(handler)
+  }
+
+  /**
+   * Register an event handler for raw ARI events.
+   * Used by CommandHandler which needs the full ARI event shape
+   * (e.g. StasisStart args, ChannelDestroyed cause_txt).
+   */
+  onRawEvent(handler: (event: AnyAriEvent) => void): void {
+    this.rawEventHandlers.push(handler)
   }
 
   /** Whether the WebSocket is currently connected */
@@ -103,6 +113,17 @@ export class AriClient implements BridgeClient {
               ? event.data
               : new TextDecoder().decode(event.data as ArrayBuffer)
           ) as AnyAriEvent
+
+          // Dispatch raw ARI event to raw handlers (used by CommandHandler)
+          for (const handler of this.rawEventHandlers) {
+            try {
+              handler(data)
+            } catch (err) {
+              console.error('[ari] Raw event handler error:', err)
+            }
+          }
+
+          // Dispatch normalized BridgeEvent to standard handlers
           const bridgeEvent = this.translateEvent(data)
           if (bridgeEvent !== null) {
             for (const handler of this.eventHandlers) {
