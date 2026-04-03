@@ -12,11 +12,9 @@
  */
 
 import { bytesToHex, hexToBytes } from '@noble/hashes/utils.js'
-import { createDebugLog } from './debug-log'
-
-const log = createDebugLog('key-manager')
 import { type UserInfo, authFacadeClient } from './auth-facade-client'
 import { cryptoWorker } from './crypto-worker-client'
+import { createDebugLog } from './debug-log'
 import {
   type EncryptedKeyDataV2,
   type KEKFactors,
@@ -31,6 +29,8 @@ import {
   storeEncryptedKeyV2,
   syntheticIdpValue,
 } from './key-store-v2'
+
+const log = createDebugLog('key-manager')
 
 // --- Auto-lock ---
 let idleTimer: ReturnType<typeof setTimeout> | null = null
