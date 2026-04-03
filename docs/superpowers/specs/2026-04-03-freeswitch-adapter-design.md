@@ -1,18 +1,26 @@
-# Design: FreeSWITCH Telephony Adapter + Unified SIP Bridge
+# Design: FreeSWITCH Adapter + Kamailio + Unified SIP Bridge
 
 **Date:** 2026-04-03
-**Status:** Draft
+**Status:** Draft (supersedes freeswitch-kamailio-adapter-design.md)
 
 ## Overview
 
-Add FreeSWITCH as the 9th telephony provider — a self-hosted PBX using mod_httapi (HTTP webhooks) for call flow and ESL (Event Socket Library) for real-time events. Also refactors `asterisk-bridge/` into a unified `sip-bridge/` that handles both Asterisk ARI and FreeSWITCH ESL.
+Three deliverables in one effort:
+
+1. **FreeSWITCH adapter** — 9th telephony provider, using mod_httapi (HTTP webhooks) for call flow and ESL for real-time events
+2. **Kamailio integration** — SIP proxy/load balancer for high-availability deployments, sits in front of PBX instances
+3. **Unified sip-bridge** — refactors `asterisk-bridge/` into a combined bridge handling Asterisk ARI, FreeSWITCH ESL, and Kamailio XMLRPC/JSONRPC
+
+Building all three together ensures the sip-bridge protocol abstraction is designed correctly from the start.
 
 ## Design Decisions
 
 | Decision | Choice | Rationale |
 |----------|--------|-----------|
-| Interaction model | mod_httapi + ESL bridge | mod_httapi handles standard call flow; ESL bridge for real-time events (transfer, recording, presence) |
-| Bridge architecture | Combined `sip-bridge/` (Asterisk ARI + FreeSWITCH ESL) | Single deployment, shared webhook translation layer, protocol detection from config |
+| FreeSWITCH interaction | mod_httapi + ESL bridge | mod_httapi handles standard call flow (modern, webhook-driven); ESL bridge for real-time events |
+| Kamailio role | Infrastructure (SIP proxy), not a TelephonyAdapter | Routes SIP traffic to PBX instances; Llamenos talks to PBX, not Kamailio directly |
+| Kamailio management | JSONRPC from sip-bridge | Dispatcher list management, health monitoring, stats — all via Kamailio's JSONRPC module |
+| Bridge architecture | Combined `sip-bridge/` with 3 protocol clients | Single deployment, shared webhook translation, `PBX_TYPE` config selects protocol |
 | TTS | mod_flite (built-in fallback) | Users record custom IVR audio for quality; mod_flite covers unrecorded prompts only |
 | Scope | Full capabilities | SIP trunk config, recording management, connection testing, WebRTC via mod_verto |
 
@@ -92,22 +100,103 @@ New file: `src/shared/schemas/external/freeswitch-httapi.ts`
 
 ---
 
-## Part 2: Unified SIP Bridge (`sip-bridge/`)
+## Part 2: Kamailio Integration
+
+### Role
+
+Kamailio is a SIP proxy/load balancer — NOT a TelephonyAdapter. It sits in front of PBX instances and distributes SIP traffic:
+
+```
+Caller → PSTN → SIP Trunk → Kamailio → FreeSWITCH Instance 1
+                                      → FreeSWITCH Instance 2
+                                      → Asterisk Instance 3
+```
+
+Llamenos doesn't talk to Kamailio for call control — it talks to the PBX directly. Kamailio handles:
+- SIP routing and load balancing (dispatcher module)
+- Automatic failover if a PBX goes down (SIP OPTIONS health checks)
+- Geographic routing (route to nearest PBX)
+- NAT traversal for remote PBX instances
+- TLS termination for secure SIP trunks
+
+### Management via JSONRPC
+
+The sip-bridge manages Kamailio via its JSONRPC module (`jsonrpcs`):
+
+- `dispatcher.list` — get current PBX instance states
+- `dispatcher.set_state` — enable/disable a PBX instance
+- `dispatcher.reload` — reload dispatcher list after config change
+- `stats.get_statistics` — SIP traffic stats for monitoring
+
+### Config Schema
+
+Kamailio doesn't get its own `TelephonyProviderType` — it's infrastructure config alongside the PBX:
+
+```typescript
+// Added to FreeSwitchConfig or AsteriskConfig when HA is enabled
+kamailioEnabled: z.boolean().default(false),
+kamailioJsonrpcUrl: z.string().url().optional(), // e.g., http://kamailio:5060/jsonrpc
+kamailioDispatcherSetId: z.number().default(1),
+```
+
+### Docker Image
+
+```yaml
+kamailio:
+  image: kamailio/kamailio:5.7
+  ports:
+    - "5060:5060/udp"    # SIP (external-facing)
+    - "5061:5061"        # SIP TLS
+  volumes:
+    - ./kamailio.cfg:/etc/kamailio/kamailio.cfg
+```
+
+### Ansible Deployment
+
+- `deploy/ansible/roles/kamailio/` — Ansible role
+- `deploy/ansible/templates/kamailio.cfg.j2` — dispatcher config, TLS, NAT traversal
+- `freeswitch_enabled` + `kamailio_enabled` variables in deployment config
+
+---
+
+## Part 3: Unified SIP Bridge (`sip-bridge/`)
 
 ### Architecture
 
-Rename/extend `asterisk-bridge/` → `sip-bridge/` with protocol detection:
+Rename/extend `asterisk-bridge/` → `sip-bridge/` with three protocol clients:
 
 ```
 sip-bridge/
   src/
-    index.ts          # Entry point — detect ARI or ESL from config
-    ari-client.ts     # Existing ARI WebSocket client (from asterisk-bridge)
-    esl-client.ts     # New ESL TCP client for FreeSWITCH
-    webhook-sender.ts # Shared: translate events → HTTP POST to Llamenos
-    health.ts         # Health endpoint (shared)
+    index.ts              # Entry point — select client based on PBX_TYPE
+    clients/
+      ari-client.ts       # Asterisk ARI (WebSocket) — extracted from asterisk-bridge
+      esl-client.ts       # FreeSWITCH ESL (TCP socket) — new
+      kamailio-client.ts  # Kamailio JSONRPC (HTTP) — new
+    bridge-client.ts      # Protocol-agnostic interface all clients implement
+    webhook-sender.ts     # Shared: translate events → HTTP POST to Llamenos
+    health.ts             # Health endpoint (reports PBX + optional Kamailio status)
   Dockerfile
   package.json
+```
+
+### Bridge Client Interface
+
+All three protocol clients implement the same interface:
+
+```typescript
+interface BridgeClient {
+  connect(): Promise<void>
+  disconnect(): Promise<void>
+  isConnected(): boolean
+  onEvent(handler: (event: BridgeEvent) => void): void
+  // Call control (used by webhook-sender for originate/hangup)
+  originate(params: OriginateParams): Promise<string>  // returns call ID
+  hangup(callId: string): Promise<void>
+  bridge(callId1: string, callId2: string): Promise<void>
+  // Health
+  healthCheck(): Promise<{ ok: boolean; latencyMs: number }>
+}
 ```
 
 ### Config
@@ -120,11 +209,15 @@ ARI_REST_URL=http://asterisk:8088/ari
 ARI_USERNAME=llamenos
 ARI_PASSWORD=changeme
 
-# FreeSWITCH mode (new)
+# FreeSWITCH mode
 PBX_TYPE=freeswitch
 ESL_HOST=freeswitch
 ESL_PORT=8021
 ESL_PASSWORD=ClueCon
+
+# Optional: Kamailio (works with any PBX_TYPE)
+KAMAILIO_ENABLED=false
+KAMAILIO_JSONRPC_URL=http://kamailio:5060/jsonrpc
 
 # Shared
 WORKER_WEBHOOK_URL=http://llamenos:3000
@@ -139,21 +232,43 @@ The ESL client connects to FreeSWITCH over TCP:
 1. Connect to `ESL_HOST:ESL_PORT`
 2. Authenticate with `auth ESL_PASSWORD`
 3. Subscribe to events: `event plain CHANNEL_CREATE CHANNEL_ANSWER CHANNEL_HANGUP RECORD_STOP DTMF`
-4. Translate events to webhook POSTs matching the same format as ARI webhooks
+4. Translate events to `BridgeEvent` objects for the webhook sender
 
-### Event Translation
+### Kamailio Client
 
-| FreeSWITCH Event | Webhook POST | Llamenos Endpoint |
-|-----------------|-------------|------------------|
-| `CHANNEL_CREATE` | `{ channelId, callerNumber, calledNumber, state: 'Ring' }` | `/telephony/incoming` |
-| `CHANNEL_ANSWER` | `{ channelId, state: 'Up' }` | `/telephony/call-status` |
-| `CHANNEL_HANGUP` | `{ channelId, state: 'Hangup', duration }` | `/telephony/call-status` |
-| `RECORD_STOP` | `{ channelId, recordingName, recordingStatus: 'done' }` | `/telephony/voicemail-recording` |
-| `DTMF` | `{ channelId, digit }` | (handled by mod_httapi, not bridge) |
+The Kamailio client uses HTTP JSONRPC (no persistent connection needed):
+
+1. Periodic health poll: `dispatcher.list` to check PBX instance states
+2. On PBX health change: `dispatcher.set_state` to enable/disable instances
+3. Stats collection: `stats.get_statistics` for monitoring dashboard
+
+### Event Translation (all protocols → unified BridgeEvent)
+
+| Source | Event | BridgeEvent | Llamenos Endpoint |
+|--------|-------|-------------|------------------|
+| ARI | `StasisStart` | `{ channelId, callerNumber, calledNumber, state: 'Ring' }` | `/telephony/incoming` |
+| ARI | `ChannelStateChange` | `{ channelId, state: 'Up'/'Hangup' }` | `/telephony/call-status` |
+| ESL | `CHANNEL_CREATE` | `{ channelId, callerNumber, calledNumber, state: 'Ring' }` | `/telephony/incoming` |
+| ESL | `CHANNEL_ANSWER` | `{ channelId, state: 'Up' }` | `/telephony/call-status` |
+| ESL | `CHANNEL_HANGUP` | `{ channelId, state: 'Hangup', duration }` | `/telephony/call-status` |
+| ESL | `RECORD_STOP` | `{ channelId, recordingName, recordingStatus: 'done' }` | `/telephony/voicemail-recording` |
+| Kamailio | `dispatcher.list` | (health status only, no call events) | sip-bridge health endpoint |
+
+### Health Endpoint
+
+`GET /health` reports combined status:
+
+```json
+{
+  "ok": true,
+  "pbx": { "type": "freeswitch", "connected": true, "latencyMs": 12 },
+  "kamailio": { "enabled": true, "connected": true, "dispatchers": 2, "activeInstances": 2 }
+}
+```
 
 ### Migration Path
 
-Existing `asterisk-bridge/` users: set `PBX_TYPE=asterisk` (default) and nothing changes. New FreeSWITCH deployments set `PBX_TYPE=freeswitch`.
+Existing `asterisk-bridge/` users: set `PBX_TYPE=asterisk` (default) and nothing changes. New FreeSWITCH deployments set `PBX_TYPE=freeswitch`. Kamailio is opt-in via `KAMAILIO_ENABLED=true`.
 
 ---
 
@@ -167,10 +282,15 @@ Existing `asterisk-bridge/` users: set `PBX_TYPE=asterisk` (default) and nothing
 | `src/server/telephony/freeswitch.test.ts` | Unit tests for mod_httapi XML output |
 | `src/server/telephony/freeswitch-capabilities.ts` | ProviderCapabilities with SIP trunk support |
 | `src/shared/schemas/external/freeswitch-httapi.ts` | Zod schemas for mod_httapi and ESL events |
-| `sip-bridge/src/esl-client.ts` | FreeSWITCH ESL TCP client |
-| `sip-bridge/src/index.ts` | Unified entry point (ARI or ESL based on PBX_TYPE) |
+| `sip-bridge/src/clients/esl-client.ts` | FreeSWITCH ESL TCP client |
+| `sip-bridge/src/clients/kamailio-client.ts` | Kamailio JSONRPC HTTP client |
+| `sip-bridge/src/clients/ari-client.ts` | Asterisk ARI WebSocket client (extracted from asterisk-bridge) |
+| `sip-bridge/src/bridge-client.ts` | Protocol-agnostic BridgeClient interface |
+| `sip-bridge/src/index.ts` | Unified entry point (protocol selection from PBX_TYPE) |
 | `sip-bridge/src/webhook-sender.ts` | Shared webhook translation (extracted from current bridge) |
-| `sip-bridge/src/health.ts` | Shared health endpoint |
+| `sip-bridge/src/health.ts` | Shared health endpoint (PBX + optional Kamailio status) |
+| `deploy/ansible/roles/kamailio/` | Ansible role for Kamailio deployment |
+| `deploy/ansible/templates/kamailio.cfg.j2` | Kamailio routing config template |
 
 ### Modified Files
 
