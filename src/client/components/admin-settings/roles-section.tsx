@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import type { RoleDefinition } from '@/lib/api'
 import { useConfig } from '@/lib/config'
-import { decryptHubField, encryptHubField } from '@/lib/hub-field-crypto'
+import { encryptHubField } from '@/lib/hub-field-crypto'
 import {
   useCreateRole,
   useDeleteRole,
@@ -234,8 +234,8 @@ export function RolesSection({ expanded, onToggle, statusSummary }: Props) {
   function startEdit(role: RoleDefinition) {
     setEditingId(role.id)
     setForm({
-      name: decryptHubField(role.encryptedName, hubId, role.name),
-      description: decryptHubField(role.encryptedDescription, hubId, role.description),
+      name: role.name || '',
+      description: role.description || '',
       permissions: [...role.permissions],
     })
     // Expand domains that have selected permissions
@@ -441,9 +441,7 @@ export function RolesSection({ expanded, onToggle, statusSummary }: Props) {
           >
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2">
-                <span className="text-sm font-medium truncate">
-                  {decryptHubField(role.encryptedName, hubId, role.name)}
-                </span>
+                <span className="text-sm font-medium truncate">{role.name}</span>
                 {role.isSystem && (
                   <Badge variant="secondary" className="text-[10px] gap-1">
                     <Lock className="h-2.5 w-2.5" />
@@ -457,9 +455,7 @@ export function RolesSection({ expanded, onToggle, statusSummary }: Props) {
                 )}
               </div>
               {role.encryptedDescription && (
-                <p className="text-xs text-muted-foreground mt-0.5 truncate">
-                  {decryptHubField(role.encryptedDescription, hubId, role.description)}
-                </p>
+                <p className="text-xs text-muted-foreground mt-0.5 truncate">{role.description}</p>
               )}
               <p className="text-xs text-muted-foreground mt-0.5">
                 {role.permissions.length}{' '}

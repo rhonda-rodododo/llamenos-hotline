@@ -8,7 +8,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { UserMultiSelect } from '@/components/user-multi-select'
 import type { Team } from '@/lib/api'
 import { useConfig } from '@/lib/config'
-import { decryptHubField, encryptHubField } from '@/lib/hub-field-crypto'
+import { encryptHubField } from '@/lib/hub-field-crypto'
 import {
   useAddTeamMembers,
   useCreateTeam,
@@ -66,8 +66,8 @@ export function TeamsSection({ expanded, onToggle, statusSummary }: Props) {
   function startEdit(team: Team) {
     setEditingId(team.id)
     setForm({
-      name: decryptHubField(team.encryptedName, hubId, ''),
-      description: decryptHubField(team.encryptedDescription, hubId, ''),
+      name: team.name || '',
+      description: team.description || '',
     })
   }
 
@@ -185,13 +185,11 @@ export function TeamsSection({ expanded, onToggle, statusSummary }: Props) {
 
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
-                  <span className="text-sm font-medium truncate">
-                    {decryptHubField(team.encryptedName, hubId, '[encrypted]')}
-                  </span>
+                  <span className="text-sm font-medium truncate">{team.name || '[encrypted]'}</span>
                 </div>
                 {team.encryptedDescription && (
                   <p className="text-xs text-muted-foreground mt-0.5 truncate">
-                    {decryptHubField(team.encryptedDescription, hubId, '')}
+                    {team.description || ''}
                   </p>
                 )}
                 <div className="flex gap-3 mt-0.5">

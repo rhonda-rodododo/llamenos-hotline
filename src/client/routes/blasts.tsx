@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { useAuth } from '@/lib/auth'
 import { useConfig } from '@/lib/config'
-import { decryptHubField } from '@/lib/hub-field-crypto'
+
 import { useBlasts, useCancelBlast, useDeleteBlast, useSendBlast } from '@/lib/queries/blasts'
 import { useToast } from '@/lib/toast'
 import type { Blast } from '@shared/types'
@@ -176,9 +176,7 @@ function BlastsPage() {
                       }`}
                     >
                       <div className="flex items-center justify-between">
-                        <p className="text-sm font-medium truncate">
-                          {decryptHubField(blast.encryptedName, hubId, blast.name)}
-                        </p>
+                        <p className="text-sm font-medium truncate">{blast.name}</p>
                         <Badge className={statusColors[blast.status] || ''} variant="outline">
                           {t(`blasts.status.${blast.status}`)}
                         </Badge>
@@ -222,9 +220,7 @@ function BlastsPage() {
             <Card>
               <CardHeader>
                 <div className="flex items-center justify-between">
-                  <CardTitle>
-                    {decryptHubField(selectedBlast.encryptedName, hubId, selectedBlast.name)}
-                  </CardTitle>
+                  <CardTitle>{selectedBlast.name}</CardTitle>
                   <Badge className={statusColors[selectedBlast.status] || ''} variant="outline">
                     {t(`blasts.status.${selectedBlast.status}`)}
                   </Badge>

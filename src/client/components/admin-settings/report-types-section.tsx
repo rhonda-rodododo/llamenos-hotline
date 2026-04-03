@@ -14,7 +14,7 @@ import {
   updateReportType,
 } from '@/lib/api'
 import { useConfig } from '@/lib/config'
-import { decryptHubField, encryptHubField } from '@/lib/hub-field-crypto'
+import { encryptHubField } from '@/lib/hub-field-crypto'
 import { queryKeys } from '@/lib/queries/keys'
 import { queryClient } from '@/lib/query-client'
 import { useToast } from '@/lib/toast'
@@ -177,9 +177,7 @@ export function ReportTypesSection({
       >
         <div className="flex-1 space-y-1">
           <div className="flex flex-wrap items-center gap-2">
-            <p className="text-sm font-medium">
-              {decryptHubField(rt.encryptedName, hubId, rt.name)}
-            </p>
+            <p className="text-sm font-medium">{rt.name}</p>
             {rt.isDefault && (
               <Badge variant="secondary" className="text-[10px]">
                 <Star className="mr-0.5 h-2.5 w-2.5" />
@@ -193,9 +191,7 @@ export function ReportTypesSection({
             )}
           </div>
           {rt.encryptedDescription && (
-            <p className="text-xs text-muted-foreground">
-              {decryptHubField(rt.encryptedDescription, hubId, rt.description)}
-            </p>
+            <p className="text-xs text-muted-foreground">{rt.description}</p>
           )}
           <p className="text-xs text-muted-foreground">
             {t('settings.reportTypes.fields')}: {fieldCount}
@@ -210,8 +206,8 @@ export function ReportTypesSection({
                 onClick={() =>
                   setEditing({
                     id: rt.id,
-                    name: decryptHubField(rt.encryptedName, hubId, rt.name),
-                    description: decryptHubField(rt.encryptedDescription, hubId, rt.description),
+                    name: rt.name || '',
+                    description: rt.description || '',
                     isDefault: rt.isDefault,
                   })
                 }

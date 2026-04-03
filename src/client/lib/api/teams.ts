@@ -8,6 +8,10 @@ export interface Team {
   hubId: string
   encryptedName: Ciphertext
   encryptedDescription: Ciphertext | null
+  /** Decrypted name (populated by queryFn). */
+  name?: string
+  /** Decrypted description (populated by queryFn). */
+  description?: string
   createdBy: string
   createdAt: string
   updatedAt: string

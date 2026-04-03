@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import type { Tag } from '@/lib/api'
 import { useConfig } from '@/lib/config'
-import { decryptHubField, encryptHubField } from '@/lib/hub-field-crypto'
+import { encryptHubField } from '@/lib/hub-field-crypto'
 import { useCreateTag, useDeleteTag, useTags, useUpdateTag } from '@/lib/queries/tags'
 import { useToast } from '@/lib/toast'
 import { cn } from '@/lib/utils'
@@ -69,9 +69,9 @@ export function TagsSection({ expanded, onToggle, statusSummary }: Props) {
     setEditingId(tag.id)
     setForm({
       name: tag.name,
-      label: decryptHubField(tag.encryptedLabel, hubId, tag.name),
+      label: tag.label || tag.name,
       color: tag.color || '#3b82f6',
-      category: decryptHubField(tag.encryptedCategory, hubId, ''),
+      category: tag.category || '',
     })
   }
 
@@ -193,8 +193,8 @@ export function TagsSection({ expanded, onToggle, statusSummary }: Props) {
           </p>
         )}
         {tags.map((tag) => {
-          const label = decryptHubField(tag.encryptedLabel, hubId, tag.name)
-          const category = decryptHubField(tag.encryptedCategory, hubId, '')
+          const label = tag.label || tag.name
+          const category = tag.category || ''
 
           return (
             <div

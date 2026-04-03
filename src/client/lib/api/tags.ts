@@ -10,6 +10,10 @@ export interface Tag {
   encryptedLabel: Ciphertext
   color: string
   encryptedCategory: Ciphertext | null
+  /** Decrypted label (populated by queryFn). */
+  label?: string
+  /** Decrypted category (populated by queryFn). */
+  category?: string
   createdBy: string
   createdAt: string
 }
