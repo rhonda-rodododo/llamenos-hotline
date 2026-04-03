@@ -8,8 +8,10 @@ import { useAuth } from '@/lib/auth'
 import { useConfig } from '@/lib/config'
 
 import { useBlasts, useCancelBlast, useDeleteBlast, useSendBlast } from '@/lib/queries/blasts'
+import { queryKeys } from '@/lib/queries/keys'
 import { useToast } from '@/lib/toast'
 import type { Blast } from '@shared/types'
+import { useQueryClient } from '@tanstack/react-query'
 import { createFileRoute } from '@tanstack/react-router'
 import { Megaphone, Plus, Send, Settings2, Trash2, Users, XCircle } from 'lucide-react'
 import { useState } from 'react'
@@ -25,6 +27,7 @@ function BlastsPage() {
   const { currentHubId } = useConfig()
   const hubId = currentHubId ?? 'global'
   const { toast } = useToast()
+  const queryClient = useQueryClient()
 
   // Access control — require blasts:read permission
   if (!hasPermission('blasts:read')) {
@@ -213,6 +216,7 @@ function BlastsPage() {
               onCreated={(blast) => {
                 setShowComposer(false)
                 setSelectedBlast(blast)
+                void queryClient.invalidateQueries({ queryKey: queryKeys.blasts.all })
               }}
               onCancel={() => setShowComposer(false)}
             />

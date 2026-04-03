@@ -179,7 +179,7 @@ export function ReportTypesSection({
           <div className="flex flex-wrap items-center gap-2">
             <p className="text-sm font-medium">{rt.name}</p>
             {rt.isDefault && (
-              <Badge variant="secondary" className="text-[10px]">
+              <Badge variant="secondary" className="text-[10px]" data-testid="default-badge">
                 <Star className="mr-0.5 h-2.5 w-2.5" />
                 {t('settings.reportTypes.default')}
               </Badge>

@@ -434,6 +434,7 @@ export function RolesSection({ expanded, onToggle, statusSummary }: Props) {
         {roles.map((role) => (
           <div
             key={role.id}
+            data-testid={`role-row-${role.id}`}
             className={cn(
               'flex items-center gap-3 rounded-lg border border-border px-4 py-3 transition-colors',
               editingId === role.id && 'border-primary/30 bg-primary/5'

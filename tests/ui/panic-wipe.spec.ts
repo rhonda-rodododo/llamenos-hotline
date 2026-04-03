@@ -1,10 +1,7 @@
 import { expect, test } from '../fixtures/auth'
 
 test.describe('Panic Wipe (L-9)', () => {
-  // TODO: Fix full-page navigation context destruction — waitForEvent('load')
-  // doesn't reliably catch the window.location.href = '/login' redirect.
-  // Tracked in: https://github.com/rhonda-rodododo/llamenos-hotline/issues/25
-  test.fixme('triple-Escape wipes storage and redirects to login', async ({ adminPage }) => {
+  test('triple-Escape wipes storage and redirects to login', async ({ adminPage }) => {
     // Verify we're on the dashboard and storage has data
     await expect(adminPage.getByRole('heading', { name: 'Dashboard', exact: true })).toBeVisible()
     const hasKeyBefore = await adminPage.evaluate(
@@ -24,10 +21,10 @@ test.describe('Panic Wipe (L-9)', () => {
     await expect(overlay).toBeVisible({ timeout: 2000 })
 
     // The wipe does window.location.href = '/login' after 200ms, which is a
-    // full-page reload that destroys the execution context. Use Playwright's
-    // page.waitForEvent('load') to wait for the new page to fully load,
-    // then verify we're on /login and storage was cleared.
-    await adminPage.waitForEvent('load', { timeout: 15000 })
+    // full-page navigation that destroys the execution context. Use
+    // waitForURL which reliably handles full-page navigations including
+    // those triggered by window.location.href assignment.
+    await adminPage.waitForURL('**/login', { timeout: 15000 })
 
     // Now the new page is loaded. Verify URL and storage state.
     expect(adminPage.url()).toContain('/login')

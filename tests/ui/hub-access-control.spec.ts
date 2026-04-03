@@ -8,8 +8,8 @@
  */
 
 import { expect, test } from '../fixtures/auth'
-import { ADMIN_NSEC, Timeouts, navigateAfterLogin } from '../helpers'
-import { createAuthedRequestFromNsec } from '../helpers/authed-request'
+import { Timeouts, navigateAfterLogin } from '../helpers'
+import { createAdminApiFromStorageState } from '../helpers/authed-request'
 
 test.describe('Hub access control UI', () => {
   test.describe.configure({ mode: 'serial' })
@@ -19,8 +19,8 @@ test.describe('Hub access control UI', () => {
   const testHubName = `access-ctrl-ui-${Date.now()}`
 
   test.beforeAll(async ({ request }) => {
-    // Pre-create the hub via API — use ADMIN_NSEC for resilience against test-reset race
-    const authedApi = createAuthedRequestFromNsec(request, ADMIN_NSEC)
+    // Pre-create the hub via API — use admin storage state (matches UI-bootstrapped admin)
+    const authedApi = createAdminApiFromStorageState(request)
     const createRes = await authedApi.post('/api/hubs', { name: testHubName })
     if (!createRes.ok()) {
       const body = await createRes.text()
@@ -65,7 +65,7 @@ test.describe('Hub access control UI', () => {
     await expect(adminPage.getByRole('dialog')).not.toBeVisible({ timeout: Timeouts.ELEMENT })
 
     // Verify initial state via API
-    const authedApi = createAuthedRequestFromNsec(request, ADMIN_NSEC)
+    const authedApi = createAdminApiFromStorageState(request)
     const fetchRes = await authedApi.get(`/api/hubs/${testHubId}`)
     const fetched = await fetchRes.json()
     expect(fetched.hub.allowSuperAdminAccess).toBe(false)
@@ -74,7 +74,7 @@ test.describe('Hub access control UI', () => {
   test('super admin cannot modify hub access via settings API', async ({ request }) => {
     // The settings endpoint explicitly blocks super admins from modifying their own access.
     // This is a security constraint: only hub admins can grant/revoke super admin visibility.
-    const authedApi = createAuthedRequestFromNsec(request, ADMIN_NSEC)
+    const authedApi = createAdminApiFromStorageState(request)
     const updateRes = await authedApi.patch(`/api/hubs/${testHubId}/settings`, {
       allowSuperAdminAccess: true,
     })
