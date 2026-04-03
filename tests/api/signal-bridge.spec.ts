@@ -2,42 +2,34 @@ import { expect, test } from '@playwright/test'
 import { ADMIN_NSEC } from '../helpers'
 import { createAuthedRequestFromNsec } from '../helpers/authed-request'
 
-// Signal bridge tests require signal-cli container AND messaging config with bridgeUrl set.
-// In CI, the signal bridge starts but the messaging config hasn't been populated via the
-// setup wizard. These tests verify the bridge connectivity endpoint behavior.
-
 test.describe('Signal Bridge Integration', () => {
-  test('GET /api/messaging/signal/test-bridge returns bridge status', async ({ request }) => {
-    // No skip — signal bridge should always be available
+  test('POST /api/setup/test/signal validates bridge connection', async ({ request }) => {
     const api = createAuthedRequestFromNsec(request, ADMIN_NSEC)
-    const res = await api.get('/api/messaging/signal/test-bridge')
-    // 200 = bridge connected, 503 = bridge not configured (no URL set)
-    expect([200, 503]).toContain(res.status())
-    if (res.status() === 200) {
-      const body = await res.json()
-      expect(body).toHaveProperty('connected')
-    }
-  })
-
-  test('GET /api/messaging/signal/registration-status returns not-registered', async ({
-    request,
-  }) => {
-    // No skip — signal bridge should always be available
-    const api = createAuthedRequestFromNsec(request, ADMIN_NSEC)
-    const res = await api.get('/api/messaging/signal/registration-status')
-    // Without a registered number, should indicate not registered
-    expect([200, 404]).toContain(res.status())
-  })
-
-  test('Signal bridge API is accessible from server', async ({ request }) => {
-    // No skip — signal bridge should always be available
-    // The server proxies Signal bridge requests — verify the proxy works
-    const api = createAuthedRequestFromNsec(request, ADMIN_NSEC)
-    // Test the setup wizard's signal test endpoint
-    const res = await api.post('/api/setup/provider/test-messaging', {
-      channelType: 'signal',
+    // Test with the Docker signal-cli bridge URL
+    // In CI, signal-cli runs on internal Docker network; server accesses it via hostname
+    const res = await api.post('/api/setup/test/signal', {
+      bridgeUrl: 'http://signal-cli:8080',
     })
-    // Should either succeed (bridge connected) or fail gracefully (not configured)
+    // 200 = bridge connected, 400 = invalid URL, 503 = bridge unreachable
+    // All are acceptable — what matters is no 500 (unhandled error)
+    expect(res.status()).not.toBe(500)
     expect([200, 400, 503]).toContain(res.status())
+  })
+
+  test('POST /api/setup/test/signal rejects internal URLs (SSRF guard)', async ({ request }) => {
+    const api = createAuthedRequestFromNsec(request, ADMIN_NSEC)
+    const res = await api.post('/api/setup/test/signal', {
+      bridgeUrl: 'http://localhost:8080',
+    })
+    // SSRF guard should block localhost
+    expect(res.status()).toBe(400)
+  })
+
+  test('POST /api/setup/test/signal requires admin permissions', async ({ request }) => {
+    // Unauthenticated request should fail
+    const res = await request.post('/api/setup/test/signal', {
+      data: { bridgeUrl: 'http://signal-cli:8080' },
+    })
+    expect(res.status()).toBe(401)
   })
 })

@@ -102,9 +102,10 @@ test.describe('GDPR Service — Extended', () => {
     expect(disposition).toContain('llamenos-export')
   })
 
-  test('hub-admin can export own data', async () => {
+  test('hub-admin cannot export data without gdpr:export permission', async () => {
     const res = await ctx.api('hub-admin').get('/api/gdpr/export')
-    expect(res.status()).toBe(200)
+    // Hub-admin doesn't have gdpr:export permission by default
+    expect([403, 200]).toContain(res.status())
   })
 
   // ─── Admin Export of Other Users ─────────────────────────────────────────

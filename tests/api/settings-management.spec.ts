@@ -513,7 +513,7 @@ test.describe('Settings Management', () => {
     test('admin can update geocoding config', async () => {
       const res = await adminApi.patch('/api/geocoding/settings', {
         provider: 'opencage',
-        globalEnabled: true,
+        enabled: true,
         countries: ['US', 'MX'],
       })
       expect(res.status()).toBe(200)
