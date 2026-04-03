@@ -10,6 +10,7 @@ A generic SIP trunk adapter that enables any standards-compliant SIP trunk provi
 ## Why Generic SIP?
 
 Most telephony happens over SIP. Hundreds of providers offer SIP trunking:
+
 - **Budget carriers:** VoIP.ms, Callcentric, Localphone
 - **Business carriers:** Flowroute (Intrado), Bandwidth SIP, Lumen
 - **Regional carriers:** Local telcos offering SIP service
@@ -46,30 +47,30 @@ The generic SIP trunk adapter is NOT a new TelephonyAdapter implementation. Inst
 ```typescript
 interface SipTrunkConfig {
   // Provider connection
-  trunkDomain: string           // e.g., 'sip.voip.ms', 'sip.flowroute.com'
-  trunkPort?: number            // default 5060 (UDP) or 5061 (TLS)
-  transport?: 'udp' | 'tcp' | 'tls'  // default 'udp'
-  
+  trunkDomain: string; // e.g., 'sip.voip.ms', 'sip.flowroute.com'
+  trunkPort?: number; // default 5060 (UDP) or 5061 (TLS)
+  transport?: "udp" | "tcp" | "tls"; // default 'udp'
+
   // Authentication (one of two modes)
-  authType: 'registration' | 'ip-based'
-  
+  authType: "registration" | "ip-based";
+
   // Registration-based auth
-  username?: string
-  password?: string
-  authUsername?: string          // sometimes different from SIP username
-  
+  username?: string;
+  password?: string;
+  authUsername?: string; // sometimes different from SIP username
+
   // IP-based auth (trunk provider allowlists your IP)
   // No credentials needed, just configure the trunk domain
-  
+
   // Media
-  codecs?: string[]             // ['ulaw', 'alaw', 'g722', 'opus'] — order = preference
-  dtmfMode?: 'rfc2833' | 'inband' | 'info'  // default rfc2833
-  
+  codecs?: string[]; // ['ulaw', 'alaw', 'g722', 'opus'] — order = preference
+  dtmfMode?: "rfc2833" | "inband" | "info"; // default rfc2833
+
   // TLS (for secure trunks)
-  tlsVerify?: boolean           // verify provider's TLS cert
-  
+  tlsVerify?: boolean; // verify provider's TLS cert
+
   // DID routing
-  didNumber: string             // the phone number assigned by the trunk provider (E.164)
+  didNumber: string; // the phone number assigned by the trunk provider (E.164)
 }
 ```
 
@@ -127,24 +128,24 @@ The setup wizard gets a new "SIP Trunk" provider option with:
 
 ## Provider Presets
 
-| Provider | Domain | Port | Transport | Auth | Notes |
-|----------|--------|------|-----------|------|-------|
-| VoIP.ms | `{city}.voip.ms` | 5060 | UDP | Registration | City-specific servers |
-| Flowroute | `us-west-or.sip.flowroute.com` | 5060 | UDP | IP-based | Regional endpoints |
-| sipgate | `sipgate.de` | 5060 | TLS | Registration | European |
-| Callcentric | `callcentric.com` | 5060 | UDP | Registration | |
-| Twilio SIP | `{sid}.pstn.twilio.com` | 5060 | TLS | IP + token | Elastic SIP Trunking |
-| Telnyx SIP | `sip.telnyx.com` | 5060 | TLS | Registration | |
+| Provider    | Domain                         | Port | Transport | Auth         | Notes                 |
+| ----------- | ------------------------------ | ---- | --------- | ------------ | --------------------- |
+| VoIP.ms     | `{city}.voip.ms`               | 5060 | UDP       | Registration | City-specific servers |
+| Flowroute   | `us-west-or.sip.flowroute.com` | 5060 | UDP       | IP-based     | Regional endpoints    |
+| sipgate     | `sipgate.de`                   | 5060 | TLS       | Registration | European              |
+| Callcentric | `callcentric.com`              | 5060 | UDP       | Registration |                       |
+| Twilio SIP  | `{sid}.pstn.twilio.com`        | 5060 | TLS       | IP + token   | Elastic SIP Trunking  |
+| Telnyx SIP  | `sip.telnyx.com`               | 5060 | TLS       | Registration |                       |
 
 ## Files
 
-| File | Action | Description |
-|------|--------|-------------|
-| `src/shared/schemas/providers.ts` | Modify | Add SipTrunkConfigSchema |
-| `src/server/telephony/sip-trunk-provisioner.ts` | Create | PJSIP dynamic trunk config via ARI |
-| `src/server/provider-setup/sip-trunk.ts` | Create | Setup capabilities (test, provision) |
-| `src/server/telephony/sip-trunk-capabilities.ts` | Create | ProviderCapabilities for SIP trunks |
-| `src/client/components/setup/SipTrunkForm.tsx` | Create | Admin UI form with presets |
+| File                                             | Action | Description                          |
+| ------------------------------------------------ | ------ | ------------------------------------ |
+| `src/shared/schemas/providers.ts`                | Modify | Add SipTrunkConfigSchema             |
+| `src/server/telephony/sip-trunk-provisioner.ts`  | Create | PJSIP dynamic trunk config via ARI   |
+| `src/server/provider-setup/sip-trunk.ts`         | Create | Setup capabilities (test, provision) |
+| `src/server/telephony/sip-trunk-capabilities.ts` | Create | ProviderCapabilities for SIP trunks  |
+| `src/client/components/setup/SipTrunkForm.tsx`   | Create | Admin UI form with presets           |
 
 ## Dependencies
 
