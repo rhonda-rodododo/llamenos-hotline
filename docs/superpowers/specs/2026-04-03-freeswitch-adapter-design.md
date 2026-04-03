@@ -23,6 +23,8 @@ Building all three together ensures the sip-bridge protocol abstraction is desig
 | Bridge architecture | Combined `sip-bridge/` with 3 protocol clients | Single deployment, shared webhook translation, `PBX_TYPE` config selects protocol |
 | TTS | mod_flite (built-in fallback) | Users record custom IVR audio for quality; mod_flite covers unrecorded prompts only |
 | Scope | Full capabilities | SIP trunk config, recording management, connection testing, WebRTC via mod_verto |
+| Adapter base class | `SipBridgeAdapter` abstract class | Extracts ~200 lines of shared bridge communication (ringUsers, cancelRinging, hangupCall, recording mgmt, HMAC validation, testConnection) from AsteriskAdapter; FreeSwitchAdapter extends same base |
+| Migration scope | Full rename asterisk-bridge → sip-bridge | 121 files reference the bridge — code, tests, CI, Docker, Ansible, Helm, docs, locales all updated |
 
 ---
 
