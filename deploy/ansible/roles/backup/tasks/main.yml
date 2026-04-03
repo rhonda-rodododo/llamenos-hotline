@@ -50,7 +50,7 @@
       #
       # Llamenos Backup Script — managed by Ansible
       #
-      # Performs an encrypted backup of the PostgreSQL database.
+      # Performs an encrypted backup of the PostgreSQL database and RustFS blob storage.
       # Enforces retention: {{ backup_retain_daily }} daily, {{ backup_retain_weekly }} weekly, {{ backup_retain_monthly }} monthly.
       #
       # Usage:
@@ -73,7 +73,9 @@
         BACKUP_TYPE="manual"
       fi
 
-      FILENAME="llamenos-${TIMESTAMP}.sql.gz.age"
+      DB_FILENAME="llamenos-${TIMESTAMP}.sql.gz.age"
+      BLOB_FILENAME="llamenos-blobs-${TIMESTAMP}.tar.gz.age"
+      FILENAME="${DB_FILENAME}"  # primary filename for status tracking
 
       log() {
         echo "[$(date -u +%Y-%m-%dT%H:%M:%SZ)] $*"
@@ -95,40 +97,98 @@
       DUMP_SIZE="$(stat -c%s "${TMPDIR}/dump.sql.gz")"
       log "Database dump: ${DUMP_SIZE} bytes (compressed)"
 
+      # Step 1b: Dump RustFS blob storage via S3 API
+      BLOB_SIZE=0
+      STORAGE_ENDPOINT="{{ storage_endpoint | default('http://rustfs:9000') }}"
+      STORAGE_ACCESS_KEY="{{ storage_access_key | default('') }}"
+      STORAGE_SECRET_KEY="{{ storage_secret_key | default('') }}"
+
+      if [ -n "${STORAGE_ACCESS_KEY}" ] && [ -n "${STORAGE_SECRET_KEY}" ]; then
+        log "Dumping RustFS blob storage..."
+        # Use docker exec with mc (MinIO client) inside the RustFS container
+        # or use rclone with S3 protocol if mc is not available
+        if docker compose -f "${COMPOSE_FILE}" exec -T rustfs mc --version >/dev/null 2>&1; then
+          # mc is available inside the container — mirror all buckets
+          docker compose -f "${COMPOSE_FILE}" exec -T rustfs \
+            mc alias set local "${STORAGE_ENDPOINT}" "${STORAGE_ACCESS_KEY}" "${STORAGE_SECRET_KEY}" >/dev/null 2>&1
+          docker compose -f "${COMPOSE_FILE}" exec -T rustfs \
+            mc mirror local/ /tmp/blob-export/ --overwrite >/dev/null 2>&1
+          docker compose -f "${COMPOSE_FILE}" exec -T rustfs \
+            tar czf /tmp/blob-export.tar.gz -C /tmp/blob-export . 2>/dev/null
+          docker compose -f "${COMPOSE_FILE}" cp rustfs:/tmp/blob-export.tar.gz "${TMPDIR}/blobs.tar.gz"
+          docker compose -f "${COMPOSE_FILE}" exec -T rustfs rm -rf /tmp/blob-export /tmp/blob-export.tar.gz 2>/dev/null || true
+        else
+          # Fallback: use rclone with S3 protocol from host
+          log "mc not available in container, using rclone S3..."
+          RCLONE_S3_CONFIG="--s3-provider=Other --s3-endpoint=${STORAGE_ENDPOINT} --s3-access-key-id=${STORAGE_ACCESS_KEY} --s3-secret-access-key=${STORAGE_SECRET_KEY} --s3-force-path-style"
+          rclone copy ":s3:" "${TMPDIR}/blob-export/" ${RCLONE_S3_CONFIG} 2>/dev/null || true
+          if [ -d "${TMPDIR}/blob-export" ] && [ "$(ls -A "${TMPDIR}/blob-export" 2>/dev/null)" ]; then
+            tar czf "${TMPDIR}/blobs.tar.gz" -C "${TMPDIR}/blob-export" .
+            rm -rf "${TMPDIR}/blob-export"
+          fi
+        fi
+
+        if [ -f "${TMPDIR}/blobs.tar.gz" ]; then
+          BLOB_SIZE="$(stat -c%s "${TMPDIR}/blobs.tar.gz")"
+          log "Blob storage dump: ${BLOB_SIZE} bytes (compressed)"
+        else
+          log "WARNING: Blob storage dump produced no output (empty or no buckets)"
+        fi
+      else
+        log "Skipping blob storage backup (no STORAGE_ACCESS_KEY/STORAGE_SECRET_KEY configured)"
+      fi
+
       # Step 2: Encrypt with age
       if [ -n "${AGE_RECIPIENT}" ]; then
-        log "Encrypting backup with age..."
-        age -r "${AGE_RECIPIENT}" -o "${TMPDIR}/${FILENAME}" "${TMPDIR}/dump.sql.gz"
+        log "Encrypting database backup with age..."
+        age -r "${AGE_RECIPIENT}" -o "${TMPDIR}/${DB_FILENAME}" "${TMPDIR}/dump.sql.gz"
+        if [ -f "${TMPDIR}/blobs.tar.gz" ]; then
+          log "Encrypting blob backup with age..."
+          age -r "${AGE_RECIPIENT}" -o "${TMPDIR}/${BLOB_FILENAME}" "${TMPDIR}/blobs.tar.gz"
+        fi
       else
-        log "WARNING: No age public key configured. Backup is NOT encrypted."
-        FILENAME="llamenos-${TIMESTAMP}.sql.gz"
-        mv "${TMPDIR}/dump.sql.gz" "${TMPDIR}/${FILENAME}"
+        log "WARNING: No age public key configured. Backups are NOT encrypted."
+        DB_FILENAME="llamenos-${TIMESTAMP}.sql.gz"
+        mv "${TMPDIR}/dump.sql.gz" "${TMPDIR}/${DB_FILENAME}"
+        if [ -f "${TMPDIR}/blobs.tar.gz" ]; then
+          BLOB_FILENAME="llamenos-blobs-${TIMESTAMP}.tar.gz"
+          mv "${TMPDIR}/blobs.tar.gz" "${TMPDIR}/${BLOB_FILENAME}"
+        fi
       fi
 
       # Step 3: Store in daily directory
-      cp "${TMPDIR}/${FILENAME}" "${BACKUP_DIR}/daily/${FILENAME}"
-      log "Saved to ${BACKUP_DIR}/daily/${FILENAME}"
+      cp "${TMPDIR}/${DB_FILENAME}" "${BACKUP_DIR}/daily/${DB_FILENAME}"
+      log "Saved DB to ${BACKUP_DIR}/daily/${DB_FILENAME}"
+      if [ -f "${TMPDIR}/${BLOB_FILENAME}" ]; then
+        cp "${TMPDIR}/${BLOB_FILENAME}" "${BACKUP_DIR}/daily/${BLOB_FILENAME}"
+        log "Saved blobs to ${BACKUP_DIR}/daily/${BLOB_FILENAME}"
+      fi
 
       # Step 4: Copy to weekly (on Sundays) and monthly (on 1st)
       if [ "${DAY_OF_WEEK}" = "7" ]; then
-        cp "${TMPDIR}/${FILENAME}" "${BACKUP_DIR}/weekly/${FILENAME}"
+        cp "${TMPDIR}/${DB_FILENAME}" "${BACKUP_DIR}/weekly/${DB_FILENAME}"
+        [ -f "${TMPDIR}/${BLOB_FILENAME}" ] && cp "${TMPDIR}/${BLOB_FILENAME}" "${BACKUP_DIR}/weekly/${BLOB_FILENAME}"
         log "Weekly backup saved"
       fi
 
       if [ "${DAY_OF_MONTH}" = "01" ]; then
-        cp "${TMPDIR}/${FILENAME}" "${BACKUP_DIR}/monthly/${FILENAME}"
+        cp "${TMPDIR}/${DB_FILENAME}" "${BACKUP_DIR}/monthly/${DB_FILENAME}"
+        [ -f "${TMPDIR}/${BLOB_FILENAME}" ] && cp "${TMPDIR}/${BLOB_FILENAME}" "${BACKUP_DIR}/monthly/${BLOB_FILENAME}"
         log "Monthly backup saved"
       fi
 
       # Step 5: Upload to remote storage via rclone
       if [ -n "${RCLONE_REMOTE}" ]; then
         log "Uploading to remote storage: ${RCLONE_REMOTE}"
-        rclone copy "${TMPDIR}/${FILENAME}" "${RCLONE_REMOTE}/daily/" --progress
+        rclone copy "${TMPDIR}/${DB_FILENAME}" "${RCLONE_REMOTE}/daily/" --progress
+        [ -f "${TMPDIR}/${BLOB_FILENAME}" ] && rclone copy "${TMPDIR}/${BLOB_FILENAME}" "${RCLONE_REMOTE}/daily/" --progress
         if [ "${DAY_OF_WEEK}" = "7" ]; then
-          rclone copy "${TMPDIR}/${FILENAME}" "${RCLONE_REMOTE}/weekly/" --progress
+          rclone copy "${TMPDIR}/${DB_FILENAME}" "${RCLONE_REMOTE}/weekly/" --progress
+          [ -f "${TMPDIR}/${BLOB_FILENAME}" ] && rclone copy "${TMPDIR}/${BLOB_FILENAME}" "${RCLONE_REMOTE}/weekly/" --progress
         fi
         if [ "${DAY_OF_MONTH}" = "01" ]; then
-          rclone copy "${TMPDIR}/${FILENAME}" "${RCLONE_REMOTE}/monthly/" --progress
+          rclone copy "${TMPDIR}/${DB_FILENAME}" "${RCLONE_REMOTE}/monthly/" --progress
+          [ -f "${TMPDIR}/${BLOB_FILENAME}" ] && rclone copy "${TMPDIR}/${BLOB_FILENAME}" "${RCLONE_REMOTE}/monthly/" --progress
         fi
         log "Remote upload complete"
       fi
@@ -136,26 +196,32 @@
       # Step 6: Enforce retention policy
       log "Enforcing retention policy..."
 
-      # Keep N most recent files in a directory
+      # Keep N most recent files matching a pattern in a directory
       enforce_retention() {
         local dir="$1"
         local keep="$2"
+        local pattern="${3:-llamenos-*}"
         local count
-        count="$(find "${dir}" -maxdepth 1 -type f -name 'llamenos-*' | wc -l)"
+        count="$(find "${dir}" -maxdepth 1 -type f -name "${pattern}" | wc -l)"
         if [ "${count}" -gt "${keep}" ]; then
           local to_delete=$(( count - keep ))
-          find "${dir}" -maxdepth 1 -type f -name 'llamenos-*' -printf '%T@ %p\n' \
+          find "${dir}" -maxdepth 1 -type f -name "${pattern}" -printf '%T@ %p\n' \
             | sort -n \
             | head -n "${to_delete}" \
             | cut -d' ' -f2- \
             | xargs rm -f
-          log "Removed ${to_delete} old backups from ${dir}"
+          log "Removed ${to_delete} old ${pattern} from ${dir}"
         fi
       }
 
-      enforce_retention "${BACKUP_DIR}/daily" {{ backup_retain_daily }}
-      enforce_retention "${BACKUP_DIR}/weekly" {{ backup_retain_weekly }}
-      enforce_retention "${BACKUP_DIR}/monthly" {{ backup_retain_monthly }}
+      # Retain DB backups
+      enforce_retention "${BACKUP_DIR}/daily" {{ backup_retain_daily }} "llamenos-[0-9]*.sql.gz*"
+      enforce_retention "${BACKUP_DIR}/weekly" {{ backup_retain_weekly }} "llamenos-[0-9]*.sql.gz*"
+      enforce_retention "${BACKUP_DIR}/monthly" {{ backup_retain_monthly }} "llamenos-[0-9]*.sql.gz*"
+      # Retain blob backups (same schedule)
+      enforce_retention "${BACKUP_DIR}/daily" {{ backup_retain_daily }} "llamenos-blobs-*"
+      enforce_retention "${BACKUP_DIR}/weekly" {{ backup_retain_weekly }} "llamenos-blobs-*"
+      enforce_retention "${BACKUP_DIR}/monthly" {{ backup_retain_monthly }} "llamenos-blobs-*"
 
       # Also enforce retention on remote
       if [ -n "${RCLONE_REMOTE}" ]; then
@@ -165,15 +231,18 @@
       fi
 
       # Step 7: Write backup status for health endpoint
-      BACKUP_SIZE="$(stat -c%s "${TMPDIR}/${FILENAME}" 2>/dev/null || echo 0)"
-      printf '{"lastSuccessAt":"%s","lastSizeBytes":%s,"file":"%s"}\n' \
+      DB_SIZE="$(stat -c%s "${TMPDIR}/${DB_FILENAME}" 2>/dev/null || echo 0)"
+      TOTAL_BLOB_SIZE="${BLOB_SIZE}"
+      printf '{"lastSuccessAt":"%s","lastSizeBytes":%s,"dbSizeBytes":%s,"blobSizeBytes":%s,"file":"%s"}\n' \
         "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
-        "${BACKUP_SIZE}" \
-        "${FILENAME}" \
+        "$(( DB_SIZE + TOTAL_BLOB_SIZE ))" \
+        "${DB_SIZE}" \
+        "${TOTAL_BLOB_SIZE}" \
+        "${DB_FILENAME}" \
         > "${BACKUP_DIR}/.status.json"
       chmod 644 "${BACKUP_DIR}/.status.json"
 
-      log "Backup complete: ${FILENAME}"
+      log "Backup complete: ${DB_FILENAME} (${DB_SIZE} bytes DB, ${TOTAL_BLOB_SIZE} bytes blobs)"
 
 - name: Run initial backup
   ansible.builtin.command: "{{ app_dir }}/scripts/backup.sh"

@@ -26,6 +26,13 @@ backup_retain_monthly: 3
 backup_cron_hour: "3"
 backup_cron_minute: "0"
 
+# RustFS blob storage credentials for backup.
+# If set, blob storage (voicemail, file uploads) is included in backups.
+# These match the STORAGE_* env vars in docker-compose.
+storage_endpoint: "http://rustfs:9000"
+storage_access_key: ""
+storage_secret_key: ""
+
 # rclone remote for off-site backup storage.
 # Configure rclone on the host first: rclone config
 # Examples: "s3:llamenos-backups", "b2:llamenos-backups"
