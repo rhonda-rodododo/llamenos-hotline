@@ -15,9 +15,10 @@ export const CallLegSchema = z.object({
   legSid: z.string(),
   callSid: z.string(),
   hubId: z.string(),
-  volunteerPubkey: z.string(),
+  userPubkey: z.string(),
   phone: z.string().optional(),
-  status: z.enum(['initiated', 'ringing', 'answered', 'completed', 'failed']),
+  type: z.enum(['phone', 'browser']).optional(),
+  status: z.enum(['initiated', 'ringing', 'answered', 'completed', 'failed', 'cancelled']),
   createdAt: z.iso.datetime(),
 })
 export type CallLeg = z.infer<typeof CallLegSchema>

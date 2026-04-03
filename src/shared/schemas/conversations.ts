@@ -10,6 +10,7 @@ export const ConversationSchema = z.object({
   externalId: z.string().optional(),
   assignedTo: z.string().optional(),
   status: z.enum(['active', 'waiting', 'closed']),
+  reportTypeId: z.string().nullable().optional(),
   metadata: z.record(z.string(), z.unknown()),
   messageCount: z.number().int(),
   createdAt: z.iso.datetime(),
