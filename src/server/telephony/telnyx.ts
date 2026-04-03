@@ -101,8 +101,6 @@ export class TelnyxAdapter implements TelephonyAdapter {
   private client: TelnyxCallControlClient
   private connectionId: string
   private phoneNumber: string
-  /** Cached Telnyx public key for webhook signature verification */
-  private cachedPublicKey: string | null = null
 
   constructor(apiKey: string, connectionId: string, phoneNumber: string) {
     this.apiKey = apiKey
@@ -502,28 +500,8 @@ export class TelnyxAdapter implements TelephonyAdapter {
     if (Math.abs(now - ts) > 300) return false
 
     try {
-      // Fetch and cache public key
-      if (!this.cachedPublicKey) {
-        this.cachedPublicKey = await this.client.getPublicKey()
-      }
-
       const rawBody = await request.clone().text()
-      const signingPayload = `${timestamp}|${rawBody}`
-
-      // Decode the Ed25519 public key from base64
-      const pubKeyBytes = Uint8Array.from(atob(this.cachedPublicKey), (c) => c.charCodeAt(0))
-      const sigBytes = Uint8Array.from(atob(signature), (c) => c.charCodeAt(0))
-      const payloadBytes = new TextEncoder().encode(signingPayload)
-
-      // Import the Ed25519 public key and verify
-      const cryptoKey = await crypto.subtle.importKey(
-        'raw',
-        pubKeyBytes,
-        { name: 'Ed25519' },
-        false,
-        ['verify']
-      )
-      return await crypto.subtle.verify('Ed25519', cryptoKey, sigBytes, payloadBytes)
+      return await this.client.verifyWebhookSignature(signature, timestamp, rawBody)
     } catch {
       return false
     }

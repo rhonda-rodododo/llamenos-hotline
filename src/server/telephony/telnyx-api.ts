@@ -22,6 +22,8 @@ export interface TelnyxCreateCallResult {
  */
 export class TelnyxCallControlClient {
   private apiKey: string
+  /** Cached Telnyx public key for webhook signature verification */
+  private cachedPublicKey: string | null = null
 
   constructor(apiKey: string) {
     this.apiKey = apiKey
@@ -168,6 +170,39 @@ export class TelnyxCallControlClient {
       },
     })
     return res.ok
+  }
+
+  /**
+   * Verify an Ed25519 webhook signature from Telnyx.
+   * Caches the public key after first fetch.
+   *
+   * @param signature - Base64-encoded Ed25519 signature from telnyx-signature-ed25519 header
+   * @param timestamp - Unix timestamp string from telnyx-timestamp header
+   * @param rawBody - Raw request body text
+   * @returns true if signature is valid
+   */
+  async verifyWebhookSignature(
+    signature: string,
+    timestamp: string,
+    rawBody: string
+  ): Promise<boolean> {
+    if (!this.cachedPublicKey) {
+      this.cachedPublicKey = await this.getPublicKey()
+    }
+
+    const signingPayload = `${timestamp}|${rawBody}`
+    const pubKeyBytes = Uint8Array.from(atob(this.cachedPublicKey), (c) => c.charCodeAt(0))
+    const sigBytes = Uint8Array.from(atob(signature), (c) => c.charCodeAt(0))
+    const payloadBytes = new TextEncoder().encode(signingPayload)
+
+    const cryptoKey = await crypto.subtle.importKey(
+      'raw',
+      pubKeyBytes,
+      { name: 'Ed25519' },
+      false,
+      ['verify']
+    )
+    return crypto.subtle.verify('Ed25519', cryptoKey, sigBytes, payloadBytes)
   }
 
   /**

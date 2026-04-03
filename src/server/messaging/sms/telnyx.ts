@@ -1,6 +1,7 @@
 import { HMAC_PHONE_PREFIX } from '@shared/crypto-labels'
 import type { MessagingChannelType } from '../../../shared/types'
 import type { CryptoService } from '../../lib/crypto-service'
+import { TelnyxCallControlClient } from '../../telephony/telnyx-api'
 import type { MessageDeliveryStatus } from '../../types'
 import type {
   ChannelStatus,
@@ -24,11 +25,13 @@ export class TelnyxSMSAdapter implements MessagingAdapter {
   private apiKey: string
   private phoneNumber: string
   private crypto: CryptoService
+  private telnyxClient: TelnyxCallControlClient
 
   constructor(apiKey: string, phoneNumber: string, crypto: CryptoService) {
     this.apiKey = apiKey
     this.phoneNumber = phoneNumber
     this.crypto = crypto
+    this.telnyxClient = new TelnyxCallControlClient(apiKey)
   }
 
   async parseIncomingMessage(request: Request): Promise<IncomingMessage> {
@@ -64,22 +67,23 @@ export class TelnyxSMSAdapter implements MessagingAdapter {
   }
 
   async validateWebhook(request: Request): Promise<boolean> {
-    // Telnyx uses ed25519 signature verification.
-    // The signature is over: timestamp|payload
-    // Headers: telnyx-signature-ed25519, telnyx-timestamp
     const signature = request.headers.get('telnyx-signature-ed25519')
     const timestamp = request.headers.get('telnyx-timestamp')
 
     if (!signature || !timestamp) return false
 
-    // Verify the timestamp is recent (within 5 minutes)
-    const ts = Number(timestamp)
-    if (Number.isNaN(ts) || Math.abs(Date.now() / 1000 - ts) > 300) return false
+    // Reject if timestamp is > 5 minutes old (replay attack prevention)
+    const ts = Number.parseInt(timestamp, 10)
+    if (Number.isNaN(ts)) return false
+    const now = Math.floor(Date.now() / 1000)
+    if (Math.abs(now - ts) > 300) return false
 
-    // Full ed25519 verification requires Telnyx's public key.
-    // For now, accept if signature headers are present and timestamp is valid.
-    // TODO: implement full ed25519 verification with Telnyx public key
-    return true
+    try {
+      const rawBody = await request.clone().text()
+      return await this.telnyxClient.verifyWebhookSignature(signature, timestamp, rawBody)
+    } catch {
+      return false
+    }
   }
 
   async sendMessage(params: SendMessageParams): Promise<SendResult> {
