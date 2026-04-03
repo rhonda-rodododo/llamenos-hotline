@@ -157,7 +157,13 @@ export function ReportTypesSection({
       const { reportType: updated } = await setDefaultReportType(id)
       onChange(
         reportTypes.map((rt) => {
-          if (rt.id === id) return updated
+          if (rt.id === id)
+            return {
+              ...rt,
+              ...updated,
+              name: rt.name || updated.name,
+              description: rt.description || updated.description,
+            }
           return { ...rt, isDefault: false }
         })
       )
