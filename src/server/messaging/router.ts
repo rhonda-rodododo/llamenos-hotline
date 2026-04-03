@@ -59,7 +59,7 @@ messaging.get('/rcs/webhook', async (c) => {
  */
 messaging.post('/:channel/webhook', async (c) => {
   const channel = c.req.param('channel') as MessagingChannelType
-  const validChannels: MessagingChannelType[] = ['sms', 'whatsapp', 'signal', 'rcs']
+  const validChannels: MessagingChannelType[] = ['sms', 'whatsapp', 'signal', 'rcs', 'telegram']
   if (!validChannels.includes(channel)) {
     return c.json({ error: 'Unknown channel' }, 404)
   }
@@ -139,7 +139,7 @@ messaging.post('/:channel/webhook', async (c) => {
             identifierHash: incoming.senderIdentifierHash,
             channels: [
               {
-                type: incoming.channelType as 'sms' | 'whatsapp' | 'signal' | 'rcs',
+                type: incoming.channelType as 'sms' | 'whatsapp' | 'signal' | 'rcs' | 'telegram',
                 verified: false,
               },
             ],

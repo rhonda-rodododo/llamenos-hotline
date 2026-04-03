@@ -16,7 +16,7 @@ export type TelephonyEvent =
   | 'recording-complete'
   | 'voicemail'
 
-export type MessagingChannel = 'sms' | 'whatsapp' | 'signal' | 'rcs'
+export type MessagingChannel = 'sms' | 'whatsapp' | 'signal' | 'rcs' | 'telegram'
 export type MessagingEvent = 'incoming-message' | 'delivery-status'
 
 export type MessagingProvider = 'twilio' | 'signalwire' | 'vonage' | 'plivo' | 'asterisk' | 'meta'
