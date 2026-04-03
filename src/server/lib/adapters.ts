@@ -52,7 +52,16 @@ export async function getTelephony(
   }
 
   if (config) {
-    return createAdapterFromConfig(config)
+    try {
+      return createAdapterFromConfig(config)
+    } catch (e) {
+      // Config exists but is incomplete (e.g. type:'twilio' without credentials).
+      // Fall through to env-var / TestAdapter fallback instead of throwing 500.
+      console.warn(
+        '[telephony] DB config invalid, falling through to fallback:',
+        (e as Error).message
+      )
+    }
   }
 
   // Fall back to env vars (Twilio only)

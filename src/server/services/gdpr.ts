@@ -242,7 +242,7 @@ export class GdprService {
     const rows = await this.db
       .select()
       .from(gdprErasureRequests)
-      .where(eq(gdprErasureRequests.pubkey, pubkey))
+      .where(and(eq(gdprErasureRequests.pubkey, pubkey), eq(gdprErasureRequests.status, 'pending')))
       .limit(1)
     const row = rows[0]
     if (!row) return null

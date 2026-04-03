@@ -1,5 +1,5 @@
 import type { Ciphertext } from '@shared/crypto-types'
-import { eq, sql } from 'drizzle-orm'
+import { eq, inArray, sql } from 'drizzle-orm'
 import { DEFAULT_ROLES } from '../../../shared/permissions'
 import type { Role } from '../../../shared/permissions'
 import type { Database } from '../../db'
@@ -113,6 +113,9 @@ export async function createRole(
       createdAt: new Date(),
     })
     .returning()
+  // Clear cache AFTER insert — a concurrent listRoles() may have re-populated
+  // the cache between the pre-insert clear and the DB insert completing
+  roleCache.clear()
   return rowToRole(row)
 }
 
@@ -152,6 +155,7 @@ export async function updateRole(
     })
     .where(eq(roles.id, id))
     .returning()
+  roleCache.clear()
   return rowToRole(updated)
 }
 
@@ -166,6 +170,17 @@ export async function deleteRole(
   if (!role) throw new AppError(404, 'Role not found')
   if (role.isDefault) throw new AppError(403, 'Cannot delete default roles')
   await db.delete(roles).where(eq(roles.id, id))
+  roleCache.clear()
+}
+
+/**
+ * Fetch specific roles by ID directly from DB (bypasses cache).
+ * Used when the cached role list is missing roles that a user references.
+ */
+export async function getRolesByIds(db: Database, ids: string[]): Promise<Role[]> {
+  if (ids.length === 0) return []
+  const rows = await db.select().from(roles).where(inArray(roles.id, ids))
+  return mapRoleRows(rows)
 }
 
 /** Internal helper — resolves hub key for role seeding. */

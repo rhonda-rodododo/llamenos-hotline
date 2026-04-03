@@ -300,6 +300,10 @@ export class SettingsService {
     return roleMgmt.listRoles(this.db, this.crypto, this.roleCache, this.hubKeyCache, hubId)
   }
 
+  getRolesByIds(ids: string[]): Promise<Role[]> {
+    return roleMgmt.getRolesByIds(this.db, ids)
+  }
+
   createRole(data: CreateRoleData): Promise<Role> {
     return roleMgmt.createRole(this.db, this.roleCache, data)
   }
