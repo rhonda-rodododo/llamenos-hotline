@@ -1,0 +1,645 @@
+import type {
+  BridgeClient,
+  BridgeEvent,
+  BridgeHealthStatus,
+  OriginateParams,
+} from '../bridge-client'
+import type {
+  AnyAriEvent,
+  AriBridge,
+  AriChannel,
+  AriPlayback,
+  AriRecording,
+  BridgeConfig,
+  ChannelDestroyedEvent,
+  ChannelDtmfReceivedEvent,
+  ChannelStateChangeEvent,
+  PlaybackFinishedEvent,
+  RecordingFailedEvent,
+  RecordingFinishedEvent,
+  StasisStartEvent,
+} from '../types'
+
+/**
+ * ARI Client — connects to Asterisk's ARI via WebSocket for events
+ * and REST API for commands. No external dependencies; uses built-in
+ * WebSocket and fetch.
+ *
+ * Implements BridgeClient (protocol-agnostic interface) while also
+ * retaining ARI-specific methods for CommandHandler and PjsipConfigurator.
+ */
+export class AriClient implements BridgeClient {
+  private config: BridgeConfig
+  private ws: WebSocket | null = null
+  private eventHandlers: Array<(event: BridgeEvent) => void> = []
+  private reconnectDelay = 1000
+  private maxReconnectDelay = 30000
+  private shouldReconnect = true
+  private authHeader: string
+  private hasConnected = false
+  private connectionDeadline: number | null = null
+
+  /** Maximum time (ms) to wait for an initial Asterisk connection before exiting. Default 5 minutes. */
+  private readonly connectionTimeoutMs: number
+
+  constructor(config: BridgeConfig) {
+    this.config = config
+    this.authHeader = `Basic ${btoa(`${config.ariUsername}:${config.ariPassword}`)}`
+    this.connectionTimeoutMs = config.connectionTimeoutMs ?? 5 * 60 * 1000
+  }
+
+  /** Register an event handler for normalized bridge events */
+  onEvent(handler: (event: BridgeEvent) => void): void {
+    this.eventHandlers.push(handler)
+  }
+
+  /** Whether the WebSocket is currently connected */
+  isConnected(): boolean {
+    return this.ws !== null && this.ws.readyState === WebSocket.OPEN
+  }
+
+  /** Connect to the ARI WebSocket. Starts the connection deadline timer on first call. */
+  async connect(): Promise<void> {
+    this.shouldReconnect = true
+    if (!this.hasConnected) {
+      this.connectionDeadline = Date.now() + this.connectionTimeoutMs
+      console.log(
+        `[ari] Will exit if Asterisk is not reachable within ${Math.round(this.connectionTimeoutMs / 1000)}s`
+      )
+    }
+    await this.doConnect()
+  }
+
+  /** Disconnect from ARI */
+  disconnect(): void {
+    this.shouldReconnect = false
+    if (this.ws) {
+      this.ws.close()
+      this.ws = null
+    }
+  }
+
+  private async doConnect(): Promise<void> {
+    return new Promise((resolve, reject) => {
+      const wsUrl = `${this.config.ariUrl}?app=${this.config.stasisApp}&api_key=${this.config.ariUsername}:${this.config.ariPassword}`
+
+      console.log(`[ari] Connecting to ${this.config.ariUrl}...`)
+
+      const ws = new WebSocket(wsUrl)
+
+      ws.addEventListener('open', () => {
+        console.log('[ari] WebSocket connected')
+        this.reconnectDelay = 1000
+        this.hasConnected = true
+        this.connectionDeadline = null
+        this.ws = ws
+        resolve()
+      })
+
+      ws.addEventListener('message', (event) => {
+        try {
+          const data = JSON.parse(
+            typeof event.data === 'string'
+              ? event.data
+              : new TextDecoder().decode(event.data as ArrayBuffer)
+          ) as AnyAriEvent
+          const bridgeEvent = this.translateEvent(data)
+          if (bridgeEvent !== null) {
+            for (const handler of this.eventHandlers) {
+              try {
+                handler(bridgeEvent)
+              } catch (err) {
+                console.error('[ari] Event handler error:', err)
+              }
+            }
+          }
+        } catch (err) {
+          console.error('[ari] Failed to parse event:', err)
+        }
+      })
+
+      ws.addEventListener('close', (event) => {
+        console.log(`[ari] WebSocket closed: code=${event.code} reason=${event.reason}`)
+        this.ws = null
+        if (this.shouldReconnect) {
+          this.scheduleReconnect()
+        }
+      })
+
+      ws.addEventListener('error', (event) => {
+        console.error('[ari] WebSocket error:', event)
+        if (!this.ws) {
+          reject(new Error('Failed to connect to ARI WebSocket'))
+        }
+      })
+    })
+  }
+
+  /** Translate a raw ARI event into a normalized BridgeEvent, or null if not mapped */
+  private translateEvent(ariEvent: AnyAriEvent): BridgeEvent | null {
+    const timestamp = ariEvent.timestamp
+
+    switch (ariEvent.type) {
+      case 'StasisStart': {
+        const e = ariEvent as StasisStartEvent
+        return {
+          type: 'channel_create',
+          channelId: e.channel.id,
+          callerNumber: e.channel.caller.number,
+          calledNumber: e.channel.dialplan.exten,
+          args: e.args,
+          timestamp,
+        }
+      }
+
+      case 'ChannelDestroyed': {
+        const e = ariEvent as ChannelDestroyedEvent
+        return {
+          type: 'channel_hangup',
+          channelId: e.channel.id,
+          cause: e.cause,
+          causeText: e.cause_txt,
+          timestamp,
+        }
+      }
+
+      case 'ChannelDtmfReceived': {
+        const e = ariEvent as ChannelDtmfReceivedEvent
+        return {
+          type: 'dtmf_received',
+          channelId: e.channel.id,
+          digit: e.digit,
+          durationMs: e.duration_ms,
+          timestamp,
+        }
+      }
+
+      case 'RecordingFinished': {
+        const e = ariEvent as RecordingFinishedEvent
+        return {
+          type: 'recording_complete',
+          channelId: e.recording.target_uri.replace(/^channel:/, ''),
+          recordingName: e.recording.name,
+          duration: e.recording.duration,
+          timestamp,
+        }
+      }
+
+      case 'RecordingFailed': {
+        const e = ariEvent as RecordingFailedEvent
+        return {
+          type: 'recording_failed',
+          channelId: e.recording.target_uri.replace(/^channel:/, ''),
+          recordingName: e.recording.name,
+          cause: e.recording.cause,
+          timestamp,
+        }
+      }
+
+      case 'PlaybackFinished': {
+        const e = ariEvent as PlaybackFinishedEvent
+        return {
+          type: 'playback_finished',
+          channelId: e.playback.target_uri.replace(/^channel:/, ''),
+          playbackId: e.playback.id,
+          timestamp,
+        }
+      }
+
+      case 'ChannelStateChange': {
+        const e = ariEvent as ChannelStateChangeEvent
+        if (e.channel.state === 'Up') {
+          return {
+            type: 'channel_answer',
+            channelId: e.channel.id,
+            timestamp,
+          }
+        }
+        return null
+      }
+
+      default:
+        return null
+    }
+  }
+
+  private scheduleReconnect(): void {
+    // If we've never connected and the deadline has passed, exit
+    if (this.connectionDeadline !== null && Date.now() >= this.connectionDeadline) {
+      console.error(
+        `[ari] FATAL: Could not connect to Asterisk within ${Math.round(this.connectionTimeoutMs / 1000)}s — exiting.`
+      )
+      console.error(
+        '[ari] Make sure Asterisk is running and ARI is reachable at:',
+        this.config.ariUrl
+      )
+      process.exit(1)
+    }
+
+    const remaining = this.connectionDeadline
+      ? ` (${Math.round((this.connectionDeadline - Date.now()) / 1000)}s until timeout)`
+      : ''
+    console.log(`[ari] Reconnecting in ${this.reconnectDelay}ms...${remaining}`)
+
+    setTimeout(async () => {
+      // Check deadline again before attempting (time passed during the delay)
+      if (this.connectionDeadline !== null && Date.now() >= this.connectionDeadline) {
+        console.error(
+          `[ari] FATAL: Could not connect to Asterisk within ${Math.round(this.connectionTimeoutMs / 1000)}s — exiting.`
+        )
+        console.error(
+          '[ari] Make sure Asterisk is running and ARI is reachable at:',
+          this.config.ariUrl
+        )
+        process.exit(1)
+      }
+
+      try {
+        await this.doConnect()
+      } catch (err) {
+        console.error('[ari] Reconnection failed:', err)
+        this.reconnectDelay = Math.min(this.reconnectDelay * 2, this.maxReconnectDelay)
+        if (this.shouldReconnect) {
+          this.scheduleReconnect()
+        }
+      }
+    }, this.reconnectDelay)
+  }
+
+  // ---- ARI REST API Methods ----
+
+  /** Make an authenticated REST request to ARI */
+  private async request<T = unknown>(method: string, path: string, body?: unknown): Promise<T> {
+    const url = `${this.config.ariRestUrl}${path}`
+    const headers: Record<string, string> = {
+      Authorization: this.authHeader,
+    }
+
+    const init: RequestInit = { method, headers }
+    if (body !== undefined) {
+      headers['Content-Type'] = 'application/json'
+      init.body = JSON.stringify(body)
+    }
+
+    const res = await fetch(url, init)
+    if (!res.ok) {
+      const text = await res.text()
+      throw new Error(`ARI ${method} ${path} failed: ${res.status} ${text}`)
+    }
+
+    // Some ARI endpoints return 204 No Content
+    if (res.status === 204) return undefined as T
+
+    return res.json() as T
+  }
+
+  // ---- BridgeClient: Call Control ----
+
+  /** Originate an outbound call — BridgeClient interface */
+  async originate(params: OriginateParams): Promise<{ id: string }> {
+    const channel = await this.originateChannel({
+      endpoint: params.endpoint,
+      callerId: params.callerId,
+      timeout: params.timeout,
+      app: this.config.stasisApp,
+      appArgs: params.appArgs,
+    })
+    return { id: channel.id }
+  }
+
+  /** Hang up a channel — BridgeClient interface */
+  async hangup(channelId: string): Promise<void> {
+    await this.hangupChannel(channelId)
+  }
+
+  /** Answer a channel — BridgeClient interface */
+  async answer(channelId: string): Promise<void> {
+    await this.answerChannel(channelId)
+  }
+
+  /** Bridge two channels together — BridgeClient interface. Returns the bridge ID. */
+  async bridge(
+    channelId1: string,
+    channelId2: string,
+    options?: { record?: boolean }
+  ): Promise<string> {
+    const ariBridge = await this.createBridge()
+    await this.addChannelToBridge(ariBridge.id, channelId1)
+    await this.addChannelToBridge(ariBridge.id, channelId2)
+    if (options?.record) {
+      const name = `bridge-${ariBridge.id}-${Date.now()}`
+      await this.recordBridge(ariBridge.id, { name })
+    }
+    return ariBridge.id
+  }
+
+  // ---- BridgeClient: System ----
+
+  /** Health check — BridgeClient interface */
+  async healthCheck(): Promise<BridgeHealthStatus> {
+    const start = Date.now()
+    try {
+      const details = await this.getAsteriskInfo()
+      return {
+        ok: true,
+        latencyMs: Date.now() - start,
+        details: details as Record<string, unknown>,
+      }
+    } catch {
+      return {
+        ok: false,
+        latencyMs: Date.now() - start,
+      }
+    }
+  }
+
+  /** List active channels — BridgeClient interface */
+  async listChannels(): Promise<Array<{ id: string; state: string; caller: string }>> {
+    const channels = await this.request<AriChannel[]>('GET', '/channels')
+    return channels.map((ch) => ({
+      id: ch.id,
+      state: ch.state,
+      caller: ch.caller.number,
+    }))
+  }
+
+  /** List active bridges — BridgeClient interface */
+  async listBridges(): Promise<Array<{ id: string; channels: string[] }>> {
+    const bridges = await this.request<AriBridge[]>('GET', '/bridges')
+    return bridges.map((b) => ({
+      id: b.id,
+      channels: b.channels,
+    }))
+  }
+
+  // ---- Channel Operations ----
+
+  /** Answer a channel */
+  async answerChannel(channelId: string): Promise<void> {
+    await this.request('POST', `/channels/${channelId}/answer`)
+  }
+
+  /** Hang up a channel */
+  async hangupChannel(channelId: string, reason = 'normal'): Promise<void> {
+    try {
+      await this.request('DELETE', `/channels/${channelId}?reason=${reason}`)
+    } catch (err) {
+      // Channel may already be gone
+      console.warn(`[ari] Failed to hangup channel ${channelId}:`, err)
+    }
+  }
+
+  /** Get channel info */
+  async getChannel(channelId: string): Promise<AriChannel> {
+    return this.request<AriChannel>('GET', `/channels/${channelId}`)
+  }
+
+  /** Originate a new outbound call (ARI-specific, returns full AriChannel) */
+  async originateChannel(params: {
+    endpoint: string
+    callerId?: string
+    timeout?: number
+    app: string
+    appArgs?: string
+    channelId?: string
+  }): Promise<AriChannel> {
+    const body: Record<string, unknown> = {
+      endpoint: params.endpoint,
+      app: params.app,
+      timeout: params.timeout ?? 30,
+    }
+    if (params.callerId) body.callerId = params.callerId
+    if (params.appArgs) body.appArgs = params.appArgs
+    if (params.channelId) body.channelId = params.channelId
+
+    return this.request<AriChannel>('POST', '/channels', body)
+  }
+
+  /** Place a channel on hold (start music on hold) */
+  async startMoh(channelId: string, mohClass = 'default'): Promise<void> {
+    await this.request('POST', `/channels/${channelId}/moh?mohClass=${mohClass}`)
+  }
+
+  /** Stop music on hold */
+  async stopMoh(channelId: string): Promise<void> {
+    await this.request('DELETE', `/channels/${channelId}/moh`)
+  }
+
+  /** Start ringing indication on a channel */
+  async startRinging(channelId: string): Promise<void> {
+    await this.request('POST', `/channels/${channelId}/ring`)
+  }
+
+  /** Stop ringing indication on a channel */
+  async stopRinging(channelId: string): Promise<void> {
+    await this.request('DELETE', `/channels/${channelId}/ring`)
+  }
+
+  /** Set a channel variable */
+  async setChannelVar(channelId: string, variable: string, value: string): Promise<void> {
+    await this.request(
+      'POST',
+      `/channels/${channelId}/variable?variable=${variable}&value=${encodeURIComponent(value)}`
+    )
+  }
+
+  /** Get a channel variable */
+  async getChannelVar(channelId: string, variable: string): Promise<string> {
+    const res = await this.request<{ value: string }>(
+      'GET',
+      `/channels/${channelId}/variable?variable=${variable}`
+    )
+    return res.value
+  }
+
+  // ---- Playback Operations ----
+
+  /** Play media on a channel */
+  async playMedia(channelId: string, media: string, playbackId?: string): Promise<string> {
+    const params = new URLSearchParams({ media })
+    if (playbackId) params.set('playbackId', playbackId)
+    const playback = await this.request<AriPlayback>(
+      'POST',
+      `/channels/${channelId}/play?${params}`
+    )
+    return playback.id
+  }
+
+  /** Stop a playback */
+  async stopPlayback(playbackId: string): Promise<void> {
+    try {
+      await this.request('DELETE', `/playbacks/${playbackId}`)
+    } catch {
+      // Playback may already be done
+    }
+  }
+
+  // ---- Bridge Operations ----
+
+  /** Create a mixing bridge */
+  async createBridge(params?: {
+    bridgeId?: string
+    type?: string
+    name?: string
+  }): Promise<AriBridge> {
+    const body: Record<string, unknown> = {
+      type: params?.type ?? 'mixing',
+    }
+    if (params?.bridgeId) body.bridgeId = params.bridgeId
+    if (params?.name) body.name = params.name
+    return this.request<AriBridge>('POST', '/bridges', body)
+  }
+
+  /** Add a channel to a bridge */
+  async addChannelToBridge(bridgeId: string, channelId: string): Promise<void> {
+    await this.request('POST', `/bridges/${bridgeId}/addChannel?channel=${channelId}`)
+  }
+
+  /** Remove a channel from a bridge */
+  async removeChannelFromBridge(bridgeId: string, channelId: string): Promise<void> {
+    try {
+      await this.request('POST', `/bridges/${bridgeId}/removeChannel?channel=${channelId}`)
+    } catch {
+      // Channel may already be gone
+    }
+  }
+
+  /** Destroy a bridge */
+  async destroyBridge(bridgeId: string): Promise<void> {
+    try {
+      await this.request('DELETE', `/bridges/${bridgeId}`)
+    } catch {
+      // Bridge may already be gone
+    }
+  }
+
+  /** Start music on hold in a bridge */
+  async startBridgeMoh(bridgeId: string, mohClass = 'default'): Promise<void> {
+    await this.request('POST', `/bridges/${bridgeId}/moh?mohClass=${mohClass}`)
+  }
+
+  /** Play media on a bridge */
+  async playMediaOnBridge(bridgeId: string, media: string): Promise<AriPlayback> {
+    return this.request<AriPlayback>('POST', `/bridges/${bridgeId}/play?media=${media}`)
+  }
+
+  // ---- Recording Operations ----
+
+  /** Start recording a channel */
+  async recordChannel(
+    channelId: string,
+    params: {
+      name: string
+      format?: string
+      maxDurationSeconds?: number
+      beep?: boolean
+      terminateOn?: string
+    }
+  ): Promise<void> {
+    const body: Record<string, unknown> = {
+      name: params.name,
+      format: params.format ?? 'wav',
+      maxDurationSeconds: params.maxDurationSeconds ?? 0,
+      beep: params.beep ?? false,
+      terminateOn: params.terminateOn ?? 'none',
+    }
+    await this.request('POST', `/channels/${channelId}/record`, body)
+  }
+
+  /** Stop a recording */
+  async stopRecording(recordingName: string): Promise<void> {
+    try {
+      await this.request('POST', `/recordings/live/${recordingName}/stop`)
+    } catch {
+      // Recording may already be done
+    }
+  }
+
+  /** Get a stored recording */
+  async getRecording(recordingName: string): Promise<AriRecording> {
+    return this.request<AriRecording>('GET', `/recordings/stored/${recordingName}`)
+  }
+
+  /** Get the audio file of a stored recording (returns raw bytes) */
+  async getRecordingFile(recordingName: string): Promise<ArrayBuffer | null> {
+    const url = `${this.config.ariRestUrl}/recordings/stored/${recordingName}/file`
+    const res = await fetch(url, {
+      headers: { Authorization: this.authHeader },
+    })
+    if (!res.ok) return null
+    return res.arrayBuffer()
+  }
+
+  /** Delete a stored recording */
+  async deleteRecording(recordingName: string): Promise<void> {
+    try {
+      await this.request('DELETE', `/recordings/stored/${recordingName}`)
+    } catch {
+      // Recording may already be deleted
+    }
+  }
+
+  // ---- Bridge Recording Operations ----
+
+  /** Start recording a bridge */
+  async recordBridge(
+    bridgeId: string,
+    params: {
+      name: string
+      format?: string
+      maxDurationSeconds?: number
+      beep?: boolean
+    }
+  ): Promise<void> {
+    const body: Record<string, unknown> = {
+      name: params.name,
+      format: params.format ?? 'wav',
+      maxDurationSeconds: params.maxDurationSeconds ?? 0,
+      beep: params.beep ?? false,
+      terminateOn: 'none',
+    }
+    await this.request('POST', `/bridges/${bridgeId}/record`, body)
+  }
+
+  // ---- Asterisk Operations ----
+
+  /** Get Asterisk system info (useful for health checks) */
+  async getAsteriskInfo(): Promise<unknown> {
+    return this.request('GET', '/asterisk/info')
+  }
+
+  /**
+   * Write a dynamic config object via ARI.
+   * PUT /ari/asterisk/config/dynamic/{configClass}/{objectType}/{id}
+   * Idempotent — overwrites any existing object with the same id.
+   */
+  async configureDynamic(
+    configClass: string,
+    objectType: string,
+    id: string,
+    fields: Record<string, string>
+  ): Promise<void> {
+    const body = {
+      fields: Object.entries(fields).map(([attribute, value]) => ({ attribute, value })),
+    }
+    await this.request('PUT', `/asterisk/config/dynamic/${configClass}/${objectType}/${id}`, body)
+  }
+
+  /**
+   * Reload an Asterisk module via ARI.
+   * PUT /ari/asterisk/modules/{moduleName} — reloads an already-loaded module.
+   * (POST loads a new module; DELETE unloads.)
+   */
+  async reloadModule(moduleName: string): Promise<void> {
+    await this.request('PUT', `/asterisk/modules/${moduleName}`)
+  }
+
+  /**
+   * Delete a dynamic config object via ARI.
+   * DELETE /ari/asterisk/config/dynamic/{configClass}/{objectType}/{id}
+   * Used for deprovisioning SIP endpoints.
+   */
+  async deleteDynamic(configClass: string, objectType: string, id: string): Promise<void> {
+    await this.request('DELETE', `/asterisk/config/dynamic/${configClass}/${objectType}/${id}`)
+  }
+}
