@@ -490,16 +490,18 @@ test.describe('Settings Persistence (read-after-write)', () => {
 
   test('retention settings persist after update', async () => {
     const updateRes = await adminApi.put('/api/settings/retention', {
-      callRecordRetentionDays: 180,
-      auditLogRetentionDays: 365,
+      callRecordsDays: 180,
+      notesDays: 365,
+      messagesDays: 365,
+      auditLogDays: 730,
     })
     expect(updateRes.status()).toBe(200)
 
     const readRes = await adminApi.get('/api/settings/retention')
     expect(readRes.status()).toBe(200)
     const body = await readRes.json()
-    expect(body.callRecordRetentionDays).toBe(180)
-    expect(body.auditLogRetentionDays).toBe(365)
+    expect(body.callRecordsDays).toBe(180)
+    expect(body.auditLogDays).toBe(730)
   })
 
   test('setup state persists after update', async () => {

@@ -259,12 +259,12 @@ test.describe('Settings Management', () => {
 
     test('admin can update transcription settings', async () => {
       const res = await adminApi.patch('/api/settings/transcription', {
-        enabled: true,
+        globalEnabled: true,
         allowUserOptOut: true,
       })
       expect(res.status()).toBe(200)
       const body = await res.json()
-      expect(body.enabled).toBe(true)
+      expect(body.globalEnabled).toBe(true)
       expect(body.allowUserOptOut).toBe(true)
     })
 
@@ -272,22 +272,22 @@ test.describe('Settings Management', () => {
       const res = await adminApi.get('/api/settings/transcription')
       expect(res.status()).toBe(200)
       const body = await res.json()
-      expect(body.enabled).toBe(true)
+      expect(body.globalEnabled).toBe(true)
       expect(body.allowUserOptOut).toBe(true)
     })
 
     test('admin can disable transcription', async () => {
       const res = await adminApi.patch('/api/settings/transcription', {
-        enabled: false,
+        globalEnabled: false,
       })
       expect(res.status()).toBe(200)
       const body = await res.json()
-      expect(body.enabled).toBe(false)
+      expect(body.globalEnabled).toBe(false)
     })
 
     test('user cannot update global transcription settings', async () => {
       const res = await ctx.api('volunteer').patch('/api/settings/transcription', {
-        enabled: false,
+        globalEnabled: false,
       })
       expect(res.status()).toBe(403)
     })
@@ -513,7 +513,7 @@ test.describe('Settings Management', () => {
     test('admin can update geocoding config', async () => {
       const res = await adminApi.patch('/api/geocoding/settings', {
         provider: 'opencage',
-        enabled: true,
+        globalEnabled: true,
         countries: ['US', 'MX'],
       })
       expect(res.status()).toBe(200)
