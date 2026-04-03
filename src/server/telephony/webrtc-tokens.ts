@@ -234,11 +234,11 @@ async function generateAsteriskToken(
 
 // --- Crypto helpers ---
 
-function base64urlEncode(str: string): string {
+export function base64urlEncode(str: string): string {
   return btoa(str).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
 }
 
-function base64urlEncodeBytes(bytes: Uint8Array): string {
+export function base64urlEncodeBytes(bytes: Uint8Array): string {
   let binary = ''
   for (const byte of bytes) binary += String.fromCharCode(byte)
   return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
@@ -269,7 +269,7 @@ async function signJwtHs256(
   return `${data}.${sigB64}`
 }
 
-async function signJwtRs256(
+export async function signJwtRs256(
   header: Record<string, unknown>,
   payload: Record<string, unknown>,
   privateKeyPem: string

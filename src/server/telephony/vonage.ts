@@ -595,14 +595,78 @@ export class VonageAdapter implements TelephonyAdapter {
     _phoneNumber: string,
     expectedBaseUrl: string
   ): Promise<WebhookVerificationResult> {
-    // Vonage webhook verification requires the Application API with JWT auth,
-    // which needs the private key for signing. The Numbers API does not expose
-    // voice webhook URLs directly. Return a warning for now.
-    return {
-      configured: true,
-      expectedUrl: `${expectedBaseUrl}/telephony/incoming`,
-      warning:
-        'Vonage webhook verification not yet implemented — please verify webhook URL in the Vonage Dashboard',
+    const expectedVoiceUrl = `${expectedBaseUrl}/telephony/incoming`
+
+    if (!this.privateKey) {
+      return {
+        configured: false,
+        expectedUrl: expectedVoiceUrl,
+        warning:
+          'Vonage private key not configured — cannot verify webhook URLs via Application API',
+      }
     }
+
+    try {
+      const jwt = await this.signApplicationJwt()
+      const res = await fetch(`https://api.nexmo.com/v2/applications/${this.applicationId}`, {
+        method: 'GET',
+        headers: { Authorization: `Bearer ${jwt}` },
+      })
+
+      if (!res.ok) {
+        return {
+          configured: false,
+          expectedUrl: expectedVoiceUrl,
+          warning: `Failed to query Vonage Application API: ${res.status} ${res.statusText}`,
+        }
+      }
+
+      const data = (await res.json()) as {
+        capabilities?: {
+          voice?: {
+            webhooks?: {
+              answer_url?: { address?: string }
+              event_url?: { address?: string }
+            }
+          }
+        }
+      }
+
+      const answerUrl = data.capabilities?.voice?.webhooks?.answer_url?.address ?? ''
+      const configured = answerUrl.startsWith(expectedBaseUrl)
+
+      return {
+        configured,
+        expectedUrl: expectedVoiceUrl,
+        actualUrl: answerUrl || undefined,
+        warning: configured
+          ? undefined
+          : 'Voice answer webhook URL does not point to this application',
+      }
+    } catch (err) {
+      return {
+        configured: false,
+        expectedUrl: expectedVoiceUrl,
+        warning: `Vonage Application API error: ${err instanceof Error ? err.message : String(err)}`,
+      }
+    }
+  }
+
+  /**
+   * Sign a short-lived JWT for Vonage Application API authentication.
+   * Uses RS256 with the application's private key.
+   */
+  private async signApplicationJwt(): Promise<string> {
+    const { signJwtRs256 } = await import('./webrtc-tokens')
+    const now = Math.floor(Date.now() / 1000)
+    const jti = crypto.randomUUID()
+    const header = { typ: 'JWT', alg: 'RS256' }
+    const payload = {
+      iat: now,
+      exp: now + 60, // 1 minute — only needed for a single API call
+      jti,
+      application_id: this.applicationId,
+    }
+    return signJwtRs256(header, payload, this.privateKey!)
   }
 }
