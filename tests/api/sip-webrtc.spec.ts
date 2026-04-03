@@ -186,7 +186,7 @@ test.describe('SIP WebRTC — Token structure and decoding', () => {
 
 test.describe('SIP WebRTC — Endpoint provisioning (AsteriskProvisioner)', () => {
   // These tests exercise the AsteriskProvisioner class which communicates
-  // with the asterisk-bridge service. They require the bridge to be running.
+  // with the sip-bridge service. They require the bridge to be running.
 
   const BRIDGE_URL = process.env.ASTERISK_BRIDGE_URL ?? 'http://localhost:3001'
   const BRIDGE_SECRET = process.env.ASTERISK_BRIDGE_SECRET ?? 'test-bridge-secret'

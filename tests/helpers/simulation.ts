@@ -1,11 +1,11 @@
 import type { APIRequestContext } from '@playwright/test'
-import type { AsteriskBridgeWebhook } from '@shared/schemas/external/asterisk-bridge'
 import type { PlivoInboundSMS } from '@shared/schemas/external/plivo-sms'
 import type {
   PlivoCallStatusCallback,
   PlivoIncomingCall,
   PlivoRecordingCallback,
 } from '@shared/schemas/external/plivo-voice'
+import type { AsteriskBridgeWebhook } from '@shared/schemas/external/sip-bridge'
 import type { TwilioInboundSMS, TwilioStatusCallback } from '@shared/schemas/external/twilio-sms'
 import type {
   TwilioCallStatusCallback,

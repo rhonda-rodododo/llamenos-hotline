@@ -3,7 +3,7 @@ import type { SipEndpointConfig, SipEndpointProvisioner } from './sip-provisione
 
 /**
  * AsteriskProvisioner — provisions WebRTC-capable SIP endpoints on Asterisk
- * via the asterisk-bridge service. Computes time-limited TURN credentials
+ * via the sip-bridge service. Computes time-limited TURN credentials
  * using coturn's use-auth-secret mechanism (RFC 5766 HMAC-SHA1).
  */
 export class AsteriskProvisioner implements SipEndpointProvisioner {

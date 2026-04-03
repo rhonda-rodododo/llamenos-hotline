@@ -13,7 +13,7 @@
     "deploy": "bun run deploy:site",
     "deploy:site": "cd site && bun run deploy",
     "dev:server": "bun --watch src/server/server.ts",
-    "dev:bridge": "cd asterisk-bridge && bun run dev",
+    "dev:bridge": "cd sip-bridge && bun run dev",
     "dev:docker": "docker compose --env-file deploy/docker/.env.dev.defaults -f deploy/docker/docker-compose.yml -f deploy/docker/docker-compose.dev.yml --profile asterisk up -d postgres rustfs strfry authentik-server authentik-worker asterisk",
     "dev:docker:down": "docker compose --env-file deploy/docker/.env.dev.defaults -f deploy/docker/docker-compose.yml -f deploy/docker/docker-compose.dev.yml --profile asterisk down",
     "start": "bun src/server/server.ts",

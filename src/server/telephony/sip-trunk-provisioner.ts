@@ -85,7 +85,7 @@ export const SIP_TRUNK_PRESETS: Record<
 }
 
 /**
- * Provisions a SIP trunk in Asterisk via the asterisk-bridge ARI service.
+ * Provisions a SIP trunk in Asterisk via the sip-bridge ARI service.
  * Creates PJSIP auth, aor, registration, and endpoint objects dynamically.
  */
 export class SipTrunkProvisioner {

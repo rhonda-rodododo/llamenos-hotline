@@ -7,10 +7,10 @@ import { execFileSync } from 'node:child_process'
 const ORPHAN_PATTERNS: Array<{ match: string; envGuard: string | null }> = [
   // App server spawned by Playwright webServer config
   { match: 'src/server/server.ts', envGuard: 'USE_TEST_ADAPTER=true' },
-  // Asterisk bridge spawned by asterisk-auto-config.spec.ts
-  { match: 'asterisk-bridge/src/index.ts', envGuard: null },
-  // Bridge spawned via `bun run src/index.ts` from asterisk-bridge/
-  { match: 'asterisk-bridge', envGuard: null },
+  // sip-bridge spawned by asterisk-auto-config.spec.ts
+  { match: 'sip-bridge/src/index.ts', envGuard: null },
+  // Bridge spawned via `bun run src/index.ts` from sip-bridge/
+  { match: 'sip-bridge', envGuard: null },
 ]
 
 /**

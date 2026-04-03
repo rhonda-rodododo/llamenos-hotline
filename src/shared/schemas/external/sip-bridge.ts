@@ -1,10 +1,10 @@
 /**
- * Zod schemas for asterisk-bridge service API responses.
+ * Zod schemas for sip-bridge service API responses.
  *
- * The asterisk-bridge is a self-hosted sidecar that sits alongside Asterisk,
- * translates ARI (Asterisk REST Interface) events into HTTP webhooks, and
- * exposes a JSON REST API for call management. The Llámenos server communicates
- * with it via the BridgeClient (HMAC-signed requests).
+ * The sip-bridge is a self-hosted sidecar that sits alongside SIP servers
+ * (Asterisk, FreeSWITCH, Kamailio), translates protocol-specific events into
+ * HTTP webhooks, and exposes a JSON REST API for call management. The Llámenos
+ * server communicates with it via the BridgeClient (HMAC-signed requests).
  *
  * All responses from the bridge are JSON (application/json).
  *
@@ -92,10 +92,10 @@ export const AsteriskCommandAckSchema = z.looseObject({
 export type AsteriskCommandAck = z.infer<typeof AsteriskCommandAckSchema>
 
 // ---------------------------------------------------------------------------
-// Section 5: Inbound webhook from the bridge to the Llámenos server
-// The bridge POSTs JSON events to the Llámenos webhook URL when ARI events
+// Section 5: Inbound webhook from the sip-bridge to the Llámenos server
+// The bridge POSTs JSON events to the Llámenos webhook URL when call events
 // occur (incoming call, DTMF, queue events, recording complete, etc.).
-// These are validated before being passed to AsteriskAdapter.parse*Webhook().
+// These are validated before being passed to SipBridgeAdapter.parse*Webhook().
 // ---------------------------------------------------------------------------
 
 /**
@@ -108,9 +108,9 @@ export type AsteriskCommandAck = z.infer<typeof AsteriskCommandAckSchema>
 export const AsteriskChannelStateSchema = z.enum(['Ring', 'Up', 'Hangup', 'Down'])
 export type AsteriskChannelState = z.infer<typeof AsteriskChannelStateSchema>
 
-export const AsteriskBridgeWebhookSchema = z.looseObject({
+export const SipBridgeWebhookSchema = z.looseObject({
   /**
-   * Asterisk channel ID (used as callSid throughout the adapter).
+   * Channel ID (used as callSid throughout the adapter).
    * May be UUID format (e.g. 'b4e7c9d1-1234-...').
    */
   channelId: z.string().optional(),
@@ -130,7 +130,7 @@ export const AsteriskBridgeWebhookSchema = z.looseObject({
   /** DTMF digits collected by a gather/input action */
   digits: z.string().optional(),
   /**
-   * ARI channel state (used for status mapping).
+   * Channel state (used for status mapping).
    */
   state: AsteriskChannelStateSchema.optional(),
   /**
@@ -151,7 +151,7 @@ export const AsteriskBridgeWebhookSchema = z.looseObject({
    */
   reason: z.string().optional(),
   /**
-   * Recording name or path within Asterisk (used as recordingSid).
+   * Recording name or path within the SIP server (used as recordingSid).
    */
   recordingName: z.string().optional(),
   /**
@@ -159,7 +159,7 @@ export const AsteriskBridgeWebhookSchema = z.looseObject({
    */
   recordingSid: z.string().optional(),
   /**
-   * Recording lifecycle status from ARI.
+   * Recording lifecycle status.
    * 'done' maps to 'completed'; anything else maps to 'failed'.
    */
   recordingStatus: z.string().optional(),
@@ -170,4 +170,11 @@ export const AsteriskBridgeWebhookSchema = z.looseObject({
   /** Any extra metadata the bridge echoes back from command payloads */
   metadata: z.record(z.string(), z.unknown()).optional(),
 })
-export type AsteriskBridgeWebhook = z.infer<typeof AsteriskBridgeWebhookSchema>
+export type SipBridgeWebhook = z.infer<typeof SipBridgeWebhookSchema>
+
+// ---------------------------------------------------------------------------
+// Backward-compat aliases — existing code importing AsteriskBridgeWebhookSchema
+// or AsteriskBridgeWebhook from this module will continue to compile.
+// ---------------------------------------------------------------------------
+export { SipBridgeWebhookSchema as AsteriskBridgeWebhookSchema }
+export type { SipBridgeWebhook as AsteriskBridgeWebhook }
