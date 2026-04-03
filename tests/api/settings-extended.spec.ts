@@ -450,7 +450,7 @@ test.describe('Settings Persistence (read-after-write)', () => {
 
   test('spam settings persist after update', async () => {
     const updateRes = await adminApi.patch('/api/settings/spam', {
-      captchaEnabled: true,
+      voiceCaptchaEnabled: true,
       captchaMaxAttempts: 5,
     })
     expect(updateRes.status()).toBe(200)
@@ -458,13 +458,13 @@ test.describe('Settings Persistence (read-after-write)', () => {
     const readRes = await adminApi.get('/api/settings/spam')
     expect(readRes.status()).toBe(200)
     const body = await readRes.json()
-    expect(body.captchaEnabled).toBe(true)
+    expect(body.voiceCaptchaEnabled).toBe(true)
     expect(body.captchaMaxAttempts).toBe(5)
   })
 
   test('transcription settings persist after update', async () => {
     const updateRes = await adminApi.patch('/api/settings/transcription', {
-      enabled: true,
+      globalEnabled: true,
       allowUserOptOut: false,
     })
     expect(updateRes.status()).toBe(200)
@@ -472,7 +472,7 @@ test.describe('Settings Persistence (read-after-write)', () => {
     const readRes = await adminApi.get('/api/settings/transcription')
     expect(readRes.status()).toBe(200)
     const body = await readRes.json()
-    expect(body.enabled).toBe(true)
+    expect(body.globalEnabled).toBe(true)
     expect(body.allowUserOptOut).toBe(false)
   })
 

@@ -254,7 +254,7 @@ test.describe('Settings Management', () => {
       expect(res.status()).toBe(200)
       const body = await res.json()
       // Should have expected structure
-      expect(typeof body.enabled).toBe('boolean')
+      expect(typeof body.globalEnabled).toBe('boolean')
     })
 
     test('admin can update transcription settings', async () => {
