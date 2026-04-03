@@ -42,11 +42,6 @@ services:
     profiles:
       - disabled
 
-  # Signal bridge for messaging integration tests
-  signal-cli:
-    ports:
-      - "8080:8080"
-
   # App is not started via compose in CI
   app:
     profiles:

@@ -271,8 +271,6 @@ jobs:
           docker compose
           -f deploy/docker/docker-compose.yml
           -f deploy/docker/docker-compose.ci.yml
-          --profile signal
-          --profile asterisk
           up -d
         env:
           PG_PASSWORD: llamenos
@@ -293,13 +291,6 @@ jobs:
           for i in $(seq 1 60); do
             curl -sf http://localhost:9100/-/health/ready/ && break
             sleep 5
-          done
-
-      - name: Wait for Signal bridge
-        run: |
-          for i in $(seq 1 30); do
-            docker exec llamenos-signal-cli-1 curl -sf http://localhost:8080/v1/about 2>/dev/null && break || true
-            sleep 2
           done
 
       - uses: ./.github/actions/start-test-infra
@@ -383,8 +374,6 @@ jobs:
           docker compose
           -f deploy/docker/docker-compose.yml
           -f deploy/docker/docker-compose.ci.yml
-          --profile signal
-          --profile asterisk
           up -d
         env:
           PG_PASSWORD: llamenos
@@ -405,13 +394,6 @@ jobs:
           for i in $(seq 1 60); do
             curl -sf http://localhost:9100/-/health/ready/ && break
             sleep 5
-          done
-
-      - name: Wait for Signal bridge
-        run: |
-          for i in $(seq 1 30); do
-            docker exec llamenos-signal-cli-1 curl -sf http://localhost:8080/v1/about 2>/dev/null && break || true
-            sleep 2
           done
 
       - uses: ./.github/actions/start-test-infra
