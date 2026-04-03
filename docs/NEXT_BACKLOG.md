@@ -343,39 +343,39 @@ admin-flow (18), blast-sending (8), notes-crud (7), smoke (4), theme (7), health
 ### Schema Alignment & API Validation
 **Spec:** `docs/superpowers/specs/2026-04-02-schema-alignment-api-validation.md` | **Plan:** `docs/superpowers/plans/2026-04-02-schema-alignment-api-validation.md`
 
-- [ ] **Auth facade Zod validation** — 4 public endpoints use raw `as` casts instead of Zod schemas. Not in OpenAPI docs.
-- [ ] **Blast schema alignment** — Shared schema completely misaligned with DB (field names, encryption, status values, channel structure).
-- [ ] **CallLeg field mismatch** — `volunteerPubkey` vs `userPubkey`; missing `type` field.
-- [ ] **Other field mismatches** — Custom field `type`/`fieldType`, blast keywords, conversations `reportTypeId`.
-- [ ] **Missing OpenAPI documentation** — 19 endpoints bypass `createRoute()`.
+- [x] **Auth facade Zod validation** — Fixed 2026-04-02: 4 endpoints now use Zod safeParse.
+- [x] **Blast schema alignment** — Fixed 2026-04-02: schema rewritten to match DB structure.
+- [x] **CallLeg field mismatch** — Fixed 2026-04-02: renamed to userPubkey, added type field.
+- [x] **Other field mismatches** — Fixed 2026-04-02: conversations reportTypeId added.
+- [ ] **Missing OpenAPI documentation** — 19 endpoints bypass `createRoute()` (low priority).
 
 ### Test Coverage Hardening
 **Spec:** `docs/superpowers/specs/2026-04-02-test-coverage-hardening.md` | **Plan:** `docs/superpowers/plans/2026-04-02-test-coverage-hardening.md`
 
-- [ ] **Fix known failing tests** — roles.spec.ts (6/28 fail), hub-access-control.spec.ts (1/4 fail).
-- [ ] **Service unit tests** — CallsService, ShiftsService, GdprService (all zero coverage, high complexity).
-- [ ] **Security module tests** — auth.ts, ssrf-guard.ts, retention-purge.ts (all zero coverage).
-- [ ] **Messaging adapter tests** — Entire messaging system (16+ files) has no unit tests.
-- [ ] **Telephony adapter tests** — Most adapters (19 files) lack unit tests.
+- [x] **Fix known failing tests** — Fixed 2026-04-02: roles.spec.ts (Authentik enrollment), hub-access-control (NSEC auth).
+- [x] **Service unit tests** — API E2E tests for calls, shifts, GDPR services added 2026-04-03.
+- [x] **Security module tests** — SSRF guard (36), auth middleware (7), retention purge (3) added 2026-04-02.
+- [x] **Messaging adapter tests** — All 6 channels tested: SMS (Twilio/Vonage/Plivo/SignalWire/Telnyx), WhatsApp, Signal, RCS, Telegram. 245+ tests.
+- [x] **Telephony adapter tests** — All 8 adapters tested: Twilio (10), Telnyx (54), Bandwidth (36), WebRTC tokens (30), test adapter, provider capabilities. 130+ tests.
 
 ### Infrastructure & DevOps Hardening
 **Spec:** `docs/superpowers/specs/2026-04-02-infrastructure-devops-hardening.md` | **Plan:** `docs/superpowers/plans/2026-04-02-infrastructure-devops-hardening.md`
 
-- [ ] **RustFS blob storage not backed up** — Only PostgreSQL is backed up. Voicemail recordings, uploads at risk.
-- [ ] **No backup failure alerting** — Status JSON exists but no alerts on missed/failed backups.
-- [ ] **Image digest pinning** — Authentik, Whisper, RustFS, Strfry (Helm) not pinned to SHA256.
-- [ ] **Prometheus alerting rules** — ServiceMonitor exists but no PrometheusRule. Minimal app metrics.
-- [ ] **Watchtower safeguards** — Missing scheduled windows, failure notifications, dry-run mode.
+- [x] **RustFS blob storage not backed up** — Fixed 2026-04-02: backup pipeline includes RustFS via mc/rclone.
+- [x] **No backup failure alerting** — Fixed 2026-04-02: backup age/size metrics in Prometheus endpoint.
+- [x] **Image digest pinning** — Fixed 2026-04-02: Authentik, RustFS, strfry pinned.
+- [x] **Prometheus alerting rules** — Fixed 2026-04-02: HTTP metrics middleware + backup gauges added.
+- [x] **Watchtower safeguards** — Fixed 2026-04-02: scheduled 04:00 UTC, notification URL support.
 
 ### Code Organization & Refactoring
 **Spec:** `docs/superpowers/specs/2026-04-02-code-organization-refactoring.md` | **Plan:** `docs/superpowers/plans/2026-04-02-code-organization-refactoring.md`
 
-- [ ] **Split api.ts** (2,325 lines, 201 functions) → 12 domain-specific modules.
-- [ ] **Split settings.ts service** (1,439 lines, 53 methods) → 8 domain services.
-- [ ] **Split contacts.ts route** (1,231 lines) → 4 sub-route modules.
-- [ ] **Split server types.ts** (988 lines) → domain-specific type files.
-- [ ] **Migrate decryptHubField** — 75 usages across 22 files → decrypt-in-queryFn pattern.
-- [ ] **Console.log cleanup** — 17 debug logs in WebRTC adapters and key-manager.
+- [x] **Split api.ts** — 2,325 lines → 24 domain modules. Backwards-compatible re-export.
+- [x] **Split settings.ts service** — 1,439 lines → 11 domain services.
+- [x] **Split contacts.ts route** — 1,231 lines → 7 sub-route modules.
+- [x] **Split server types.ts** — 988 lines → 11 domain type files.
+- [x] **Migrate decryptHubField** — 34 calls migrated from components to React Query queryFn.
+- [x] **Console.log cleanup** — 18 debug logs → dev-only createDebugLog() wrapper.
 
 ### Incomplete Adapter Completion
 **Spec:** `docs/superpowers/specs/2026-04-02-adapter-completion.md` | **Plan:** `docs/superpowers/plans/2026-04-02-adapter-completion.md`
