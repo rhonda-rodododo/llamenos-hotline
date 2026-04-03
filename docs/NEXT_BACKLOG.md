@@ -311,10 +311,10 @@ admin-flow (18), blast-sending (8), notes-crud (7), smoke (4), theme (7), health
 - [x] Ansible env vars + turnserver.conf template
 - [x] Dev TLS cert generation script
 - [x] Browser calling plan coordination updates
-- [ ] SipWebRTCAdapter (JsSIP) — depends on WebRTCAdapter interface from browser calling plan
-- [ ] WebRTCManager factory integration
-- [ ] Bridge ring command extension for browser endpoints
-- [ ] E2E tests against local Asterisk
+- [x] SipWebRTCAdapter (JsSIP) — 219 lines, fully implements WebRTCAdapter with dynamic JsSIP import, session management, DTLS-SRTP media
+- [x] WebRTCManager factory integration — routes 'asterisk'/'freeswitch'/'kamailio'/'sip' providers to SipWebRTCAdapter
+- [x] Bridge ring command extension for browser endpoints — bridge index.ts supports browserIdentity for PJSIP routing
+- [ ] E2E tests against local Asterisk — needs mkcert TLS certs + mocked JsSIP integration tests
 
 ## Storage & Infrastructure — Future Work
 
