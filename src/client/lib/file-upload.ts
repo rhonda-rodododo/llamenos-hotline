@@ -9,7 +9,7 @@ import { decryptFile, decryptFileMetadata, encryptFile } from './file-crypto'
 
 export interface UploadEncryptedFileOptions {
   file: File
-  /** Volunteer's own pubkey — always gets an envelope. */
+  /** Uploader's own pubkey — always gets an envelope. */
   uploaderPubkey: string
   /** Admin pubkeys — each gets their own key envelope. */
   adminPubkeys: string[]

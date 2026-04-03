@@ -2,7 +2,7 @@
  * React Query hooks for notes resource management.
  *
  * Notes have special per-note ECIES decryption:
- *   - Regular notes: decrypted via authorEnvelope (volunteer) or adminEnvelopes (admin)
+ *   - Regular notes: decrypted via authorEnvelope (author) or adminEnvelopes (admin)
  *   - Transcriptions: decrypted via decryptTranscription + ephemeralPubkey
  *
  * Role-based filtering:
@@ -120,7 +120,7 @@ export const notesListOptions = (filters: NoteFilters | undefined, auth: NotesAu
  *   - Admins see system:transcription:admin notes; non-admins see system:transcription
  *   - Transcriptions with ephemeralPubkey are ECIES-decrypted via decryptTranscription
  *   - Transcriptions without ephemeralPubkey use encryptedContent as plain text
- *   - Regular notes: admin looks up their envelope in adminEnvelopes, volunteer uses authorEnvelope
+ *   - Regular notes: admin looks up their envelope in adminEnvelopes, author uses authorEnvelope
  */
 export function useNotes(filters?: NoteFilters) {
   const { hasNsec, publicKey, isAdmin } = useAuth()

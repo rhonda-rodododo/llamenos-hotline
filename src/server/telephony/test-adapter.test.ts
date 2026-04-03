@@ -143,7 +143,7 @@ describe('TestAdapter', () => {
     const sids = await adapter.ringUsers({
       callSid: 'CA_test',
       callerNumber: '+15551111111',
-      volunteers: [{ pubkey: 'pk1', phone: '+15553333333' }],
+      users: [{ pubkey: 'pk1', phone: '+15553333333' }],
       callbackUrl: 'http://localhost:3000',
     })
     expect(sids).toEqual([])

@@ -92,7 +92,7 @@ api.doc('/openapi.json', {
   servers: [{ url: '/api', description: 'Current server' }],
   tags: [
     { name: 'Auth', description: 'Authentication and session management' },
-    { name: 'Users', description: 'User (volunteer/admin) management' },
+    { name: 'Users', description: 'User management' },
     { name: 'Shifts', description: 'Shift schedule management' },
     { name: 'Calls', description: 'Call routing and history' },
     { name: 'Notes', description: 'Call notes (E2EE)' },

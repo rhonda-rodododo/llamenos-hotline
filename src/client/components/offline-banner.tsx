@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next'
 
 /**
  * Shows a prominent banner when the browser goes offline.
- * Critical for crisis hotline volunteers who need instant awareness
+ * Critical for crisis hotline users who need instant awareness
  * of connectivity loss to avoid missing calls.
  */
 export function OfflineBanner() {

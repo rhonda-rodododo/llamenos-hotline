@@ -67,7 +67,7 @@ export function useTranscription() {
 
   /**
    * Initialize model and start capturing microphone audio.
-   * Call when volunteer answers a call.
+   * Call when user answers a call.
    */
   const startTranscription = useCallback(async () => {
     if (!TranscriptionManager.isSupported()) {
@@ -109,7 +109,7 @@ export function useTranscription() {
 
   /**
    * Stop capturing, finalize transcript, clean up resources.
-   * Call when volunteer hangs up. Returns the full transcript text.
+   * Call when user hangs up. Returns the full transcript text.
    */
   const stopTranscription = useCallback(async (): Promise<string> => {
     const manager = managerRef.current

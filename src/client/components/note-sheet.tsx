@@ -76,7 +76,7 @@ export function NoteSheet() {
   function validateFields(): boolean {
     const errors: Record<string, string> = {}
     for (const field of customFields) {
-      // Volunteers can only see fields they have permission for
+      // Users can only see fields they have permission for
       if (!isAdmin && field.visibleTo !== 'contacts:envelope-summary') continue
 
       const value = draft.fields[field.id]

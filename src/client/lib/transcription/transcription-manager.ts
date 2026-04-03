@@ -140,7 +140,7 @@ export class TranscriptionManager {
     }
 
     try {
-      // Request local microphone — volunteer's speech only
+      // Request local microphone — user's speech only
       this.mediaStream = await navigator.mediaDevices.getUserMedia({
         audio: {
           sampleRate: 16000,

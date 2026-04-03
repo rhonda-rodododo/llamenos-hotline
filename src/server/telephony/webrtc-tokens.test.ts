@@ -68,7 +68,7 @@ const vonageConfig: VonageConfig = {
   privateKey: undefined,
 }
 
-const identity = 'volunteer-abc-123'
+const identity = 'user-abc-123'
 
 // ── generateWebRtcToken: Twilio ──
 

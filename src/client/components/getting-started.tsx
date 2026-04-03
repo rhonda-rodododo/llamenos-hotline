@@ -42,12 +42,12 @@ export function GettingStartedChecklist() {
 
   useEffect(() => {
     async function check() {
-      let hasVolunteers = false
+      let hasUsers = false
       let hasShifts = false
 
       try {
         const [usersRes, shiftRes] = await Promise.all([listUsers(), listShifts()])
-        hasVolunteers = usersRes.users.length > 1 // > 1 because admin counts as a user
+        hasUsers = usersRes.users.length > 1 // > 1 because admin counts as a user
         hasShifts = shiftRes.shifts.length > 0
       } catch {
         // API might fail if not authed yet
@@ -64,19 +64,19 @@ export function GettingStartedChecklist() {
           href: '/setup',
         },
         {
-          id: 'volunteers',
-          label: t('gettingStarted.inviteVolunteers', { defaultValue: 'Invite volunteers' }),
-          description: t('gettingStarted.inviteVolunteersDesc', {
+          id: 'users',
+          label: t('gettingStarted.inviteUsers', { defaultValue: 'Invite users' }),
+          description: t('gettingStarted.inviteUsersDesc', {
             defaultValue: 'Add team members who will answer calls and respond to reports.',
           }),
-          done: hasVolunteers,
-          href: '/volunteers',
+          done: hasUsers,
+          href: '/users',
         },
         {
           id: 'shifts',
           label: t('gettingStarted.createShifts', { defaultValue: 'Create shift schedule' }),
           description: t('gettingStarted.createShiftsDesc', {
-            defaultValue: 'Set up recurring shifts so calls are routed to available volunteers.',
+            defaultValue: 'Set up recurring shifts so calls are routed to available users.',
           }),
           done: hasShifts,
           href: '/shifts',

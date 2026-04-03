@@ -181,10 +181,10 @@ function HelpPage() {
             title={t('help.faqAdmin', { defaultValue: 'Administration' })}
             items={[
               {
-                q: t('help.faqInviteQ', { defaultValue: 'How do I add volunteers?' }),
+                q: t('help.faqInviteQ', { defaultValue: 'How do I add users?' }),
                 a: t('help.faqInviteA', {
                   defaultValue:
-                    'Go to Volunteers and click "Invite Volunteer". Choose the role (Volunteer, Admin, or Reporter), fill in their name and phone, and share the invite link. Each invite code is single-use and expires in 7 days.',
+                    'Go to Users and click "Invite User". Choose the role (Volunteer, Admin, or Reporter), fill in their name and phone, and share the invite link. Each invite code is single-use and expires in 7 days.',
                 }),
               },
               {
@@ -420,14 +420,14 @@ function AdminGuide() {
         <p>
           {t('help.adminIntro', {
             defaultValue:
-              'As an admin, you manage volunteers, shifts, call settings, and security features.',
+              'As an admin, you manage users, shifts, call settings, and security features.',
           })}
         </p>
         <ul className="list-inside list-disc space-y-1 text-muted-foreground">
           <li>
             {t('help.adminTip1', {
               defaultValue:
-                'Invite volunteers or reporters from the Volunteers page — choose their role when creating the invite',
+                'Invite users from the Users page — choose their role when creating the invite',
             })}
           </li>
           <li>
@@ -444,7 +444,7 @@ function AdminGuide() {
           </li>
           <li>
             {t('help.adminTip4', {
-              defaultValue: 'Monitor volunteer status and active calls from your dashboard',
+              defaultValue: 'Monitor user status and active calls from your dashboard',
             })}
           </li>
           <li>

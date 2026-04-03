@@ -192,7 +192,7 @@ export function useUpdateReport() {
 // ---------------------------------------------------------------------------
 
 /**
- * Mutation to assign a report to a volunteer.
+ * Mutation to assign a report to a user.
  * Invalidates the full reports cache on success.
  */
 export function useAssignReport() {

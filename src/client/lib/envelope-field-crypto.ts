@@ -2,7 +2,7 @@
  * Envelope Field Crypto Helpers
  *
  * Client-side decryption of ECIES envelope-encrypted PII fields
- * (volunteer names, ban phone/reason, caller IDs, device labels, etc.).
+ * (user names, ban phone/reason, caller IDs, device labels, etc.).
  *
  * These fields are envelope-encrypted for the relevant actor + admin pubkeys.
  * The client decrypts when the key is unlocked (after PIN entry), or shows

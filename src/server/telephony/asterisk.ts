@@ -246,11 +246,11 @@ export class AsteriskAdapter implements TelephonyAdapter {
   }
 
   async ringUsers(params: RingUsersParams): Promise<string[]> {
-    const { callSid, callerNumber, volunteers, callbackUrl, hubId } = params
+    const { callSid, callerNumber, users, callbackUrl, hubId } = params
     const result = await this.bridge.request('POST', '/ring', {
       parentCallSid: callSid,
       callerNumber,
-      volunteers: volunteers.map((v) => ({
+      users: users.map((v) => ({
         pubkey: v.pubkey,
         phone: v.phone,
         browserIdentity: v.browserIdentity,

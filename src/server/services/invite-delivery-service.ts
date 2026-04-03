@@ -41,7 +41,7 @@ export class InviteDeliveryService {
       year: 'numeric',
     })
     const messageBody = [
-      "You've been invited to join a volunteer platform.",
+      "You've been invited to join the platform.",
       `Accept here: ${inviteLink}`,
       `(Expires ${expiryDate})`,
     ].join(' ')

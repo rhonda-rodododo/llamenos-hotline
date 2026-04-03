@@ -1,6 +1,6 @@
 import { z } from 'zod/v4'
 
-export const VolunteerSchema = z.object({
+export const UserSchema = z.object({
   pubkey: z.string(),
   name: z.string(),
   phone: z.string().optional(),
@@ -17,9 +17,11 @@ export const VolunteerSchema = z.object({
   messagingEnabled: z.boolean().optional(),
   createdAt: z.iso.datetime(),
 })
-export type Volunteer = z.infer<typeof VolunteerSchema>
+export type User = z.infer<typeof UserSchema>
+/** @deprecated Use User instead */
+export type Volunteer = User
 
-export const CreateVolunteerSchema = z.object({
+export const CreateUserSchema = z.object({
   pubkey: z.string().length(64),
   name: z.string().min(1).max(100),
   phone: z
@@ -30,9 +32,9 @@ export const CreateVolunteerSchema = z.object({
   roleIds: z.array(z.string()).default(['role-volunteer']),
   encryptedSecretKey: z.string().optional().default(''),
 })
-export type CreateVolunteerInput = z.infer<typeof CreateVolunteerSchema>
+export type CreateUserInput = z.infer<typeof CreateUserSchema>
 
-export const UpdateVolunteerSchema = z.object({
+export const UpdateUserSchema = z.object({
   name: z.string().min(1).max(100).optional(),
   phone: z
     .string()
@@ -50,7 +52,7 @@ export const UpdateVolunteerSchema = z.object({
   supportedMessagingChannels: z.array(z.string()).optional(),
   messagingEnabled: z.boolean().optional(),
 })
-export type UpdateVolunteerInput = z.infer<typeof UpdateVolunteerSchema>
+export type UpdateUserInput = z.infer<typeof UpdateUserSchema>
 
 export const InviteCodeSchema = z.object({
   code: z.string(),

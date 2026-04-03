@@ -204,7 +204,7 @@ export async function deleteHub(db: Database, id: string): Promise<void> {
     }
     await tx.delete(conversations).where(eq(conversations.hubId, id))
 
-    // --- Remove hub from volunteers' hubRoles JSONB arrays ---
+    // --- Remove hub from users' hubRoles JSONB arrays ---
     await tx.execute(
       sql`UPDATE users
         SET hub_roles = COALESCE(

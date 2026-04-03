@@ -277,13 +277,13 @@ export class PlivoAdapter implements TelephonyAdapter {
 
     // Build outbound targets: one per phone + one per browser identity
     // Plivo supports mixing <Number> and <User> in a single <Dial> for parallel ringing,
-    // but each volunteer gets a separate REST API call for status tracking
+    // but each user gets a separate REST API call for status tracking
     const outboundTargets: Array<{
       pubkey: string
       to: string
       isBrowser: boolean
     }> = []
-    for (const vol of params.volunteers) {
+    for (const vol of params.users) {
       if (vol.phone) {
         outboundTargets.push({ pubkey: vol.pubkey, to: vol.phone, isBrowser: false })
       }

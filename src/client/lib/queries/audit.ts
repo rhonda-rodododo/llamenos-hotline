@@ -1,7 +1,7 @@
 /**
  * React Query hooks for audit log resource management.
  *
- * Audit log entries may contain encrypted volunteer names (actorName field).
+ * Audit log entries may contain encrypted user names (actorName field).
  * Uses decryptArrayFields with LABEL_USER_PII to decrypt them.
  * Cache is short-lived (60s stale) since audit logs update frequently.
  */

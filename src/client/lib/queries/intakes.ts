@@ -1,7 +1,7 @@
 /**
  * React Query hooks for intake management.
  *
- * Intakes are post-call data entry forms submitted by volunteers.
+ * Intakes are post-call data entry forms submitted by users.
  * Case Managers with contacts:triage permission review and merge them
  * into contact records.
  */

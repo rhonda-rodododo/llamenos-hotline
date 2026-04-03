@@ -6,7 +6,6 @@ import type { AppEnv } from '../types'
 const shifts = createRouter()
 
 // ── Shared schemas ──
-// Note: service layer uses `userPubkeys`; shared schemas use `volunteerPubkeys`.
 // Response schemas match the service layer output shape.
 
 const ShiftResponseSchema = z.object({

@@ -275,7 +275,7 @@ export class TwilioAdapter implements TelephonyAdapter {
 
     // Build list of outbound calls: one per phone number + one per browser identity
     const outboundTargets: Array<{ pubkey: string; to: string }> = []
-    for (const vol of params.volunteers) {
+    for (const vol of params.users) {
       if (vol.phone) {
         outboundTargets.push({ pubkey: vol.pubkey, to: vol.phone })
       }

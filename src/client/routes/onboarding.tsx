@@ -256,7 +256,7 @@ function OnboardingPage() {
                 {t('onboarding.welcomeTitle', { name: hotlineName })}
               </CardTitle>
               <CardDescription>
-                {t('onboarding.welcomeDescription', { volunteerName: inviteData?.name })}
+                {t('onboarding.welcomeDescription', { userName: inviteData?.name })}
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">

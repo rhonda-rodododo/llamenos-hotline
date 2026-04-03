@@ -122,7 +122,7 @@ export type CallSettings = z.infer<typeof CallSettingsSchema>
 
 export const TranscriptionSettingsSchema = z.object({
   globalEnabled: z.boolean(),
-  allowVolunteerOptOut: z.boolean(),
+  allowUserOptOut: z.boolean(),
 })
 export type TranscriptionSettings = z.infer<typeof TranscriptionSettingsSchema>
 

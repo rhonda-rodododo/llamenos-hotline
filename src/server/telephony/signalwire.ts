@@ -18,9 +18,9 @@ export class SignalWireAdapter extends TwilioAdapter {
 
   override async ringUsers(params: RingUsersParams): Promise<string[]> {
     // SignalWire doesn't support browser calling — filter to phone-only users
-    const phoneOnly = params.volunteers.filter((v) => v.phone)
+    const phoneOnly = params.users.filter((v) => v.phone)
     if (phoneOnly.length === 0) return []
-    return super.ringUsers({ ...params, volunteers: phoneOnly })
+    return super.ringUsers({ ...params, users: phoneOnly })
   }
 
   protected override getApiBaseUrl(): string {

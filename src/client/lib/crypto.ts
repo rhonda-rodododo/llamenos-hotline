@@ -283,7 +283,7 @@ export interface EncryptedMessagePayload {
  * Generates a random per-message symmetric key, wraps it for each reader via ECIES.
  *
  * @param plaintext - Message text to encrypt
- * @param readerPubkeys - Array of reader x-only pubkeys (volunteer + admins)
+ * @param readerPubkeys - Array of reader x-only pubkeys (author + admins)
  */
 export function encryptMessage(
   plaintext: string,
@@ -495,7 +495,7 @@ export function decryptNote(packed: string, secretKey: Uint8Array): NotePayload 
 }
 
 // --- ECIES Transcription Decryption ---
-// Decrypts server-encrypted transcriptions using ECDH with the volunteer's secret key
+// Decrypts server-encrypted transcriptions using ECDH with the user's secret key
 // and the ephemeral public key stored alongside the ciphertext.
 
 /**

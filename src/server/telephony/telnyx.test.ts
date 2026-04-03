@@ -293,7 +293,7 @@ describe('TelnyxAdapter.handleCaptchaResponse', () => {
 // =====================================================================
 
 describe('TelnyxAdapter.handleCallAnswered', () => {
-  test('bridges caller and volunteer and starts recording', async () => {
+  test('bridges caller and user and starts recording', async () => {
     mockFetchWith()
     const adapter = createAdapter()
 
@@ -433,7 +433,7 @@ describe('TelnyxAdapter.hangupCall', () => {
 // =====================================================================
 
 describe('TelnyxAdapter.ringUsers', () => {
-  test('creates outbound calls for each volunteer with phone', async () => {
+  test('creates outbound calls for each user with phone', async () => {
     mockFetchWith((_url, init) => {
       if (init?.method === 'POST' && _url.endsWith('/v2/calls')) {
         return new Response(
@@ -454,7 +454,7 @@ describe('TelnyxAdapter.ringUsers', () => {
     const sids = await adapter.ringUsers({
       callSid: 'cc-caller',
       callerNumber: '+14155551234',
-      volunteers: [
+      users: [
         { pubkey: 'pub1', phone: '+14155559999' },
         { pubkey: 'pub2', phone: '+14155558888' },
         { pubkey: 'pub3' }, // no phone — should be skipped
@@ -505,7 +505,7 @@ describe('TelnyxAdapter.ringUsers', () => {
     const sids = await adapter.ringUsers({
       callSid: 'cc-caller',
       callerNumber: '+14155551234',
-      volunteers: [
+      users: [
         { pubkey: 'pub1', phone: '+14155559999' },
         { pubkey: 'pub2', phone: '+14155558888' },
       ],
@@ -986,7 +986,7 @@ describe('TelnyxCallControlClient error handling', () => {
     const sids = await adapter.ringUsers({
       callSid: 'cc-caller',
       callerNumber: '+14155551234',
-      volunteers: [{ pubkey: 'pub1', phone: '+14155559999' }],
+      users: [{ pubkey: 'pub1', phone: '+14155559999' }],
       callbackUrl: 'https://example.com',
     })
 

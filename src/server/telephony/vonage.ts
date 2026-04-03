@@ -331,7 +331,7 @@ export class VonageAdapter implements TelephonyAdapter {
       to: Array<Record<string, string>>
       machineDetection?: string
     }> = []
-    for (const vol of params.volunteers) {
+    for (const vol of params.users) {
       if (vol.phone) {
         outboundTargets.push({
           pubkey: vol.pubkey,

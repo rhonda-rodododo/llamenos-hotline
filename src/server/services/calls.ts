@@ -105,7 +105,7 @@ export class CallService {
   }
 
   async createCallLeg(data: CreateCallLegData): Promise<CallLeg> {
-    // Encrypt volunteer phone with server key (null for browser-only legs)
+    // Encrypt user phone with server key (null for browser-only legs)
     const encryptedPhone = data.phone
       ? this.crypto.serverEncrypt(data.phone, LABEL_EPHEMERAL_CALL)
       : undefined
@@ -140,7 +140,7 @@ export class CallService {
   }
 
   /**
-   * Cancel all ringing legs except the one answered by the given volunteer.
+   * Cancel all ringing legs except the one answered by the given user.
    * Returns the legSids of phone legs that should be cancelled via the telephony adapter.
    */
   async cancelOtherLegs(

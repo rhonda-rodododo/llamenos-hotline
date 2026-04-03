@@ -169,7 +169,7 @@ export class TestAdapter implements TelephonyAdapter {
     }
     return this.twiml(`
       <Response>
-        <Say>Please hold. A volunteer will be with you shortly.</Say>
+        <Say>Please hold. Someone will be with you shortly.</Say>
         <Pause length="10"/>
       </Response>
     `)

@@ -190,7 +190,7 @@ export function StepSummary({ data, onComplete, saving, headingRef }: Props) {
             <p className="text-xs text-muted-foreground">
               {t('setup.demoModeDescription', {
                 defaultValue:
-                  'Creates sample volunteer accounts, shifts, and ban entries for testing and demos. Demo account credentials will be shown on the login page.',
+                  'Creates sample user accounts, shifts, and ban entries for testing and demos. Demo account credentials will be shown on the login page.',
               })}
             </p>
           </div>
