@@ -3,12 +3,11 @@ import { ADMIN_NSEC } from '../helpers'
 import { createAuthedRequestFromNsec } from '../helpers/authed-request'
 
 // Signal bridge tests require signal-cli container (--profile signal).
-// CI doesn't start signal-cli by default.
-const hasSignalBridge = !process.env.CI
+// Both local dev and CI start signal-cli.
 
 test.describe('Signal Bridge Integration', () => {
   test('POST /api/setup/test/signal validates bridge connection', async ({ request }) => {
-    test.skip(!hasSignalBridge, 'Signal bridge not available in CI')
+    // No skip — signal-cli is started via --profile signal in both dev and CI
     const api = createAuthedRequestFromNsec(request, ADMIN_NSEC)
     // Test with the Docker signal-cli bridge URL
     // In CI, signal-cli runs on internal Docker network; server accesses it via hostname
