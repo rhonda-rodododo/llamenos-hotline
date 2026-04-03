@@ -233,6 +233,14 @@ telephony.post('/language-selected', async (c) => {
     const { mode, hasAvailableUsers, callSettings } = await checkVoicemailMode(services, hubId)
 
     if (mode === 'always' || (mode === 'auto' && !hasAvailableUsers)) {
+      // Create call record before voicemail so the recording callback can resolve the hub
+      await services.records
+        .upsertCallRecord(callSid, hubId ?? 'global', {
+          status: 'voicemail',
+          callerLast4: callerNumber.slice(-4),
+        })
+        .catch((err) => console.error('[telephony] failed to create voicemail call record:', err))
+
       const vmResponse = await adapter.handleVoicemail({
         callSid,
         callerLanguage,
@@ -580,12 +588,19 @@ telephony.post('/voicemail-recording', async (c) => {
   let hubId = getHubId(url)
   const services = c.get('services')
 
-  // Resolve hub from active call's stored context, then fall back to sole hub
+  // Resolve hub from active call or call record, then fall back to sole hub
   const callSidFromUrl = url.searchParams.get('callSid') || ''
   if (!hubId && callSidFromUrl) {
+    // Check active calls first (normal ringing flow)
     const allActiveCalls = await services.calls.getActiveCalls()
     const matchedCall = allActiveCalls.find((ac) => ac.callSid === callSidFromUrl)
-    if (matchedCall) hubId = matchedCall.hubId
+    if (matchedCall) {
+      hubId = matchedCall.hubId
+    } else {
+      // Check call records (voicemail-only flow creates a record before active call)
+      const recordHubId = await services.records.findCallRecordHubId(callSidFromUrl)
+      if (recordHubId) hubId = recordHubId
+    }
   }
   if (!hubId) {
     const allHubs = await services.settings.getHubs()
