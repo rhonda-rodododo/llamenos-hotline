@@ -32,16 +32,20 @@ The **sip-bridge** process handles ESL real-time events.
 
 ### mod_httapi XML Mapping
 
+All responses use `<document type="xml/freeswitch-httapi"><params/><work>...</work></document>` wrapper.
+
+Digit capture uses `<bind>` tags inside `<playback>` with regex patterns (no standalone `<getDigits>` tag).
+
 | Llamenos Flow | mod_httapi XML |
 |---------------|---------------|
-| Language menu | `<work><playback>` + `<getDigits>` |
-| CAPTCHA | `<work><getDigits digits="4">` + `<playback>` |
-| Hold music | `<work><playback loops="0">` (hold audio URL) |
+| Language menu | `<playback file="..."><bind strip="#">~\d{1}#</bind></playback>` |
+| CAPTCHA | `<playback file="..."><bind strip="#">~\d{4}#</bind></playback>` |
+| Hold music | `<playback file="..." loops="0">` (hold audio URL) |
 | Ring volunteers | ESL bridge: `originate` command per volunteer |
-| Bridge/answer | `<work><execute application="bridge">` |
-| Voicemail | `<work><record>` with `name` and `action` |
-| Reject | `<work><hangup cause="CALL_REJECTED">` |
-| Unavailable | `<work><playback>` + `<hangup>` |
+| Bridge/answer | `<execute application="bridge" data="...">` |
+| Voicemail | `<record file="..." name="vm" action="callback-url" limit="120">` |
+| Reject | `<hangup cause="CALL_REJECTED">` |
+| Unavailable | `<playback file="...">` + `<hangup>` |
 
 ### Config Schema
 

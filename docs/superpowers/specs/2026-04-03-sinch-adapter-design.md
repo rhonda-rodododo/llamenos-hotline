@@ -34,8 +34,8 @@ Sinch uses **callback + SVAML response** (similar to Vonage NCCO):
 
 | Llamenos Flow | SVAML Action | SVAML Instructions |
 |---------------|-------------|-------------------|
-| Language menu | `runMenu` | `options` per digit, `say` per language |
-| CAPTCHA | `runMenu` | `maxDigits: 4`, `say` with digits |
+| Language menu | `runMenu` | `items: [{type:"Say"}, {type:"GetDigits", max:1}]` per language |
+| CAPTCHA | `runMenu` | `items: [{type:"Say"}, {type:"GetDigits", max:4}]` |
 | Hold music | `park` | `playFiles` instruction |
 | Ring volunteers | REST: `POST /calling/v1/callouts` per volunteer | — |
 | Bridge/answer | `connectPstn` | `cli` (caller ID) |
@@ -97,8 +97,8 @@ New file: `src/shared/schemas/external/sinch-voice.ts`
 - `SinchICESchema` — Incoming Call Event (callId, cli, to, timestamp)
 - `SinchACESchema` — Answered Call Event (callId, timestamp)
 - `SinchDiCESchema` — Disconnected Call Event (callId, reason, duration)
-- `SinchPICESchema` — Post-call Info (recordings, duration)
-- `SinchMenuResultSchema` — DTMF gather result (value, menuId)
+- `SinchPIESchema` — Prompt Input Event (menuResult with value and menuId)
+- `SinchNotificationSchema` — Recording/transcription notifications
 
 ## Geographic Advantage
 
