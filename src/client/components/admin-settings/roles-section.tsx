@@ -634,7 +634,7 @@ export function RolesSection({ expanded, onToggle, statusSummary }: Props) {
         description={
           deleteTarget
             ? t('roles.deleteConfirm', {
-                defaultValue: `Are you sure you want to delete "${deleteTarget.name}"? This action cannot be undone. Volunteers assigned this role will lose its permissions.`,
+                defaultValue: `Are you sure you want to delete "${deleteTarget.name}"? This action cannot be undone. Users assigned this role will lose its permissions.`,
                 name: deleteTarget.name,
               })
             : ''

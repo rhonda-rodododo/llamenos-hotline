@@ -151,7 +151,7 @@ export function TeamsSection({ expanded, onToggle, statusSummary }: Props) {
       id="teams"
       title={t('teams.title', { defaultValue: 'Teams' })}
       description={t('teams.description', {
-        defaultValue: 'Organize volunteers into teams for contact assignment and shift management.',
+        defaultValue: 'Organize users into teams for contact assignment and shift management.',
       })}
       icon={<Users className="h-5 w-5 text-muted-foreground" />}
       expanded={expanded}

@@ -15,6 +15,10 @@ export interface PermissionMeta {
   label: string
   group: string
   subgroup: 'scope' | 'actions' | 'tiers'
+  /** For scope permissions: the scope level this permission grants */
+  scope?: 'own' | 'assigned' | 'all'
+  /** For contact tier permissions: the envelope tier */
+  tier?: 'envelope-summary' | 'envelope-full'
 }
 
 export const PERMISSION_GROUP_LABELS: Record<string, string> = {
@@ -55,39 +59,51 @@ export const PERMISSION_CATALOG = {
     label: 'View contacts they created or handled',
     group: 'contacts',
     subgroup: 'scope',
+    scope: 'own',
   },
   'contacts:read-assigned': {
     label: 'View contacts assigned to them',
     group: 'contacts',
     subgroup: 'scope',
+    scope: 'assigned',
   },
   'contacts:read-all': {
     label: 'View all contacts in this hub',
     group: 'contacts',
     subgroup: 'scope',
+    scope: 'all',
   },
   'contacts:update-own': {
     label: 'Edit contacts they created',
     group: 'contacts',
     subgroup: 'scope',
+    scope: 'own',
   },
   'contacts:update-assigned': {
     label: 'Edit contacts assigned to them',
     group: 'contacts',
     subgroup: 'scope',
+    scope: 'assigned',
   },
-  'contacts:update-all': { label: 'Edit any contact', group: 'contacts', subgroup: 'scope' },
+  'contacts:update-all': {
+    label: 'Edit any contact',
+    group: 'contacts',
+    subgroup: 'scope',
+    scope: 'all',
+  },
 
   // --- Contacts: Tiers ---
   'contacts:envelope-summary': {
     label: 'Access display name, tags, risk level, notes',
     group: 'contacts',
     subgroup: 'tiers',
+    tier: 'envelope-summary',
   },
   'contacts:envelope-full': {
     label: 'Access full details (legal name, phone, address, channels)',
     group: 'contacts',
     subgroup: 'tiers',
+    tier: 'envelope-full',
   },
 
   // --- Contacts: Actions ---
@@ -126,20 +142,32 @@ export const PERMISSION_CATALOG = {
   },
 
   // --- Notes: Scope ---
-  'notes:read-own': { label: 'Read own notes', group: 'notes', subgroup: 'scope' },
+  'notes:read-own': { label: 'Read own notes', group: 'notes', subgroup: 'scope', scope: 'own' },
   'notes:read-assigned': {
     label: 'Read notes from assigned users',
     group: 'notes',
     subgroup: 'scope',
+    scope: 'assigned',
   },
-  'notes:read-all': { label: 'Read all notes', group: 'notes', subgroup: 'scope' },
-  'notes:update-own': { label: 'Update own notes', group: 'notes', subgroup: 'scope' },
+  'notes:read-all': { label: 'Read all notes', group: 'notes', subgroup: 'scope', scope: 'all' },
+  'notes:update-own': {
+    label: 'Update own notes',
+    group: 'notes',
+    subgroup: 'scope',
+    scope: 'own',
+  },
   'notes:update-assigned': {
     label: 'Update notes from assigned users',
     group: 'notes',
     subgroup: 'scope',
+    scope: 'assigned',
   },
-  'notes:update-all': { label: 'Update any note', group: 'notes', subgroup: 'scope' },
+  'notes:update-all': {
+    label: 'Update any note',
+    group: 'notes',
+    subgroup: 'scope',
+    scope: 'all',
+  },
 
   // --- Notes: Actions ---
   'notes:create': { label: 'Create call notes', group: 'notes', subgroup: 'actions' },
@@ -167,9 +195,24 @@ export const PERMISSION_CATALOG = {
   'calls:debug': { label: 'Debug call state', group: 'calls', subgroup: 'actions' },
 
   // --- Reports: Scope ---
-  'reports:read-own': { label: 'Read own reports', group: 'reports', subgroup: 'scope' },
-  'reports:read-assigned': { label: 'Read assigned reports', group: 'reports', subgroup: 'scope' },
-  'reports:read-all': { label: 'Read all reports', group: 'reports', subgroup: 'scope' },
+  'reports:read-own': {
+    label: 'Read own reports',
+    group: 'reports',
+    subgroup: 'scope',
+    scope: 'own',
+  },
+  'reports:read-assigned': {
+    label: 'Read assigned reports',
+    group: 'reports',
+    subgroup: 'scope',
+    scope: 'assigned',
+  },
+  'reports:read-all': {
+    label: 'Read all reports',
+    group: 'reports',
+    subgroup: 'scope',
+    scope: 'all',
+  },
 
   // --- Reports: Actions ---
   'reports:create': { label: 'Submit reports', group: 'reports', subgroup: 'actions' },
@@ -191,16 +234,19 @@ export const PERMISSION_CATALOG = {
     label: 'Read conversations they initiated',
     group: 'conversations',
     subgroup: 'scope',
+    scope: 'own',
   },
   'conversations:read-assigned': {
     label: 'Read assigned and waiting conversations',
     group: 'conversations',
     subgroup: 'scope',
+    scope: 'assigned',
   },
   'conversations:read-all': {
     label: 'Read all conversations',
     group: 'conversations',
     subgroup: 'scope',
+    scope: 'all',
   },
 
   // --- Conversations: Actions ---
@@ -263,13 +309,24 @@ export const PERMISSION_CATALOG = {
   'users:manage-roles': { label: 'Assign/change user roles', group: 'users', subgroup: 'actions' },
 
   // --- Shifts: Scope ---
-  'shifts:read-own': { label: 'Check own shift status', group: 'shifts', subgroup: 'scope' },
+  'shifts:read-own': {
+    label: 'Check own shift status',
+    group: 'shifts',
+    subgroup: 'scope',
+    scope: 'own',
+  },
   'shifts:read-assigned': {
     label: 'View shifts they are scheduled on',
     group: 'shifts',
     subgroup: 'scope',
+    scope: 'assigned',
   },
-  'shifts:read-all': { label: 'View all shifts', group: 'shifts', subgroup: 'scope' },
+  'shifts:read-all': {
+    label: 'View all shifts',
+    group: 'shifts',
+    subgroup: 'scope',
+    scope: 'all',
+  },
 
   // --- Shifts: Actions ---
   'shifts:create': { label: 'Create shifts', group: 'shifts', subgroup: 'actions' },
@@ -286,13 +343,20 @@ export const PERMISSION_CATALOG = {
     label: 'Download own/authorized files',
     group: 'files',
     subgroup: 'scope',
+    scope: 'own',
   },
   'files:download-assigned': {
     label: 'Download files from assigned resources',
     group: 'files',
     subgroup: 'scope',
+    scope: 'assigned',
   },
-  'files:download-all': { label: 'Download any file', group: 'files', subgroup: 'scope' },
+  'files:download-all': {
+    label: 'Download any file',
+    group: 'files',
+    subgroup: 'scope',
+    scope: 'all',
+  },
 
   // --- Files: Actions ---
   'files:upload': { label: 'Upload files', group: 'files', subgroup: 'actions' },
@@ -662,6 +726,43 @@ export function permissionGranted(grantedPermissions: string[], required: string
   }
 
   return false
+}
+
+/** Scope levels in ascending order of access breadth */
+export type ScopeLevel = 'own' | 'assigned' | 'all'
+
+const SCOPE_LEVEL_ORDER: ScopeLevel[] = ['own', 'assigned', 'all']
+
+/**
+ * Get the effective (highest) scope level a user has for a given domain + action.
+ *
+ * Example: getEffectiveScope(['contacts:read-assigned', 'contacts:read-own'], 'contacts', 'read')
+ *   → 'assigned' (because assigned subsumes own)
+ *
+ * Returns null if no scope permission is granted for that domain:action.
+ */
+export function getEffectiveScope(
+  permissions: string[],
+  domain: string,
+  action: string
+): ScopeLevel | null {
+  // Global or domain wildcard → all
+  if (permissions.includes('*') || permissions.includes(`${domain}:*`)) return 'all'
+
+  let highest = -1
+  const prefix = `${domain}:${action}`
+
+  for (const perm of permissions) {
+    const match = perm.match(/^(.+)-(own|assigned|all)$/)
+    if (match && match[1] === prefix) {
+      const level = SCOPE_LEVELS[match[2]]
+      if (level !== undefined && level > highest) {
+        highest = level
+      }
+    }
+  }
+
+  return highest >= 0 ? SCOPE_LEVEL_ORDER[highest] : null
 }
 
 /**
