@@ -30,7 +30,7 @@
     "test:e2e": "bunx playwright test --project=ui",
     "test:interactive": "bunx playwright test --ui",
     "test:live": "bunx playwright test --config playwright.live.config.ts",
-    "test:all": "bun test src/ --bail --path-ignore-patterns='**/*.integration.test.ts' && bun test .integration. --bail && bunx playwright test",
+    "test:all": "bun run test:unit && bun run test:integration && bun run test:api && bun run test:e2e",
     "site:dev": "cd site && bun run dev",
     "site:build": "cd site && bun run build",
     "changelog": "git-cliff --output CHANGELOG.md",
