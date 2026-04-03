@@ -31,6 +31,8 @@ export async function generateWebRtcToken(
       return generateAsteriskToken(config, identity)
     case 'telnyx':
       throw new Error('Telnyx WebRTC not yet implemented')
+    case 'bandwidth':
+      throw new Error('Bandwidth WebRTC not yet implemented')
     default: {
       const _exhaustive: never = config
       throw new Error(
