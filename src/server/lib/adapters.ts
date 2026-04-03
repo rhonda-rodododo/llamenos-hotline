@@ -19,6 +19,7 @@ import type { TelephonyAdapter } from '../telephony/adapter'
 import { AsteriskAdapter } from '../telephony/asterisk'
 import { PlivoAdapter } from '../telephony/plivo'
 import { SignalWireAdapter } from '../telephony/signalwire'
+import { TelnyxAdapter } from '../telephony/telnyx'
 import { TwilioAdapter } from '../telephony/twilio'
 import { VonageAdapter } from '../telephony/vonage'
 
@@ -192,10 +193,9 @@ function createAdapterFromConfig(config: TelephonyProviderConfig): TelephonyAdap
         config.ariPassword // Bridge secret uses ARI password as shared secret
       )
     }
-    case 'telnyx':
-      throw new AppError(
-        501,
-        'Telnyx runtime adapter not yet implemented — use Twilio or another provider for call handling'
-      )
+    case 'telnyx': {
+      if (!config.apiKey) throw new AppError(500, 'Telnyx config missing apiKey')
+      return new TelnyxAdapter(config.apiKey, config.texmlAppId ?? '', config.phoneNumber)
+    }
   }
 }
