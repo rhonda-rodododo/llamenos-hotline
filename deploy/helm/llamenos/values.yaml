@@ -31,7 +31,7 @@ rustfs:
   enabled: true
   image:
     repository: rustfs/rustfs
-    tag: "latest"
+    tag: "latest@sha256:0725587f6fcca83c1898f321424327d6e6da5e01ea20382905dd258ed5af3be4"
   persistence:
     size: 50Gi
     storageClass: ""
@@ -95,7 +95,7 @@ nostr:
   relayUrl: "ws://strfry:7777"
   image:
     repository: dockurr/strfry
-    tag: "latest"
+    tag: "latest@sha256:df140472554e5a0b5bbe08ec417805d283098621833e44827d8018c98b74243d"
   persistence:
     size: 5Gi
     storageClass: ""

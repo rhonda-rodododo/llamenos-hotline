@@ -30,7 +30,7 @@ import hubRoutes from './routes/hubs'
 import intakesRoutes from './routes/intakes'
 import invitesRoutes from './routes/invites'
 import signalRegistrationRoutes from './routes/messaging/signal-registration'
-import metricsRoutes from './routes/metrics'
+import metricsRoutes, { httpMetrics } from './routes/metrics'
 import notesRoutes from './routes/notes'
 import notificationsRoutes from './routes/notifications'
 import providerSetupRoutes from './routes/provider-setup'
@@ -62,6 +62,9 @@ export function getIdPAdapter(): IdPAdapter | null {
 const app = new Hono<AppEnv>()
 
 app.onError(errorHandler)
+
+// HTTP request metrics — before all routes so every request is measured
+app.use('*', httpMetrics)
 
 // --- API routes: CORS on all /api/* ---
 const api = new OpenAPIHono<AppEnv>({

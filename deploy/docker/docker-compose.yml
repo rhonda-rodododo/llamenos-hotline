@@ -145,7 +145,7 @@ services:
         condition: service_healthy
 
   rustfs:
-    image: rustfs/rustfs:latest
+    image: rustfs/rustfs:latest@sha256:0725587f6fcca83c1898f321424327d6e6da5e01ea20382905dd258ed5af3be4
     command: server /data
     restart: unless-stopped
     volumes:
@@ -166,7 +166,7 @@ services:
   # ── Core: Nostr Relay (strfry) ────────────────────────────
   strfry:
     # Pin to specific tag for reproducible deployments
-    image: dockurr/strfry:1.0.1
+    image: dockurr/strfry:1.0.1@sha256:4bcfddc8aab07e17d35198c0618d6a9c8e5d3e27b211741ebce9f7058cdd1e21
     restart: unless-stopped
     ulimits:
       nofile:
@@ -185,7 +185,7 @@ services:
 
   # ── Core: Authentik IdP ───────────────────────────────────
   authentik-server:
-    image: ghcr.io/goauthentik/server:2025.12
+    image: ghcr.io/goauthentik/server:2025.12@sha256:33a92b246b798f23931ce62027e045ecf302c3bc198b6389225973db6448a886
     command: server
     restart: unless-stopped
     environment:
@@ -214,7 +214,7 @@ services:
       start_period: 60s
 
   authentik-worker:
-    image: ghcr.io/goauthentik/server:2025.12
+    image: ghcr.io/goauthentik/server:2025.12@sha256:33a92b246b798f23931ce62027e045ecf302c3bc198b6389225973db6448a886
     command: worker
     restart: unless-stopped
     environment:
