@@ -271,6 +271,8 @@ jobs:
           docker compose
           -f deploy/docker/docker-compose.yml
           -f deploy/docker/docker-compose.ci.yml
+          --profile signal
+          --profile asterisk
           up -d
         env:
           PG_PASSWORD: llamenos
@@ -374,6 +376,8 @@ jobs:
           docker compose
           -f deploy/docker/docker-compose.yml
           -f deploy/docker/docker-compose.ci.yml
+          --profile signal
+          --profile asterisk
           up -d
         env:
           PG_PASSWORD: llamenos
