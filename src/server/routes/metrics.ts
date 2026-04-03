@@ -160,12 +160,15 @@ metrics.get('/', (c) => {
 export const httpMetrics = createMiddleware<AppEnv>(async (c, next) => {
   const start = performance.now()
   await next()
-  const durationSeconds = (performance.now() - start) / 1000
-  const method = c.req.method
-  const status = String(c.res.status)
-
-  incCounter('llamenos_http_requests_total', { method, status })
-  observeHistogram('llamenos_http_request_duration_seconds', durationSeconds, { method, status })
+  try {
+    const durationSeconds = (performance.now() - start) / 1000
+    const method = c.req.method
+    const status = String(c.res?.status ?? 0)
+    incCounter('llamenos_http_requests_total', { method, status })
+    observeHistogram('llamenos_http_request_duration_seconds', durationSeconds, { method, status })
+  } catch {
+    // Metrics collection must never throw
+  }
 })
 
 export default metrics
