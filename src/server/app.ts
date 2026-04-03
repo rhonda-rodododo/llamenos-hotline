@@ -63,9 +63,6 @@ const app = new Hono<AppEnv>()
 
 app.onError(errorHandler)
 
-// HTTP request metrics — before all routes so every request is measured
-app.use('*', httpMetrics)
-
 // --- API routes: CORS on all /api/* ---
 const api = new OpenAPIHono<AppEnv>({
   defaultHook: (result, c) => {
@@ -75,6 +72,9 @@ const api = new OpenAPIHono<AppEnv>({
     }
   },
 })
+
+// HTTP request metrics — on API routes only (not /telephony/* webhooks)
+api.use('*', httpMetrics)
 
 // Health check — before CORS middleware (internal probes only, no external access needed)
 api.route('/health', healthRoutes)
