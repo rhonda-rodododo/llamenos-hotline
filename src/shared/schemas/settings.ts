@@ -162,7 +162,7 @@ export const SetupStateSchema = z.object({
   completedSteps: z.array(z.string()),
   pendingChannels: z.array(ChannelTypeSchema),
   selectedChannels: z.array(ChannelTypeSchema),
-  demoMode: z.boolean().optional(),
+  demoMode: z.boolean().default(false),
 })
 export type SetupState = z.infer<typeof SetupStateSchema>
 
