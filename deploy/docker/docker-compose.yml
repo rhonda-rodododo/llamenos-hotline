@@ -58,7 +58,7 @@ services:
       - STORAGE_ACCESS_KEY=${STORAGE_ACCESS_KEY:?STORAGE_ACCESS_KEY is required}
       - STORAGE_SECRET_KEY=${STORAGE_SECRET_KEY:?STORAGE_SECRET_KEY is required}
       - STORAGE_SSE_ENABLED=${STORAGE_SSE_ENABLED:-true}
-      - WHISPER_URL=${WHISPER_URL:-http://whisper:8080/v1/audio/transcriptions}
+      - WHISPER_URL=${WHISPER_URL:-http://whisper:8000/v1/audio/transcriptions}
       - TWILIO_ACCOUNT_SID=${TWILIO_ACCOUNT_SID:-}
       - TWILIO_AUTH_TOKEN=${TWILIO_AUTH_TOKEN:-}
       - TWILIO_PHONE_NUMBER=${TWILIO_PHONE_NUMBER:-}
@@ -237,7 +237,7 @@ services:
 
   # ── Optional: Whisper Transcription ───────────────────────
   whisper:
-    image: fedirz/faster-whisper-server:0.4.1  # TODO: pin to digest when available
+    image: fedirz/faster-whisper-server:0.6.0-rc.3-cpu
     profiles: ["transcription"]
     restart: unless-stopped
     environment:
@@ -246,11 +246,11 @@ services:
     networks:
       - internal
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
       interval: 30s
       timeout: 5s
       retries: 3
-      start_period: 30s
+      start_period: 60s
 
   # ── Optional: Asterisk PBX ───────────────────────────────
   asterisk:

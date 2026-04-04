@@ -96,3 +96,8 @@ services:
       --log-file=stdout
     networks:
       - internal
+
+  # Whisper transcription — dev port for host access
+  whisper:
+    ports:
+      - "8085:8000"
