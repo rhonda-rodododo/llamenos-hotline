@@ -51,6 +51,7 @@ export type TelephonyProviderType =
   | 'asterisk'
   | 'telnyx'
   | 'bandwidth'
+  | 'freeswitch'
 
 export const TELEPHONY_PROVIDER_LABELS: Record<TelephonyProviderType, string> = {
   twilio: 'Twilio',
@@ -60,6 +61,7 @@ export const TELEPHONY_PROVIDER_LABELS: Record<TelephonyProviderType, string> = 
   asterisk: 'Asterisk (Self-Hosted)',
   telnyx: 'Telnyx',
   bandwidth: 'Bandwidth',
+  freeswitch: 'FreeSWITCH (Self-Hosted)',
 }
 
 export type { TelephonyProviderConfig } from '@shared/schemas/providers'
@@ -93,6 +95,11 @@ export interface TelephonyProviderDraft {
   ariUsername?: string
   ariPassword?: string
   bridgeCallbackUrl?: string
+  // FreeSWITCH
+  eslUrl?: string
+  eslPassword?: string
+  freeswitchDomain?: string
+  vertoWssPort?: number
   // Telnyx
   texmlAppId?: string
   // Bandwidth (accountId, apiSecret, applicationId already defined above)

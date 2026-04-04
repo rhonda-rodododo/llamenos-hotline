@@ -1,5 +1,6 @@
 import type {
   AsteriskConfig,
+  FreeSwitchConfig,
   PlivoConfig,
   SignalWireConfig,
   TwilioConfig,
@@ -33,6 +34,8 @@ export async function generateWebRtcToken(
       throw new Error('Telnyx WebRTC not yet implemented')
     case 'bandwidth':
       throw new Error('Bandwidth WebRTC not yet implemented')
+    case 'freeswitch':
+      return generateFreeSwitchToken(config, identity)
     default: {
       const _exhaustive: never = config
       throw new Error(
@@ -68,6 +71,8 @@ export function isWebRtcConfigured(config: TelephonyProviderConfig | null): bool
       return !!(config.authId && config.authToken)
     case 'asterisk':
       return !!(config.ariUrl && config.bridgeCallbackUrl)
+    case 'freeswitch':
+      return !!(config.eslUrl && config.bridgeCallbackUrl && config.vertoWssPort)
     default:
       return false
   }
@@ -232,6 +237,56 @@ async function generateAsteriskToken(
     })
   )
   return { token, provider: 'asterisk', ttl: 600 }
+}
+
+// --- FreeSWITCH Verto WebRTC token ---
+// FreeSWITCH uses Verto protocol for WebRTC. The "token" is a base64-encoded
+// JSON blob containing Verto WSS URI, login/password, and ICE servers.
+
+async function generateFreeSwitchToken(
+  config: FreeSwitchConfig,
+  identity: string
+): Promise<{ token: string; provider: TelephonyProviderType; ttl: number }> {
+  const domain = config.freeswitchDomain ?? 'localhost'
+  const wssPort = config.vertoWssPort ?? 8082
+  const wsUri = `wss://${domain}:${wssPort}`
+  const sipUri = `sip:${identity}@${domain}`
+
+  const iceServers: Array<{ urls: string; username?: string; credential?: string }> = []
+  if (config.stunServer) {
+    iceServers.push({ urls: config.stunServer })
+  }
+  if (config.turnServer && config.turnSecret) {
+    // Time-limited TURN credentials (same pattern as Asterisk/coturn)
+    const ttl = 86400
+    const expiry = Math.floor(Date.now() / 1000) + ttl
+    const username = `${expiry}:${identity}`
+    const key = await crypto.subtle.importKey(
+      'raw',
+      new TextEncoder().encode(config.turnSecret) as Uint8Array<ArrayBuffer>,
+      { name: 'HMAC', hash: 'SHA-1' },
+      false,
+      ['sign']
+    )
+    const sig = await crypto.subtle.sign(
+      'HMAC',
+      key,
+      new TextEncoder().encode(username) as Uint8Array<ArrayBuffer>
+    )
+    const credential = btoa(String.fromCharCode(...new Uint8Array(sig)))
+    iceServers.push({ urls: config.turnServer, username, credential })
+  }
+
+  const token = btoa(
+    JSON.stringify({
+      wsUri,
+      sipUri,
+      login: `${identity}@${domain}`,
+      password: config.eslPassword, // Verto login password
+      iceServers,
+    })
+  )
+  return { token, provider: 'freeswitch', ttl: 600 }
 }
 
 // --- Crypto helpers ---

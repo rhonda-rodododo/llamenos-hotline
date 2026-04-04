@@ -83,6 +83,20 @@ export const BandwidthConfigSchema = BaseProviderSchema.extend({
 })
 export type BandwidthConfig = z.infer<typeof BandwidthConfigSchema>
 
+export const FreeSwitchConfigSchema = BaseProviderSchema.extend({
+  type: z.literal('freeswitch'),
+  eslUrl: z.string().url(),
+  eslPassword: z.string().min(1),
+  bridgeCallbackUrl: z.string().url().optional(),
+  bridgeSecret: z.string().optional(),
+  freeswitchDomain: z.string().optional(),
+  vertoWssPort: z.number().optional(),
+  stunServer: z.string().optional(),
+  turnServer: z.string().optional(),
+  turnSecret: z.string().optional(),
+})
+export type FreeSwitchConfig = z.infer<typeof FreeSwitchConfigSchema>
+
 // ── Discriminated union of all telephony providers ──
 export const TelephonyProviderConfigSchema = z.discriminatedUnion('type', [
   TwilioConfigSchema,
@@ -92,6 +106,7 @@ export const TelephonyProviderConfigSchema = z.discriminatedUnion('type', [
   AsteriskConfigSchema,
   TelnyxConfigSchema,
   BandwidthConfigSchema,
+  FreeSwitchConfigSchema,
 ])
 export type TelephonyProviderConfig = z.infer<typeof TelephonyProviderConfigSchema>
 

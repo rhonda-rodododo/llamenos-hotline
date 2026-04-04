@@ -97,5 +97,12 @@ export function createSMSAdapter(
         'Bandwidth SMS adapter not yet implemented. Use Bandwidth Voice with a separate SMS provider.'
       )
     }
+
+    case 'freeswitch': {
+      // FreeSWITCH has no native SMS — a dedicated SMS provider must be configured separately
+      throw new Error(
+        'FreeSWITCH does not support SMS. Configure a separate SMS provider (e.g., Twilio) for SMS support.'
+      )
+    }
   }
 }
