@@ -5,31 +5,46 @@ import { type AuthedRequest, createAuthedRequestFromNsec } from '../helpers/auth
 test.describe('SIP WebRTC Token Generation', () => {
   // These tests verify the token endpoint works for Asterisk provider configurations.
   // They require a hub configured with an Asterisk telephony provider.
-  // Skip gracefully if Asterisk is not configured.
 
   let authedApi: AuthedRequest
+
+  test.beforeAll(async ({ request }) => {
+    // Configure an Asterisk telephony provider so the token endpoint works
+    const adminApi = createAuthedRequestFromNsec(request, ADMIN_NSEC)
+    const bridgeUrl = process.env.ASTERISK_BRIDGE_URL ?? 'http://localhost:8080'
+    await adminApi.patch('/api/settings/telephony-provider', {
+      type: 'asterisk',
+      phoneNumber: '+15551234567',
+      ariUrl: 'ws://localhost:8089/ari/events',
+      ariUsername: 'llamenos',
+      ariPassword: 'changeme',
+      bridgeCallbackUrl: bridgeUrl,
+      bridgeSecret: process.env.ASTERISK_BRIDGE_SECRET ?? 'test-bridge-secret-32chars-min',
+      stunServer: 'stun:stun.l.google.com:19302',
+    })
+  })
+
+  test.afterAll(async ({ request }) => {
+    // Restore TestAdapter by clearing the Asterisk provider config
+    const adminApi = createAuthedRequestFromNsec(request, ADMIN_NSEC)
+    await adminApi.patch('/api/settings/telephony-provider', {
+      type: 'twilio',
+      phoneNumber: '',
+    })
+  })
 
   test.beforeEach(async ({ request }) => {
     authedApi = createAuthedRequestFromNsec(request, ADMIN_NSEC)
   })
 
-  test('GET /api/telephony/webrtc-token returns SIP credentials for Asterisk provider', async ({
-    request,
-  }) => {
-    // This test only runs when Asterisk is the configured provider.
-    // If not configured, skip gracefully.
-    const response = await request.get('/api/telephony/webrtc-token')
-
-    // If the response indicates Asterisk is not configured (e.g., 400 or different provider), skip
-    if (!response.ok()) {
-      test.skip(true, 'WebRTC token endpoint not available (Asterisk may not be configured)')
-      return
-    }
+  test('GET /api/telephony/webrtc-token returns SIP credentials for Asterisk provider', async () => {
+    const response = await authedApi.get('/api/telephony/webrtc-token')
+    expect(response.ok(), `Expected 200 from webrtc-token but got ${response.status()}`).toBe(true)
 
     const data = await response.json()
+    expect(data.provider).toBe('asterisk')
 
-    // Only assert SIP-specific fields if provider is asterisk
-    if (data.provider === 'asterisk') {
+    {
       expect(data.token).toBeTruthy()
       expect(data.ttl).toBe(600)
 
