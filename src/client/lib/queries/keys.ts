@@ -180,4 +180,10 @@ export const queryKeys = {
   provider: {
     health: () => ['provider', 'health'] as const,
   },
+
+  firehose: {
+    list: () => ['firehose'] as const,
+    detail: (id: string) => ['firehose', id] as const,
+    status: () => ['firehose', 'status'] as const,
+  },
 } as const
