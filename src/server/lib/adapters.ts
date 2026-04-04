@@ -19,6 +19,7 @@ import type { SettingsService } from '../services/settings'
 import type { TelephonyAdapter } from '../telephony/adapter'
 import { AsteriskAdapter } from '../telephony/asterisk'
 import { BandwidthAdapter } from '../telephony/bandwidth'
+import { FreeSwitchAdapter } from '../telephony/freeswitch'
 import { PlivoAdapter } from '../telephony/plivo'
 import { SignalWireAdapter } from '../telephony/signalwire'
 import { TelnyxAdapter } from '../telephony/telnyx'
@@ -224,6 +225,19 @@ function createAdapterFromConfig(config: TelephonyProviderConfig): TelephonyAdap
         config.apiSecret,
         config.applicationId,
         config.phoneNumber
+      )
+    }
+    case 'freeswitch': {
+      if (!config.eslUrl || !config.eslPassword || !config.bridgeCallbackUrl)
+        throw new AppError(
+          500,
+          'FreeSWITCH config missing eslUrl, eslPassword, or bridgeCallbackUrl'
+        )
+      return new FreeSwitchAdapter(
+        config.phoneNumber,
+        config.bridgeCallbackUrl,
+        config.bridgeSecret || config.eslPassword,
+        config.eslUrl // callbackBaseUrl — the app's public URL for mod_httapi callbacks
       )
     }
   }
