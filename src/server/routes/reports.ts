@@ -1,5 +1,6 @@
 import { createRoute, z } from '@hono/zod-openapi'
 import { KIND_CONVERSATION_ASSIGNED, KIND_MESSAGE_NEW } from '../../shared/nostr-events'
+import type { RecipientEnvelope } from '../../shared/types'
 import { getNostrPublisher } from '../lib/adapters'
 import { createRouter } from '../lib/openapi'
 import { isReportOwner } from '../lib/report-access'
@@ -172,7 +173,7 @@ reports.openapi(createReportRoute, async (c) => {
     direction: 'inbound',
     authorPubkey: pubkey,
     encryptedContent: body.encryptedContent,
-    readerEnvelopes: body.readerEnvelopes as unknown as import('../types').MessageKeyEnvelope[],
+    readerEnvelopes: body.readerEnvelopes as unknown as RecipientEnvelope[],
     hasAttachments: false,
     status: 'delivered',
   })
@@ -408,7 +409,7 @@ reports.openapi(sendReportMessageRoute, async (c) => {
     direction,
     authorPubkey: pubkey,
     encryptedContent: body.encryptedContent,
-    readerEnvelopes: body.readerEnvelopes as unknown as import('../types').MessageKeyEnvelope[],
+    readerEnvelopes: body.readerEnvelopes as unknown as RecipientEnvelope[],
     hasAttachments: (body.attachmentIds?.length ?? 0) > 0,
     attachmentIds: body.attachmentIds,
     status: 'delivered',

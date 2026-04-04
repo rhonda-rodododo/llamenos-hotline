@@ -4,9 +4,6 @@ import { request } from './client'
 
 // --- Types ---
 
-/** @deprecated Use roles array + permissions */
-export type UserRole = 'volunteer' | 'admin' | 'reporter'
-
 export interface User {
   pubkey: string
   name: string

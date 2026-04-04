@@ -38,9 +38,6 @@ export interface RecipientEnvelope {
 /** @deprecated Use RecipientEnvelope instead. Kept for gradual migration. */
 export type KeyEnvelope = Omit<RecipientEnvelope, 'pubkey'>
 
-/** @deprecated Use RecipientEnvelope instead. */
-export type RecipientKeyEnvelope = RecipientEnvelope
-
 // --- Telephony Provider Config ---
 
 export type TelephonyProviderType =

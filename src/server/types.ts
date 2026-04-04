@@ -130,9 +130,6 @@ export interface Env {
   DATABASE_URL?: string
 }
 
-/** @deprecated Use roles array + permission system instead */
-export type UserRole = 'volunteer' | 'admin' | 'reporter'
-
 export interface User {
   pubkey: string
   name: string
@@ -387,9 +384,6 @@ export interface EncryptedMessage {
   retryCount: number
   createdAt: Date
 }
-
-/** @deprecated Use RecipientEnvelope from @shared/types instead. */
-export type MessageKeyEnvelope = RecipientEnvelope
 
 // --- Blast Queue ---
 

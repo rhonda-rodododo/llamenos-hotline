@@ -18,8 +18,6 @@ export const UserSchema = z.object({
   createdAt: z.iso.datetime(),
 })
 export type User = z.infer<typeof UserSchema>
-/** @deprecated Use User instead */
-export type Volunteer = User
 
 export const CreateUserSchema = z.object({
   pubkey: z.string().length(64),

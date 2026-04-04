@@ -1,7 +1,7 @@
 import { createRoute, z } from '@hono/zod-openapi'
 import { KIND_CONVERSATION_ASSIGNED, KIND_MESSAGE_NEW } from '../../shared/nostr-events'
 import { canClaimChannel, getClaimableChannels } from '../../shared/permissions'
-import type { MessagingChannelType } from '../../shared/types'
+import type { MessagingChannelType, RecipientEnvelope } from '../../shared/types'
 import { getMessagingAdapter, getNostrPublisher } from '../lib/adapters'
 import { createRouter } from '../lib/openapi'
 import { checkPermission } from '../middleware/permission-guard'
@@ -373,7 +373,7 @@ conversations.openapi(sendMessageRoute, async (c) => {
     direction: 'outbound',
     authorPubkey: pubkey,
     encryptedContent: body.encryptedContent,
-    readerEnvelopes: body.readerEnvelopes as unknown as import('../types').MessageKeyEnvelope[],
+    readerEnvelopes: body.readerEnvelopes as unknown as RecipientEnvelope[],
     hasAttachments: false,
     externalId: messageExternalId,
     status: messageStatus,
