@@ -1,7 +1,11 @@
-import { LABEL_MESSAGE } from '@shared/crypto-labels'
+import { LABEL_FIREHOSE_BUFFER_ENCRYPT, LABEL_MESSAGE } from '@shared/crypto-labels'
 import type { Ciphertext } from '@shared/crypto-types'
 import { Hono } from 'hono'
-import { KIND_CONVERSATION_ASSIGNED, KIND_MESSAGE_NEW } from '../../shared/nostr-events'
+import {
+  KIND_CONVERSATION_ASSIGNED,
+  KIND_FIREHOSE_MESSAGE,
+  KIND_MESSAGE_NEW,
+} from '../../shared/nostr-events'
 import type { MessagingChannelType, MessagingConfig, WhatsAppConfig } from '../../shared/types'
 import { getMessagingAdapter, getNostrPublisher } from '../lib/adapters'
 import type { Services } from '../services'
@@ -110,6 +114,17 @@ messaging.post('/:channel/webhook', async (c) => {
   } catch (err) {
     console.error(`[messaging] Failed to parse ${channel} webhook:`, err)
     return c.json({ error: 'Failed to parse message' }, 400)
+  }
+
+  // --- Firehose group detection ---
+  // If this is a Signal group message, check if it belongs to a firehose connection.
+  // If so, encrypt for the agent + admins and buffer it. Do NOT create a conversation.
+  if (incoming.channelType === 'signal' && incoming.metadata?.groupId) {
+    const firehoseResult = await handleFirehoseMessage(services, c.env, hubId ?? 'global', incoming)
+    if (firehoseResult) {
+      return c.json({ ok: true })
+    }
+    // Not a firehose group — continue normal flow
   }
 
   // Keyword interception for blast subscribe/unsubscribe
@@ -382,6 +397,102 @@ async function tryAutoAssign(
   } catch (err) {
     console.error('[messaging] Auto-assignment failed:', err)
   }
+}
+
+/**
+ * Check if an incoming Signal group message belongs to a firehose connection.
+ * If so, encrypt and buffer it for the agent. Returns true if handled.
+ */
+async function handleFirehoseMessage(
+  services: Services,
+  env: AppEnv['Bindings'],
+  hubId: string,
+  incoming: IncomingMessage
+): Promise<boolean> {
+  const groupId = incoming.metadata?.groupId
+  if (!groupId) return false
+
+  // Look up active firehose connection for this Signal group
+  let connection = await services.firehose.findConnectionBySignalGroup(groupId, hubId)
+
+  // If no active connection, try to auto-link a pending connection
+  if (!connection) {
+    const pending = await services.firehose.findPendingConnection(hubId)
+    if (pending) {
+      await services.firehose.updateConnection(pending.id, {
+        signalGroupId: groupId,
+        status: 'active',
+      })
+      connection = await services.firehose.getConnection(pending.id)
+    }
+  }
+
+  if (!connection || connection.status === 'disabled') return false
+
+  // Encrypt message body for the agent + admins
+  const adminPubkey = env.ADMIN_DECRYPTION_PUBKEY || env.ADMIN_PUBKEY
+  if (!adminPubkey) return false
+
+  const readerPubkeys = [connection.agentPubkey, adminPubkey]
+  const encrypted = services.crypto.envelopeEncrypt(
+    incoming.body || '',
+    readerPubkeys,
+    LABEL_FIREHOSE_BUFFER_ENCRYPT
+  )
+
+  // Encrypt sender info separately
+  const senderInfo = JSON.stringify({
+    identifier: incoming.senderIdentifier,
+    identifierHash: incoming.senderIdentifierHash,
+    username: incoming.metadata?.senderName || incoming.senderIdentifier,
+    timestamp: incoming.timestamp,
+  })
+  const encryptedSender = services.crypto.envelopeEncrypt(
+    senderInfo,
+    [connection.agentPubkey],
+    LABEL_FIREHOSE_BUFFER_ENCRYPT
+  )
+
+  // Buffer the message
+  const ttlMs = connection.bufferTtlDays * 24 * 60 * 60 * 1000
+  await services.firehose.addBufferMessage(connection.id, {
+    signalTimestamp: new Date(incoming.timestamp),
+    encryptedContent: encrypted.encrypted as string,
+    encryptedSenderInfo: encryptedSender.encrypted as string,
+    expiresAt: new Date(Date.now() + ttlMs),
+  })
+
+  // Publish Nostr event for agent subscription
+  try {
+    const publisher = getNostrPublisher(env)
+    publisher
+      .publish({
+        kind: KIND_FIREHOSE_MESSAGE,
+        created_at: Math.floor(Date.now() / 1000),
+        tags: [
+          ['d', hubId],
+          ['t', 'llamenos:event'],
+          ['c', connection.id],
+        ],
+        content: JSON.stringify({
+          type: 'firehose:message',
+          connectionId: connection.id,
+        }),
+      })
+      .catch((err) => console.error('[nostr] firehose event publish failed:', err))
+  } catch {
+    // Nostr not configured
+  }
+
+  // Audit log
+  services.records
+    .addAuditEntry(hubId, 'firehoseMessageReceived', 'system', {
+      connectionId: connection.id,
+      senderHash: incoming.senderIdentifierHash,
+    })
+    .catch((err) => console.error('[background]', err))
+
+  return true
 }
 
 export default messaging
