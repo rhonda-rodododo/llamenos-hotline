@@ -5,6 +5,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.36.0] - 2026-04-04
+
+### Bug Fixes
+
+- strip double language prefix from guide URLs and fix lang switcher
+- filter English guides to default locale only in getStaticPaths
+
+### Features
+
+- full Spanish docs translation, fix i18n routing and search bar
+- complete Spanish translation of all deploy and provider docs
+- unified sip-bridge, FreeSWITCH adapter, Kamailio deployment (#38)
+
+### Miscellaneous
+
+- v0.36.0 [skip ci]
+
 ## [0.35.0] - 2026-04-02
 
 ### Features
