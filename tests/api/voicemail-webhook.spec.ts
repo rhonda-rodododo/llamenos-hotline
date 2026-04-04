@@ -18,6 +18,8 @@ test.describe('Voicemail webhook API', () => {
   let sharedCallSid = ''
   /** RecordingSid sent in the voicemail-recording webhook. */
   let sharedRecordingSid = ''
+  /** Hub ID resolved for history queries. */
+  let hubId = ''
 
   test('voicemail-recording webhook accepts completed recording and sets hasVoicemail + recordingSid', async ({
     request,
@@ -27,6 +29,14 @@ test.describe('Voicemail webhook API', () => {
     const recordingSid = `RE_test_${Date.now()}`
     sharedCallSid = callSid
     sharedRecordingSid = recordingSid
+
+    // Resolve the hub ID — the incoming webhook will route to the sole hub,
+    // and we need the same hub ID to query history via the hub-scoped endpoint.
+    const hubsRes = await authedApi.get('/api/hubs')
+    expect(hubsRes.ok()).toBe(true)
+    const hubsData = (await hubsRes.json()) as { hubs: Array<{ id: string }> }
+    expect(hubsData.hubs.length).toBeGreaterThan(0)
+    hubId = hubsData.hubs[0].id
 
     // Step 1: Simulate an incoming call to create an active call record.
     const incomingRes = await request.post('/telephony/incoming', {
@@ -48,20 +58,23 @@ test.describe('Voicemail webhook API', () => {
 
     telephonyAvailable = true
 
-    // Step 2: Fire the voicemail-recording webhook.
-    const voicemailRes = await request.post(`/telephony/voicemail-recording?callSid=${callSid}`, {
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      data: twilioForm({
-        RecordingStatus: 'completed',
-        RecordingSid: recordingSid,
-        CallSid: callSid,
-      }),
-    })
+    // Step 2: Fire the voicemail-recording webhook with hub param so upsert uses the correct hub.
+    const voicemailRes = await request.post(
+      `/telephony/voicemail-recording?callSid=${callSid}&hub=${hubId}`,
+      {
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        data: twilioForm({
+          RecordingStatus: 'completed',
+          RecordingSid: recordingSid,
+          CallSid: callSid,
+        }),
+      }
+    )
     expect([200, 204]).toContain(voicemailRes.status())
 
     // Step 3: Assert hasVoicemail and recordingSid on the call record.
-    // The voicemail-recording handler upserts a call_record, so it should appear in history.
-    const callsRes = await authedApi.get('/api/calls/history?limit=50')
+    // Use the hub-scoped endpoint so the query filters by the correct hub.
+    const callsRes = await authedApi.get(`/api/hubs/${hubId}/calls/history?limit=50`)
     expect(callsRes.status()).toBe(200)
     const callsData = (await callsRes.json()) as {
       calls: Array<{

@@ -241,4 +241,10 @@ function createAdapterFromConfig(config: TelephonyProviderConfig): TelephonyAdap
       )
     }
   }
+  // Unreachable for valid TelephonyProviderConfig values, but the DB may store
+  // invalid JSON (e.g. {}). Throw so getTelephony() can fall through to TestAdapter.
+  throw new AppError(
+    500,
+    `Unknown telephony provider type: ${(config as Record<string, unknown>).type ?? 'undefined'}`
+  )
 }

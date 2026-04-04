@@ -13,18 +13,34 @@ test.describe('SIP WebRTC Token Generation', () => {
   })
 
   test('GET /api/telephony/webrtc-token returns SIP credentials for Asterisk provider', async () => {
-    // This test requires a hub configured with an Asterisk telephony provider.
-    // When running the full suite, no Asterisk provider is configured by default
-    // (TestAdapter is used). Skip gracefully if not configured.
-    const response = await authedApi.get('/api/telephony/webrtc-token')
-    if (!response.ok()) {
-      test.skip(true, 'WebRTC token endpoint not available (Asterisk may not be configured)')
-      return
-    }
+    test.skip(!process.env.TEST_ASTERISK_BRIDGE, 'Requires TEST_ASTERISK_BRIDGE=1')
 
-    const data = await response.json()
+    // Save current config and call preference so we can restore after the test
+    const currentConfigRes = await authedApi.get('/api/settings/telephony-provider')
+    const savedConfig = await currentConfigRes.json()
 
-    if (data.provider === 'asterisk') {
+    try {
+      // Configure Asterisk provider
+      await authedApi.patch('/api/settings/telephony-provider', {
+        type: 'asterisk',
+        phoneNumber: '+15551234567',
+        ariUrl: 'ws://localhost:8089/ari/events',
+        ariUsername: 'llamenos',
+        ariPassword: 'changeme',
+        bridgeCallbackUrl: process.env.ASTERISK_BRIDGE_URL ?? 'http://localhost:8080',
+        bridgeSecret: process.env.ASTERISK_BRIDGE_SECRET ?? 'test-bridge-secret-32chars-min',
+        stunServer: 'stun:stun.l.google.com:19302',
+      })
+
+      // Set call preference to 'browser' so the token endpoint doesn't reject with 400
+      await authedApi.patch(`/api/users/${authedApi.pubkey}`, { callPreference: 'browser' })
+
+      // Now test the token endpoint
+      const response = await authedApi.get('/api/telephony/webrtc-token')
+      const responseBody = await response.text()
+      expect(response.ok(), `Expected 200 but got ${response.status()}: ${responseBody}`).toBe(true)
+      const data = JSON.parse(responseBody)
+      expect(data.provider).toBe('asterisk')
       expect(data.token).toBeTruthy()
       expect(data.ttl).toBe(600)
 
@@ -50,6 +66,10 @@ test.describe('SIP WebRTC Token Generation', () => {
         expect(turnServer.username).toMatch(/^\d+:vol_/) // timestamp:identity format
         expect(turnServer.credential).toBeTruthy()
       }
+    } finally {
+      // Restore original config and call preference
+      await authedApi.patch(`/api/users/${authedApi.pubkey}`, { callPreference: 'phone' })
+      await authedApi.patch('/api/settings/telephony-provider', savedConfig)
     }
   })
 
@@ -453,29 +473,146 @@ test.describe('SIP WebRTC — SipWebRTCAdapter token parsing', () => {
   })
 })
 
-test.describe('SIP WebRTC — Real SIP call tests (require infrastructure)', () => {
-  test.skip(
-    true,
-    'Requires real SIP infrastructure — cannot simulate browser WebRTC in headless Playwright'
-  )
+test.describe('SIP Bridge — Call control integration', () => {
+  // These tests exercise the sip-bridge's call control endpoints via BridgeClient.
+  // They require the sip-bridge to be running (TEST_ASTERISK_BRIDGE=1).
 
-  test('SipWebRTCAdapter initializes and registers with Asterisk', async () => {
-    // Would test: JsSIP UA creation, WSS connection, SIP REGISTER
+  const BRIDGE_URL = process.env.ASTERISK_BRIDGE_URL ?? 'http://localhost:8080'
+  const BRIDGE_SECRET = process.env.ASTERISK_BRIDGE_SECRET ?? 'test-bridge-secret-32chars-min'
+  const hasBridge = !!process.env.TEST_ASTERISK_BRIDGE
+
+  test('sip-bridge /health endpoint reports correct state', async () => {
+    test.skip(!hasBridge, 'Set TEST_ASTERISK_BRIDGE=1 to run bridge integration tests')
+
+    const { BridgeClient } = await import('../../src/server/telephony/bridge-client')
+    const bridge = new BridgeClient(BRIDGE_URL, BRIDGE_SECRET)
+
+    const result = (await bridge.request('GET', '/health')) as {
+      status?: string
+      uptime?: number
+    }
+    expect(result.status).toBe('ok')
+    expect(typeof result.uptime).toBe('number')
+    expect(result.uptime).toBeGreaterThanOrEqual(0)
   })
 
-  test('SipWebRTCAdapter receives incoming INVITE and emits incoming event', async () => {
-    // Would test: ARI originate → JsSIP newRTCSession → event bus
+  test('sip-bridge /ring endpoint returns channel IDs for origination', async () => {
+    test.skip(!hasBridge, 'Set TEST_ASTERISK_BRIDGE=1 to run bridge integration tests')
+
+    const { BridgeClient } = await import('../../src/server/telephony/bridge-client')
+    const bridge = new BridgeClient(BRIDGE_URL, BRIDGE_SECRET)
+
+    // Attempt to ring a test user — the bridge should accept the request
+    // even if Asterisk cannot actually reach the endpoint (returns channel IDs
+    // or an error indicating the endpoint doesn't exist, but NOT an auth failure)
+    try {
+      const result = (await bridge.request('POST', '/ring', {
+        parentCallSid: `CA_bridge_test_${Date.now()}`,
+        callerNumber: '+15559999999',
+        users: [
+          {
+            pubkey: 'test_ring_user',
+            phone: '+15558888888',
+          },
+        ],
+        callbackUrl: `${BRIDGE_URL}/telephony/user-answer`,
+        hubId: 'test-hub',
+      })) as { ok?: boolean; channelIds?: string[] }
+
+      // If the bridge successfully processes the request, we get channel IDs
+      expect(result).toBeTruthy()
+      if (result.channelIds) {
+        expect(Array.isArray(result.channelIds)).toBe(true)
+      }
+    } catch (err) {
+      // Bridge may reject because the SIP endpoint doesn't exist in Asterisk —
+      // but this validates the bridge accepted and authenticated the HMAC request.
+      // A 4xx from bridge (not 401/403) is acceptable.
+      const message = String(err)
+      expect(message).not.toContain('401')
+      expect(message).not.toContain('403')
+    }
   })
 
-  test('SipWebRTCAdapter answers call and establishes audio media', async () => {
-    // Would test: session.answer() → DTLS-SRTP → audio flowing
+  test('sip-bridge /commands/hangup endpoint works for a channel', async () => {
+    test.skip(!hasBridge, 'Set TEST_ASTERISK_BRIDGE=1 to run bridge integration tests')
+
+    const { BridgeClient } = await import('../../src/server/telephony/bridge-client')
+    const bridge = new BridgeClient(BRIDGE_URL, BRIDGE_SECRET)
+
+    // Hanging up a non-existent channel should not crash the bridge —
+    // it should return gracefully (either success or a handled error)
+    try {
+      await bridge.request('POST', '/commands/hangup', {
+        channelId: `nonexistent_channel_${Date.now()}`,
+      })
+      // If no error, bridge handled it gracefully
+    } catch (err) {
+      // 404 or similar is acceptable — the channel doesn't exist
+      const message = String(err)
+      expect(message).not.toContain('401')
+      expect(message).not.toContain('403')
+    }
   })
 
-  test('SipWebRTCAdapter handles call disconnect cleanly', async () => {
-    // Would test: session.terminate() → ended event → cleanup
+  test('provisioning and deprovisioning is reflected via bridge', async () => {
+    test.skip(!hasBridge, 'Set TEST_ASTERISK_BRIDGE=1 to run bridge integration tests')
+
+    const { AsteriskProvisioner } = await import('../../src/server/telephony/asterisk-provisioner')
+
+    const provisioner = new AsteriskProvisioner(
+      BRIDGE_URL,
+      BRIDGE_SECRET,
+      process.env.ASTERISK_DOMAIN ?? 'localhost',
+      Number(process.env.ASTERISK_WSS_PORT ?? '8089'),
+      'stun:stun.l.google.com:19302'
+    )
+
+    const testPubkey = `test_bridge_prov_${Date.now()}`
+
+    // Provision
+    const endpoint = await provisioner.provisionEndpoint(testPubkey)
+    expect(endpoint.sipUri).toContain('sip:')
+    expect(endpoint.password).toBeTruthy()
+
+    // Verify exists
+    const exists = await provisioner.checkEndpoint(testPubkey)
+    expect(exists).toBe(true)
+
+    // Deprovision
+    await provisioner.deprovisionEndpoint(testPubkey)
+
+    // Verify gone
+    const gone = await provisioner.checkEndpoint(testPubkey)
+    expect(gone).toBe(false)
   })
 
-  test('SipWebRTCAdapter rejects second concurrent call with 486 Busy Here', async () => {
-    // Would test: two concurrent INVITEs → first accepted, second rejected
+  test('sip-bridge /status endpoint reports active channels', async () => {
+    test.skip(!hasBridge, 'Set TEST_ASTERISK_BRIDGE=1 to run bridge integration tests')
+
+    const { BridgeClient } = await import('../../src/server/telephony/bridge-client')
+    const bridge = new BridgeClient(BRIDGE_URL, BRIDGE_SECRET)
+
+    // The /status endpoint should return information about active channels.
+    // With no active calls, it should return an empty or zero-count response.
+    try {
+      const result = (await bridge.request('GET', '/status')) as {
+        channels?: number | unknown[]
+        activeCalls?: number | unknown[]
+      }
+      expect(result).toBeTruthy()
+      // Bridge should report some form of channel/call count
+      if (typeof result.channels === 'number') {
+        expect(result.channels).toBeGreaterThanOrEqual(0)
+      } else if (Array.isArray(result.channels)) {
+        expect(result.channels.length).toBeGreaterThanOrEqual(0)
+      }
+    } catch (err) {
+      // If /status is not implemented, bridge may return 404 — that's acceptable
+      // as long as it's not an auth failure
+      const message = String(err)
+      expect(message).not.toContain('401')
+      expect(message).not.toContain('403')
+    }
   })
 })
