@@ -104,6 +104,24 @@ export async function deprovisionEndpoint(
   }
 }
 
+/** Check if a PJSIP endpoint exists for the given pubkey via ARI dynamic config */
+export async function checkEndpoint(
+  ari: Pick<AriClient, 'configureDynamic'>,
+  pubkey: string
+): Promise<boolean> {
+  const username = `vol_${pubkey.slice(0, 12)}`
+  try {
+    // GET the dynamic config object — ARI returns 404 if it doesn't exist.
+    // We use configureDynamic's parent request method via a lightweight workaround:
+    // attempt to read the endpoint config by calling the REST API directly.
+    const client = ari as unknown as { request: <T>(method: string, path: string) => Promise<T> }
+    await client.request('GET', `/asterisk/config/dynamic/res_pjsip/endpoint/${username}`)
+    return true
+  } catch {
+    return false
+  }
+}
+
 /** Generate a 32-byte CSPRNG password as base64url */
 function generatePassword(): string {
   const bytes = new Uint8Array(32)

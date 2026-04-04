@@ -8,6 +8,51 @@ import { WebhookSender } from './webhook-sender'
 
 type PbxType = 'asterisk' | 'freeswitch'
 
+/**
+ * Verify an incoming command signature from the Llamenos server's BridgeClient.
+ * BridgeClient signs: HMAC-SHA256(secret, "timestamp.body") → hex string.
+ * Headers: X-Bridge-Signature (hex), X-Bridge-Timestamp (unix seconds).
+ * Rejects timestamps older than 5 minutes (replay protection).
+ */
+async function verifyBridgeSignature(
+  request: Request,
+  body: string,
+  secret: string
+): Promise<boolean> {
+  const signature = request.headers.get('X-Bridge-Signature')
+  if (!signature) return false
+
+  const timestamp = request.headers.get('X-Bridge-Timestamp') ?? ''
+  const tsSeconds = Number.parseInt(timestamp, 10)
+  if (Number.isNaN(tsSeconds) || Math.abs(Date.now() / 1000 - tsSeconds) > 300) {
+    return false
+  }
+
+  const payload = `${timestamp}.${body}`
+  const key = await crypto.subtle.importKey(
+    'raw',
+    new TextEncoder().encode(secret),
+    { name: 'HMAC', hash: 'SHA-256' },
+    false,
+    ['sign']
+  )
+  const sig = await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(payload))
+  const expectedSig = Array.from(new Uint8Array(sig))
+    .map((b) => b.toString(16).padStart(2, '0'))
+    .join('')
+
+  // Constant-time comparison
+  if (signature.length !== expectedSig.length) return false
+  const encoder = new TextEncoder()
+  const aBuf = encoder.encode(signature)
+  const bBuf = encoder.encode(expectedSig)
+  let result = 0
+  for (let i = 0; i < aBuf.length; i++) {
+    result |= aBuf[i] ^ bBuf[i]
+  }
+  return result === 0
+}
+
 /** Load configuration from environment variables */
 function loadConfig(): BridgeConfig {
   const ariUrl = process.env.ARI_URL ?? 'ws://localhost:8088/ari/events'
@@ -197,10 +242,9 @@ async function main(): Promise<void> {
           )
         }
 
-        const signature = request.headers.get('X-Bridge-Signature') ?? ''
         const body = await request.clone().text()
 
-        const isValid = await webhook.verifySignature(url.toString(), body, signature)
+        const isValid = await verifyBridgeSignature(request, body, config.bridgeSecret)
         if (!isValid) {
           console.warn('[sip-bridge] Invalid command signature')
           return new Response('Forbidden', { status: 403 })
@@ -224,10 +268,9 @@ async function main(): Promise<void> {
           )
         }
 
-        const signature = request.headers.get('X-Bridge-Signature') ?? ''
         const body = await request.clone().text()
 
-        const isValid = await webhook.verifySignature(url.toString(), body, signature)
+        const isValid = await verifyBridgeSignature(request, body, config.bridgeSecret)
         if (!isValid) {
           return new Response('Forbidden', { status: 403 })
         }
@@ -307,10 +350,9 @@ async function main(): Promise<void> {
           )
         }
 
-        const signature = request.headers.get('X-Bridge-Signature') ?? ''
         const body = await request.clone().text()
 
-        const isValid = await webhook.verifySignature(url.toString(), body, signature)
+        const isValid = await verifyBridgeSignature(request, body, config.bridgeSecret)
         if (!isValid) {
           return new Response('Forbidden', { status: 403 })
         }
@@ -341,9 +383,8 @@ async function main(): Promise<void> {
           )
         }
 
-        const signature =
-          request.headers.get('X-Bridge-Signature') ?? url.searchParams.get('sig') ?? ''
-        if (!signature) {
+        const isValid = await verifyBridgeSignature(request, '', config.bridgeSecret)
+        if (!isValid) {
           return new Response('Forbidden', { status: 403 })
         }
 
@@ -373,10 +414,9 @@ async function main(): Promise<void> {
           )
         }
 
-        const signature = request.headers.get('X-Bridge-Signature') ?? ''
         const body = await request.clone().text()
 
-        const isValid = await webhook.verifySignature(url.toString(), body, signature)
+        const isValid = await verifyBridgeSignature(request, body, config.bridgeSecret)
         if (!isValid) {
           return new Response('Forbidden', { status: 403 })
         }
@@ -399,10 +439,9 @@ async function main(): Promise<void> {
           )
         }
 
-        const signature = request.headers.get('X-Bridge-Signature') ?? ''
         const body = await request.clone().text()
 
-        const isValid = await webhook.verifySignature(url.toString(), body, signature)
+        const isValid = await verifyBridgeSignature(request, body, config.bridgeSecret)
         if (!isValid) {
           return new Response('Forbidden', { status: 403 })
         }
@@ -426,10 +465,9 @@ async function main(): Promise<void> {
           )
         }
 
-        const signature = request.headers.get('X-Bridge-Signature') ?? ''
         const body = await request.clone().text()
 
-        const isValid = await webhook.verifySignature(url.toString(), body, signature)
+        const isValid = await verifyBridgeSignature(request, body, config.bridgeSecret)
         if (!isValid) {
           return new Response('Forbidden', { status: 403 })
         }
@@ -453,23 +491,19 @@ async function main(): Promise<void> {
           )
         }
 
-        const signature = request.headers.get('X-Bridge-Signature') ?? ''
         const body = await request.clone().text()
 
-        const isValid = await webhook.verifySignature(url.toString(), body, signature)
+        const isValid = await verifyBridgeSignature(request, body, config.bridgeSecret)
         if (!isValid) {
           return new Response('Forbidden', { status: 403 })
         }
 
         try {
           const { pubkey } = JSON.parse(body) as { pubkey: string }
+          const { checkEndpoint } = await import('./endpoint-provisioner')
+          const exists = await checkEndpoint(ari, pubkey)
           const username = `vol_${pubkey.slice(0, 12)}`
-          try {
-            await ari.getAsteriskInfo()
-            return Response.json({ ok: true, exists: true, username })
-          } catch {
-            return Response.json({ ok: true, exists: false })
-          }
+          return Response.json({ ok: true, exists, username })
         } catch (err) {
           return Response.json({ ok: false, error: String(err) }, { status: 500 })
         }
