@@ -1,6 +1,5 @@
 import { MessageStatusIcon } from '@/components/MessageStatusIcon'
 import type { ConversationMessage } from '@/lib/api'
-import { useAuth } from '@/lib/auth'
 import { ArrowDown, Loader2, Lock } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -20,7 +19,6 @@ export function ConversationThread({
   decryptedContent = new Map(),
 }: ConversationThreadProps) {
   const { t } = useTranslation()
-  const { hasNsec, publicKey } = useAuth()
   const scrollRef = useRef<HTMLDivElement>(null)
   const [showScrollDown, setShowScrollDown] = useState(false)
 

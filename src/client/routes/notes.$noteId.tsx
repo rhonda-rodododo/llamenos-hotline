@@ -1,91 +1,41 @@
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { type CustomFieldDefinition, type EncryptedNote, getCustomFields, getNote } from '@/lib/api'
 import { useAuth } from '@/lib/auth'
-import { decryptNoteV2, decryptTranscription } from '@/lib/crypto'
-import * as keyManager from '@/lib/key-manager'
+import { useNoteDetail } from '@/lib/queries/notes'
 import { useToast } from '@/lib/toast'
-import type { NotePayload } from '@shared/types'
 import { Link, createFileRoute, useNavigate } from '@tanstack/react-router'
 import { ArrowLeft, Lock, Mic, Pencil, StickyNote } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 
 export const Route = createFileRoute('/notes/$noteId')({
   component: NoteDetailPage,
 })
 
-interface DecryptedNote extends EncryptedNote {
-  decrypted: string
-  payload: NotePayload
-  isTranscription: boolean
-}
-
 function NoteDetailPage() {
   const { t } = useTranslation()
   const { noteId } = Route.useParams()
-  const { hasNsec, publicKey, isAdmin } = useAuth()
+  const { isAdmin } = useAuth()
   const { toast } = useToast()
   const navigate = useNavigate()
 
-  const [note, setNote] = useState<DecryptedNote | null>(null)
-  const [customFields, setCustomFields] = useState<CustomFieldDefinition[]>([])
-  const [loading, setLoading] = useState(true)
-  const [forbidden, setForbidden] = useState(false)
+  const { data, isLoading, error } = useNoteDetail(noteId)
+  const note = data?.note
+  const customFields = data?.customFields ?? []
+  const forbidden = error instanceof Error && error.message.includes('403')
 
   useEffect(() => {
-    setLoading(true)
-    Promise.all([getNote(noteId), getCustomFields().catch(() => ({ fields: [] }))])
-      .then(async ([res, cfRes]) => {
-        setCustomFields(cfRes.fields)
-
-        const rawNote = res.note
-        const isTranscription = rawNote.authorPubkey.startsWith('system:transcription')
-        const unlocked = await keyManager.isUnlocked()
-        const myPubkey = publicKey ?? ''
-        let payload: NotePayload
-
-        if (isTranscription && rawNote.ephemeralPubkey && hasNsec && unlocked) {
-          const text =
-            (await decryptTranscription(rawNote.encryptedContent, rawNote.ephemeralPubkey)) ||
-            '[Decryption failed]'
-          payload = { text }
-        } else if (isTranscription && !rawNote.ephemeralPubkey) {
-          payload = { text: rawNote.encryptedContent }
-        } else if (hasNsec && unlocked) {
-          const envelope = isAdmin
-            ? (rawNote.adminEnvelopes?.find((e) => e.pubkey === myPubkey) ??
-              rawNote.adminEnvelopes?.[0])
-            : rawNote.authorEnvelope
-          if (envelope) {
-            payload = (await decryptNoteV2(rawNote.encryptedContent, envelope)) || {
-              text: '[Decryption failed]',
-            }
-          } else {
-            payload = { text: '[Decryption failed]' }
-          }
-        } else {
-          payload = { text: '[No key]' }
-        }
-
-        setNote({ ...rawNote, decrypted: payload.text, payload, isTranscription })
-      })
-      .catch((err: unknown) => {
-        if (err instanceof Error && err.message.includes('403')) {
-          setForbidden(true)
-        } else {
-          toast(t('common.error'), 'error')
-        }
-      })
-      .finally(() => setLoading(false))
-  }, [noteId, hasNsec, publicKey, isAdmin])
+    if (error && !forbidden) {
+      toast(t('common.error'), 'error')
+    }
+  }, [error, forbidden, toast, t])
 
   const visibleFields = customFields.filter(
     (f) => isAdmin || f.visibleTo === 'contacts:envelope-summary'
   )
 
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="space-y-4">
         <div className="h-6 w-48 animate-pulse rounded bg-muted" />
