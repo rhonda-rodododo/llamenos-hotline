@@ -33,7 +33,7 @@ test.describe('Telephony Provider Settings', () => {
 
     const select = adminPage.getByTestId('telephony-provider-select')
     const options = select.locator('option')
-    await expect(options).toHaveCount(7)
+    await expect(options).toHaveCount(8)
     await expect(options.nth(0)).toHaveText('Twilio')
     await expect(options.nth(1)).toHaveText('SignalWire')
     await expect(options.nth(2)).toHaveText('Vonage')
@@ -41,6 +41,7 @@ test.describe('Telephony Provider Settings', () => {
     await expect(options.nth(4)).toHaveText('Asterisk (Self-Hosted)')
     await expect(options.nth(5)).toHaveText('Telnyx')
     await expect(options.nth(6)).toHaveText('Bandwidth')
+    await expect(options.nth(7)).toHaveText('FreeSWITCH (Self-Hosted)')
   })
 
   test('changing provider updates credential form fields', async ({ adminPage }) => {

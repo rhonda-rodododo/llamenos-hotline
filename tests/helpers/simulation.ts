@@ -46,7 +46,13 @@ export interface SimulateMessageParams {
   hubId?: string
 }
 
-export type TelephonyProvider = 'twilio' | 'signalwire' | 'vonage' | 'plivo' | 'asterisk'
+export type TelephonyProvider =
+  | 'twilio'
+  | 'signalwire'
+  | 'vonage'
+  | 'plivo'
+  | 'asterisk'
+  | 'freeswitch'
 export type MessagingProvider = 'twilio' | 'signalwire' | 'vonage' | 'plivo' | 'asterisk' | 'meta'
 export type MessagingChannel = 'sms' | 'whatsapp' | 'signal' | 'rcs'
 
@@ -106,6 +112,7 @@ function buildIncomingCallPayload(
         } satisfies Partial<VonageIncomingCall>),
       }
     case 'asterisk':
+    case 'freeswitch':
       return {
         contentType: 'application/json',
         body: JSON.stringify({
@@ -159,6 +166,7 @@ function buildCallStatusPayload(
         } satisfies Partial<VonageCallStatusEvent>),
       }
     case 'asterisk':
+    case 'freeswitch':
       return {
         contentType: 'application/json',
         body: JSON.stringify({
@@ -211,6 +219,7 @@ function buildRecordingPayload(
         } satisfies Partial<VonageRecordingEvent>),
       }
     case 'asterisk':
+    case 'freeswitch':
       return {
         contentType: 'application/json',
         body: JSON.stringify({
