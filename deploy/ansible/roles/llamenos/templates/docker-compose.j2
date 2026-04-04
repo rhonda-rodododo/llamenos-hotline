@@ -263,9 +263,9 @@ services:
       retries: 3
       start_period: 15s
 
-  asterisk-bridge:
+  sip-bridge:
     image: {{ llamenos_image }}
-    command: ["bun", "run", "asterisk-bridge/index.ts"]
+    command: ["bun", "run", "sip-bridge/index.ts"]
     restart: unless-stopped
     environment:
       - ARI_URL=ws://asterisk:8088/ari/events

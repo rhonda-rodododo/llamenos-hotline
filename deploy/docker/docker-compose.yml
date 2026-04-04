@@ -10,7 +10,7 @@
 # Optional services (via --profile):
 #   whisper   - Self-hosted transcription (profile: transcription)
 #   asterisk  - Self-hosted PBX (profile: asterisk)
-#   asterisk-bridge - ARI-to-webhook translator (profile: asterisk)
+#   sip-bridge - ARI/ESL/JSONRPC-to-webhook translator (profile: asterisk)
 #   signal-cli - Signal messaging bridge (profile: signal)
 #
 # Usage:
@@ -258,11 +258,11 @@ services:
     profiles: ["asterisk"]
     restart: unless-stopped
     volumes:
-      - ../../asterisk-bridge/asterisk-config/ari.conf:/etc/asterisk/ari.conf:ro
-      - ../../asterisk-bridge/asterisk-config/http.conf:/etc/asterisk/http.conf:ro
-      - ../../asterisk-bridge/asterisk-config/pjsip.conf:/etc/asterisk/pjsip.conf:ro
-      - ../../asterisk-bridge/asterisk-config/extensions.conf:/etc/asterisk/extensions.conf:ro
-      - ../../asterisk-bridge/asterisk-config/sorcery.conf:/etc/asterisk/sorcery.conf:ro
+      - ../../sip-bridge/asterisk-config/ari.conf:/etc/asterisk/ari.conf:ro
+      - ../../sip-bridge/asterisk-config/http.conf:/etc/asterisk/http.conf:ro
+      - ../../sip-bridge/asterisk-config/pjsip.conf:/etc/asterisk/pjsip.conf:ro
+      - ../../sip-bridge/asterisk-config/extensions.conf:/etc/asterisk/extensions.conf:ro
+      - ../../sip-bridge/asterisk-config/sorcery.conf:/etc/asterisk/sorcery.conf:ro
     networks:
       - internal
     healthcheck:
@@ -272,11 +272,11 @@ services:
       retries: 3
       start_period: 15s
 
-  asterisk-bridge:
+  sip-bridge:
     profiles: ["asterisk"]
     build:
       context: ../..
-      dockerfile: asterisk-bridge/Dockerfile
+      dockerfile: sip-bridge/Dockerfile
     restart: unless-stopped
     environment:
       - ARI_URL=ws://asterisk:8088/ari/events

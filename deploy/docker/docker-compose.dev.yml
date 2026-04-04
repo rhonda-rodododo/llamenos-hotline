@@ -44,11 +44,11 @@ services:
       - "5062:5060/udp" # SIP UDP (offset from default 5060)
       - "5062:5060/tcp" # SIP TCP
     volumes:
-      - ../asterisk-bridge/dev-certs/asterisk.pem:/etc/asterisk/keys/asterisk.pem:ro
-      - ../asterisk-bridge/dev-certs/asterisk.key:/etc/asterisk/keys/asterisk.key:ro
+      - ../sip-bridge/dev-certs/asterisk.pem:/etc/asterisk/keys/asterisk.pem:ro
+      - ../sip-bridge/dev-certs/asterisk.key:/etc/asterisk/keys/asterisk.key:ro
 
-  # ARI bridge — dev-friendly defaults, webhook to local dev server
-  asterisk-bridge:
+  # SIP bridge — dev-friendly defaults, webhook to local dev server
+  sip-bridge:
     environment:
       - ARI_URL=ws://asterisk:8088/ari/events
       - ARI_REST_URL=http://asterisk:8088/ari
