@@ -282,7 +282,7 @@ function constantTimeEqual(a: string, b: string): boolean {
 
 /**
  * Convert a Uint8Array to a base64 string.
- * Uses btoa which is available in Cloudflare Workers.
+ * Uses btoa which is available in all modern runtimes.
  */
 function uint8ArrayToBase64(bytes: Uint8Array): string {
   let binary = ''

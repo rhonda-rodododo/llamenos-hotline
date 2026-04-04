@@ -141,10 +141,10 @@ export type FreeSwitchCallInfo = z.infer<typeof FreeSwitchCallInfoSchema>
 ```typescript
 // Add this line alongside the other exports:
 // (Note: external schemas are NOT exported from the main barrel — they are imported
-// directly from their paths. This follows the pattern of asterisk-bridge.ts, twilio-voice.ts, etc.)
+// directly from their paths. This follows the pattern of sip-bridge.ts, twilio-voice.ts, etc.)
 ```
 
-Actually, looking at the existing pattern, external schemas are imported directly from their file paths (e.g., `import type { AsteriskBridgeWebhook } from '@shared/schemas/external/asterisk-bridge'`). Do NOT add to `src/shared/schemas/index.ts` — external schemas stay out of the barrel. No file modification needed here.
+Actually, looking at the existing pattern, external schemas are imported directly from their file paths (e.g., `import type { AsteriskBridgeWebhook } from '@shared/schemas/external/sip-bridge'`). Do NOT add to `src/shared/schemas/index.ts` — external schemas stay out of the barrel. No file modification needed here.
 
 - [ ] `bun run typecheck`
 

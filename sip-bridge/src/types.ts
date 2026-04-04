@@ -149,9 +149,9 @@ export interface AriRecording {
   cause?: string
 }
 
-// ---- Webhook Types (sent to CF Worker) ----
+// ---- Webhook Types (sent to Llamenos server) ----
 
-/** Webhook payload sent to the CF Worker, mimicking Twilio's format */
+/** Webhook payload sent to the Llamenos server, mimicking Twilio's format */
 export interface WebhookPayload {
   /** Event type, maps to Twilio's webhook URL paths */
   event:
@@ -194,9 +194,9 @@ export interface WebhookPayload {
   [key: string]: string | undefined
 }
 
-// ---- Command Types (received from CF Worker) ----
+// ---- Command Types (received from Llamenos server) ----
 
-/** Commands the CF Worker can send back to the bridge */
+/** Commands the Llamenos server can send back to the bridge */
 export type BridgeCommand =
   | PlaybackCommand
   | GatherCommand

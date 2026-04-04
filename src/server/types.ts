@@ -73,10 +73,10 @@ import type { Services } from './services'
  */
 
 export interface Env {
-  // Transcription (CF: Ai binding, Node: Whisper HTTP client)
+  // Transcription (self-hosted Whisper HTTP client)
   AI: TranscriptionService
 
-  // Static assets (CF: Fetcher, Node: null — served by Hono serveStatic)
+  // Static assets (served by Hono serveStatic)
   ASSETS: { fetch(request: Request): Promise<Response> } | null
 
   // Hub-aware object storage (RustFS / MinIO S3-compatible)

@@ -4,7 +4,7 @@
 
 **Goal:** Volunteers using self-hosted SIP providers (Asterisk, FreeSWITCH, Kamailio) can answer calls directly in the browser via JsSIP WebRTC, with full deployment support in Docker Compose and Ansible.
 
-**Architecture:** Client-side `SipWebRTCAdapter` wraps JsSIP for SIP/WSS signaling and browser DTLS-SRTP media. Server-side `AsteriskProvisioner` provisions PJSIP WebRTC endpoints through the asterisk-bridge's new `/provision-endpoint` command. Caddy reverse proxy terminates TLS and proxies WSS to Asterisk. coturn provides TURN relay for NAT traversal. All infrastructure is managed via Ansible templates.
+**Architecture:** Client-side `SipWebRTCAdapter` wraps JsSIP for SIP/WSS signaling and browser DTLS-SRTP media. Server-side `AsteriskProvisioner` provisions PJSIP WebRTC endpoints through the sip-bridge's new `/provision-endpoint` command. Caddy reverse proxy terminates TLS and proxies WSS to Asterisk. coturn provides TURN relay for NAT traversal. All infrastructure is managed via Ansible templates.
 
 **Tech Stack:** JsSIP v3.13.x, Asterisk PJSIP (WebRTC mode), coturn, Caddy (WSS proxy), Bun, Hono, Drizzle ORM
 
@@ -26,11 +26,11 @@
 | `src/server/telephony/sip-provisioner.ts` | `SipEndpointProvisioner` interface |
 | `src/server/telephony/asterisk-provisioner.ts` | `AsteriskProvisioner` — provisions endpoints via bridge commands |
 | `src/server/telephony/bridge-client.ts` | Shared HMAC-signed HTTP client for bridge commands |
-| `asterisk-bridge/src/index.ts` | New `/provision-endpoint`, `/deprovision-endpoint`, `/check-endpoint` routes |
-| `asterisk-bridge/src/ari-client.ts` | Add `deleteDynamic()` method |
-| `asterisk-bridge/asterisk-config/pjsip.conf` | Add `[transport-wss]` stanza |
-| `asterisk-bridge/asterisk-config/http.conf` | Enable TLS/WSS listener on port 8089 |
-| `asterisk-bridge/asterisk-config/extensions.conf` | Add `[volunteers]` dialplan context |
+| `sip-bridge/src/index.ts` | New `/provision-endpoint`, `/deprovision-endpoint`, `/check-endpoint` routes |
+| `sip-bridge/src/ari-client.ts` | Add `deleteDynamic()` method |
+| `sip-bridge/asterisk-config/pjsip.conf` | Add `[transport-wss]` stanza |
+| `sip-bridge/asterisk-config/http.conf` | Enable TLS/WSS listener on port 8089 |
+| `sip-bridge/asterisk-config/extensions.conf` | Add `[volunteers]` dialplan context |
 | `deploy/ansible/templates/docker-compose.j2` | Add coturn service, Asterisk WSS port, Caddy WSS route |
 | `deploy/ansible/templates/caddy.j2` | Add `/ws` WSS proxy route to Asterisk |
 | `deploy/ansible/templates/env.j2` | Add STUN/TURN/WSS env vars |
@@ -43,9 +43,9 @@
 ### Task 1: Asterisk Configuration — WSS Transport & Volunteer Dialplan
 
 **Files:**
-- Modify: `asterisk-bridge/asterisk-config/pjsip.conf`
-- Modify: `asterisk-bridge/asterisk-config/http.conf`
-- Modify: `asterisk-bridge/asterisk-config/extensions.conf`
+- Modify: `sip-bridge/asterisk-config/pjsip.conf`
+- Modify: `sip-bridge/asterisk-config/http.conf`
+- Modify: `sip-bridge/asterisk-config/extensions.conf`
 
 - [ ] **Step 1: Add WSS transport to pjsip.conf**
 
@@ -62,7 +62,7 @@ protocol = wss
 bind = 0.0.0.0:8089
 ```
 
-Append after the existing `[transport-tcp]` stanza in `asterisk-bridge/asterisk-config/pjsip.conf`.
+Append after the existing `[transport-tcp]` stanza in `sip-bridge/asterisk-config/pjsip.conf`.
 
 - [ ] **Step 2: Enable Asterisk HTTP/WebSocket server with TLS in http.conf**
 
@@ -112,7 +112,7 @@ exten => _X.,1,NoOp(WebRTC call from volunteer ${CALLERID(num)})
 - [ ] **Step 4: Commit**
 
 ```bash
-git add asterisk-bridge/asterisk-config/pjsip.conf asterisk-bridge/asterisk-config/http.conf asterisk-bridge/asterisk-config/extensions.conf
+git add sip-bridge/asterisk-config/pjsip.conf sip-bridge/asterisk-config/http.conf sip-bridge/asterisk-config/extensions.conf
 git commit -m "feat: add Asterisk WSS transport and volunteer dialplan for browser calling"
 ```
 
@@ -121,13 +121,13 @@ git commit -m "feat: add Asterisk WSS transport and volunteer dialplan for brows
 ### Task 2: ARI Client — Add deleteDynamic Method
 
 **Files:**
-- Modify: `asterisk-bridge/src/ari-client.ts`
-- Test: `asterisk-bridge/src/ari-client.test.ts`
+- Modify: `sip-bridge/src/ari-client.ts`
+- Test: `sip-bridge/src/ari-client.test.ts`
 
 - [ ] **Step 1: Write the failing test**
 
 ```typescript
-// asterisk-bridge/src/ari-client.test.ts
+// sip-bridge/src/ari-client.test.ts
 import { describe, expect, test, mock } from 'bun:test'
 
 describe('AriClient.deleteDynamic', () => {
@@ -167,14 +167,14 @@ describe('AriClient.deleteDynamic', () => {
 - [ ] **Step 2: Run test to verify it fails**
 
 ```bash
-cd asterisk-bridge && bun test src/ari-client.test.ts
+cd sip-bridge && bun test src/ari-client.test.ts
 ```
 
 Expected: FAIL with `client.deleteDynamic is not a function`
 
 - [ ] **Step 3: Implement deleteDynamic**
 
-Add to `asterisk-bridge/src/ari-client.ts` after the `reloadModule` method:
+Add to `sip-bridge/src/ari-client.ts` after the `reloadModule` method:
 
 ```typescript
 /**
@@ -195,13 +195,13 @@ async deleteDynamic(
 - [ ] **Step 4: Run test to verify it passes**
 
 ```bash
-cd asterisk-bridge && bun test src/ari-client.test.ts
+cd sip-bridge && bun test src/ari-client.test.ts
 ```
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add asterisk-bridge/src/ari-client.ts asterisk-bridge/src/ari-client.test.ts
+git add sip-bridge/src/ari-client.ts sip-bridge/src/ari-client.test.ts
 git commit -m "feat: add ARI deleteDynamic for SIP endpoint deprovisioning"
 ```
 
@@ -210,13 +210,13 @@ git commit -m "feat: add ARI deleteDynamic for SIP endpoint deprovisioning"
 ### Task 3: Bridge — Provision/Deprovision Endpoint Commands
 
 **Files:**
-- Modify: `asterisk-bridge/src/index.ts`
-- Test: `asterisk-bridge/src/provision.test.ts`
+- Modify: `sip-bridge/src/index.ts`
+- Test: `sip-bridge/src/provision.test.ts`
 
 - [ ] **Step 1: Write the failing test**
 
 ```typescript
-// asterisk-bridge/src/provision.test.ts
+// sip-bridge/src/provision.test.ts
 import { describe, expect, test, mock } from 'bun:test'
 
 describe('Bridge /provision-endpoint', () => {
@@ -279,7 +279,7 @@ describe('Bridge /provision-endpoint', () => {
 - [ ] **Step 2: Create endpoint-provisioner.ts**
 
 ```typescript
-// asterisk-bridge/src/endpoint-provisioner.ts
+// sip-bridge/src/endpoint-provisioner.ts
 import type { AriClient } from './ari-client'
 
 /**
@@ -390,12 +390,12 @@ function generatePassword(): string {
 - [ ] **Step 3: Run test to verify it passes**
 
 ```bash
-cd asterisk-bridge && bun test src/provision.test.ts
+cd sip-bridge && bun test src/provision.test.ts
 ```
 
 - [ ] **Step 4: Add HTTP routes to bridge index.ts**
 
-In `asterisk-bridge/src/index.ts`, add these route handlers before the `return new Response('Not Found', { status: 404 })` line. Each uses the same HMAC signature verification pattern as existing routes:
+In `sip-bridge/src/index.ts`, add these route handlers before the `return new Response('Not Found', { status: 404 })` line. Each uses the same HMAC signature verification pattern as existing routes:
 
 ```typescript
 // Provision SIP endpoint for volunteer WebRTC
@@ -468,13 +468,13 @@ if (path === '/check-endpoint' && method === 'POST') {
 - [ ] **Step 5: Run all bridge tests**
 
 ```bash
-cd asterisk-bridge && bun test
+cd sip-bridge && bun test
 ```
 
 - [ ] **Step 6: Commit**
 
 ```bash
-git add asterisk-bridge/src/endpoint-provisioner.ts asterisk-bridge/src/provision.test.ts asterisk-bridge/src/index.ts
+git add sip-bridge/src/endpoint-provisioner.ts sip-bridge/src/provision.test.ts sip-bridge/src/index.ts
 git commit -m "feat: add SIP endpoint provision/deprovision bridge commands"
 ```
 
@@ -498,7 +498,7 @@ The `bridgeRequest()` method is currently a private method on `AsteriskAdapter`.
 // src/server/telephony/bridge-client.ts
 
 /**
- * HMAC-authenticated HTTP client for the asterisk-bridge.
+ * HMAC-authenticated HTTP client for the sip-bridge.
  * Shared by AsteriskAdapter (call management) and AsteriskProvisioner (endpoint lifecycle).
  *
  * All requests include X-Bridge-Signature (HMAC-SHA256) and X-Bridge-Timestamp
@@ -569,7 +569,7 @@ In `src/server/telephony/asterisk.ts`:
  * SIP endpoints on self-hosted PBX systems.
  *
  * Implementations:
- * - AsteriskProvisioner: provisions via asterisk-bridge → ARI dynamic config
+ * - AsteriskProvisioner: provisions via sip-bridge → ARI dynamic config
  * - (Future) FreeSWITCHProvisioner: provisions via mod_xml_curl or ESL
  * - (Future) KamailioProvisioner: provisions via subscriber DB
  */
@@ -600,7 +600,7 @@ import { BridgeClient } from './bridge-client'
 import type { SipEndpointConfig, SipEndpointProvisioner } from './sip-provisioner'
 
 /**
- * AsteriskProvisioner — provisions WebRTC PJSIP endpoints via the asterisk-bridge.
+ * AsteriskProvisioner — provisions WebRTC PJSIP endpoints via the sip-bridge.
  *
  * The bridge handles the actual ARI dynamic config calls. This class
  * constructs the SipEndpointConfig with WSS URI and ICE server config
@@ -960,7 +960,7 @@ git commit -m "feat: add SIP adapter cases to WebRTCManager factory"
 ### Task 7: Bridge — Extend Ring Command for Browser Endpoints
 
 **Files:**
-- Modify: `asterisk-bridge/src/index.ts` (the `/ring` route)
+- Modify: `sip-bridge/src/index.ts` (the `/ring` route)
 
 - [ ] **Step 1: Update the ring volunteer type and origination logic**
 
@@ -1063,7 +1063,7 @@ bun run typecheck && bun run build
 - [ ] **Step 4: Commit**
 
 ```bash
-git add asterisk-bridge/src/index.ts src/server/telephony/asterisk.ts src/server/telephony/adapter.ts
+git add sip-bridge/src/index.ts src/server/telephony/asterisk.ts src/server/telephony/adapter.ts
 git commit -m "feat: extend ring command to support browser PJSIP endpoints"
 ```
 
@@ -1077,7 +1077,7 @@ git commit -m "feat: extend ring command to support browser PJSIP endpoints"
 
 - [ ] **Step 1: Add coturn service to docker-compose.j2**
 
-Add inside the `{% if 'asterisk' in compose_profiles %}` block, after `asterisk-bridge`:
+Add inside the `{% if 'asterisk' in compose_profiles %}` block, after `sip-bridge`:
 
 ```yaml
   # ── coturn TURN/STUN server ──────────────────────────────────
@@ -1182,8 +1182,8 @@ Also mount dev TLS certs into Asterisk container (generated by `scripts/dev-cert
 ```yaml
   asterisk:
     volumes:
-      - ./asterisk-bridge/dev-certs/asterisk.pem:/etc/asterisk/keys/asterisk.pem:ro
-      - ./asterisk-bridge/dev-certs/asterisk.key:/etc/asterisk/keys/asterisk.key:ro
+      - ./sip-bridge/dev-certs/asterisk.pem:/etc/asterisk/keys/asterisk.pem:ro
+      - ./sip-bridge/dev-certs/asterisk.key:/etc/asterisk/keys/asterisk.key:ro
 ```
 
 Update CLAUDE.md port offset comment: `v1: asterisk-ari:8089, asterisk-wss:8090`
@@ -1372,12 +1372,12 @@ git commit -m "feat: add coturn, STUN/TURN, and WSS env vars to Ansible config"
 #
 # Usage: ./scripts/dev-certs.sh
 #
-# Generates certs in asterisk-bridge/dev-certs/ for:
+# Generates certs in sip-bridge/dev-certs/ for:
 # - Asterisk WSS (localhost, 127.0.0.1)
 
 set -euo pipefail
 
-CERT_DIR="asterisk-bridge/dev-certs"
+CERT_DIR="sip-bridge/dev-certs"
 
 if ! command -v mkcert &>/dev/null; then
   echo "Error: mkcert is not installed."
@@ -1407,7 +1407,7 @@ echo "Mount into Asterisk container at /etc/asterisk/keys/"
 Append to `.gitignore`:
 
 ```
-asterisk-bridge/dev-certs/
+sip-bridge/dev-certs/
 ```
 
 - [ ] **Step 3: Commit**
@@ -1538,7 +1538,7 @@ git commit -m "docs: update browser calling plan for Asterisk SIP WebRTC integra
 Add to the Key Technical Patterns section:
 
 ```markdown
-- **SIP WebRTC (JsSIP)**: Browser calling for self-hosted SIP providers (Asterisk, FreeSWITCH, Kamailio). `SipWebRTCAdapter` wraps JsSIP UA for SIP-over-WSS signaling + browser DTLS-SRTP media. Endpoints provisioned via `AsteriskProvisioner` → asterisk-bridge → ARI dynamic config. coturn provides TURN relay for NAT traversal. Caddy terminates TLS and proxies WSS to Asterisk.
+- **SIP WebRTC (JsSIP)**: Browser calling for self-hosted SIP providers (Asterisk, FreeSWITCH, Kamailio). `SipWebRTCAdapter` wraps JsSIP UA for SIP-over-WSS signaling + browser DTLS-SRTP media. Endpoints provisioned via `AsteriskProvisioner` → sip-bridge → ARI dynamic config. coturn provides TURN relay for NAT traversal. Caddy terminates TLS and proxies WSS to Asterisk.
 ```
 
 Add to Gotchas section:

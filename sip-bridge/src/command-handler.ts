@@ -19,8 +19,8 @@ import type { WebhookSender } from './webhook-sender'
 
 /**
  * CommandHandler — the central orchestrator that:
- * 1. Receives ARI events and translates them into CF Worker webhooks
- * 2. Receives HTTP commands from the CF Worker (or TwiML translated to commands)
+ * 1. Receives ARI events and translates them into Llamenos server webhooks
+ * 2. Receives HTTP commands from the Llamenos server
  *    and executes them as ARI REST calls
  * 3. Maintains call state for coordinating multi-step flows
  */
@@ -795,12 +795,12 @@ export class CommandHandler {
   }
 
   // ================================================================
-  // HTTP Command Handler (for commands received from CF Worker)
+  // HTTP Command Handler (for commands received from Llamenos server)
   // ================================================================
 
   /**
-   * Handle an HTTP command from the CF Worker.
-   * The Worker can send direct commands to control calls.
+   * Handle an HTTP command from the Llamenos server.
+   * The server can send direct commands to control calls.
    */
   async handleHttpCommand(body: Record<string, unknown>): Promise<{ ok: boolean; error?: string }> {
     try {

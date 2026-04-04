@@ -233,7 +233,7 @@ All items below have a design spec and implementation plan in `docs/superpowers/
 
 ### Telephony Automation
 
-- [x] **Asterisk Bridge Auto-Config** (`2026-03-22-asterisk-bridge-auto-config.md`) — PjsipConfigurator writes auth/aor/endpoint/registration via ARI dynamic config API at startup, sorcery.conf for memory wizard, Docker compose + dev offsets, real-Asterisk E2E tests
+- [x] **SIP Bridge Auto-Config** (`2026-03-22-asterisk-bridge-auto-config.md`) — PjsipConfigurator writes auth/aor/endpoint/registration via ARI dynamic config API at startup, sorcery.conf for memory wizard, Docker compose + dev offsets, real-Asterisk E2E tests (now part of sip-bridge)
 - [x] **Provider OAuth Auto-Config** (`2026-03-22-provider-oauth-auto-config.md`) — ProviderSetup module: Twilio/Telnyx OAuth, SignalWire/Vonage/Plivo credential validation, webhook auto-config, SIP trunk provisioning, A2P 10DLC registration
 - [x] **Signal Automated Registration** (`2026-03-22-signal-automated-registration.md`) — SMS interception for Signal verification codes, SettingsDO pending state with TTL, voice fallback manual entry, registration wizard UI
 - [x] **Setup Wizard Provider Module** (`2026-03-22-setup-wizard-provider-module.md`) — OAuthConnectButton, PhoneNumberSelector, WebhookConfirmation, ChannelSettings, setup routes, E2E tests.

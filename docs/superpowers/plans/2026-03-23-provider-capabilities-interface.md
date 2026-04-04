@@ -1201,7 +1201,7 @@ import type { ConnectionTestResult, WebhookUrlSet } from '@shared/types'
 export const asteriskCapabilities: ProviderCapabilities<AsteriskConfig> = {
   type: 'asterisk',
   displayName: 'Asterisk (Self-Hosted)',
-  description: 'Self-hosted PBX via ARI bridge — requires running Asterisk + asterisk-bridge',
+  description: 'Self-hosted PBX via ARI bridge — requires running Asterisk + sip-bridge',
   credentialSchema: AsteriskConfigSchema,
 
   supportsOAuth: false,

@@ -5,8 +5,6 @@
  * Prometheus, Grafana Agent, or similar collectors.
  *
  * Metrics are collected in-memory and reset on process restart.
- * On CF Workers, this endpoint returns minimal metrics (uptime only)
- * since CF provides its own analytics.
  */
 import { existsSync, readFileSync } from 'node:fs'
 import { createMiddleware } from 'hono/factory'

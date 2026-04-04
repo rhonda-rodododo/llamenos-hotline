@@ -2,10 +2,10 @@ import type { BridgeCommand, BridgeConfig, WebhookPayload } from './types'
 
 /**
  * WebhookSender — sends HMAC-SHA256 signed HTTP webhooks to the
- * Cloudflare Worker. Formats payloads as form-urlencoded to match
- * Twilio's format, so the Worker's existing parsing works unchanged.
+ * Llamenos server. Formats payloads as form-urlencoded to match
+ * Twilio's format, so the server's existing parsing works unchanged.
  *
- * The Worker responds with JSON commands that the bridge translates
+ * The server responds with JSON commands that the bridge translates
  * to ARI REST calls.
  */
 export class WebhookSender {
@@ -32,11 +32,11 @@ export class WebhookSender {
   }
 
   /**
-   * Send a webhook to the CF Worker and parse the response as commands.
+   * Send a webhook to the Llamenos server and parse the response as commands.
    *
-   * The Worker's telephony routes respond with TwiML (for Twilio) or
+   * The server's telephony routes respond with TwiML (for Twilio) or
    * JSON commands (for Asterisk). We send form-urlencoded data so the
-   * Worker can parse it the same way as Twilio webhooks.
+   * server can parse it the same way as Twilio webhooks.
    *
    * Returns the raw Response so the caller can inspect status/headers
    * and parse the body appropriately.

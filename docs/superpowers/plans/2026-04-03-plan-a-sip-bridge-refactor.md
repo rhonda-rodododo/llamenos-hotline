@@ -1,8 +1,8 @@
-# Plan A: SIP Bridge Refactor — asterisk-bridge to sip-bridge
+# Plan A: SIP Bridge Refactor — sip-bridge to sip-bridge
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Refactor `asterisk-bridge/` into a unified `sip-bridge/` with a `BridgeClient` protocol abstraction, extract a `SipBridgeAdapter` base class for shared telephony adapter logic, and migrate all 121 references across the codebase.
+**Goal:** Refactor `sip-bridge/` into a unified `sip-bridge/` with a `BridgeClient` protocol abstraction, extract a `SipBridgeAdapter` base class for shared telephony adapter logic, and migrate all 121 references across the codebase.
 
 **Architecture:** Single `sip-bridge/` project with three protocol clients (ARI, ESL, Kamailio JSONRPC) behind a common `BridgeClient` interface. The `PBX_TYPE` env var selects the active client at startup. A shared `WebhookSender` translates protocol-specific events into HTTP POSTs to the Llamenos server. On the server side, `SipBridgeAdapter` extracts shared bridge communication logic (ring, cancel, hangup, recording, HMAC validation) so that both `AsteriskAdapter` and future `FreeSwitchAdapter` extend it.
 
@@ -279,11 +279,11 @@ export interface BridgeClient {
 
 **Files:**
 - Create: `sip-bridge/src/clients/ari-client.ts`
-- Copy and keep: `sip-bridge/src/types.ts` (ARI-specific types, from `asterisk-bridge/src/types.ts`)
+- Copy and keep: `sip-bridge/src/types.ts` (ARI-specific types, from `sip-bridge/src/types.ts`)
 
-This task extracts the existing `asterisk-bridge/src/ari-client.ts` into the new `sip-bridge/` project structure and wraps it to implement the `BridgeClient` interface with event translation.
+This task extracts the existing `sip-bridge/src/ari-client.ts` into the new `sip-bridge/` project structure and wraps it to implement the `BridgeClient` interface with event translation.
 
-- [ ] Copy `asterisk-bridge/src/types.ts` to `sip-bridge/src/types.ts`. This file contains ARI event types (`AnyAriEvent`, `StasisStartEvent`, etc.), ARI resource types (`AriChannel`, `AriBridge`, `AriPlayback`, `AriRecording`), webhook types, command types, and `BridgeConfig`. Keep all existing types intact — they are ARI-specific internal types used by the ARI client.
+- [ ] Copy `sip-bridge/src/types.ts` to `sip-bridge/src/types.ts`. This file contains ARI event types (`AnyAriEvent`, `StasisStartEvent`, etc.), ARI resource types (`AriChannel`, `AriBridge`, `AriPlayback`, `AriRecording`), webhook types, command types, and `BridgeConfig`. Keep all existing types intact — they are ARI-specific internal types used by the ARI client.
 
 - [ ] Create `sip-bridge/src/clients/ari-client.ts`. This wraps the raw ARI WebSocket + REST client and implements `BridgeClient`:
 
@@ -315,7 +315,7 @@ type EventHandler = (event: BridgeEvent) => void
  * ARI Client — connects to Asterisk's ARI via WebSocket for events
  * and REST API for commands. Implements BridgeClient for protocol-agnostic usage.
  *
- * Extracted from asterisk-bridge/src/ari-client.ts with BridgeClient wrapper.
+ * Extracted from sip-bridge/src/ari-client.ts with BridgeClient wrapper.
  */
 export class AriClient implements BridgeClient {
   private config: BridgeConfig
@@ -335,7 +335,7 @@ export class AriClient implements BridgeClient {
     this.connectionTimeoutMs = config.connectionTimeoutMs ?? 5 * 60 * 1000
   }
 
-  // ... (full implementation extracted from asterisk-bridge/src/ari-client.ts)
+  // ... (full implementation extracted from sip-bridge/src/ari-client.ts)
   // Key difference: onEvent() emits BridgeEvent (not raw ARI events)
   // Raw ARI events are translated in the WebSocket message handler
 ```
@@ -422,7 +422,7 @@ export class AriClient implements BridgeClient {
   }
 ```
 
-- [ ] Implement all `BridgeClient` methods by delegating to the existing ARI REST methods. The full method bodies are extracted from `asterisk-bridge/src/ari-client.ts` — the `originate()`, `hangup()`, `answer()`, `bridge()`, `playMedia()`, `recordChannel()`, `recordBridge()`, `getRecordingFile()`, etc. methods map 1:1 to ARI REST endpoints. Key method signatures:
+- [ ] Implement all `BridgeClient` methods by delegating to the existing ARI REST methods. The full method bodies are extracted from `sip-bridge/src/ari-client.ts` — the `originate()`, `hangup()`, `answer()`, `bridge()`, `playMedia()`, `recordChannel()`, `recordBridge()`, `getRecordingFile()`, etc. methods map 1:1 to ARI REST endpoints. Key method signatures:
 
   - `originate(params)` calls `POST /channels` and returns `{ id: channel.id }`
   - `hangup(channelId)` calls `DELETE /channels/{channelId}`
@@ -436,7 +436,7 @@ export class AriClient implements BridgeClient {
   - `addChannelToBridge()`, `removeChannelFromBridge()`, `startBridgeMoh()`, `playMediaOnBridge()` — bridge helpers
   - `getAsteriskInfo()` — system info
 
-- [ ] Copy `asterisk-bridge/src/ari-client.test.ts` to `sip-bridge/src/clients/ari-client.test.ts` and update imports
+- [ ] Copy `sip-bridge/src/ari-client.test.ts` to `sip-bridge/src/clients/ari-client.test.ts` and update imports
 
 - [ ] Run `cd sip-bridge && bun run typecheck`
 - [ ] Commit: `feat(sip-bridge): extract ARI client implementing BridgeClient interface`
@@ -1164,24 +1164,24 @@ export class KamailioClient implements BridgeClient {
 
 **Files:**
 - Create: `sip-bridge/src/index.ts`
-- Move: `asterisk-bridge/src/webhook-sender.ts` to `sip-bridge/src/webhook-sender.ts` (with adaptations)
-- Move: `asterisk-bridge/src/command-handler.ts` to `sip-bridge/src/command-handler.ts` (with adaptations)
-- Move: `asterisk-bridge/src/pjsip-configurator.ts` to `sip-bridge/src/pjsip-configurator.ts`
-- Move: `asterisk-bridge/src/endpoint-provisioner.ts` to `sip-bridge/src/endpoint-provisioner.ts`
+- Move: `sip-bridge/src/webhook-sender.ts` to `sip-bridge/src/webhook-sender.ts` (with adaptations)
+- Move: `sip-bridge/src/command-handler.ts` to `sip-bridge/src/command-handler.ts` (with adaptations)
+- Move: `sip-bridge/src/pjsip-configurator.ts` to `sip-bridge/src/pjsip-configurator.ts`
+- Move: `sip-bridge/src/endpoint-provisioner.ts` to `sip-bridge/src/endpoint-provisioner.ts`
 - Create: `sip-bridge/Dockerfile`
 
-- [ ] Copy `asterisk-bridge/src/webhook-sender.ts` to `sip-bridge/src/webhook-sender.ts`. Update the import paths to reference the new `types.ts` location. The `WebhookSender` class stays the same — it translates events into HTTP POSTs with HMAC signing and parses TwiML responses into bridge commands. No behavioral changes.
+- [ ] Copy `sip-bridge/src/webhook-sender.ts` to `sip-bridge/src/webhook-sender.ts`. Update the import paths to reference the new `types.ts` location. The `WebhookSender` class stays the same — it translates events into HTTP POSTs with HMAC signing and parses TwiML responses into bridge commands. No behavioral changes.
 
-- [ ] Copy `asterisk-bridge/src/command-handler.ts` to `sip-bridge/src/command-handler.ts`. Update imports to reference the new file locations:
+- [ ] Copy `sip-bridge/src/command-handler.ts` to `sip-bridge/src/command-handler.ts`. Update imports to reference the new file locations:
   - `./ari-client` becomes `./clients/ari-client`
   - `./types` stays as `./types`
   - `./webhook-sender` stays as `./webhook-sender`
 
   The `CommandHandler` currently takes an `AriClient` directly. For now, keep it ARI-specific — when FreeSWITCH needs a command handler, a new one will be created in Plan B. The important thing is that the `CommandHandler` is inside `sip-bridge/` and uses the extracted ARI client.
 
-- [ ] Copy `asterisk-bridge/src/pjsip-configurator.ts` to `sip-bridge/src/pjsip-configurator.ts`. Update the AriClient import path to `./clients/ari-client`.
+- [ ] Copy `sip-bridge/src/pjsip-configurator.ts` to `sip-bridge/src/pjsip-configurator.ts`. Update the AriClient import path to `./clients/ari-client`.
 
-- [ ] Copy `asterisk-bridge/src/endpoint-provisioner.ts` to `sip-bridge/src/endpoint-provisioner.ts`. Update the AriClient import path to `./clients/ari-client`.
+- [ ] Copy `sip-bridge/src/endpoint-provisioner.ts` to `sip-bridge/src/endpoint-provisioner.ts`. Update the AriClient import path to `./clients/ari-client`.
 
 - [ ] Create `sip-bridge/src/index.ts` — the unified entry point that selects the active PBX client based on `PBX_TYPE` env var:
 
@@ -1711,8 +1711,8 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
 CMD ["bun", "run", "dist/index.js"]
 ```
 
-- [ ] Copy `asterisk-bridge/asterisk-config/` directory to `sip-bridge/asterisk-config/` (these are Asterisk configuration files, not bridge-specific)
-- [ ] Copy any remaining test files from `asterisk-bridge/` to `sip-bridge/`
+- [ ] Copy `sip-bridge/asterisk-config/` directory to `sip-bridge/asterisk-config/` (these are Asterisk configuration files, not bridge-specific)
+- [ ] Copy any remaining test files from `sip-bridge/` to `sip-bridge/`
 - [ ] Run `cd sip-bridge && bun install && bun run typecheck`
 - [ ] Commit: `feat(sip-bridge): unified entry point with PBX_TYPE selection, webhook sender, health, Dockerfile`
 
@@ -2002,8 +2002,8 @@ This task has three sub-tasks. They can be executed in parallel since they touch
 #### Task 7a: Core Rename (Code + Schemas)
 
 **Files:**
-- Remove: `asterisk-bridge/` directory (after verifying `sip-bridge/` is complete)
-- Rename: `src/shared/schemas/external/asterisk-bridge.ts` to `src/shared/schemas/external/sip-bridge.ts`
+- Remove: `sip-bridge/` directory (after verifying `sip-bridge/` is complete)
+- Rename: `src/shared/schemas/external/sip-bridge.ts` to `src/shared/schemas/external/sip-bridge.ts`
 - Modify: `src/shared/schemas/external/sip-bridge.ts` (rename exports)
 - Modify: `src/server/telephony/bridge-client.ts` (update comment)
 - Modify: `src/server/telephony/asterisk-provisioner.ts` (update comment)
@@ -2013,13 +2013,13 @@ This task has three sub-tasks. They can be executed in parallel since they touch
 - Modify: `tests/asterisk-auto-config.spec.ts` (update if references bridge paths)
 - Modify: `tests/global-teardown.ts` (update references)
 - Modify: `tests/api/sip-webrtc.spec.ts` (update references)
-- Modify: `package.json` (update any scripts referencing asterisk-bridge)
+- Modify: `package.json` (update any scripts referencing sip-bridge)
 
 - [ ] Verify `sip-bridge/` is complete and typechecks: `cd sip-bridge && bun run typecheck`
 
-- [ ] Delete the `asterisk-bridge/` directory: `rm -rf asterisk-bridge`
+- [ ] Delete the `sip-bridge/` directory: `rm -rf sip-bridge`
 
-- [ ] Rename the schema file: `git mv src/shared/schemas/external/asterisk-bridge.ts src/shared/schemas/external/sip-bridge.ts`
+- [ ] Rename the schema file: `git mv src/shared/schemas/external/sip-bridge.ts src/shared/schemas/external/sip-bridge.ts`
 
 - [ ] In `src/shared/schemas/external/sip-bridge.ts`, rename the exports while keeping backward compatibility aliases:
 
@@ -2031,7 +2031,7 @@ This task has three sub-tasks. They can be executed in parallel since they touch
   - `AsteriskBridgeWebhook` rename to `SipBridgeWebhook`
   - Add: `export { SipBridgeWebhookSchema as AsteriskBridgeWebhookSchema }` — backward compat alias
   - Add: `export type { SipBridgeWebhook as AsteriskBridgeWebhook }` — backward compat alias
-  - Update JSDoc to say "sip-bridge" instead of "asterisk-bridge"
+  - Update JSDoc to say "sip-bridge" instead of "sip-bridge"
 
 - [ ] Update `src/server/telephony/bridge-client.ts` comment: `"HMAC-authenticated HTTP client for the sip-bridge."` (line 2)
 
@@ -2041,16 +2041,16 @@ This task has three sub-tasks. They can be executed in parallel since they touch
 
 - [ ] Update `src/server/telephony/webrtc-tokens.test.ts` — no functional changes needed, just verify it still compiles
 
-- [ ] Update `tests/helpers/simulation.ts`: change import from `'@shared/schemas/external/asterisk-bridge'` to `'@shared/schemas/external/sip-bridge'` (line 2). The `AsteriskBridgeWebhook` type alias is available from the new file.
+- [ ] Update `tests/helpers/simulation.ts`: change import from `'@shared/schemas/external/sip-bridge'` to `'@shared/schemas/external/sip-bridge'` (line 2). The `AsteriskBridgeWebhook` type alias is available from the new file.
 
-- [ ] Update `tests/global-teardown.ts` — update any `asterisk-bridge` references to `sip-bridge`
+- [ ] Update `tests/global-teardown.ts` — update any `sip-bridge` references to `sip-bridge`
 
-- [ ] Update `tests/api/sip-webrtc.spec.ts` — update any `asterisk-bridge` references to `sip-bridge`
+- [ ] Update `tests/api/sip-webrtc.spec.ts` — update any `sip-bridge` references to `sip-bridge`
 
-- [ ] Check `package.json` for any scripts referencing `asterisk-bridge` and update to `sip-bridge`
+- [ ] Check `package.json` for any scripts referencing `sip-bridge` and update to `sip-bridge`
 
 - [ ] Run `bun run typecheck && bun run build`
-- [ ] Commit: `refactor: rename asterisk-bridge to sip-bridge, update schemas and imports`
+- [ ] Commit: `refactor: rename sip-bridge to sip-bridge, update schemas and imports`
 
 #### Task 7b: CI / Deploy / Docker
 
@@ -2074,21 +2074,21 @@ This task has three sub-tasks. They can be executed in parallel since they touch
   - Line 106: `file: sip-bridge/Dockerfile`
 
 - [ ] Update `.github/actions/start-test-infra/action.yml`:
-  - Lines 11-15: Change `asterisk-bridge/asterisk-config/` to `sip-bridge/asterisk-config/`
-  - Line 26: Change `cd asterisk-bridge && bun install` to `cd sip-bridge && bun install`
+  - Lines 11-15: Change `sip-bridge/asterisk-config/` to `sip-bridge/asterisk-config/`
+  - Line 26: Change `cd sip-bridge && bun install` to `cd sip-bridge && bun install`
 
 - [ ] Update `deploy/docker/docker-compose.yml`:
   - Line 13 comment: `#   sip-bridge - ARI/ESL/JSONRPC-to-webhook translator (profile: asterisk, freeswitch)`
-  - Lines 261-265: Change `../../asterisk-bridge/asterisk-config/` to `../../sip-bridge/asterisk-config/`
+  - Lines 261-265: Change `../../sip-bridge/asterisk-config/` to `../../sip-bridge/asterisk-config/`
   - Line 275: `sip-bridge:` (service name)
   - Line 279: `dockerfile: sip-bridge/Dockerfile`
 
 - [ ] Update `deploy/docker/docker-compose.dev.yml`:
-  - Lines 47-48: Change `../asterisk-bridge/dev-certs/` to `../sip-bridge/dev-certs/`
+  - Lines 47-48: Change `../sip-bridge/dev-certs/` to `../sip-bridge/dev-certs/`
   - Line 51: `sip-bridge:` (service name)
 
 - [ ] Update `deploy/docker/docker-compose.dev-idp.yml`:
-  - Lines 52-53: Change `../asterisk-bridge/dev-certs/` to `../sip-bridge/dev-certs/`
+  - Lines 52-53: Change `../sip-bridge/dev-certs/` to `../sip-bridge/dev-certs/`
   - Line 56: `sip-bridge:` (service name)
 
 - [ ] Update `deploy/ansible/roles/llamenos/templates/docker-compose.j2`:
@@ -2110,7 +2110,7 @@ This task has three sub-tasks. They can be executed in parallel since they touch
   - Line 12: `CERT_DIR="sip-bridge/dev-certs"`
 
 - [ ] Update `scripts/kill-runaway-bun.sh`:
-  - Line 10: Replace `asterisk-bridge` with `sip-bridge` in the pattern match
+  - Line 10: Replace `sip-bridge` with `sip-bridge` in the pattern match
 
 - [ ] Commit: `chore: update CI, Docker, Ansible, Helm, scripts for sip-bridge rename`
 
@@ -2128,30 +2128,30 @@ This task has three sub-tasks. They can be executed in parallel since they touch
 - Modify: `.claude/skills/test-runner/SKILL.md`
 - Modify: `.claude/skills/test-runner/references/worktree-ports.md`
 
-- [ ] Update `CLAUDE.md` — search and replace all occurrences of `asterisk-bridge` with `sip-bridge`:
-  - Directory structure section: `asterisk-bridge/` becomes `sip-bridge/` (or remove if not in the structure listing — check current state)
+- [ ] Update `CLAUDE.md` — search and replace all occurrences of `sip-bridge` with `sip-bridge`:
+  - Directory structure section: `sip-bridge/` becomes `sip-bridge/` (or remove if not in the structure listing — check current state)
   - JsSIP bullet: `reloadModule('res_pjsip.so')` note — no change needed (Asterisk-specific behavior)
   - Any other references
 
-- [ ] Update `DEVELOPMENT.md` — replace `asterisk-bridge` references with `sip-bridge`
+- [ ] Update `DEVELOPMENT.md` — replace `sip-bridge` references with `sip-bridge`
 
-- [ ] Update `README.md` — replace `asterisk-bridge` references with `sip-bridge`
+- [ ] Update `README.md` — replace `sip-bridge` references with `sip-bridge`
 
-- [ ] Update `docs/RUNBOOK.md` — replace `asterisk-bridge` references with `sip-bridge`
+- [ ] Update `docs/RUNBOOK.md` — replace `sip-bridge` references with `sip-bridge`
 
-- [ ] Update `docs/NEXT_BACKLOG.md` — replace `asterisk-bridge` references
+- [ ] Update `docs/NEXT_BACKLOG.md` — replace `sip-bridge` references
 
 - [ ] Update `docs/COMPLETED_BACKLOG.md` — add entry for the sip-bridge refactor
 
-- [ ] Update `.claude/skills/test-runner/SKILL.md` — replace `asterisk-bridge` references
+- [ ] Update `.claude/skills/test-runner/SKILL.md` — replace `sip-bridge` references
 
-- [ ] Update `.claude/skills/test-runner/references/worktree-ports.md` — replace `asterisk-bridge` references
+- [ ] Update `.claude/skills/test-runner/references/worktree-ports.md` — replace `sip-bridge` references
 
-- [ ] For doc/plan files in `docs/epics/` and `docs/superpowers/plans/`: do a search-and-replace of `asterisk-bridge` to `sip-bridge` in these specific files (historical plans that reference the bridge by name):
-  - `docs/epics/epic-49-asterisk-bridge-auto-config.md` — update title and references
+- [ ] For doc/plan files in `docs/epics/` and `docs/superpowers/plans/`: do a search-and-replace of `sip-bridge` to `sip-bridge` in these specific files (historical plans that reference the bridge by name):
+  - `docs/epics/epic-49-sip-bridge-auto-config.md` — update title and references
   - `docs/epics/epic-53-security-audit-hardening.md` — update references
   - `docs/epics/epic-65-security-audit-r6-medium.md` — update references
-  - `docs/superpowers/plans/2026-03-22-asterisk-bridge-auto-config.md` — update references
+  - `docs/superpowers/plans/2026-03-22-sip-bridge-auto-config.md` — update references
   - `docs/superpowers/plans/2026-03-23-provider-capabilities-interface.md` — update references
   - `docs/superpowers/plans/2026-03-25-sip-webrtc-browser-calling.md` — update references
   - `docs/superpowers/plans/2026-03-25-voicemail-phase3-notifications-playback.md` — update references
@@ -2162,7 +2162,7 @@ This task has three sub-tasks. They can be executed in parallel since they touch
   - `docs/security/SECURITY_AUDIT_2026-02-R6.md` — update references
 
 - [ ] Run `bun run typecheck && bun run build` (final verification)
-- [ ] Commit: `docs: update all documentation and locale references from asterisk-bridge to sip-bridge`
+- [ ] Commit: `docs: update all documentation and locale references from sip-bridge to sip-bridge`
 
 ---
 
@@ -2176,7 +2176,7 @@ This task has three sub-tasks. They can be executed in parallel since they touch
 | 4 | Kamailio JSONRPC client | `sip-bridge/src/clients/kamailio-client.ts` | Task 1 |
 | 5 | Unified entry point + webhook + health + Dockerfile | `sip-bridge/src/index.ts`, `sip-bridge/Dockerfile` | Tasks 2, 3, 4 |
 | 6 | SipBridgeAdapter base class | `src/server/telephony/sip-bridge-adapter.ts`, `asterisk.ts` refactor | None (parallel with Tasks 1-5) |
-| 7a | Core rename (code + schemas) | Schema rename, import updates, delete `asterisk-bridge/` | Tasks 5, 6 |
+| 7a | Core rename (code + schemas) | Schema rename, import updates, delete `sip-bridge/` | Tasks 5, 6 |
 | 7b | CI / Deploy / Docker | Workflows, Docker Compose, Ansible, Helm, scripts | Task 7a |
 | 7c | Docs / Locales / CLAUDE.md | CLAUDE.md, README, DEVELOPMENT.md, docs/, skills/ | Task 7a |
 
@@ -2190,4 +2190,4 @@ This task has three sub-tasks. They can be executed in parallel since they touch
 - `bun run test:unit` — run all unit tests (verifies asterisk adapter still works after refactor)
 - `bun run test:api` — run API integration tests (verifies bridge client still works)
 
-**Rollback:** If anything breaks, `git revert` the migration commits. The `SipBridgeAdapter` base class and `sip-bridge/` project are additive until Task 7a deletes `asterisk-bridge/`.
+**Rollback:** If anything breaks, `git revert` the migration commits. The `SipBridgeAdapter` base class and `sip-bridge/` project are additive until Task 7a deletes `sip-bridge/`.

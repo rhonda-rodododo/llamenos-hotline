@@ -88,7 +88,7 @@ audit:
 
 ### M-9: Pin Docker Base Image Tags to Digests
 
-**Files**: `deploy/docker/Dockerfile`, `asterisk-bridge/Dockerfile`
+**Files**: `deploy/docker/Dockerfile`, `sip-bridge/Dockerfile`
 
 1. Look up current digests for `oven/bun:1` and `node:22-slim`
 2. Pin all `FROM` lines to `image@sha256:...`

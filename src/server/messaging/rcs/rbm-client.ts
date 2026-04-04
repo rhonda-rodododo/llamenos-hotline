@@ -27,7 +27,7 @@ export class RBMClient {
 
   /**
    * Create a JWT assertion for service account auth.
-   * Uses Web Crypto API (works in Cloudflare Workers).
+   * Uses Web Crypto API (works in all modern runtimes).
    */
   private async createJWT(): Promise<string> {
     const now = Math.floor(Date.now() / 1000)
