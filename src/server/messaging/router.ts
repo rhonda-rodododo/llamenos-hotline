@@ -429,25 +429,19 @@ async function handleFirehoseMessage(
   if (!groupId) return false
 
   // Look up active firehose connection for this Signal group
-  let connection = await services.firehose.findConnectionBySignalGroup(groupId, hubId)
+  const connection = await services.firehose.findConnectionBySignalGroup(groupId, hubId)
+  if (!connection) return false // No active connection for this group — not a firehose message
 
-  // If no active connection, try to auto-link a pending connection
-  if (!connection) {
-    const pending = await services.firehose.findPendingConnection(hubId)
-    if (pending) {
-      await services.firehose.updateConnection(pending.id, {
-        signalGroupId: groupId,
-        status: 'active',
-      })
-      connection = await services.firehose.getConnection(pending.id)
-    }
-  }
-
-  if (!connection || connection.status === 'disabled') return false
+  if (connection.status === 'disabled') return false
 
   // Encrypt message body for the agent + admins
   const adminPubkey = env.ADMIN_DECRYPTION_PUBKEY || env.ADMIN_PUBKEY
-  if (!adminPubkey) return false
+  if (!adminPubkey) {
+    console.warn(
+      `[firehose] Cannot buffer message for connection ${connection.id}: ADMIN_DECRYPTION_PUBKEY and ADMIN_PUBKEY are both unconfigured`
+    )
+    return false
+  }
 
   const readerPubkeys = [connection.agentPubkey, adminPubkey]
   const encrypted = services.crypto.envelopeEncrypt(
@@ -465,7 +459,7 @@ async function handleFirehoseMessage(
   })
   const encryptedSender = services.crypto.envelopeEncrypt(
     senderInfo,
-    [connection.agentPubkey],
+    [connection.agentPubkey, adminPubkey],
     LABEL_FIREHOSE_BUFFER_ENCRYPT
   )
 
@@ -502,8 +496,10 @@ async function handleFirehoseMessage(
         }),
       })
       .catch((err) => console.error('[nostr] firehose event publish failed:', err))
-  } catch {
-    // Nostr not configured
+  } catch (err) {
+    if (err instanceof Error && !err.message.includes('not configured')) {
+      console.error('[firehose] Unexpected Nostr error:', err)
+    }
   }
 
   // Audit log

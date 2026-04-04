@@ -310,6 +310,11 @@ firehoseRoutes.openapi(updateRoute, async (c) => {
   const { id } = c.req.valid('param')
   const body = c.req.valid('json')
 
+  const existing = await services.firehose.getConnection(id)
+  if (!existing) {
+    return c.json({ error: 'Firehose connection not found' }, 404)
+  }
+
   const row = await services.firehose.updateConnection(id, {
     ...(body.displayName !== undefined && body.encryptedDisplayName === undefined
       ? { displayName: body.displayName.trim() }
@@ -336,6 +341,16 @@ firehoseRoutes.openapi(updateRoute, async (c) => {
 
   if (!row) {
     return c.json({ error: 'Firehose connection not found' }, 404)
+  }
+
+  // Stop/start agent based on status change
+  if (body.status === 'paused' || body.status === 'disabled') {
+    services.firehoseAgent?.stopAgent(id)
+  } else if (body.status === 'active' && existing.status !== 'active') {
+    // Start agent if transitioning to active
+    services.firehoseAgent
+      ?.startAgent(id)
+      .catch((err) => console.error(`[firehose] Failed to start agent ${id}:`, err))
   }
 
   await services.records.addAuditEntry(hubId, 'firehoseConnectionUpdated', pubkey, {
@@ -376,6 +391,9 @@ firehoseRoutes.openapi(deleteRoute, async (c) => {
   if (!existing) {
     return c.json({ error: 'Firehose connection not found' }, 404)
   }
+
+  // Stop running agent if any
+  services.firehoseAgent?.stopAgent(id)
 
   await services.firehose.deleteConnection(id)
   await services.records.addAuditEntry(hubId, 'firehoseConnectionDeleted', pubkey, {
