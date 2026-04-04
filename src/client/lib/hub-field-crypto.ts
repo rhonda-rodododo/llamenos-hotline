@@ -30,18 +30,18 @@ export function decryptHubField(
   placeholder = ''
 ): string {
   if (!encrypted) return placeholder
+  const isDev = import.meta.env.DEV
   const hubKey = getHubKeyForId(hubId)
   if (!hubKey) {
-    // No hub key loaded yet — return the raw value as a fallback.
-    // In E2E tests the server stores plaintext as the "ciphertext", so this
-    // surfaces the readable string instead of an empty placeholder.
-    return encrypted || placeholder
+    // In dev/E2E the server may store plaintext as the "ciphertext"; surface it
+    // so tests remain readable. In production, never leak raw hex to the UI.
+    return isDev ? encrypted || placeholder : placeholder
   }
   const decrypted = decryptFromHub(encrypted as Ciphertext, hubKey)
   // Decryption succeeded → return plaintext.
-  // Decryption failed (e.g. test-inserted plaintext) → surface raw value so
-  // fields remain readable rather than going blank.
-  return decrypted ?? encrypted
+  // Decryption failed → surface raw value in dev (for E2E readability),
+  // placeholder in production to avoid leaking ciphertext.
+  return decrypted ?? (isDev ? encrypted : placeholder)
 }
 
 /**
