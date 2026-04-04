@@ -7,7 +7,9 @@ import {
   type PermissionDomain,
   type PermissionMeta,
   type PermissionOrWildcard,
+  type ScopeLevel,
   type WildcardPermission,
+  getEffectiveScope,
   getPermissionsByDomain,
   hasPermission,
   permissionGranted,
@@ -33,6 +35,32 @@ describe('typed permission catalog', () => {
     for (const [key, meta] of Object.entries(PERMISSION_CATALOG)) {
       if (meta.subgroup === 'scope') {
         expect(key).toMatch(/-(own|assigned|all)$/)
+      }
+    }
+  })
+
+  test('scope permissions have a scope field matching the suffix', () => {
+    for (const [key, meta] of Object.entries(PERMISSION_CATALOG)) {
+      if (meta.subgroup === 'scope') {
+        const suffix = key.match(/-(own|assigned|all)$/)?.[1] as 'own' | 'assigned' | 'all'
+        expect((meta as PermissionMeta).scope).toBe(suffix)
+      }
+    }
+  })
+
+  test('tier permissions have a tier field', () => {
+    for (const [key, meta] of Object.entries(PERMISSION_CATALOG)) {
+      if (meta.subgroup === 'tiers') {
+        expect((meta as PermissionMeta).tier).toBeTruthy()
+      }
+    }
+  })
+
+  test('non-scope/non-tier permissions do NOT have scope or tier fields', () => {
+    for (const [key, meta] of Object.entries(PERMISSION_CATALOG)) {
+      if (meta.subgroup === 'actions') {
+        expect((meta as PermissionMeta).scope).toBeUndefined()
+        expect((meta as PermissionMeta).tier).toBeUndefined()
       }
     }
   })
@@ -80,6 +108,54 @@ describe('scope hierarchy', () => {
   test('non-scoped permissions unaffected', () => {
     expect(permissionGranted(['contacts:create'], 'contacts:create')).toBe(true)
     expect(permissionGranted(['contacts:create'], 'contacts:delete')).toBe(false)
+  })
+})
+
+describe('getEffectiveScope()', () => {
+  test('returns highest scope level from granted permissions', () => {
+    expect(
+      getEffectiveScope(['contacts:read-own', 'contacts:read-assigned'], 'contacts', 'read')
+    ).toBe('assigned')
+  })
+
+  test('returns "all" when read-all is granted', () => {
+    expect(getEffectiveScope(['contacts:read-all'], 'contacts', 'read')).toBe('all')
+  })
+
+  test('returns "own" when only read-own is granted', () => {
+    expect(getEffectiveScope(['contacts:read-own'], 'contacts', 'read')).toBe('own')
+  })
+
+  test('returns null when no matching scope permission exists', () => {
+    expect(getEffectiveScope(['contacts:create', 'notes:read-all'], 'contacts', 'read')).toBeNull()
+  })
+
+  test('handles domain wildcard as "all"', () => {
+    expect(getEffectiveScope(['contacts:*'], 'contacts', 'read')).toBe('all')
+  })
+
+  test('handles global wildcard as "all"', () => {
+    expect(getEffectiveScope(['*'], 'contacts', 'update')).toBe('all')
+  })
+
+  test('scopes are independent per action (read vs update)', () => {
+    const perms = ['contacts:read-all', 'contacts:update-own']
+    expect(getEffectiveScope(perms, 'contacts', 'read')).toBe('all')
+    expect(getEffectiveScope(perms, 'contacts', 'update')).toBe('own')
+  })
+
+  test('scopes are independent per domain', () => {
+    const perms = ['contacts:read-all', 'notes:read-own']
+    expect(getEffectiveScope(perms, 'contacts', 'read')).toBe('all')
+    expect(getEffectiveScope(perms, 'notes', 'read')).toBe('own')
+  })
+
+  test('returns null for empty permissions', () => {
+    expect(getEffectiveScope([], 'contacts', 'read')).toBeNull()
+  })
+
+  test('files:download scope works correctly', () => {
+    expect(getEffectiveScope(['files:download-assigned'], 'files', 'download')).toBe('assigned')
   })
 })
 

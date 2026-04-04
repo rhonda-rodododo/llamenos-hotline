@@ -13,12 +13,16 @@ import type { MessagingAdapter } from '../messaging/adapter'
 import { createRCSAdapter } from '../messaging/rcs/factory'
 import { createSignalAdapter } from '../messaging/signal/factory'
 import { createSMSAdapter } from '../messaging/sms/factory'
+import { createTelegramAdapter } from '../messaging/telegram/factory'
 import { createWhatsAppAdapter } from '../messaging/whatsapp/factory'
 import type { SettingsService } from '../services/settings'
 import type { TelephonyAdapter } from '../telephony/adapter'
 import { AsteriskAdapter } from '../telephony/asterisk'
+import { BandwidthAdapter } from '../telephony/bandwidth'
+import { FreeSwitchAdapter } from '../telephony/freeswitch'
 import { PlivoAdapter } from '../telephony/plivo'
 import { SignalWireAdapter } from '../telephony/signalwire'
+import { TelnyxAdapter } from '../telephony/telnyx'
 import { TwilioAdapter } from '../telephony/twilio'
 import { VonageAdapter } from '../telephony/vonage'
 
@@ -49,7 +53,16 @@ export async function getTelephony(
   }
 
   if (config) {
-    return createAdapterFromConfig(config)
+    try {
+      return createAdapterFromConfig(config)
+    } catch (e) {
+      // Config exists but is incomplete (e.g. type:'twilio' without credentials).
+      // Fall through to env-var / TestAdapter fallback instead of throwing 500.
+      console.warn(
+        '[telephony] DB config invalid, falling through to fallback:',
+        (e as Error).message
+      )
+    }
   }
 
   // Fall back to env vars (Twilio only)
@@ -103,6 +116,10 @@ export async function getMessagingAdapter(
     case 'rcs': {
       if (!config.rcs) throw new Error('RCS is not configured')
       return createRCSAdapter(config.rcs, crypto)
+    }
+    case 'telegram': {
+      if (!config.telegram) throw new Error('Telegram is not configured')
+      return createTelegramAdapter(config.telegram, crypto)
     }
     default:
       throw new Error(`Unknown channel: ${channel}`)
@@ -192,10 +209,42 @@ function createAdapterFromConfig(config: TelephonyProviderConfig): TelephonyAdap
         config.ariPassword // Bridge secret uses ARI password as shared secret
       )
     }
-    case 'telnyx':
-      throw new AppError(
-        501,
-        'Telnyx runtime adapter not yet implemented — use Twilio or another provider for call handling'
+    case 'telnyx': {
+      if (!config.apiKey) throw new AppError(500, 'Telnyx config missing apiKey')
+      return new TelnyxAdapter(config.apiKey, config.texmlAppId ?? '', config.phoneNumber)
+    }
+    case 'bandwidth': {
+      if (!config.accountId || !config.apiToken || !config.apiSecret || !config.applicationId)
+        throw new AppError(
+          500,
+          'Bandwidth config missing accountId, apiToken, apiSecret, or applicationId'
+        )
+      return new BandwidthAdapter(
+        config.accountId,
+        config.apiToken,
+        config.apiSecret,
+        config.applicationId,
+        config.phoneNumber
       )
+    }
+    case 'freeswitch': {
+      if (!config.eslUrl || !config.eslPassword || !config.bridgeCallbackUrl)
+        throw new AppError(
+          500,
+          'FreeSWITCH config missing eslUrl, eslPassword, or bridgeCallbackUrl'
+        )
+      return new FreeSwitchAdapter(
+        config.phoneNumber,
+        config.bridgeCallbackUrl,
+        config.bridgeSecret || config.eslPassword,
+        config.eslUrl // callbackBaseUrl — the app's public URL for mod_httapi callbacks
+      )
+    }
   }
+  // Unreachable for valid TelephonyProviderConfig values, but the DB may store
+  // invalid JSON (e.g. {}). Throw so getTelephony() can fall through to TestAdapter.
+  throw new AppError(
+    500,
+    `Unknown telephony provider type: ${(config as Record<string, unknown>).type ?? 'undefined'}`
+  )
 }

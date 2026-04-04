@@ -16,7 +16,7 @@ export type TelephonyEvent =
   | 'recording-complete'
   | 'voicemail'
 
-export type MessagingChannel = 'sms' | 'whatsapp' | 'signal' | 'rcs'
+export type MessagingChannel = 'sms' | 'whatsapp' | 'signal' | 'rcs' | 'telegram'
 export type MessagingEvent = 'incoming-message' | 'delivery-status'
 
 export type MessagingProvider = 'twilio' | 'signalwire' | 'vonage' | 'plivo' | 'asterisk' | 'meta'
@@ -51,7 +51,7 @@ export interface FactoryResult {
   contentType: string
   /** Headers to include in the simulated webhook POST */
   headers: Record<string, string>
-  /** Webhook path to POST to (e.g. '/api/telephony/incoming') */
+  /** Webhook path to POST to (e.g. '/telephony/incoming') */
   path: string
 }
 
@@ -108,7 +108,7 @@ export function buildAsteriskTelephonyPayload(
         body: JSON.stringify(body),
         contentType: 'application/json',
         headers: {},
-        path: `/api/telephony/incoming${hubQ}`,
+        path: `/telephony/incoming${hubQ}`,
       }
     }
     case 'language-selected': {
@@ -122,7 +122,7 @@ export function buildAsteriskTelephonyPayload(
         body: JSON.stringify(body),
         contentType: 'application/json',
         headers: {},
-        path: `/api/telephony/language-selected${hubQ}`,
+        path: `/telephony/language-selected${hubQ}`,
       }
     }
     case 'captcha-response': {
@@ -137,7 +137,7 @@ export function buildAsteriskTelephonyPayload(
         body: JSON.stringify(body),
         contentType: 'application/json',
         headers: {},
-        path: `/api/telephony/captcha${hubQ}`,
+        path: `/telephony/captcha${hubQ}`,
       }
     }
     case 'answer-call': {
@@ -150,7 +150,7 @@ export function buildAsteriskTelephonyPayload(
         body: JSON.stringify(body),
         contentType: 'application/json',
         headers: {},
-        path: `/api/telephony/user-answer${qp.size ? `?${qp}` : ''}`,
+        path: `/telephony/user-answer${qp.size ? `?${qp}` : ''}`,
       }
     }
     case 'end-call': {
@@ -164,7 +164,7 @@ export function buildAsteriskTelephonyPayload(
         body: JSON.stringify(body),
         contentType: 'application/json',
         headers: {},
-        path: `/api/telephony/call-status${hubQ}`,
+        path: `/telephony/call-status${hubQ}`,
       }
     }
     case 'queue-wait': {
@@ -173,7 +173,7 @@ export function buildAsteriskTelephonyPayload(
         body: JSON.stringify(body),
         contentType: 'application/json',
         headers: {},
-        path: `/api/telephony/wait-music${hubQ}`,
+        path: `/telephony/wait-music${hubQ}`,
       }
     }
     case 'queue-exit': {
@@ -186,7 +186,7 @@ export function buildAsteriskTelephonyPayload(
         body: JSON.stringify(body),
         contentType: 'application/json',
         headers: {},
-        path: `/api/telephony/queue-exit${hubQ}`,
+        path: `/telephony/queue-exit${hubQ}`,
       }
     }
     case 'recording-complete': {
@@ -202,7 +202,7 @@ export function buildAsteriskTelephonyPayload(
         body: JSON.stringify(body),
         contentType: 'application/json',
         headers: {},
-        path: `/api/telephony/call-recording${hubQ}`,
+        path: `/telephony/call-recording${hubQ}`,
       }
     }
     case 'voicemail': {
@@ -218,7 +218,7 @@ export function buildAsteriskTelephonyPayload(
         body: JSON.stringify(body),
         contentType: 'application/json',
         headers: {},
-        path: `/api/telephony/voicemail-recording${hubQ}`,
+        path: `/telephony/voicemail-recording${hubQ}`,
       }
     }
   }
@@ -252,17 +252,17 @@ export function buildTwilioTelephonyPayload(
     case 'incoming-call':
       return form(
         { CallSid: callSid, From: callerNumber, To: calledNumber },
-        `/api/telephony/incoming${sep}${hubQ}`
+        `/telephony/incoming${sep}${hubQ}`
       )
     case 'language-selected':
       return form(
         { CallSid: callSid, From: callerNumber, Digits: params.digits ?? '1' },
-        `/api/telephony/language-selected${sep}${hubQ}`
+        `/telephony/language-selected${sep}${hubQ}`
       )
     case 'captcha-response':
       return form(
         { Digits: params.digits ?? '5', From: callerNumber },
-        `/api/telephony/captcha${sep}${hubQ}`
+        `/telephony/captcha${sep}${hubQ}`
       )
     case 'answer-call': {
       const qp = new URLSearchParams()
@@ -271,33 +271,33 @@ export function buildTwilioTelephonyPayload(
       if (params.hubId) qp.set('hub', params.hubId)
       return form(
         { CallSid: callSid, CallStatus: 'in-progress' },
-        `/api/telephony/user-answer${qp.size ? `?${qp}` : ''}`
+        `/telephony/user-answer${qp.size ? `?${qp}` : ''}`
       )
     }
     case 'end-call':
       return form(
         { CallSid: callSid, CallStatus: params.status ?? 'completed' },
-        `/api/telephony/call-status${sep}${hubQ}`
+        `/telephony/call-status${sep}${hubQ}`
       )
     case 'queue-wait':
-      return form({ QueueTime: '30' }, `/api/telephony/wait-music${sep}${hubQ}`)
+      return form({ QueueTime: '30' }, `/telephony/wait-music${sep}${hubQ}`)
     case 'queue-exit':
       return form(
         { QueueResult: 'bridged', CallSid: callSid },
-        `/api/telephony/queue-exit${sep}${hubQ}`
+        `/telephony/queue-exit${sep}${hubQ}`
       )
     case 'recording-complete': {
       const recordingSid = params.recordingSid ?? `RE${callSid.slice(2)}`
       return form(
         { RecordingStatus: 'completed', RecordingSid: recordingSid, CallSid: callSid },
-        `/api/telephony/call-recording${sep}${hubQ}`
+        `/telephony/call-recording${sep}${hubQ}`
       )
     }
     case 'voicemail': {
       const recordingSid = params.recordingSid ?? `RE${callSid.slice(2)}`
       return form(
         { RecordingStatus: 'completed', RecordingSid: recordingSid, CallSid: callSid },
-        `/api/telephony/voicemail-recording${sep}${hubQ}`
+        `/telephony/voicemail-recording${sep}${hubQ}`
       )
     }
   }
@@ -330,7 +330,7 @@ export function buildVonageTelephonyPayload(
     case 'incoming-call':
       return json(
         { uuid: callSid, conversation_uuid: callSid, from: callerNumber, to: calledNumber },
-        `/api/telephony/incoming${sep}${hubQ}`
+        `/telephony/incoming${sep}${hubQ}`
       )
     case 'language-selected':
       return json(
@@ -340,12 +340,12 @@ export function buildVonageTelephonyPayload(
           from: callerNumber,
           dtmf: { digits: params.digits ?? '1' },
         },
-        `/api/telephony/language-selected${sep}${hubQ}`
+        `/telephony/language-selected${sep}${hubQ}`
       )
     case 'captcha-response':
       return json(
         { from: callerNumber, dtmf: { digits: params.digits ?? '5' } },
-        `/api/telephony/captcha${sep}${hubQ}`
+        `/telephony/captcha${sep}${hubQ}`
       )
     case 'answer-call': {
       const qp = new URLSearchParams()
@@ -354,27 +354,27 @@ export function buildVonageTelephonyPayload(
       if (params.hubId) qp.set('hub', params.hubId)
       return json(
         { uuid: callSid, conversation_uuid: callSid, status: 'answered' },
-        `/api/telephony/user-answer${qp.size ? `?${qp}` : ''}`
+        `/telephony/user-answer${qp.size ? `?${qp}` : ''}`
       )
     }
     case 'end-call':
       return json(
         { uuid: callSid, conversation_uuid: callSid, status: params.status ?? 'completed' },
-        `/api/telephony/call-status${sep}${hubQ}`
+        `/telephony/call-status${sep}${hubQ}`
       )
     case 'queue-wait':
-      return json({ uuid: callSid, duration: 30 }, `/api/telephony/wait-music${sep}${hubQ}`)
+      return json({ uuid: callSid, duration: 30 }, `/telephony/wait-music${sep}${hubQ}`)
     case 'queue-exit':
-      return json({ uuid: callSid, status: 'answered' }, `/api/telephony/queue-exit${sep}${hubQ}`)
+      return json({ uuid: callSid, status: 'answered' }, `/telephony/queue-exit${sep}${hubQ}`)
     case 'recording-complete':
       return json(
         { uuid: callSid, recording_url: `https://api.nexmo.com/media/download?id=${callSid}` },
-        `/api/telephony/call-recording${sep}${hubQ}`
+        `/telephony/call-recording${sep}${hubQ}`
       )
     case 'voicemail':
       return json(
         { uuid: callSid, recording_url: `https://api.nexmo.com/media/download?id=${callSid}` },
-        `/api/telephony/voicemail-recording${sep}${hubQ}`
+        `/telephony/voicemail-recording${sep}${hubQ}`
       )
   }
 }
@@ -406,17 +406,17 @@ export function buildPlivoTelephonyPayload(
     case 'incoming-call':
       return form(
         { CallUUID: callSid, From: callerNumber, To: calledNumber },
-        `/api/telephony/incoming${sep}${hubQ}`
+        `/telephony/incoming${sep}${hubQ}`
       )
     case 'language-selected':
       return form(
         { CallUUID: callSid, From: callerNumber, Digits: params.digits ?? '1' },
-        `/api/telephony/language-selected${sep}${hubQ}`
+        `/telephony/language-selected${sep}${hubQ}`
       )
     case 'captcha-response':
       return form(
         { Digits: params.digits ?? '5', From: callerNumber },
-        `/api/telephony/captcha${sep}${hubQ}`
+        `/telephony/captcha${sep}${hubQ}`
       )
     case 'answer-call': {
       const qp = new URLSearchParams()
@@ -425,20 +425,20 @@ export function buildPlivoTelephonyPayload(
       if (params.hubId) qp.set('hub', params.hubId)
       return form(
         { CallUUID: callSid, CallStatus: 'in-progress' },
-        `/api/telephony/user-answer${qp.size ? `?${qp}` : ''}`
+        `/telephony/user-answer${qp.size ? `?${qp}` : ''}`
       )
     }
     case 'end-call':
       return form(
         { CallUUID: callSid, CallStatus: params.status ?? 'completed' },
-        `/api/telephony/call-status${sep}${hubQ}`
+        `/telephony/call-status${sep}${hubQ}`
       )
     case 'queue-wait':
-      return form({ ConferenceDuration: '30' }, `/api/telephony/wait-music${sep}${hubQ}`)
+      return form({ ConferenceDuration: '30' }, `/telephony/wait-music${sep}${hubQ}`)
     case 'queue-exit':
       return form(
         { ConferenceAction: 'enter', CallUUID: callSid },
-        `/api/telephony/queue-exit${sep}${hubQ}`
+        `/telephony/queue-exit${sep}${hubQ}`
       )
     case 'recording-complete': {
       const recordingId = params.recordingSid ?? `REC_${callSid}`
@@ -448,7 +448,7 @@ export function buildPlivoTelephonyPayload(
           RecordingID: recordingId,
           CallUUID: callSid,
         },
-        `/api/telephony/call-recording${sep}${hubQ}`
+        `/telephony/call-recording${sep}${hubQ}`
       )
     }
     case 'voicemail': {
@@ -459,7 +459,7 @@ export function buildPlivoTelephonyPayload(
           RecordingID: recordingId,
           CallUUID: callSid,
         },
-        `/api/telephony/voicemail-recording${sep}${hubQ}`
+        `/telephony/voicemail-recording${sep}${hubQ}`
       )
     }
   }

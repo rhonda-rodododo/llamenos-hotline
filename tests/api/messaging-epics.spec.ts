@@ -66,6 +66,7 @@ test.describe('Epic 68: Messaging Channel Permissions', () => {
     })
     expect(roleRes.status()).toBe(201)
     const roleBody = await roleRes.json()
+    createdRoleIds.push(roleBody.id)
 
     // Create a user with restricted role
     const restrictedVol = await createUser(setupApi, 'SMSOnly Vol', uniquePhone(), [roleBody.id])
@@ -352,6 +353,7 @@ test.describe('Channel Permission Integration', () => {
     })
     expect(res.status()).toBe(201)
     const body = await res.json()
+    createdRoleIds.push(body.id)
     expect(body.permissions).toContain('conversations:claim-whatsapp')
     expect(body.permissions).toContain('conversations:claim-signal')
     expect(body.permissions).not.toContain('conversations:claim-sms')
@@ -372,6 +374,7 @@ test.describe('Channel Permission Integration', () => {
     })
     expect(res.status()).toBe(201)
     const body = await res.json()
+    createdRoleIds.push(body.id)
     expect(body.permissions).toContain('conversations:claim-any')
   })
 
@@ -404,21 +407,17 @@ test.describe('Channel Permission Integration', () => {
 
 // --- Cleanup ---
 
+// Cleanup runs as the last test in the file. Because fullyParallel is enabled,
+// we track the role IDs we created so we only clean up our own roles (not other
+// parallel tests' roles).
+const createdRoleIds: string[] = []
+
 test.describe('Cleanup test data', () => {
   test('cleanup custom roles created during tests', async ({ request }) => {
     const adminApi = createAuthedRequestFromNsec(request, ADMIN_NSEC)
 
-    const rolesRes = await adminApi.get('/api/settings/roles')
-    expect(rolesRes.status()).toBe(200)
-    const rolesBody = await rolesRes.json()
-
-    // Delete custom roles created by these tests (non-default, non-system roles)
-    const customRoles = rolesBody.roles.filter(
-      (r: { isDefault: boolean; isSystem: boolean }) => !r.isDefault && !r.isSystem
-    )
-
-    for (const role of customRoles) {
-      const deleteRes = await adminApi.delete(`/api/settings/roles/${role.id}`)
+    for (const roleId of createdRoleIds) {
+      const deleteRes = await adminApi.delete(`/api/settings/roles/${roleId}`)
       expect([200, 404]).toContain(deleteRes.status())
     }
   })

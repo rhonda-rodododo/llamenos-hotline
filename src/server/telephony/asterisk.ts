@@ -1,5 +1,5 @@
 import { DEFAULT_LANGUAGE, IVR_LANGUAGES } from '../../shared/languages'
-import { IVR_PROMPTS, getPrompt, getVoicemailThanks } from '../../shared/voice-prompts'
+import { IVR_PROMPTS, getPrompt } from '../../shared/voice-prompts'
 import type {
   AudioUrlMap,
   CallAnsweredParams,
@@ -7,7 +7,6 @@ import type {
   IncomingCallParams,
   LanguageMenuParams,
   RingUsersParams,
-  TelephonyAdapter,
   TelephonyResponse,
   VoicemailParams,
   WebhookCallInfo,
@@ -16,9 +15,8 @@ import type {
   WebhookQueueResult,
   WebhookQueueWait,
   WebhookRecordingStatus,
-  WebhookVerificationResult,
 } from './adapter'
-import { BridgeClient } from './bridge-client'
+import { SipBridgeAdapter } from './sip-bridge-adapter'
 
 /**
  * AsteriskAdapter — communicates with an ARI bridge service that runs
@@ -28,19 +26,19 @@ import { BridgeClient } from './bridge-client'
  * Unlike cloud providers, Asterisk doesn't have a hosted API — the bridge
  * service handles the ARI WebSocket connection and translates between
  * ARI and our webhook format.
+ *
+ * Extends SipBridgeAdapter for shared bridge communication logic.
  */
-export class AsteriskAdapter implements TelephonyAdapter {
-  private bridge: BridgeClient
-
+export class AsteriskAdapter extends SipBridgeAdapter {
   constructor(
     private ariUrl: string,
     private ariUsername: string,
     private ariPassword: string,
-    private phoneNumber: string,
-    private bridgeCallbackUrl: string,
-    private bridgeSecret: string
+    phoneNumber: string,
+    bridgeCallbackUrl: string,
+    bridgeSecret: string
   ) {
-    this.bridge = new BridgeClient(bridgeCallbackUrl, bridgeSecret)
+    super(phoneNumber, bridgeCallbackUrl, bridgeSecret)
   }
 
   // --- JSON command helpers ---
@@ -239,121 +237,6 @@ export class AsteriskAdapter implements TelephonyAdapter {
     return { contentType: 'application/json', body: JSON.stringify({ commands: [] }) }
   }
 
-  // --- Call management (REST calls to ARI bridge) ---
-
-  async hangupCall(callSid: string): Promise<void> {
-    await this.bridge.request('POST', '/commands/hangup', { channelId: callSid })
-  }
-
-  async ringUsers(params: RingUsersParams): Promise<string[]> {
-    const { callSid, callerNumber, volunteers, callbackUrl, hubId } = params
-    const result = await this.bridge.request('POST', '/ring', {
-      parentCallSid: callSid,
-      callerNumber,
-      volunteers: volunteers.map((v) => ({
-        pubkey: v.pubkey,
-        phone: v.phone,
-        browserIdentity: v.browserIdentity,
-      })),
-      callbackUrl,
-      hubId,
-    })
-    return (result as { ok?: boolean; channelIds?: string[] })?.channelIds ?? []
-  }
-
-  async cancelRinging(callSids: string[], exceptSid?: string): Promise<void> {
-    await this.bridge.request('POST', '/commands/cancel-ringing', {
-      callSids,
-      exceptSid,
-    })
-  }
-
-  async getCallRecording(callSid: string): Promise<ArrayBuffer | null> {
-    try {
-      const result = await this.bridge.request('GET', `/recordings/call/${callSid}`)
-      if (result && typeof result === 'object' && 'audio' in result) {
-        // Bridge returns base64-encoded audio
-        const base64 = (result as { audio: string }).audio
-        const binary = atob(base64)
-        const bytes = new Uint8Array(binary.length)
-        for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i)
-        return bytes.buffer
-      }
-      return null
-    } catch {
-      return null
-    }
-  }
-
-  async getRecordingAudio(recordingSid: string): Promise<ArrayBuffer | null> {
-    try {
-      const result = await this.bridge.request('GET', `/recordings/${recordingSid}`)
-      if (result && typeof result === 'object' && 'audio' in result) {
-        const base64 = (result as { audio: string }).audio
-        const binary = atob(base64)
-        const bytes = new Uint8Array(binary.length)
-        for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i)
-        return bytes.buffer
-      }
-      return null
-    } catch {
-      return null
-    }
-  }
-
-  async deleteRecording(recordingSid: string): Promise<void> {
-    try {
-      await this.bridge.request('DELETE', `/recordings/${recordingSid}`)
-    } catch (err) {
-      console.error('[asterisk] Failed to delete recording:', err)
-    }
-  }
-
-  // --- Webhook validation ---
-
-  async validateWebhook(request: Request): Promise<boolean> {
-    const signature = request.headers.get('X-Bridge-Signature')
-    if (!signature) return false
-
-    const body = await request.clone().text()
-    const timestamp = request.headers.get('X-Bridge-Timestamp') || ''
-
-    // Reject webhooks with timestamps older than 5 minutes (replay protection)
-    const tsSeconds = Number.parseInt(timestamp, 10)
-    if (Number.isNaN(tsSeconds) || Math.abs(Date.now() / 1000 - tsSeconds) > 300) {
-      return false
-    }
-
-    const payload = `${timestamp}.${body}`
-
-    const key = await crypto.subtle.importKey(
-      'raw',
-      new TextEncoder().encode(this.bridgeSecret) as Uint8Array<ArrayBuffer>,
-      { name: 'HMAC', hash: 'SHA-256' },
-      false,
-      ['sign']
-    )
-    const sig = await crypto.subtle.sign(
-      'HMAC',
-      key,
-      new TextEncoder().encode(payload) as Uint8Array<ArrayBuffer>
-    )
-    const expectedSig = Array.from(new Uint8Array(sig))
-      .map((b) => b.toString(16).padStart(2, '0'))
-      .join('')
-
-    // Constant-time comparison to prevent timing attacks
-    if (signature.length !== expectedSig.length) return false
-    const encoder = new TextEncoder()
-    const aBuf = encoder.encode(signature)
-    const bBuf = encoder.encode(expectedSig)
-    let result = 0
-    for (let i = 0; i < aBuf.length; i++) {
-      result |= aBuf[i] ^ bBuf[i]
-    }
-    return result === 0
-  }
-
   // --- Webhook parsing (JSON payloads from ARI bridge) ---
 
   async parseIncomingWebhook(request: Request): Promise<WebhookCallInfo> {
@@ -406,7 +289,7 @@ export class AsteriskAdapter implements TelephonyAdapter {
     }
   }
 
-  async testConnection() {
+  override async testConnection() {
     const { asteriskCapabilities } = await import('./asterisk-capabilities')
     return asteriskCapabilities.testConnection({
       type: 'asterisk',
@@ -416,15 +299,6 @@ export class AsteriskAdapter implements TelephonyAdapter {
       ariPassword: this.ariPassword,
       bridgeCallbackUrl: this.bridgeCallbackUrl,
     } as Parameters<typeof asteriskCapabilities.testConnection>[0])
-  }
-
-  async verifyWebhookConfig(
-    _phoneNumber: string,
-    _expectedBaseUrl: string
-  ): Promise<WebhookVerificationResult> {
-    // Asterisk is self-hosted — we control the dialplan directly.
-    // No external webhook configuration to verify.
-    return { configured: true }
   }
 }
 

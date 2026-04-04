@@ -25,7 +25,7 @@ export const Route = createFileRoute('/audit')({
 const EVENT_CATEGORIES = [
   { value: 'all', labelKey: 'auditLog.allEvents' },
   { value: 'authentication', labelKey: 'auditLog.categoryAuth' },
-  { value: 'volunteers', labelKey: 'auditLog.categoryVolunteers' },
+  { value: 'users', labelKey: 'auditLog.categoryUsers' },
   { value: 'calls', labelKey: 'auditLog.categoryCalls' },
   { value: 'settings', labelKey: 'auditLog.categorySettings' },
   { value: 'shifts', labelKey: 'auditLog.categoryShifts' },
@@ -41,14 +41,14 @@ function getEventCategoryColor(event: string): string {
     'passkeyRegistered',
     'deviceLinked',
   ]
-  const volEvents = [
-    'volunteerAdded',
-    'volunteerRemoved',
-    'volunteerRoleChanged',
-    'volunteerActivated',
-    'volunteerDeactivated',
-    'volunteerOnBreak',
-    'volunteerOffBreak',
+  const userEvents = [
+    'userAdded',
+    'userRemoved',
+    'userRoleChanged',
+    'userActivated',
+    'userDeactivated',
+    'userOnBreak',
+    'userOffBreak',
     'inviteCreated',
     'inviteRedeemed',
   ]
@@ -72,7 +72,7 @@ function getEventCategoryColor(event: string): string {
 
   if (authEvents.includes(event))
     return 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300'
-  if (volEvents.includes(event))
+  if (userEvents.includes(event))
     return 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300'
   if (callEvents.includes(event))
     return 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'

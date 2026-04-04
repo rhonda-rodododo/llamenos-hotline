@@ -62,7 +62,7 @@ export class ConversationService {
     const id = crypto.randomUUID()
     const now = new Date()
 
-    // E2EE encrypt contactLast4 for assigned volunteer + admin pubkeys
+    // E2EE encrypt contactLast4 for assigned user + admin pubkeys
     let encryptedContactFields: Record<string, unknown> = {}
     if (data.contactLast4) {
       const adminPubkeys = (await this.#getSuperAdminPubkeys()).filter(isValidPubkey)

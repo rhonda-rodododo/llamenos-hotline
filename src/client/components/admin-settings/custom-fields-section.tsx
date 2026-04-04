@@ -12,8 +12,7 @@ import {
 } from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
 import { type CustomFieldDefinition, updateCustomFields } from '@/lib/api'
-import { useConfig } from '@/lib/config'
-import { decryptHubField } from '@/lib/hub-field-crypto'
+
 import { queryKeys } from '@/lib/queries/keys'
 import { queryClient } from '@/lib/query-client'
 import { useToast } from '@/lib/toast'
@@ -39,8 +38,6 @@ export function CustomFieldsSection({
 }: Props) {
   const { t } = useTranslation()
   const { toast } = useToast()
-  const { currentHubId } = useConfig()
-  const hubId = currentHubId ?? 'global'
   const [editing, setEditing] = useState<Partial<CustomFieldDefinition> | null>(null)
   const [saving, setSaving] = useState(false)
 
@@ -147,9 +144,7 @@ export function CustomFieldsSection({
                 </Button>
               </div>
               <div className="flex-1 space-y-0.5">
-                <p className="text-sm font-medium">
-                  {decryptHubField(field.encryptedLabel, hubId, field.label)}
-                </p>
+                <p className="text-sm font-medium">{field.label}</p>
                 <div className="flex items-center gap-2">
                   <Badge variant="outline" className="text-[10px]">
                     {t(`customFields.types.${field.type}`)}

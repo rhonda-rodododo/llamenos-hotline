@@ -14,6 +14,7 @@
 import { bytesToHex, hexToBytes } from '@noble/hashes/utils.js'
 import { type UserInfo, authFacadeClient } from './auth-facade-client'
 import { cryptoWorker } from './crypto-worker-client'
+import { createDebugLog } from './debug-log'
 import {
   type EncryptedKeyDataV2,
   type KEKFactors,
@@ -28,6 +29,8 @@ import {
   storeEncryptedKeyV2,
   syntheticIdpValue,
 } from './key-store-v2'
+
+const log = createDebugLog('key-manager')
 
 // --- Auto-lock ---
 let idleTimer: ReturnType<typeof setTimeout> | null = null
@@ -191,12 +194,12 @@ export async function unlock(pin: string): Promise<string | null> {
     // If no access token is available, try refreshing from the httpOnly cookie first.
     userInfo = await authFacadeClient.getUserInfo()
     if (!userInfo) {
-      console.log('[key-manager] getUserInfo failed, attempting token refresh...')
+      log('getUserInfo failed, attempting token refresh...')
       try {
         const refreshResult = await authFacadeClient.refreshToken()
-        console.log('[key-manager] refresh succeeded:', !!refreshResult)
+        log('refresh succeeded:', !!refreshResult)
         userInfo = await authFacadeClient.getUserInfo()
-        console.log('[key-manager] getUserInfo after refresh:', !!userInfo)
+        log('getUserInfo after refresh:', !!userInfo)
       } catch (err) {
         console.error('[key-manager] refresh failed:', (err as Error)?.message)
       }

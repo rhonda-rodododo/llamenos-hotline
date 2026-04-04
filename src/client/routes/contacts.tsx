@@ -26,7 +26,7 @@ import {
 } from '@/components/ui/select'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useConfig } from '@/lib/config'
-import { decryptHubField } from '@/lib/hub-field-crypto'
+
 import { useBulkDeleteContacts, useBulkUpdateContacts, useContacts } from '@/lib/queries/contacts'
 import { useAssignTeamContacts, useTeamContacts, useTeams } from '@/lib/queries/teams'
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
@@ -283,7 +283,7 @@ function ContactDirectoryPage() {
                     </SelectItem>
                     {teams.map((team) => (
                       <SelectItem key={team.id} value={team.id}>
-                        {decryptHubField(team.encryptedName, hubId, '[encrypted]')}
+                        {team.name || '[encrypted]'}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -471,7 +471,7 @@ function BulkActionToolbar({
   isPending,
 }: {
   selectedCount: number
-  teams: Array<{ id: string; encryptedName?: string }>
+  teams: Array<{ id: string; name?: string; encryptedName?: string }>
   hubId: string
   onTag: (tags: string[]) => void
   onRiskLevel: (level: string) => void
@@ -571,7 +571,7 @@ function BulkActionToolbar({
                   className="justify-start"
                   onClick={() => onAssignTeam(team.id)}
                 >
-                  {decryptHubField(team.encryptedName, hubId, '[encrypted]')}
+                  {team.name || '[encrypted]'}
                 </Button>
               ))}
             </div>

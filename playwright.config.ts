@@ -44,7 +44,7 @@ export default defineConfig({
       testMatch: /api-global-setup\.ts/,
       timeout: 60_000,
       use: { trace: "off" },
-      dependencies: ["setup"],
+      // Independent of UI setup — API tests create their own test users via helpers.
     },
     {
       // API integration tests — no browser, request fixture only.

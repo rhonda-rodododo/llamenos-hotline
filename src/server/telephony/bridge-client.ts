@@ -1,5 +1,5 @@
 /**
- * HMAC-authenticated HTTP client for the asterisk-bridge.
+ * HMAC-authenticated HTTP client for the sip-bridge.
  * Shared by AsteriskAdapter (call management) and AsteriskProvisioner (endpoint lifecycle).
  */
 export class BridgeClient {

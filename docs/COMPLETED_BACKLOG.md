@@ -1,5 +1,19 @@
 # Completed Backlog
 
+## 2026-04-03: SIP Bridge Refactor (`audit/comprehensive-review` branch)
+
+- [x] Renamed `asterisk-bridge/` to `sip-bridge/` — unified bridge for Asterisk ARI, FreeSWITCH ESL, Kamailio JSONRPC
+- [x] `BridgeClient` interface in `sip-bridge/src/bridge-client.ts` — common protocol abstraction
+- [x] `AriClient` extracted to `sip-bridge/src/clients/ari-client.ts` implementing `BridgeClient`
+- [x] `EslClient` added in `sip-bridge/src/clients/esl-client.ts` (FreeSWITCH ESL TCP)
+- [x] `KamailioClient` added in `sip-bridge/src/clients/kamailio-client.ts` (JSONRPC HTTP, management only)
+- [x] Unified entry point in `sip-bridge/src/index.ts` — PBX backend selected via `PBX_TYPE` env var
+- [x] Renamed `src/shared/schemas/external/asterisk-bridge.ts` to `sip-bridge.ts`, updated all imports
+- [x] `SipBridgeAdapter` base class extracted for shared telephony adapter logic (Asterisk, FreeSWITCH, Kamailio)
+- [x] All CI, Docker, Ansible, Helm configs updated from `asterisk-bridge` to `sip-bridge`
+- [x] All 121 codebase references updated — code, tests, schemas, configs, docs
+- [x] `sip-bridge/README.md` created with architecture table, config reference, project structure
+
 ## 2026-03-29: React Query Refactor (`feat/react-query-refactor` worktree)
 
 - [x] Replace all useState/useEffect fetch patterns with @tanstack/react-query across ~15 routes
@@ -341,7 +355,7 @@ All Phase 3 items verified already implemented — no code changes required:
 - [x] `templates/` — deployment-app, service-app, ingress, secret, pvc-app, deployment-minio, deployment-whisper, serviceaccount, NOTES.txt, _helpers.tpl
 
 ### CI/CD
-- [x] `.github/workflows/docker.yml` — Build + push to GHCR on tag push (app + asterisk-bridge images)
+- [x] `.github/workflows/docker.yml` — Build + push to GHCR on tag push (app + sip-bridge images)
 
 ### New Dependencies
 - @hono/node-server, @hono/node-ws, better-sqlite3, @aws-sdk/client-s3, ws, esbuild
@@ -433,7 +447,7 @@ All Phase 3 items verified already implemented — no code changes required:
 - `src/worker/telephony/adapter.ts`, `twilio.ts`, `vonage.ts`, `plivo.ts`, `asterisk.ts`
 - `src/client/lib/crypto.ts`, `backup.ts`, `api.ts`
 - `src/client/routes/onboarding.tsx`
-- `asterisk-bridge/src/index.ts`
+- `sip-bridge/src/index.ts`
 
 ## 2026-02-17: Epics 48–52 — UI/UX Design Overhaul with Teal Brand Identity
 
@@ -603,7 +617,7 @@ All Phase 3 items verified already implemented — no code changes required:
 - [x] Maps IVR/CAPTCHA/recording/voicemail flows to ARI commands (speak, play, gather, queue, bridge, record, hangup)
 - [x] HMAC-SHA256 webhook validation between bridge and Worker
 - [x] Channel state mapping (ARI states → agnostic statuses)
-- [x] ARI bridge service (`asterisk-bridge/`) — 2,200+ lines, zero runtime dependencies
+- [x] ARI bridge service (`sip-bridge/`) — 2,200+ lines, zero runtime dependencies
   - [x] ARI WebSocket client with reconnection and exponential backoff
   - [x] ARI REST client for channel/bridge/recording/playback operations
   - [x] Webhook sender with HMAC-SHA256 signing (Twilio-compatible form-urlencoded format)

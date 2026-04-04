@@ -2,13 +2,13 @@
 
 ## Problem
 
-The `asterisk-bridge` service connects Asterisk ARI to the CF Worker via webhooks, but it does not configure the Asterisk PJSIP SIP trunk at startup. Operators must manually edit `asterisk-bridge/asterisk-config/pjsip.conf` with `YOUR_SIP_USERNAME`, `YOUR_SIP_PASSWORD`, `YOUR_SIP_PROVIDER`, and `YOUR_SIP_PROVIDER_IP` placeholder values before the trunk will register with the upstream SIP provider. This manual step is error-prone, blocks automated deployments, and requires operators to understand Asterisk configuration syntax.
+The `sip-bridge` service connects Asterisk ARI to the CF Worker via webhooks, but it does not configure the Asterisk PJSIP SIP trunk at startup. Operators must manually edit `sip-bridge/asterisk-config/pjsip.conf` with `YOUR_SIP_USERNAME`, `YOUR_SIP_PASSWORD`, `YOUR_SIP_PROVIDER`, and `YOUR_SIP_PROVIDER_IP` placeholder values before the trunk will register with the upstream SIP provider. This manual step is error-prone, blocks automated deployments, and requires operators to understand Asterisk configuration syntax.
 
 The static `pjsip.conf` also means changing SIP credentials requires editing a config file inside the Docker image's bind-mounted volume — an operation that is easy to miss or get wrong during redeployment, and that cannot be driven from environment variables alone.
 
 ## Solution
 
-When `asterisk-bridge` starts and SIP credentials are present in the environment (`SIP_PROVIDER`, `SIP_USERNAME`, `SIP_PASSWORD`), it automatically configures the PJSIP trunk via Asterisk's ARI dynamic configuration REST API, then reloads the `res_pjsip` module. The operation is idempotent — safe to run on every restart because ARI's `PUT` config API creates-or-replaces config objects. On failure, the bridge logs an error and continues; Asterisk may already be correctly configured from a previous run or from static config.
+When `sip-bridge` starts and SIP credentials are present in the environment (`SIP_PROVIDER`, `SIP_USERNAME`, `SIP_PASSWORD`), it automatically configures the PJSIP trunk via Asterisk's ARI dynamic configuration REST API, then reloads the `res_pjsip` module. The operation is idempotent — safe to run on every restart because ARI's `PUT` config API creates-or-replaces config objects. On failure, the bridge logs an error and continues; Asterisk may already be correctly configured from a previous run or from static config.
 
 The static `pjsip.conf` is simplified to contain only transport-level stanzas (`transport-udp`, `transport-tcp`), which are infrastructure that does not change per-deployment. All trunk, auth, AOR, and registration objects are managed dynamically.
 
@@ -26,7 +26,7 @@ The static `pjsip.conf` is simplified to contain only transport-level stanzas (`
                       │              │ ARI REST +    │
                       │              │ WebSocket     │
                       │   ┌──────────▼──────────┐   │
-                      │   │  asterisk-bridge    │   │
+                      │   │  sip-bridge    │   │
                       │   │  (Bun service)      │   │
                       │   │                     │   │
                       │   │  ① startup:         │   │
@@ -70,7 +70,7 @@ PUT /ari/asterisk/modules/res_pjsip.so
 
 ## Implementation
 
-### New file: `asterisk-bridge/src/pjsip-configurator.ts`
+### New file: `sip-bridge/src/pjsip-configurator.ts`
 
 `PjsipConfigurator` class. Takes `AriClient` in its constructor. Single public method:
 
@@ -87,7 +87,7 @@ Steps:
 
 Each step logs `[pjsip] Configuring {objectType}/{id}...` and `[pjsip] Reloading res_pjsip.so...`. Throws on any HTTP error (4xx/5xx from ARI).
 
-### Modified: `asterisk-bridge/src/ari-client.ts`
+### Modified: `sip-bridge/src/ari-client.ts`
 
 Add two public methods that delegate to the existing `private request<T>()`:
 
@@ -106,7 +106,7 @@ async reloadModule(moduleName: string): Promise<void>
 
 `reloadModule` calls `PUT /asterisk/modules/{moduleName}` with no body.
 
-### Modified: `asterisk-bridge/src/types.ts`
+### Modified: `sip-bridge/src/types.ts`
 
 Add optional SIP fields to `BridgeConfig`:
 
@@ -119,7 +119,7 @@ sipUsername?: string
 sipPassword?: string
 ```
 
-### Modified: `asterisk-bridge/src/index.ts`
+### Modified: `sip-bridge/src/index.ts`
 
 In `loadConfig()`: read `SIP_PROVIDER`, `SIP_USERNAME`, `SIP_PASSWORD` as optional (no error if absent).
 
@@ -144,13 +144,13 @@ sipConfigured: boolean   // true if configure() completed without throwing
 sipConfigSkipped: boolean  // true if SIP env vars were absent
 ```
 
-### Modified: `asterisk-bridge/asterisk-config/pjsip.conf`
+### Modified: `sip-bridge/asterisk-config/pjsip.conf`
 
 Remove all `[trunk]`, `[trunk-auth]`, `[trunk-reg]`, and provider-specific stanzas. Keep only:
 
 ```ini
 ; Transport stanzas — static infrastructure, managed by config file.
-; Trunk/auth/aor/registration are managed dynamically by asterisk-bridge
+; Trunk/auth/aor/registration are managed dynamically by sip-bridge
 ; at startup via the ARI dynamic config API.
 
 [transport-udp]
@@ -166,7 +166,7 @@ bind=0.0.0.0
 
 ### Modified: `deploy/docker/docker-compose.yml`
 
-Add to `asterisk-bridge` environment:
+Add to `sip-bridge` environment:
 
 ```yaml
 - ARI_REST_URL=http://asterisk:8088/ari
@@ -184,7 +184,7 @@ Add a new SIP trunk section with comments:
 
 ```yaml
 # ─── SIP Trunk (Asterisk auto-config) ───────────────────────
-# If set, asterisk-bridge will configure the PJSIP trunk at startup
+# If set, sip-bridge will configure the PJSIP trunk at startup
 # via the ARI dynamic config API. Leave blank to manage pjsip.conf manually.
 sip_provider: ""        # e.g. sip.twilio.com or your SIP provider hostname — OPTIONAL
 sip_username: ""        # SIP account username — OPTIONAL
@@ -200,18 +200,18 @@ Pass new env vars to docker-compose via the env file or inline environment block
 
 | File | Action |
 |------|--------|
-| `asterisk-bridge/src/pjsip-configurator.ts` | Create |
-| `asterisk-bridge/src/ari-client.ts` | Modify — add `configureDynamic`, `reloadModule` |
-| `asterisk-bridge/src/types.ts` | Modify — add SIP fields to `BridgeConfig` |
-| `asterisk-bridge/src/index.ts` | Modify — read SIP env, call configurator on startup |
-| `asterisk-bridge/asterisk-config/pjsip.conf` | Modify — strip trunk stanzas, keep transports only |
+| `sip-bridge/src/pjsip-configurator.ts` | Create |
+| `sip-bridge/src/ari-client.ts` | Modify — add `configureDynamic`, `reloadModule` |
+| `sip-bridge/src/types.ts` | Modify — add SIP fields to `BridgeConfig` |
+| `sip-bridge/src/index.ts` | Modify — read SIP env, call configurator on startup |
+| `sip-bridge/asterisk-config/pjsip.conf` | Modify — strip trunk stanzas, keep transports only |
 | `deploy/docker/docker-compose.yml` | Modify — add `ARI_REST_URL` and SIP env vars |
 | `deploy/ansible/vars.example.yml` | Modify — add SIP trunk section |
 | `deploy/ansible/roles/llamenos/tasks/main.yml` | Modify — pass new env vars |
 
 ## Dependencies
 
-None. This epic touches only the `asterisk-bridge` standalone service and deployment config.
+None. This epic touches only the `sip-bridge` standalone service and deployment config.
 
 ## Testing
 

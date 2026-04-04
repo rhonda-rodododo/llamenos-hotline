@@ -271,6 +271,7 @@ jobs:
           docker compose
           -f deploy/docker/docker-compose.yml
           -f deploy/docker/docker-compose.ci.yml
+          --profile signal
           up -d
         env:
           PG_PASSWORD: llamenos
@@ -291,6 +292,13 @@ jobs:
           for i in $(seq 1 60); do
             curl -sf http://localhost:9100/-/health/ready/ && break
             sleep 5
+          done
+
+      - name: Wait for Signal bridge
+        run: |
+          for i in $(seq 1 30); do
+            docker exec llamenos-signal-cli-1 curl -sf http://localhost:8080/v1/about 2>/dev/null && break || true
+            sleep 2
           done
 
       - uses: ./.github/actions/start-test-infra
@@ -332,6 +340,11 @@ jobs:
         env:
           PLAYWRIGHT_BASE_URL: http://localhost:3000
           JWT_SECRET: ${{ env.TEST_JWT_SECRET }}
+          TEST_ASTERISK_BRIDGE: '1'
+          ASTERISK_BRIDGE_URL: http://localhost:3001
+          ASTERISK_BRIDGE_SECRET: dev-bridge-secret
+          ASTERISK_DOMAIN: localhost
+          ASTERISK_WSS_PORT: '8090'
         run: bunx playwright test --project=api-setup --project=api --workers=6
 
       - name: API test report
@@ -374,6 +387,7 @@ jobs:
           docker compose
           -f deploy/docker/docker-compose.yml
           -f deploy/docker/docker-compose.ci.yml
+          --profile signal
           up -d
         env:
           PG_PASSWORD: llamenos
@@ -394,6 +408,13 @@ jobs:
           for i in $(seq 1 60); do
             curl -sf http://localhost:9100/-/health/ready/ && break
             sleep 5
+          done
+
+      - name: Wait for Signal bridge
+        run: |
+          for i in $(seq 1 30); do
+            docker exec llamenos-signal-cli-1 curl -sf http://localhost:8080/v1/about 2>/dev/null && break || true
+            sleep 2
           done
 
       - uses: ./.github/actions/start-test-infra

@@ -7,7 +7,7 @@
 
 ## Overview
 
-Volunteers using a self-hosted SIP telephony provider (Asterisk, FreeSWITCH, etc.) can answer calls directly in the browser via WebRTC. The client uses **JsSIP** for SIP signaling over WSS; the browser's native `RTCPeerConnection` handles DTLS-SRTP encrypted media. Server-side endpoint provisioning flows through the asterisk-bridge (or equivalent) to maintain centralized ARI access.
+Volunteers using a self-hosted SIP telephony provider (Asterisk, FreeSWITCH, etc.) can answer calls directly in the browser via WebRTC. The client uses **JsSIP** for SIP signaling over WSS; the browser's native `RTCPeerConnection` handles DTLS-SRTP encrypted media. Server-side endpoint provisioning flows through the sip-bridge (or equivalent) to maintain centralized ARI access.
 
 This spec implements the `SipWebRTCAdapter` referenced as "separate spec" in the [Browser Calling design](2026-03-24-web-push-browser-calling-design.md). It plugs into the same `WebRTCAdapter` interface and `WebRTCManager` state machine used by Twilio/Vonage/Plivo adapters.
 
@@ -57,7 +57,7 @@ Legend:
 
 ### Key Principle: Bridge Is Not in the Audio/Signaling Path
 
-The asterisk-bridge has two roles:
+The sip-bridge has two roles:
 1. **Runtime event relay** — translates ARI WebSocket events into HTTP webhooks (existing, unchanged)
 2. **Configuration commands** — provisions/deprovisions PJSIP endpoints via ARI REST (new)
 
@@ -387,7 +387,7 @@ case 'asterisk':
 
 ### New Command Routes
 
-In `asterisk-bridge/src/command-handler.ts`:
+In `sip-bridge/src/command-handler.ts`:
 
 **`POST /commands/provision-endpoint`**
 - Body: `{ pubkey: string }`
@@ -422,7 +422,7 @@ The existing `PjsipConfigurator` reloads `res_pjsip.so` after trunk provisioning
 
 ### ARI Client Addition
 
-In `asterisk-bridge/src/ari-client.ts`, add one method:
+In `sip-bridge/src/ari-client.ts`, add one method:
 
 ```typescript
 /** Delete a dynamic config object via ARI */
@@ -438,7 +438,7 @@ async deleteDynamic(
 
 ### Asterisk Configuration Changes
 
-**`asterisk-bridge/asterisk-config/pjsip.conf`** — add WSS transport:
+**`sip-bridge/asterisk-config/pjsip.conf`** — add WSS transport:
 
 ```ini
 ; ----------------------------------------------------------
@@ -450,7 +450,7 @@ protocol = wss
 bind = 0.0.0.0:8089
 ```
 
-**`asterisk-bridge/asterisk-config/http.conf`** — enable Asterisk HTTP/WebSocket server:
+**`sip-bridge/asterisk-config/http.conf`** — enable Asterisk HTTP/WebSocket server:
 
 ```ini
 [general]
@@ -464,7 +464,7 @@ tlscertfile = /etc/asterisk/keys/asterisk.pem
 tlsprivatekey = /etc/asterisk/keys/asterisk.key
 ```
 
-**`asterisk-bridge/asterisk-config/extensions.conf`** — volunteer context:
+**`sip-bridge/asterisk-config/extensions.conf`** — volunteer context:
 
 ```ini
 [volunteers]
@@ -584,7 +584,7 @@ The browser leg's ARI channel has `endpoint: PJSIP/vol_xxx` — the bridge inclu
 - ICE servers constructed from env vars (STUN always, TURN when configured)
 - `checkEndpoint()` returns `true`/`false` based on bridge response
 
-**`asterisk-bridge/src/command-handler.test.ts`** (bridge-side)
+**`sip-bridge/src/command-handler.test.ts`** (bridge-side)
 - `provision-endpoint`: mock ARI REST, verify 3 `configureDynamic` calls (no `reloadModule` — see reload guidance above)
 - `deprovision-endpoint`: mock ARI REST, verify 3 `deleteDynamic` calls (no `reloadModule`)
 - `check-endpoint`: mock ARI REST, verify GET request
@@ -638,11 +638,11 @@ This is a **blocking prerequisite** — WSS will not work without valid TLS. Mus
 - `src/client/lib/webrtc/manager.ts` — add `'asterisk'`/`'freeswitch'`/`'kamailio'`/`'sip'` cases to `createAdapter()`
 - `src/server/telephony/webrtc-tokens.ts` — replace Asterisk throw with provisioner + token generation; add `isWebRtcConfigured` for Asterisk
 - `src/server/telephony/asterisk.ts` — use `BridgeClient` instead of inline `bridgeRequest()`; extend `ringVolunteers` to include browser endpoints
-- `asterisk-bridge/src/command-handler.ts` — add `provision-endpoint`, `deprovision-endpoint`, `check-endpoint` commands
-- `asterisk-bridge/src/ari-client.ts` — add `deleteDynamic()` method
-- `asterisk-bridge/asterisk-config/pjsip.conf` — add `[transport-wss]`
-- `asterisk-bridge/asterisk-config/http.conf` — enable TLS/WSS listener
-- `asterisk-bridge/asterisk-config/extensions.conf` — add `[volunteers]` context
+- `sip-bridge/src/command-handler.ts` — add `provision-endpoint`, `deprovision-endpoint`, `check-endpoint` commands
+- `sip-bridge/src/ari-client.ts` — add `deleteDynamic()` method
+- `sip-bridge/asterisk-config/pjsip.conf` — add `[transport-wss]`
+- `sip-bridge/asterisk-config/http.conf` — enable TLS/WSS listener
+- `sip-bridge/asterisk-config/extensions.conf` — add `[volunteers]` context
 - `docker-compose.dev.yml` — expose port 8089 from Asterisk container
 - `deploy/ansible/demo_vars.example.yml` — add WSS/STUN/TURN env vars
 - `.env.example` — add `STUN_SERVER`, `TURN_SERVER`, `TURN_USERNAME`, `TURN_CREDENTIAL`

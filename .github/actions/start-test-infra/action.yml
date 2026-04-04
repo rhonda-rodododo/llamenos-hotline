@@ -8,11 +8,11 @@ runs:
       shell: bash
       run: |
         docker run -d --name asterisk \
-          -v ${{ github.workspace }}/asterisk-bridge/asterisk-config/ari.conf:/etc/asterisk/ari.conf:ro \
-          -v ${{ github.workspace }}/asterisk-bridge/asterisk-config/http.conf:/etc/asterisk/http.conf:ro \
-          -v ${{ github.workspace }}/asterisk-bridge/asterisk-config/pjsip.conf:/etc/asterisk/pjsip.conf:ro \
-          -v ${{ github.workspace }}/asterisk-bridge/asterisk-config/extensions.conf:/etc/asterisk/extensions.conf:ro \
-          -v ${{ github.workspace }}/asterisk-bridge/asterisk-config/sorcery.conf:/etc/asterisk/sorcery.conf:ro \
+          -v ${{ github.workspace }}/sip-bridge/asterisk-config/ari.conf:/etc/asterisk/ari.conf:ro \
+          -v ${{ github.workspace }}/sip-bridge/asterisk-config/http.conf:/etc/asterisk/http.conf:ro \
+          -v ${{ github.workspace }}/sip-bridge/asterisk-config/pjsip.conf:/etc/asterisk/pjsip.conf:ro \
+          -v ${{ github.workspace }}/sip-bridge/asterisk-config/extensions.conf:/etc/asterisk/extensions.conf:ro \
+          -v ${{ github.workspace }}/sip-bridge/asterisk-config/sorcery.conf:/etc/asterisk/sorcery.conf:ro \
           -p 8088:8088 \
           andrius/asterisk@sha256:e30df5ec1b512827bf3cffc49b8000b07376a05c950736d028348eba80035015
         for i in $(seq 1 30); do
@@ -23,7 +23,7 @@ runs:
     - name: Start Asterisk Bridge
       shell: bash
       run: |
-        cd asterisk-bridge && bun install --frozen-lockfile
+        cd sip-bridge && bun install --frozen-lockfile
         ARI_URL=ws://localhost:8088/ari/events \
         ARI_REST_URL=http://localhost:8088/ari \
         ARI_USERNAME=llamenos \

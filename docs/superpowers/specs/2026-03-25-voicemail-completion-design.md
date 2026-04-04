@@ -67,7 +67,7 @@ Implemented per adapter:
 - **SignalWire:** Same as Twilio (API-compatible)
 - **Plivo:** DELETE `https://api.plivo.com/v1/Account/{authId}/Recording/{recordingId}/`
 - **Vonage:** DELETE `https://api.nexmo.com/v3/media/{id}` via the Vonage Media API. Note: Vonage stores `recording_url` (a full download URL) rather than a discrete recording SID. The media `:id` must be extracted from the recording URL or looked up via `GET https://api.nexmo.com/v3/media/` with the account filter. Auth via JWT or Basic (API key:secret).
-- **Asterisk:** DELETE `http://asterisk-bridge/recordings/{recordingName}` (new bridge endpoint, see Phase 3)
+- **Asterisk:** DELETE `http://sip-bridge/recordings/{recordingName}` (new bridge endpoint, see Phase 3)
 - **TestAdapter:** No-op, tracks deletion in test state
 
 **Configurable limits** (additions to `call_settings`):
@@ -234,7 +234,7 @@ Uses the existing `push_subscriptions` table and Web Push infrastructure:
 
 ### 3.4 Asterisk Bridge Recording Endpoint
 
-The asterisk-bridge needs two new HTTP endpoints:
+The sip-bridge needs two new HTTP endpoints:
 
 - `GET /recordings/:recordingName` — returns raw audio from Asterisk's ARI recording storage
 - `DELETE /recordings/:recordingName` — deletes recording after app server has encrypted and stored it

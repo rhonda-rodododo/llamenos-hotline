@@ -3,6 +3,7 @@ import type { CryptoService } from '../../lib/crypto-service'
 import type { MessagingAdapter } from '../adapter'
 import { PlivoSMSAdapter } from './plivo'
 import { SignalWireSMSAdapter } from './signalwire'
+import { TelnyxSMSAdapter } from './telnyx'
 import { TwilioSMSAdapter } from './twilio'
 import { VonageSMSAdapter } from './vonage'
 
@@ -84,8 +85,24 @@ export function createSMSAdapter(
     }
 
     case 'telnyx': {
-      // Telnyx SMS adapter not yet implemented
-      throw new Error('Telnyx SMS adapter not yet implemented')
+      if (!telephonyConfig.apiKey) {
+        throw new Error('Telnyx SMS requires apiKey')
+      }
+      return new TelnyxSMSAdapter(telephonyConfig.apiKey, phoneNumber, crypto)
+    }
+
+    case 'bandwidth': {
+      // Bandwidth has its own Messaging API — use the Bandwidth SMS adapter when implemented
+      throw new Error(
+        'Bandwidth SMS adapter not yet implemented. Use Bandwidth Voice with a separate SMS provider.'
+      )
+    }
+
+    case 'freeswitch': {
+      // FreeSWITCH has no native SMS — a dedicated SMS provider must be configured separately
+      throw new Error(
+        'FreeSWITCH does not support SMS. Configure a separate SMS provider (e.g., Twilio) for SMS support.'
+      )
     }
   }
 }

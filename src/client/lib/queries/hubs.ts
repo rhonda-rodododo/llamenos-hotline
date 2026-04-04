@@ -1,8 +1,8 @@
 /**
  * React Query hooks for hub resource management.
  *
- * Hubs are configuration objects — names are hub-encrypted but the
- * decryption happens client-side via decryptHubField at render time.
+ * Hubs are configuration objects -- names are hub-encrypted and
+ * decrypted in the queryFn so the cache holds plaintext values.
  * Cache is long-lived (10 min) since hubs rarely change.
  * Mutations invalidate the full hubs cache on success.
  *
@@ -22,15 +22,15 @@ import { queryKeys } from './keys'
 // hubsListOptions
 // ---------------------------------------------------------------------------
 
-export const hubsListOptions = (hubId = 'global') =>
+export const hubsListOptions = (_hubId = 'global') =>
   queryOptions({
     queryKey: queryKeys.hubs.list(),
     queryFn: async () => {
       const { hubs } = await listHubs()
       return hubs.map((hub) => ({
         ...hub,
-        name: decryptHubField(hub.encryptedName, hubId, hub.name),
-        description: decryptHubField(hub.encryptedDescription, hubId, hub.description),
+        name: decryptHubField(hub.encryptedName, hub.id, hub.name),
+        description: decryptHubField(hub.encryptedDescription, hub.id, hub.description),
       }))
     },
     staleTime: 10 * 60 * 1000,

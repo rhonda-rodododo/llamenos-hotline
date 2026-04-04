@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test'
 import { simulateEndCall, simulateIncomingCall, simulateVoicemail } from '../helpers/simulation'
 
-const PROVIDERS = ['twilio', 'signalwire', 'vonage', 'plivo', 'asterisk'] as const
+const PROVIDERS = ['twilio', 'signalwire', 'vonage', 'plivo', 'asterisk', 'freeswitch'] as const
 
 /**
  * Expected response content patterns per provider when returning 200.
@@ -15,6 +15,11 @@ const RESPONSE_PATTERNS: Record<string, { contentType: RegExp; bodyPattern: RegE
   plivo: { contentType: /xml/i, bodyPattern: /<Response>/ },
   // Asterisk returns ARI JSON when configured, TwiML when using TestAdapter fallback
   asterisk: { contentType: /json|xml/i, bodyPattern: /channel|endpoint|application|<Response>/i },
+  // FreeSWITCH returns mod_httapi XML when configured, TwiML when using TestAdapter fallback
+  freeswitch: {
+    contentType: /xml/i,
+    bodyPattern: /freeswitch-httapi|document|<Response>/i,
+  },
 }
 
 test.describe('Cross-provider telephony simulation smoke tests', () => {

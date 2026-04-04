@@ -18,6 +18,14 @@ test.describe('Voicemail webhook API', () => {
   let sharedCallSid = ''
   /** RecordingSid sent in the voicemail-recording webhook. */
   let sharedRecordingSid = ''
+  /** Hub ID resolved for history queries. */
+  let hubId = ''
+
+  test.beforeAll(async ({ request }) => {
+    // Enable transcription so the voicemail transcript test can pass
+    const adminApi = createAuthedRequestFromNsec(request, ADMIN_NSEC)
+    await adminApi.patch('/api/settings/transcription', { globalEnabled: true }).catch(() => {})
+  })
 
   test('voicemail-recording webhook accepts completed recording and sets hasVoicemail + recordingSid', async ({
     request,
@@ -27,6 +35,14 @@ test.describe('Voicemail webhook API', () => {
     const recordingSid = `RE_test_${Date.now()}`
     sharedCallSid = callSid
     sharedRecordingSid = recordingSid
+
+    // Resolve the hub ID — the incoming webhook will route to the sole hub,
+    // and we need the same hub ID to query history via the hub-scoped endpoint.
+    const hubsRes = await authedApi.get('/api/hubs')
+    expect(hubsRes.ok()).toBe(true)
+    const hubsData = (await hubsRes.json()) as { hubs: Array<{ id: string }> }
+    expect(hubsData.hubs.length).toBeGreaterThan(0)
+    hubId = hubsData.hubs[0].id
 
     // Step 1: Simulate an incoming call to create an active call record.
     const incomingRes = await request.post('/telephony/incoming', {
@@ -48,20 +64,23 @@ test.describe('Voicemail webhook API', () => {
 
     telephonyAvailable = true
 
-    // Step 2: Fire the voicemail-recording webhook.
-    const voicemailRes = await request.post(`/telephony/voicemail-recording?callSid=${callSid}`, {
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      data: twilioForm({
-        RecordingStatus: 'completed',
-        RecordingSid: recordingSid,
-        CallSid: callSid,
-      }),
-    })
+    // Step 2: Fire the voicemail-recording webhook with hub param so upsert uses the correct hub.
+    const voicemailRes = await request.post(
+      `/telephony/voicemail-recording?callSid=${callSid}&hub=${hubId}`,
+      {
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        data: twilioForm({
+          RecordingStatus: 'completed',
+          RecordingSid: recordingSid,
+          CallSid: callSid,
+        }),
+      }
+    )
     expect([200, 204]).toContain(voicemailRes.status())
 
     // Step 3: Assert hasVoicemail and recordingSid on the call record.
-    // The voicemail-recording handler upserts a call_record, so it should appear in history.
-    const callsRes = await authedApi.get('/api/calls/history?limit=50')
+    // Use the hub-scoped endpoint so the query filters by the correct hub.
+    const callsRes = await authedApi.get(`/api/hubs/${hubId}/calls/history?limit=50`)
     expect(callsRes.status()).toBe(200)
     const callsData = (await callsRes.json()) as {
       calls: Array<{
@@ -119,22 +138,22 @@ test.describe('Voicemail webhook API', () => {
     // Check if a system:voicemail note was created for the call.
     const authedApi = createAuthedRequestFromNsec(request, ADMIN_NSEC)
 
-    // Give transcription a moment to complete (it runs asynchronously after webhook)
-    await new Promise((r) => setTimeout(r, 2000))
-
-    const notesRes = await authedApi.get(`/api/notes?callId=${sharedCallSid}`)
-    expect(notesRes.status()).toBe(200)
-    const notesData = (await notesRes.json()) as {
-      notes: Array<{
-        authorPubkey: string
-        encryptedContent?: string
-      }>
+    // Give transcription a moment to complete (it runs asynchronously after webhook).
+    // Whisper model loading + transcription can take up to 15s on first call.
+    // Poll with retries instead of a fixed wait.
+    let voicemailNote: { authorPubkey: string; encryptedContent?: string } | undefined
+    for (let attempt = 0; attempt < 10; attempt++) {
+      await new Promise((r) => setTimeout(r, 2000))
+      const notesRes = await authedApi.get(`/api/notes?callId=${sharedCallSid}`)
+      if (notesRes.ok()) {
+        const data = (await notesRes.json()) as {
+          notes: Array<{ authorPubkey: string; encryptedContent?: string }>
+        }
+        voicemailNote = data.notes?.find((n) => n.authorPubkey === 'system:voicemail')
+        if (voicemailNote) break
+      }
     }
 
-    const voicemailNote = notesData.notes?.find((n) => n.authorPubkey === 'system:voicemail')
-
-    // Transcription depends on faster-whisper being available in test env.
-    // If no voicemail note exists, skip rather than fail.
     if (!voicemailNote) {
       test.skip(
         true,

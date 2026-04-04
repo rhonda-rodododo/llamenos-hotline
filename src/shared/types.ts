@@ -14,6 +14,7 @@ import type {
   RCSConfig,
   SMSConfig,
   SignalBridgeConfig as SignalConfig,
+  TelegramConfig,
   WhatsAppConfig,
 } from '@shared/schemas/providers'
 import type { EnabledChannels, SetupState } from '@shared/schemas/settings'
@@ -49,6 +50,8 @@ export type TelephonyProviderType =
   | 'plivo'
   | 'asterisk'
   | 'telnyx'
+  | 'bandwidth'
+  | 'freeswitch'
 
 export const TELEPHONY_PROVIDER_LABELS: Record<TelephonyProviderType, string> = {
   twilio: 'Twilio',
@@ -57,6 +60,8 @@ export const TELEPHONY_PROVIDER_LABELS: Record<TelephonyProviderType, string> = 
   plivo: 'Plivo',
   asterisk: 'Asterisk (Self-Hosted)',
   telnyx: 'Telnyx',
+  bandwidth: 'Bandwidth',
+  freeswitch: 'FreeSWITCH (Self-Hosted)',
 }
 
 export type { TelephonyProviderConfig } from '@shared/schemas/providers'
@@ -90,8 +95,15 @@ export interface TelephonyProviderDraft {
   ariUsername?: string
   ariPassword?: string
   bridgeCallbackUrl?: string
+  // FreeSWITCH
+  eslUrl?: string
+  eslPassword?: string
+  freeswitchDomain?: string
+  vertoWssPort?: number
   // Telnyx
   texmlAppId?: string
+  // Bandwidth (accountId, apiSecret, applicationId already defined above)
+  apiToken?: string
 }
 
 // --- Call Preference (re-exported from schema) ---
@@ -371,6 +383,7 @@ export const CHANNEL_SECURITY: Record<ChannelType, TransportSecurity> = {
   whatsapp: 'provider-encrypted',
   signal: 'e2ee-to-bridge',
   rcs: 'provider-encrypted',
+  telegram: 'provider-encrypted',
   reports: 'e2ee',
 }
 
@@ -380,6 +393,7 @@ export const CHANNEL_LABELS: Record<ChannelType, string> = {
   whatsapp: 'WhatsApp',
   signal: 'Signal',
   rcs: 'RCS',
+  telegram: 'Telegram',
   reports: 'Reports',
 }
 
@@ -390,6 +404,7 @@ export type {
   SMSConfig,
   WhatsAppConfig,
   RCSConfig,
+  TelegramConfig,
 } from '@shared/schemas/providers'
 
 export type { SignalBridgeConfig as SignalConfig } from '@shared/schemas/providers'
@@ -400,6 +415,7 @@ export interface MessagingConfig {
   whatsapp: WhatsAppConfig | null
   signal: SignalConfig | null
   rcs: RCSConfig | null
+  telegram: TelegramConfig | null
   autoAssign: boolean // auto-assign to on-shift users
   inactivityTimeout: number // minutes before auto-close
   maxConcurrentPerUser: number // conversation limit per user
@@ -411,6 +427,7 @@ export const DEFAULT_MESSAGING_CONFIG: MessagingConfig = {
   whatsapp: null,
   signal: null,
   rcs: null,
+  telegram: null,
   autoAssign: true,
   inactivityTimeout: 60,
   maxConcurrentPerUser: 3,
@@ -590,6 +607,7 @@ export interface WebhookUrlSet {
   whatsappIncoming?: string
   signalIncoming?: string
   rcsIncoming?: string
+  telegramIncoming?: string
 }
 
 export interface PhoneNumberInfo {

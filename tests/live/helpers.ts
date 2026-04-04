@@ -119,7 +119,7 @@ export async function callHotline(options: CallHotlineOptions = {}) {
   const call = await client.calls.create({
     to: config.hotlineNumber,
     from: config.testCallerNumber,
-    url: `${config.baseURL}/api/telephony/incoming`,
+    url: `${config.baseURL}/telephony/incoming`,
     timeout: options.timeout ?? 60,
     ...(options.sendDigits ? { sendDigits: options.sendDigits } : {}),
     ...(options.statusCallback

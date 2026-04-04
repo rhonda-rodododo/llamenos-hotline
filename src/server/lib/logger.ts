@@ -4,8 +4,8 @@
  * Outputs JSON lines to stdout for consumption by log aggregators
  * (Loki, Elasticsearch, CloudWatch, etc.).
  *
- * On Cloudflare Workers, falls back to console.log (CF handles structured logging).
- * On Node.js, emits structured JSON with timestamps, levels, and component tags.
+ * Emits structured JSON with timestamps, levels, and component tags.
+ * Falls back to console methods when running outside of a Node/Bun process.
  */
 
 type LogLevel = 'debug' | 'info' | 'warn' | 'error'
@@ -46,7 +46,7 @@ function emit(entry: LogEntry): void {
       process.stdout.write(`${line}\n`)
     }
   } else {
-    // CF Workers — use console methods (CF adds structure)
+    // Fallback: use console methods for non-Node/Bun environments
     const { level, component, msg, ...extra } = entry
     const prefix = `[${component}]`
     const hasExtra = Object.keys(extra).length > 1 // ts is always there

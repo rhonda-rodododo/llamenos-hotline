@@ -1,6 +1,8 @@
 import type {
   AsteriskConfig,
+  FreeSwitchConfig,
   PlivoConfig,
+  SignalWireConfig,
   TwilioConfig,
   VonageConfig,
 } from '../../shared/schemas/providers'
@@ -21,7 +23,7 @@ export async function generateWebRtcToken(
     case 'twilio':
       return generateTwilioToken(config, identity)
     case 'signalwire':
-      throw new Error('SignalWire WebRTC token generation not yet implemented')
+      return generateSignalWireToken(config, identity)
     case 'vonage':
       return generateVonageToken(config, identity)
     case 'plivo':
@@ -30,6 +32,10 @@ export async function generateWebRtcToken(
       return generateAsteriskToken(config, identity)
     case 'telnyx':
       throw new Error('Telnyx WebRTC not yet implemented')
+    case 'bandwidth':
+      throw new Error('Bandwidth WebRTC not yet implemented')
+    case 'freeswitch':
+      return generateFreeSwitchToken(config, identity)
     default: {
       const _exhaustive: never = config
       throw new Error(
@@ -53,14 +59,20 @@ export function isWebRtcConfigured(config: TelephonyProviderConfig | null): bool
         config.twimlAppSid
       )
     case 'signalwire':
-      // SignalWire uses the same token flow as Twilio but config shape differs
-      return false
+      return !!(
+        config.webrtcEnabled &&
+        config.apiKeySid &&
+        config.apiKeySecret &&
+        config.twimlAppSid
+      )
     case 'vonage':
       return !!(config.applicationId && config.privateKey)
     case 'plivo':
       return !!(config.authId && config.authToken)
     case 'asterisk':
       return !!(config.ariUrl && config.bridgeCallbackUrl)
+    case 'freeswitch':
+      return !!(config.eslUrl && config.bridgeCallbackUrl && config.vertoWssPort)
     default:
       return false
   }
@@ -98,6 +110,39 @@ async function generateTwilioToken(
 
   const token = await signJwtHs256(header, payload, config.apiKeySecret)
   return { token, provider: config.type, ttl: 3600 }
+}
+
+// --- SignalWire JWT ---
+// SignalWire uses Twilio-compatible access tokens (HS256 with Voice grant).
+// The only difference is the project ID is used as the accountSid/sub claim.
+
+async function generateSignalWireToken(
+  config: SignalWireConfig,
+  identity: string
+): Promise<{ token: string; provider: TelephonyProviderType; ttl: number }> {
+  if (!config.apiKeySid || !config.apiKeySecret || !config.twimlAppSid) {
+    throw new Error('Missing SignalWire WebRTC config: apiKeySid, apiKeySecret, twimlAppSid')
+  }
+
+  const now = Math.floor(Date.now() / 1000)
+  const header = { typ: 'JWT', alg: 'HS256', cty: 'twilio-fpa;v=1' }
+  const payload = {
+    jti: `${config.apiKeySid}-${now}`,
+    iss: config.apiKeySid,
+    sub: config.accountSid,
+    iat: now,
+    exp: now + 3600,
+    grants: {
+      identity,
+      voice: {
+        incoming: { allow: true },
+        outgoing: { application_sid: config.twimlAppSid },
+      },
+    },
+  }
+
+  const token = await signJwtHs256(header, payload, config.apiKeySecret)
+  return { token, provider: 'signalwire', ttl: 3600 }
 }
 
 // --- Vonage JWT ---
@@ -194,13 +239,63 @@ async function generateAsteriskToken(
   return { token, provider: 'asterisk', ttl: 600 }
 }
 
+// --- FreeSWITCH Verto WebRTC token ---
+// FreeSWITCH uses Verto protocol for WebRTC. The "token" is a base64-encoded
+// JSON blob containing Verto WSS URI, login/password, and ICE servers.
+
+async function generateFreeSwitchToken(
+  config: FreeSwitchConfig,
+  identity: string
+): Promise<{ token: string; provider: TelephonyProviderType; ttl: number }> {
+  const domain = config.freeswitchDomain ?? 'localhost'
+  const wssPort = config.vertoWssPort ?? 8082
+  const wsUri = `wss://${domain}:${wssPort}`
+  const sipUri = `sip:${identity}@${domain}`
+
+  const iceServers: Array<{ urls: string; username?: string; credential?: string }> = []
+  if (config.stunServer) {
+    iceServers.push({ urls: config.stunServer })
+  }
+  if (config.turnServer && config.turnSecret) {
+    // Time-limited TURN credentials (same pattern as Asterisk/coturn)
+    const ttl = 86400
+    const expiry = Math.floor(Date.now() / 1000) + ttl
+    const username = `${expiry}:${identity}`
+    const key = await crypto.subtle.importKey(
+      'raw',
+      new TextEncoder().encode(config.turnSecret) as Uint8Array<ArrayBuffer>,
+      { name: 'HMAC', hash: 'SHA-1' },
+      false,
+      ['sign']
+    )
+    const sig = await crypto.subtle.sign(
+      'HMAC',
+      key,
+      new TextEncoder().encode(username) as Uint8Array<ArrayBuffer>
+    )
+    const credential = btoa(String.fromCharCode(...new Uint8Array(sig)))
+    iceServers.push({ urls: config.turnServer, username, credential })
+  }
+
+  const token = btoa(
+    JSON.stringify({
+      wsUri,
+      sipUri,
+      login: `${identity}@${domain}`,
+      password: config.eslPassword, // Verto login password
+      iceServers,
+    })
+  )
+  return { token, provider: 'freeswitch', ttl: 600 }
+}
+
 // --- Crypto helpers ---
 
-function base64urlEncode(str: string): string {
+export function base64urlEncode(str: string): string {
   return btoa(str).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
 }
 
-function base64urlEncodeBytes(bytes: Uint8Array): string {
+export function base64urlEncodeBytes(bytes: Uint8Array): string {
   let binary = ''
   for (const byte of bytes) binary += String.fromCharCode(byte)
   return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
@@ -231,7 +326,7 @@ async function signJwtHs256(
   return `${data}.${sigB64}`
 }
 
-async function signJwtRs256(
+export async function signJwtRs256(
   header: Record<string, unknown>,
   payload: Record<string, unknown>,
   privateKeyPem: string

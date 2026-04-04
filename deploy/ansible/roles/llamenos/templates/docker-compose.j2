@@ -263,9 +263,9 @@ services:
       retries: 3
       start_period: 15s
 
-  asterisk-bridge:
+  sip-bridge:
     image: {{ llamenos_image }}
-    command: ["bun", "run", "asterisk-bridge/index.ts"]
+    command: ["bun", "run", "sip-bridge/index.ts"]
     restart: unless-stopped
     environment:
       - ARI_URL=ws://asterisk:8088/ari/events
@@ -281,6 +281,42 @@ services:
       app:
         condition: service_healthy
 {% endif %}
+{% if 'kamailio' in (compose_profiles | default([])) %}
+
+  kamailio:
+    image: {{ kamailio_image | default('kamailio/kamailio:5.7') }}
+    restart: unless-stopped
+    ports:
+      - "{{ kamailio_sip_port | default(5060) }}:5060/udp"
+      - "{{ kamailio_sip_port | default(5060) }}:5060/tcp"
+{% if kamailio_tls_enabled | default(false) | bool %}
+      - "{{ kamailio_sip_tls_port | default(5061) }}:5061/tcp"
+{% endif %}
+    volumes:
+      - ./kamailio/kamailio.cfg:/etc/kamailio/kamailio.cfg:ro
+      - ./kamailio/dispatcher.list:/etc/kamailio/dispatcher.list:ro
+{% if kamailio_tls_enabled | default(false) | bool %}
+      - ./kamailio/tls:/etc/kamailio/tls:ro
+{% endif %}
+    networks:
+      - internal
+{% if 'asterisk' in (compose_profiles | default([])) %}
+    depends_on:
+      asterisk:
+        condition: service_healthy
+{% endif %}
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    healthcheck:
+      test: ["CMD", "kamcmd", "core.version"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+{% endif %}
 {% if 'signal' in (compose_profiles | default([])) %}
 
   signal-cli:
@@ -288,7 +324,6 @@ services:
     restart: unless-stopped
     environment:
       - MODE=json-rpc
-      - AUTO_RECEIVE_SCHEDULE=0 * * * *
     volumes:
       - signal-data:/home/.local/share/signal-cli
     networks:

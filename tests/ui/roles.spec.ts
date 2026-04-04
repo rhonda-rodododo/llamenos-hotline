@@ -118,14 +118,31 @@ test.describe('Role Editor — Permission Metadata UI', () => {
       adminPage.getByRole('heading', { name: 'Hub Settings', exact: true })
     ).toBeVisible()
 
-    // Expand the Roles section if needed
-    await adminPage.getByText('Roles & Permissions').click()
+    // Wait for roles section to expand (deepLink from ?section=roles auto-expands it)
+    // If not expanded, click to expand
+    const firstRoleRow = adminPage.getByTestId('role-row-role-case-manager')
+    if (!(await firstRoleRow.isVisible().catch(() => false))) {
+      await adminPage.getByText('Roles & Permissions').click()
+    }
 
-    // Default roles should be listed — role names may need hub key decryption under load
-    await expect(adminPage.getByText('Case Manager')).toBeVisible({ timeout: 30000 })
-    await expect(adminPage.getByText('Voicemail Reviewer')).toBeVisible({ timeout: 15000 })
-    await expect(adminPage.getByText('Volunteer').first()).toBeVisible({ timeout: 15000 })
-    await expect(adminPage.getByText('Hub Admin').first()).toBeVisible({ timeout: 15000 })
+    // Default roles should be listed — use data-testid for reliable selection,
+    // then verify decrypted names appear (hub key decryption may take time)
+    await expect(firstRoleRow).toBeVisible({
+      timeout: 30000,
+    })
+    await expect(adminPage.getByTestId('role-row-role-voicemail-reviewer')).toBeVisible({
+      timeout: 15000,
+    })
+    await expect(adminPage.getByTestId('role-row-role-volunteer')).toBeVisible({ timeout: 15000 })
+    await expect(adminPage.getByTestId('role-row-role-hub-admin')).toBeVisible({ timeout: 15000 })
+
+    // Verify decrypted names render (hub key must be loaded)
+    await expect(
+      adminPage.getByTestId('role-row-role-case-manager').getByText('Case Manager')
+    ).toBeVisible({ timeout: 30000 })
+    await expect(
+      adminPage.getByTestId('role-row-role-hub-admin').getByText('Hub Admin')
+    ).toBeVisible({ timeout: 15000 })
   })
 
   test('Create Role button opens editor with permission domains', async ({ adminPage }) => {

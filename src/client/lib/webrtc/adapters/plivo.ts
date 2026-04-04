@@ -11,7 +11,10 @@
  * WebRTC is actually used.
  */
 
+import { createDebugLog } from '../../debug-log'
 import type { WebRTCAdapter, WebRtcEvent, WebRtcEventHandler } from '../types'
+
+const log = createDebugLog('PlivoWebRTCAdapter')
 
 // Minimal types from plivo-browser-sdk
 interface PlivoClient {
@@ -77,7 +80,7 @@ export class PlivoWebRTCAdapter implements WebRTCAdapter {
     const client = instance.client
 
     client.on('onLogin', () => {
-      console.log('[PlivoWebRTCAdapter] Logged in / registered')
+      log('Logged in / registered')
     })
 
     client.on('onLoginFailed', (...args: unknown[]) => {
@@ -91,26 +94,26 @@ export class PlivoWebRTCAdapter implements WebRTCAdapter {
       // callInfo.callUUID holds the call identifier
       const callInfo = args[2] as { callUUID?: string } | undefined
       const callUUID = callInfo?.callUUID ?? (args[0] as string)
-      console.log('[PlivoWebRTCAdapter] Incoming call', callUUID)
+      log('Incoming call', callUUID)
       this.#activeCallUUID = callUUID
       this.#muted = false
       this.#emit('incoming', callUUID)
     })
 
     client.on('onCallAnswered', () => {
-      console.log('[PlivoWebRTCAdapter] Call answered / connected')
+      log('Call answered / connected')
       this.#emit('connected')
     })
 
     client.on('onCallTerminated', () => {
-      console.log('[PlivoWebRTCAdapter] Call terminated')
+      log('Call terminated')
       this.#activeCallUUID = null
       this.#muted = false
       this.#emit('disconnected')
     })
 
     client.on('onIncomingCallCanceled', () => {
-      console.log('[PlivoWebRTCAdapter] Incoming call cancelled')
+      log('Incoming call cancelled')
       this.#activeCallUUID = null
       this.#muted = false
       this.#emit('disconnected')

@@ -59,7 +59,7 @@ messaging.get('/rcs/webhook', async (c) => {
  */
 messaging.post('/:channel/webhook', async (c) => {
   const channel = c.req.param('channel') as MessagingChannelType
-  const validChannels: MessagingChannelType[] = ['sms', 'whatsapp', 'signal', 'rcs']
+  const validChannels: MessagingChannelType[] = ['sms', 'whatsapp', 'signal', 'rcs', 'telegram']
   if (!validChannels.includes(channel)) {
     return c.json({ error: 'Unknown channel' }, 404)
   }
@@ -139,7 +139,7 @@ messaging.post('/:channel/webhook', async (c) => {
             identifierHash: incoming.senderIdentifierHash,
             channels: [
               {
-                type: incoming.channelType as 'sms' | 'whatsapp' | 'signal' | 'rcs',
+                type: incoming.channelType as 'sms' | 'whatsapp' | 'signal' | 'rcs' | 'telegram',
                 verified: false,
               },
             ],
@@ -278,7 +278,7 @@ async function handleStatusUpdate(
 }
 
 /**
- * Try to auto-assign a new conversation to an available volunteer.
+ * Try to auto-assign a new conversation to an available user.
  * This runs in background via executionCtx.waitUntil() to not delay webhook response.
  */
 async function tryAutoAssign(
@@ -295,12 +295,12 @@ async function tryAutoAssign(
 
     const maxConcurrent = messagingConfig.maxConcurrentPerUser || 3
 
-    // 2. Get current on-shift volunteers
+    // 2. Get current on-shift users
     const onShiftShifts = await services.shifts.getActiveShifts(hubId)
     if (onShiftShifts.length === 0) return
     const onShiftPubkeys = onShiftShifts.map((s) => s.pubkey)
 
-    // 3. Get volunteer details to filter by channel capability
+    // 3. Get user details to filter by channel capability
     const allUsers = await services.identity.getUsers()
     const onShiftUsers = allUsers.filter(
       (v) =>
@@ -309,7 +309,7 @@ async function tryAutoAssign(
 
     // Filter by channel capability
     const eligibleUsers = onShiftUsers.filter((v) => {
-      // If no channels specified, volunteer can handle all
+      // If no channels specified, user can handle all
       if (!v.supportedMessagingChannels || v.supportedMessagingChannels.length === 0) {
         return true
       }
@@ -318,7 +318,7 @@ async function tryAutoAssign(
 
     if (eligibleUsers.length === 0) return
 
-    // 4. Get volunteer load counts (active conversations per volunteer)
+    // 4. Get user load counts (active conversations per user)
     const { conversations: activeConvs } = await services.conversations.listConversations({
       hubId,
       status: 'active',
@@ -331,7 +331,7 @@ async function tryAutoAssign(
       }
     }
 
-    // 5. Find least-loaded volunteer under max capacity
+    // 5. Find least-loaded user under max capacity
     let bestCandidate: string | null = null
     let lowestLoad = Number.POSITIVE_INFINITY
 
@@ -343,7 +343,7 @@ async function tryAutoAssign(
       }
     }
 
-    if (!bestCandidate) return // All volunteers at capacity
+    if (!bestCandidate) return // All users at capacity
 
     // 6. Auto-assign the conversation
     await services.conversations.updateConversation(conversationId, {

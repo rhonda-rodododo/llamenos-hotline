@@ -2,9 +2,9 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Eliminate backend performance bottlenecks in the API server, Nostr publisher, and asterisk-bridge without sacrificing security or stability.
+**Goal:** Eliminate backend performance bottlenecks in the API server, Nostr publisher, and sip-bridge without sacrificing security or stability.
 
-**Architecture:** Add service-level caching for expensive crypto operations (hub keys, derived keys, roles, configs), fix N+1 query patterns, add missing database indexes, convert in-memory pagination to SQL LIMIT/OFFSET, and optimize the asterisk-bridge's HMAC signing and Nostr publisher's connection lifecycle.
+**Architecture:** Add service-level caching for expensive crypto operations (hub keys, derived keys, roles, configs), fix N+1 query patterns, add missing database indexes, convert in-memory pagination to SQL LIMIT/OFFSET, and optimize the sip-bridge's HMAC signing and Nostr publisher's connection lifecycle.
 
 **Tech Stack:** Bun, Hono, Drizzle ORM, PostgreSQL, nostr-tools, @noble/ciphers, @noble/curves
 
@@ -33,7 +33,7 @@
 - `src/server/db/schema/calls.ts` — Add `index` import + 2 indexes (activeCalls, callLegs)
 - `src/server/db/schema/conversations.ts` — Add `index` import + 2 indexes (conversations, messageEnvelopes)
 - `src/server/db/schema/shifts.ts` — Add `index` import + 1 index (shiftSchedules)
-- `asterisk-bridge/src/webhook-sender.ts` — Cache crypto import and encoded HMAC key
+- `sip-bridge/src/webhook-sender.ts` — Cache crypto import and encoded HMAC key
 
 ---
 
@@ -1182,7 +1182,7 @@ git commit -m "perf: bounded Nostr event queue, faster AUTH, eager connect on st
 ## Task 10: Asterisk bridge — cache crypto import and HMAC key
 
 **Files:**
-- Modify: `asterisk-bridge/src/webhook-sender.ts`
+- Modify: `sip-bridge/src/webhook-sender.ts`
 
 The `sign()` method does `await import('crypto')` and `new TextEncoder().encode(secret)` on every call.
 
@@ -1224,17 +1224,17 @@ private async sign(url: string, body: string): Promise<string> {
 }
 ```
 
-- [ ] **Step 2: Run typecheck (if asterisk-bridge has its own tsconfig)**
+- [ ] **Step 2: Run typecheck (if sip-bridge has its own tsconfig)**
 
-Run: `cd /media/rikki/recover2/projects/llamenos-perf-backend/asterisk-bridge && bun run typecheck 2>/dev/null || npx tsc --noEmit 2>/dev/null || echo "No separate typecheck for bridge"`
+Run: `cd /media/rikki/recover2/projects/llamenos-perf-backend/sip-bridge && bun run typecheck 2>/dev/null || npx tsc --noEmit 2>/dev/null || echo "No separate typecheck for bridge"`
 Expected: No errors (or no separate typecheck configured)
 
 - [ ] **Step 3: Commit**
 
 ```bash
 cd /media/rikki/recover2/projects/llamenos-perf-backend
-git add asterisk-bridge/src/webhook-sender.ts
-git commit -m "perf: cache crypto import and HMAC key in asterisk-bridge WebhookSender"
+git add sip-bridge/src/webhook-sender.ts
+git commit -m "perf: cache crypto import and HMAC key in sip-bridge WebhookSender"
 ```
 
 ---

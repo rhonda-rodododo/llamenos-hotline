@@ -233,7 +233,7 @@ All items below have a design spec and implementation plan in `docs/superpowers/
 
 ### Telephony Automation
 
-- [x] **Asterisk Bridge Auto-Config** (`2026-03-22-asterisk-bridge-auto-config.md`) — PjsipConfigurator writes auth/aor/endpoint/registration via ARI dynamic config API at startup, sorcery.conf for memory wizard, Docker compose + dev offsets, real-Asterisk E2E tests
+- [x] **SIP Bridge Auto-Config** (`2026-03-22-asterisk-bridge-auto-config.md`) — PjsipConfigurator writes auth/aor/endpoint/registration via ARI dynamic config API at startup, sorcery.conf for memory wizard, Docker compose + dev offsets, real-Asterisk E2E tests (now part of sip-bridge)
 - [x] **Provider OAuth Auto-Config** (`2026-03-22-provider-oauth-auto-config.md`) — ProviderSetup module: Twilio/Telnyx OAuth, SignalWire/Vonage/Plivo credential validation, webhook auto-config, SIP trunk provisioning, A2P 10DLC registration
 - [x] **Signal Automated Registration** (`2026-03-22-signal-automated-registration.md`) — SMS interception for Signal verification codes, SettingsDO pending state with TTL, voice fallback manual entry, registration wizard UI
 - [x] **Setup Wizard Provider Module** (`2026-03-22-setup-wizard-provider-module.md`) — OAuthConnectButton, PhoneNumberSelector, WebhookConfirmation, ChannelSettings, setup routes, E2E tests.
@@ -281,7 +281,7 @@ All items below have a design spec and implementation plan in `docs/superpowers/
 
 ### Security Fixes — Pending
 
-- [ ] **Unknown API routes should return 404 instead of 401** — Auth middleware runs before route matching, so unauthenticated requests to non-existent routes get 401 (reveals route doesn't exist but requires auth). Fix: move route matching before auth middleware, or add a catch-all 404 handler after all routes that returns 404 regardless of auth state.
+- [x] **Unknown API routes should return 404 instead of 401** — Fixed 2026-04-02: Added prefix-checking middleware in `app.ts` that returns 404 for unknown API path prefixes before the authenticated catch-all runs. Known prefixes (public + authenticated) are allowlisted; unknown paths get 404 without auth leaking route existence. E2E test: `tests/api/route-404.spec.ts`.
 
 ### Test Quality — Status (2026-03-23)
 
@@ -296,10 +296,10 @@ admin-flow (18), blast-sending (8), notes-crud (7), smoke (4), theme (7), health
 
 ## App Bugs Found During Test Restructuring (2026-03-24)
 
-- [ ] **CAPTCHA retry not implemented** — `captchaMaxAttempts` setting exists and is persisted, but the server's `/telephony/captcha` route deletes challenge state after first attempt (one-shot). Wrong digits always return `<Hangup/>` regardless of remaining attempts. Route should track attempt count and re-Gather until max attempts reached. Test: `voice-captcha.spec.ts` test 5.4 (marked as `test.fixme`).
-- [ ] **Dashboard incoming calls require Nostr relay** — The dashboard `useCalls()` hook gets call events exclusively from the Nostr relay WebSocket subscription. There is no REST polling fallback for incoming calls. If the relay is down or the page reloads mid-call, the incoming call card does not appear. Tests: `call-flow.spec.ts` (skip when relay unavailable).
+- [x] **CAPTCHA retry not implemented** — Investigated 2026-04-02: service layer correctly implements retry logic (attempt tracking, max enforcement, re-Gather). Test 5.4 in `voice-captcha.spec.ts` is active (no test.fixme) and validates the behavior. Bug was either already fixed or incorrectly reported.
+- [x] **Dashboard incoming calls require Nostr relay** — Investigated 2026-04-02: REST polling fallback already implemented at 30s intervals (`src/client/lib/queries/calls.ts:87-112`). Nostr is primary for sub-second updates; REST is the safety net. No additional work needed.
 - [ ] **Drizzle migration journal out of sync** — Migrations 0004, 0005, 0008, 0009, 0010 were in SQL files but missing from the journal or not applied to the dev database. Root cause: worktree-based development may have lost migration state. Applied manually during test restructuring.
-- [ ] **TwiML callback URLs use /api/telephony/ prefix** — The TwilioAdapter generates TwiML with action URLs like `/api/telephony/wait-music` and `/api/telephony/queue-exit`, but these routes are under the authenticated `/api/` mount. Twilio callbacks to these URLs would fail auth. Should use `/telephony/` (unauthenticated webhook routes).
+- [x] **TwiML callback URLs use /api/telephony/ prefix** — Fixed 2026-04-02: global find-replace `/api/telephony/` → `/telephony/` across all 19 affected files (4 adapters, 6 capabilities, test adapter, test payload factory, 5 provider-setup, 1 UI component, 1 live test helper).
 
 ## SIP WebRTC Browser Calling
 - [x] Asterisk WSS transport configuration (pjsip.conf, http.conf, extensions.conf)
@@ -311,10 +311,10 @@ admin-flow (18), blast-sending (8), notes-crud (7), smoke (4), theme (7), health
 - [x] Ansible env vars + turnserver.conf template
 - [x] Dev TLS cert generation script
 - [x] Browser calling plan coordination updates
-- [ ] SipWebRTCAdapter (JsSIP) — depends on WebRTCAdapter interface from browser calling plan
-- [ ] WebRTCManager factory integration
-- [ ] Bridge ring command extension for browser endpoints
-- [ ] E2E tests against local Asterisk
+- [x] SipWebRTCAdapter (JsSIP) — 219 lines, fully implements WebRTCAdapter with dynamic JsSIP import, session management, DTLS-SRTP media
+- [x] WebRTCManager factory integration — routes 'asterisk'/'freeswitch'/'kamailio'/'sip' providers to SipWebRTCAdapter
+- [x] Bridge ring command extension for browser endpoints — bridge index.ts supports browserIdentity for PJSIP routing
+- [ ] E2E tests against local Asterisk — needs mkcert TLS certs + mocked JsSIP integration tests
 
 ## Storage & Infrastructure — Future Work
 
@@ -327,3 +327,60 @@ admin-flow (18), blast-sending (8), notes-crud (7), smoke (4), theme (7), health
 
 - [x] **React Query for fetch + decrypt** — Completed in react-query refactor PR #28.
 - [ ] **Eliminate remaining decryptHubField calls** — 53 usages of `decryptHubField` still in 10+ component files (shifts, blasts, hubs, contacts, etc.). Each should be moved to the respective React Query `queryFn` following the decrypt-in-queryFn pattern established in roles.ts. Also remove `hub-field-crypto.ts` once all callsites are migrated.
+
+## Comprehensive Audit (2026-04-02)
+
+> Specs and plans created from full codebase audit. Organized by priority.
+
+### Critical Bug Fixes
+**Spec:** `docs/superpowers/specs/2026-04-02-critical-bug-fixes.md` | **Plan:** `docs/superpowers/plans/2026-04-02-critical-bug-fixes.md`
+
+- [x] **TwiML callback URLs use wrong prefix** — Fixed 2026-04-02: global find-replace `/api/telephony/` → `/telephony/` across 19 files (adapters, capabilities, provider-setup, tests, UI). **Live Twilio testing available via `playwright.live.ts`.**
+- [x] **Unknown API routes return 401 instead of 404** — Fixed 2026-04-02: prefix-checking middleware in app.ts. E2E test: `tests/api/route-404.spec.ts`.
+- [x] ~~**Dashboard incoming calls require Nostr relay**~~ — Investigated: REST polling fallback already exists at 30s intervals (`src/client/lib/queries/calls.ts:87-112`). No additional work needed.
+- [x] **CAPTCHA retry** — Verified 2026-04-02: service layer correctly implements retry. Test 5.4 is active (no test.fixme) and validates behavior.
+
+### Schema Alignment & API Validation
+**Spec:** `docs/superpowers/specs/2026-04-02-schema-alignment-api-validation.md` | **Plan:** `docs/superpowers/plans/2026-04-02-schema-alignment-api-validation.md`
+
+- [x] **Auth facade Zod validation** — Fixed 2026-04-02: 4 endpoints now use Zod safeParse.
+- [x] **Blast schema alignment** — Fixed 2026-04-02: schema rewritten to match DB structure.
+- [x] **CallLeg field mismatch** — Fixed 2026-04-02: renamed to userPubkey, added type field.
+- [x] **Other field mismatches** — Fixed 2026-04-02: conversations reportTypeId added.
+- [ ] **Missing OpenAPI documentation** — 19 endpoints bypass `createRoute()` (low priority).
+
+### Test Coverage Hardening
+**Spec:** `docs/superpowers/specs/2026-04-02-test-coverage-hardening.md` | **Plan:** `docs/superpowers/plans/2026-04-02-test-coverage-hardening.md`
+
+- [x] **Fix known failing tests** — Fixed 2026-04-02: roles.spec.ts (Authentik enrollment), hub-access-control (NSEC auth).
+- [x] **Service unit tests** — API E2E tests for calls, shifts, GDPR services added 2026-04-03.
+- [x] **Security module tests** — SSRF guard (36), auth middleware (7), retention purge (3) added 2026-04-02.
+- [x] **Messaging adapter tests** — All 6 channels tested: SMS (Twilio/Vonage/Plivo/SignalWire/Telnyx), WhatsApp, Signal, RCS, Telegram. 245+ tests.
+- [x] **Telephony adapter tests** — All 8 adapters tested: Twilio (10), Telnyx (54), Bandwidth (36), WebRTC tokens (30), test adapter, provider capabilities. 130+ tests.
+
+### Infrastructure & DevOps Hardening
+**Spec:** `docs/superpowers/specs/2026-04-02-infrastructure-devops-hardening.md` | **Plan:** `docs/superpowers/plans/2026-04-02-infrastructure-devops-hardening.md`
+
+- [x] **RustFS blob storage not backed up** — Fixed 2026-04-02: backup pipeline includes RustFS via mc/rclone.
+- [x] **No backup failure alerting** — Fixed 2026-04-02: backup age/size metrics in Prometheus endpoint.
+- [x] **Image digest pinning** — Fixed 2026-04-02: Authentik, RustFS, strfry pinned.
+- [x] **Prometheus alerting rules** — Fixed 2026-04-02: HTTP metrics middleware + backup gauges added.
+- [x] **Watchtower safeguards** — Fixed 2026-04-02: scheduled 04:00 UTC, notification URL support.
+
+### Code Organization & Refactoring
+**Spec:** `docs/superpowers/specs/2026-04-02-code-organization-refactoring.md` | **Plan:** `docs/superpowers/plans/2026-04-02-code-organization-refactoring.md`
+
+- [x] **Split api.ts** — 2,325 lines → 24 domain modules. Backwards-compatible re-export.
+- [x] **Split settings.ts service** — 1,439 lines → 11 domain services.
+- [x] **Split contacts.ts route** — 1,231 lines → 7 sub-route modules.
+- [x] **Split server types.ts** — 988 lines → 11 domain type files.
+- [x] **Migrate decryptHubField** — 34 calls migrated from components to React Query queryFn.
+- [x] **Console.log cleanup** — 18 debug logs → dev-only createDebugLog() wrapper.
+
+### Incomplete Adapter Completion
+**Spec:** `docs/superpowers/specs/2026-04-02-adapter-completion.md` | **Plan:** `docs/superpowers/plans/2026-04-02-adapter-completion.md`
+
+- [ ] **Telnyx telephony adapter** — Full TelephonyAdapter (23 methods) with TeXML format. ~600 lines.
+- [ ] **Telnyx SMS adapter** — MessagingAdapter with JSON webhooks. ~200 lines.
+- [ ] **SignalWire WebRTC tokens** — Copy Twilio JWT logic, adapt config. ~30 lines.
+- [ ] **Vonage webhook verification** — Implement Application API query with RS256 JWT. ~50 lines.

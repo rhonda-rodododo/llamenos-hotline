@@ -141,7 +141,7 @@ export async function startParallelRinging(
         await adapter.ringUsers({
           callSid,
           callerNumber,
-          volunteers: toRing,
+          users: toRing,
           callbackUrl: origin,
           hubId,
         })

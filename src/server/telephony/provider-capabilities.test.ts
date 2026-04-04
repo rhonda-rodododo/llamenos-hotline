@@ -137,9 +137,7 @@ describe('Twilio capabilities', () => {
 
   test('getWebhookUrls returns correct paths', () => {
     const urls = twilioCapabilities.getWebhookUrls('https://hotline.example.com', 'hub-123')
-    expect(urls.voiceIncoming).toBe(
-      'https://hotline.example.com/api/telephony/incoming?hub=hub-123'
-    )
+    expect(urls.voiceIncoming).toBe('https://hotline.example.com/telephony/incoming?hub=hub-123')
     expect(urls.smsIncoming).toBe(
       'https://hotline.example.com/api/messaging/sms/webhook?hub=hub-123'
     )

@@ -8,7 +8,7 @@
 
 **Note on Nostr event kind:** The spec says "kind 20001 (ephemeral)" but `KIND_CALL_VOICEMAIL` is defined as 1002 (regular/persisted) in the codebase. Using 1002 is correct — voicemail notifications should be persisted so clients coming online later can see them. The spec should be updated.
 
-**Note on Asterisk bridge:** The adapter methods (`getRecordingAudio`, `deleteRecording`) call bridge endpoints (`GET /recordings/:id`, `DELETE /recordings/:id`) via the `BridgeClient`. These endpoints must exist in the asterisk-bridge service (a separate codebase/repo). If the bridge doesn't implement them yet, the adapter calls will fail gracefully (try/catch). This plan does NOT include changes to the asterisk-bridge service itself.
+**Note on Asterisk bridge:** The adapter methods (`getRecordingAudio`, `deleteRecording`) call bridge endpoints (`GET /recordings/:id`, `DELETE /recordings/:id`) via the `BridgeClient`. These endpoints must exist in the sip-bridge service (a separate codebase/repo). If the bridge doesn't implement them yet, the adapter calls will fail gracefully (try/catch). This plan does NOT include changes to the sip-bridge service itself.
 
 **Tech Stack:** Same as Phases 1-2 plus `web-push` (already installed), Nostr relay (strfry, already running), XChaCha20-Poly1305 client-side decryption.
 
@@ -324,7 +324,7 @@ points to your Llamenos instance. No native voicemail to disable.
 
 ## Asterisk / Self-Hosted SIP
 
-Asterisk voicemail is controlled by the dialplan. The Llamenos asterisk-bridge
+Asterisk voicemail is controlled by the dialplan. The Llamenos sip-bridge
 manages the dialplan dynamically — no `Voicemail()` application is configured.
 If you have custom dialplan extensions, ensure they do not route to `VoicemailMain`
 or `Voicemail`.

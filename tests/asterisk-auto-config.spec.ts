@@ -1,7 +1,7 @@
-import { test, expect, type TestInfo } from '@playwright/test'
-import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
+import { type ChildProcess, spawn } from 'node:child_process'
+import { type IncomingMessage, type ServerResponse, createServer } from 'node:http'
 import type { AddressInfo } from 'node:net'
-import { spawn, type ChildProcess } from 'node:child_process'
+import { type TestInfo, expect, test } from '@playwright/test'
 
 // Real Asterisk ARI connection details — set via env or default to dev compose values
 const REAL_ARI_URL = process.env.ARI_REST_URL ?? 'http://127.0.0.1:8089/ari'
@@ -12,7 +12,7 @@ const REAL_ARI_PASSWORD = process.env.ARI_PASSWORD ?? 'changeme'
 async function isAsteriskAvailable(): Promise<boolean> {
   try {
     const res = await fetch(`${REAL_ARI_URL}/asterisk/info`, {
-      headers: { Authorization: 'Basic ' + btoa(`${REAL_ARI_USERNAME}:${REAL_ARI_PASSWORD}`) },
+      headers: { Authorization: `Basic ${btoa(`${REAL_ARI_USERNAME}:${REAL_ARI_PASSWORD}`)}` },
       signal: AbortSignal.timeout(2000),
     })
     return res.ok
@@ -25,7 +25,7 @@ async function isAsteriskAvailable(): Promise<boolean> {
 async function ariRequest(method: string, path: string, body?: unknown): Promise<Response> {
   const url = `${REAL_ARI_URL}${path}`
   const headers: Record<string, string> = {
-    Authorization: 'Basic ' + btoa(`${REAL_ARI_USERNAME}:${REAL_ARI_PASSWORD}`),
+    Authorization: `Basic ${btoa(`${REAL_ARI_USERNAME}:${REAL_ARI_PASSWORD}`)}`,
   }
   const init: RequestInit = { method, headers }
   if (body !== undefined) {
@@ -46,7 +46,9 @@ async function startMockAri(): Promise<MockAri> {
   const calls: Array<{ method: string; path: string; body: string }> = []
   const server = createServer((req: IncomingMessage, res: ServerResponse) => {
     let body = ''
-    req.on('data', (chunk: Buffer) => { body += chunk.toString() })
+    req.on('data', (chunk: Buffer) => {
+      body += chunk.toString()
+    })
     req.on('end', () => {
       calls.push({ method: req.method ?? '', path: req.url ?? '', body })
       res.writeHead(200, { 'Content-Type': 'application/json' })
@@ -58,16 +60,15 @@ async function startMockAri(): Promise<MockAri> {
   return {
     port,
     calls,
-    stop: () => new Promise((resolve, reject) =>
-      server.close((err) => (err ? reject(err) : resolve()))
-    ),
+    stop: () =>
+      new Promise((resolve, reject) => server.close((err) => (err ? reject(err) : resolve()))),
   }
 }
 
 /** Spawns the bridge process with the given env overrides */
 function spawnBridge(extraEnv: Record<string, string>): ChildProcess {
   return spawn('bun', ['run', 'src/index.ts'], {
-    cwd: `${process.cwd()}/asterisk-bridge`,
+    cwd: `${process.cwd()}/sip-bridge`,
     env: { ...process.env, ...extraEnv },
     stdio: 'pipe',
   })
@@ -77,7 +78,7 @@ function spawnBridge(extraEnv: Record<string, string>): ChildProcess {
 async function pollHealth(
   port: number,
   predicate: (body: Record<string, unknown>) => boolean,
-  timeoutMs = 10_000,
+  timeoutMs = 10_000
 ): Promise<Record<string, unknown>> {
   const deadline = Date.now() + timeoutMs
   while (Date.now() < deadline) {
@@ -105,15 +106,14 @@ async function killProcess(proc: ChildProcess): Promise<void> {
       resolve()
       return
     }
-    let forceKillTimer: ReturnType<typeof setTimeout> | undefined
+    proc.kill('SIGTERM')
+    const forceKillTimer = setTimeout(() => {
+      if (proc.exitCode === null) proc.kill('SIGKILL')
+    }, 2000)
     proc.once('exit', () => {
       clearTimeout(forceKillTimer)
       resolve()
     })
-    proc.kill('SIGTERM')
-    forceKillTimer = setTimeout(() => {
-      if (proc.exitCode === null) proc.kill('SIGKILL')
-    }, 2000)
   })
 }
 
@@ -145,10 +145,10 @@ test('auto-configures PJSIP trunk when SIP env vars are present', async () => {
   })
 
   try {
-    await pollHealth(bridgePort, (body) => body['sipConfigured'] === true)
+    await pollHealth(bridgePort, (body) => body.sipConfigured === true)
 
-    const configCalls = mockAri.calls.filter((c) =>
-      c.method === 'PUT' && c.path.startsWith('/ari/asterisk/config/dynamic/')
+    const configCalls = mockAri.calls.filter(
+      (c) => c.method === 'PUT' && c.path.startsWith('/ari/asterisk/config/dynamic/')
     )
     const paths = configCalls.map((c) => c.path)
 
@@ -157,8 +157,8 @@ test('auto-configures PJSIP trunk when SIP env vars are present', async () => {
     expect(paths).toContain('/ari/asterisk/config/dynamic/res_pjsip/endpoint/trunk')
     expect(paths).toContain('/ari/asterisk/config/dynamic/res_pjsip/registration/trunk-reg')
 
-    const reloadCalls = mockAri.calls.filter((c) =>
-      c.method === 'PUT' && c.path === '/ari/asterisk/modules/res_pjsip.so'
+    const reloadCalls = mockAri.calls.filter(
+      (c) => c.method === 'PUT' && c.path === '/ari/asterisk/modules/res_pjsip.so'
     )
     expect(reloadCalls.length).toBeGreaterThan(0)
   } finally {
@@ -181,10 +181,10 @@ test('skips PJSIP config when SIP env vars are absent', async () => {
   })
 
   try {
-    await pollHealth(bridgePort, (body) => body['sipConfigSkipped'] === true)
+    await pollHealth(bridgePort, (body) => body.sipConfigSkipped === true)
 
-    const configCalls = mockAri.calls.filter((c) =>
-      c.method === 'PUT' && c.path.startsWith('/ari/asterisk/config/dynamic/')
+    const configCalls = mockAri.calls.filter(
+      (c) => c.method === 'PUT' && c.path.startsWith('/ari/asterisk/config/dynamic/')
     )
     expect(configCalls.length).toBe(0)
   } finally {
@@ -214,7 +214,7 @@ test('PJSIP auto-config is idempotent across restarts', async () => {
   // First run
   const bridge1 = spawnBridge(makeEnv(bridgePort1))
   try {
-    await pollHealth(bridgePort1, (body) => body['sipConfigured'] === true)
+    await pollHealth(bridgePort1, (body) => body.sipConfigured === true)
   } finally {
     await killProcess(bridge1)
   }
@@ -224,7 +224,7 @@ test('PJSIP auto-config is idempotent across restarts', async () => {
   // Second run on a fresh port — must also issue all four ARI PUT calls and a reload without error
   const bridge2 = spawnBridge(makeEnv(bridgePort2))
   try {
-    await pollHealth(bridgePort2, (body) => body['sipConfigured'] === true)
+    await pollHealth(bridgePort2, (body) => body.sipConfigured === true)
 
     const newCalls = mockAri.calls.slice(callsAfterFirst)
     const newConfigPaths = newCalls
@@ -234,10 +234,12 @@ test('PJSIP auto-config is idempotent across restarts', async () => {
     expect(newConfigPaths).toContain('/ari/asterisk/config/dynamic/res_pjsip/auth/trunk-auth')
     expect(newConfigPaths).toContain('/ari/asterisk/config/dynamic/res_pjsip/aor/trunk')
     expect(newConfigPaths).toContain('/ari/asterisk/config/dynamic/res_pjsip/endpoint/trunk')
-    expect(newConfigPaths).toContain('/ari/asterisk/config/dynamic/res_pjsip/registration/trunk-reg')
+    expect(newConfigPaths).toContain(
+      '/ari/asterisk/config/dynamic/res_pjsip/registration/trunk-reg'
+    )
 
-    const newReloadCalls = newCalls.filter((c) =>
-      c.method === 'PUT' && c.path === '/ari/asterisk/modules/res_pjsip.so'
+    const newReloadCalls = newCalls.filter(
+      (c) => c.method === 'PUT' && c.path === '/ari/asterisk/modules/res_pjsip.so'
     )
     expect(newReloadCalls.length).toBeGreaterThan(0)
   } finally {
@@ -252,7 +254,7 @@ test('PJSIP auto-config is idempotent across restarts', async () => {
 // ================================================================
 
 test.describe('real Asterisk ARI', () => {
-  test.beforeEach(async ({}, testInfo: TestInfo) => {
+  test.beforeEach(async (_fixtures, testInfo: TestInfo) => {
     const available = await isAsteriskAvailable()
     if (!available) {
       testInfo.skip(true, 'Asterisk not available (run bun run dev:docker)')
@@ -265,8 +267,8 @@ test.describe('real Asterisk ARI', () => {
     const info = (await res.json()) as Record<string, unknown>
     expect(info).toHaveProperty('build')
     expect(info).toHaveProperty('system')
-    const system = info['system'] as Record<string, unknown>
-    expect(typeof system['version']).toBe('string')
+    const system = info.system as Record<string, unknown>
+    expect(typeof system.version).toBe('string')
   })
 
   test('PJSIP dynamic config: create, read, and delete objects', async () => {
@@ -290,7 +292,10 @@ test.describe('real Asterisk ARI', () => {
     expect(usernameField?.value).toBe('testuser')
 
     // Delete it
-    const deleteRes = await ariRequest('DELETE', `/asterisk/config/dynamic/res_pjsip/auth/${testId}`)
+    const deleteRes = await ariRequest(
+      'DELETE',
+      `/asterisk/config/dynamic/res_pjsip/auth/${testId}`
+    )
     expect(deleteRes.status).toBeLessThan(300)
 
     // Verify it's gone
@@ -309,13 +314,15 @@ test.describe('real Asterisk ARI', () => {
     const testProvider = `test-${Date.now()}.example.com`
 
     // Clean up any leftover objects from previous runs
-    await ariRequest('DELETE', '/asterisk/config/dynamic/res_pjsip/registration/trunk-reg').catch(() => {})
+    await ariRequest('DELETE', '/asterisk/config/dynamic/res_pjsip/registration/trunk-reg').catch(
+      () => {}
+    )
     await ariRequest('DELETE', '/asterisk/config/dynamic/res_pjsip/endpoint/trunk').catch(() => {})
     await ariRequest('DELETE', '/asterisk/config/dynamic/res_pjsip/aor/trunk').catch(() => {})
     await ariRequest('DELETE', '/asterisk/config/dynamic/res_pjsip/auth/trunk-auth').catch(() => {})
 
     const bridge = spawnBridge({
-      ARI_URL: `ws://127.0.0.1:8089/ari/events`,
+      ARI_URL: 'ws://127.0.0.1:8089/ari/events',
       ARI_REST_URL: REAL_ARI_URL,
       ARI_USERNAME: REAL_ARI_USERNAME,
       ARI_PASSWORD: REAL_ARI_PASSWORD,
@@ -329,7 +336,7 @@ test.describe('real Asterisk ARI', () => {
 
     try {
       // Wait for bridge to configure PJSIP — longer timeout for real ARI connection
-      await pollHealth(bridgePort, (body) => body['sipConfigured'] === true, 20_000)
+      await pollHealth(bridgePort, (body) => body.sipConfigured === true, 20_000)
 
       // Verify the objects were created in Asterisk
       const authRes = await ariRequest('GET', '/asterisk/config/dynamic/res_pjsip/auth/trunk-auth')
@@ -342,12 +349,18 @@ test.describe('real Asterisk ARI', () => {
       const aorFields = (await aorRes.json()) as Array<{ attribute: string; value: string }>
       expect(aorFields.find((f) => f.attribute === 'contact')?.value).toContain(testProvider)
 
-      const endpointRes = await ariRequest('GET', '/asterisk/config/dynamic/res_pjsip/endpoint/trunk')
+      const endpointRes = await ariRequest(
+        'GET',
+        '/asterisk/config/dynamic/res_pjsip/endpoint/trunk'
+      )
       expect(endpointRes.ok).toBe(true)
 
       // Registration may or may not exist — Asterisk 22.x doesn't support dynamic
       // registration objects. Just verify it doesn't break the bridge.
-      const regRes = await ariRequest('GET', '/asterisk/config/dynamic/res_pjsip/registration/trunk-reg')
+      const regRes = await ariRequest(
+        'GET',
+        '/asterisk/config/dynamic/res_pjsip/registration/trunk-reg'
+      )
       // regRes.ok may be false on Asterisk 22.x — that's expected
       if (regRes.ok) {
         const regFields = (await regRes.json()) as Array<{ attribute: string; value: string }>
@@ -356,10 +369,16 @@ test.describe('real Asterisk ARI', () => {
     } finally {
       await killProcess(bridge)
       // Clean up: delete the objects we created
-      await ariRequest('DELETE', '/asterisk/config/dynamic/res_pjsip/registration/trunk-reg').catch(() => {})
-      await ariRequest('DELETE', '/asterisk/config/dynamic/res_pjsip/endpoint/trunk').catch(() => {})
+      await ariRequest('DELETE', '/asterisk/config/dynamic/res_pjsip/registration/trunk-reg').catch(
+        () => {}
+      )
+      await ariRequest('DELETE', '/asterisk/config/dynamic/res_pjsip/endpoint/trunk').catch(
+        () => {}
+      )
       await ariRequest('DELETE', '/asterisk/config/dynamic/res_pjsip/aor/trunk').catch(() => {})
-      await ariRequest('DELETE', '/asterisk/config/dynamic/res_pjsip/auth/trunk-auth').catch(() => {})
+      await ariRequest('DELETE', '/asterisk/config/dynamic/res_pjsip/auth/trunk-auth').catch(
+        () => {}
+      )
     }
   })
 })

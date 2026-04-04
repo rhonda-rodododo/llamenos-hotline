@@ -30,7 +30,7 @@ import hubRoutes from './routes/hubs'
 import intakesRoutes from './routes/intakes'
 import invitesRoutes from './routes/invites'
 import signalRegistrationRoutes from './routes/messaging/signal-registration'
-import metricsRoutes from './routes/metrics'
+import metricsRoutes, { httpMetrics } from './routes/metrics'
 import notesRoutes from './routes/notes'
 import notificationsRoutes from './routes/notifications'
 import providerSetupRoutes from './routes/provider-setup'
@@ -73,6 +73,9 @@ const api = new OpenAPIHono<AppEnv>({
   },
 })
 
+// HTTP request metrics — on API routes only (not /telephony/* webhooks)
+api.use('*', httpMetrics)
+
 // Health check — before CORS middleware (internal probes only, no external access needed)
 api.route('/health', healthRoutes)
 api.route('/metrics', metricsRoutes)
@@ -89,7 +92,7 @@ api.doc('/openapi.json', {
   servers: [{ url: '/api', description: 'Current server' }],
   tags: [
     { name: 'Auth', description: 'Authentication and session management' },
-    { name: 'Users', description: 'User (volunteer/admin) management' },
+    { name: 'Users', description: 'User management' },
     { name: 'Shifts', description: 'Shift schedule management' },
     { name: 'Calls', description: 'Call routing and history' },
     { name: 'Notes', description: 'Call notes (E2EE)' },
@@ -315,6 +318,58 @@ hubScoped.route('/teams', teamsRoutes)
 hubScoped.route('/intakes', intakesRoutes)
 
 authenticated.route('/hubs/:hubId', hubScoped)
+
+// Return 404 for unknown API paths BEFORE auth middleware runs.
+// Without this, the authenticated catch-all returns 401 for non-existent routes,
+// leaking information about which route prefixes exist.
+const KNOWN_API_PREFIXES = new Set([
+  // Public routes
+  'health',
+  'metrics',
+  'openapi.json',
+  'docs',
+  'config',
+  'auth',
+  'invites',
+  'provision',
+  'messaging',
+  'notifications',
+  'ivr-audio',
+  // Authenticated routes
+  'users',
+  'analytics',
+  'shifts',
+  'bans',
+  'notes',
+  'calls',
+  'audit',
+  'settings',
+  'telephony',
+  'conversations',
+  'uploads',
+  'files',
+  'reports',
+  'report-types',
+  'setup',
+  'hubs',
+  'blasts',
+  'contacts',
+  'tags',
+  'teams',
+  'intakes',
+  'gdpr',
+  'geocoding',
+])
+api.use('*', async (c, next) => {
+  // Extract first path segment after /api/
+  const path = new URL(c.req.url).pathname.replace(/^\/api\/?/, '')
+  const firstSegment = path.split('/')[0] ?? ''
+  // Empty segment means /api/ root — let it through (dev routes)
+  if (firstSegment && !KNOWN_API_PREFIXES.has(firstSegment)) {
+    return c.json({ error: 'Not found' }, 404)
+  }
+  return next()
+})
 
 api.route('/', authenticated)
 

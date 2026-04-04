@@ -76,10 +76,10 @@ export class TestAdapter implements TelephonyAdapter {
       .join('\n      ')
     return this.twiml(`
       <Response>
-        <Gather numDigits="1" action="/api/telephony/language-selected${hp}" method="POST" timeout="8">
+        <Gather numDigits="1" action="/telephony/language-selected${hp}" method="POST" timeout="8">
           ${langOptions}
         </Gather>
-        <Redirect method="POST">/api/telephony/language-selected?auto=1${hp ? `&amp;${hp.slice(1)}` : ''}</Redirect>
+        <Redirect method="POST">/telephony/language-selected?auto=1${hp ? `&amp;${hp.slice(1)}` : ''}</Redirect>
       </Response>
     `)
   }
@@ -95,7 +95,7 @@ export class TestAdapter implements TelephonyAdapter {
     if (params.voiceCaptchaEnabled && params.captchaDigits) {
       return this.twiml(`
         <Response>
-          <Gather numDigits="${params.captchaDigits.length}" action="/api/telephony/captcha?callSid=${params.callSid}&amp;lang=${lang}${hp}" method="POST" timeout="10">
+          <Gather numDigits="${params.captchaDigits.length}" action="/telephony/captcha?callSid=${params.callSid}&amp;lang=${lang}${hp}" method="POST" timeout="10">
             <Say>Please enter the digits: ${params.captchaDigits.split('').join(', ')}</Say>
           </Gather>
           <Hangup/>
@@ -106,7 +106,7 @@ export class TestAdapter implements TelephonyAdapter {
     return this.twiml(`
       <Response>
         <Say>Welcome to ${params.hotlineName}.</Say>
-        <Enqueue waitUrl="/api/telephony/wait-music?lang=${lang}${hp}" action="/api/telephony/queue-exit?callSid=${params.callSid}&amp;lang=${lang}${hp}" method="POST">${params.callSid}</Enqueue>
+        <Enqueue waitUrl="/telephony/wait-music?lang=${lang}${hp}" action="/telephony/queue-exit?callSid=${params.callSid}&amp;lang=${lang}${hp}" method="POST">${params.callSid}</Enqueue>
       </Response>
     `)
   }
@@ -116,7 +116,7 @@ export class TestAdapter implements TelephonyAdapter {
     if (params.digits === params.expectedDigits) {
       return this.twiml(`
         <Response>
-          <Enqueue waitUrl="/api/telephony/wait-music?lang=${params.callerLanguage}${hp}" method="POST">${params.callSid}</Enqueue>
+          <Enqueue waitUrl="/telephony/wait-music?lang=${params.callerLanguage}${hp}" method="POST">${params.callSid}</Enqueue>
         </Response>
       `)
     }
@@ -125,10 +125,10 @@ export class TestAdapter implements TelephonyAdapter {
     if (params.remainingAttempts && params.remainingAttempts > 0 && params.newCaptchaDigits) {
       return this.twiml(`
         <Response>
-          <Gather numDigits="${params.newCaptchaDigits.length}" action="/api/telephony/captcha?callSid=${params.callSid}&amp;lang=${params.callerLanguage}${hp}" method="POST" timeout="10">
+          <Gather numDigits="${params.newCaptchaDigits.length}" action="/telephony/captcha?callSid=${params.callSid}&amp;lang=${params.callerLanguage}${hp}" method="POST" timeout="10">
             <Say>That was incorrect. Please try again: ${params.newCaptchaDigits.split('').join(', ')}</Say>
           </Gather>
-          <Redirect method="POST">/api/telephony/captcha?callSid=${params.callSid}&amp;lang=${params.callerLanguage}${hp}</Redirect>
+          <Redirect method="POST">/telephony/captcha?callSid=${params.callSid}&amp;lang=${params.callerLanguage}${hp}</Redirect>
         </Response>
       `)
     }
@@ -140,7 +140,7 @@ export class TestAdapter implements TelephonyAdapter {
     const hp = params.hubId ? `&amp;hub=${encodeURIComponent(params.hubId)}` : ''
     return this.twiml(`
       <Response>
-        <Dial record="record-from-answer" recordingStatusCallback="${params.callbackUrl}/api/telephony/call-recording?parentCallSid=${params.parentCallSid}&amp;pubkey=${params.userPubkey}${hp}" recordingStatusCallbackEvent="completed">
+        <Dial record="record-from-answer" recordingStatusCallback="${params.callbackUrl}/telephony/call-recording?parentCallSid=${params.parentCallSid}&amp;pubkey=${params.userPubkey}${hp}" recordingStatusCallbackEvent="completed">
           <Queue>${params.parentCallSid}</Queue>
         </Dial>
       </Response>
@@ -152,7 +152,7 @@ export class TestAdapter implements TelephonyAdapter {
     return this.twiml(`
       <Response>
         <Say>Please leave a message after the beep.</Say>
-        <Record maxLength="${params.maxRecordingSeconds ?? 120}" action="/api/telephony/voicemail-complete?callSid=${params.callSid}&amp;lang=${params.callerLanguage}${hp}" recordingStatusCallback="${params.callbackUrl}/api/telephony/voicemail-recording?callSid=${params.callSid}${hp}" recordingStatusCallbackEvent="completed" />
+        <Record maxLength="${params.maxRecordingSeconds ?? 120}" action="/telephony/voicemail-complete?callSid=${params.callSid}&amp;lang=${params.callerLanguage}${hp}" recordingStatusCallback="${params.callbackUrl}/telephony/voicemail-recording?callSid=${params.callSid}${hp}" recordingStatusCallbackEvent="completed" />
         <Hangup/>
       </Response>
     `)
@@ -169,7 +169,7 @@ export class TestAdapter implements TelephonyAdapter {
     }
     return this.twiml(`
       <Response>
-        <Say>Please hold. A volunteer will be with you shortly.</Say>
+        <Say>Please hold. Someone will be with you shortly.</Say>
         <Pause length="10"/>
       </Response>
     `)
@@ -215,15 +215,25 @@ export class TestAdapter implements TelephonyAdapter {
     return true
   }
 
-  // --- Recording (not available in test) ---
+  // --- Recording (returns test WAV file in dev/test) ---
 
   deletedRecordings: string[] = []
 
-  async getCallRecording(_callSid: string): Promise<ArrayBuffer | null> {
+  private async loadTestAudio(): Promise<ArrayBuffer | null> {
+    try {
+      const file = Bun.file('tests/fixtures/test-voicemail.wav')
+      if (await file.exists()) return file.arrayBuffer()
+    } catch {
+      /* fixture not found */
+    }
     return null
   }
+
+  async getCallRecording(_callSid: string): Promise<ArrayBuffer | null> {
+    return this.loadTestAudio()
+  }
   async getRecordingAudio(_recordingSid: string): Promise<ArrayBuffer | null> {
-    return null
+    return this.loadTestAudio()
   }
   async deleteRecording(recordingSid: string): Promise<void> {
     this.deletedRecordings.push(recordingSid)
@@ -314,8 +324,8 @@ export class TestAdapter implements TelephonyAdapter {
   ): Promise<WebhookVerificationResult> {
     return {
       configured: true,
-      expectedUrl: `${expectedBaseUrl}/api/telephony/incoming`,
-      actualUrl: `${expectedBaseUrl}/api/telephony/incoming`,
+      expectedUrl: `${expectedBaseUrl}/telephony/incoming`,
+      actualUrl: `${expectedBaseUrl}/telephony/incoming`,
     }
   }
 }

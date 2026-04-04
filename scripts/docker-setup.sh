@@ -128,7 +128,7 @@ HOTLINE_NAME=Hotline
 ENVIRONMENT=${ENVIRONMENT}
 ${DEMO_MODE:+DEMO_MODE=true}
 
-# Asterisk bridge — ARI_PASSWORD must match asterisk-bridge/asterisk-config/ari.conf
+# SIP bridge — ARI_PASSWORD must match sip-bridge/asterisk-config/ari.conf
 ARI_PASSWORD=changeme
 BRIDGE_SECRET=$(openssl rand -hex 32)
 EOF

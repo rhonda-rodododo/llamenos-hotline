@@ -143,7 +143,7 @@ describe('TestAdapter', () => {
     const sids = await adapter.ringUsers({
       callSid: 'CA_test',
       callerNumber: '+15551111111',
-      volunteers: [{ pubkey: 'pk1', phone: '+15553333333' }],
+      users: [{ pubkey: 'pk1', phone: '+15553333333' }],
       callbackUrl: 'http://localhost:3000',
     })
     expect(sids).toEqual([])
@@ -168,8 +168,8 @@ describe('TestAdapter', () => {
   test('verifyWebhookConfig returns configured with matching URLs', async () => {
     const result = await adapter.verifyWebhookConfig('+15551234567', 'https://app.example.com')
     expect(result.configured).toBe(true)
-    expect(result.expectedUrl).toBe('https://app.example.com/api/telephony/incoming')
-    expect(result.actualUrl).toBe('https://app.example.com/api/telephony/incoming')
+    expect(result.expectedUrl).toBe('https://app.example.com/telephony/incoming')
+    expect(result.actualUrl).toBe('https://app.example.com/telephony/incoming')
     expect(result.warning).toBeUndefined()
   })
 })

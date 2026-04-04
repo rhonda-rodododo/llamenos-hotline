@@ -18,7 +18,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { type Hub, type HubExportCategory, exportHubData } from '@/lib/api'
 import { useAuth } from '@/lib/auth'
 import { useConfig } from '@/lib/config'
-import { decryptHubField, encryptHubField } from '@/lib/hub-field-crypto'
+import { encryptHubField } from '@/lib/hub-field-crypto'
 import {
   useArchiveHub,
   useCreateHub,
@@ -203,13 +203,11 @@ function HubRow({
         </div>
         <div className="min-w-0 flex-1">
           <p className="text-sm font-medium">
-            {decryptHubField(hub.encryptedName, hub.id, hub.name)}
+            {hub.name}
             <span className="ml-2 font-mono text-xs text-muted-foreground">{hub.id}</span>
           </p>
           {hub.encryptedDescription && (
-            <p className="text-xs text-muted-foreground line-clamp-1">
-              {decryptHubField(hub.encryptedDescription, hub.id, hub.description)}
-            </p>
+            <p className="text-xs text-muted-foreground line-clamp-1">{hub.description}</p>
           )}
         </div>
       </div>
@@ -401,17 +399,16 @@ function EditHubDialog({
   toast: ReturnType<typeof useToast>['toast']
 }) {
   const { t } = useTranslation()
-  const decryptedName = decryptHubField(hub.encryptedName, hub.id, hub.name)
-  const decryptedDesc = decryptHubField(hub.encryptedDescription, hub.id, hub.description)
-  const [name, setName] = useState(decryptedName)
-  const [description, setDescription] = useState(decryptedDesc)
+
+  const [name, setName] = useState(hub.name || '')
+  const [description, setDescription] = useState(hub.description || '')
   const [phoneNumber, setPhoneNumber] = useState(hub.phoneNumber || '')
   const [showAccessConfirm, setShowAccessConfirm] = useState<'enable' | 'disable' | null>(null)
 
   // Reset form state when hub changes
   useEffect(() => {
-    setName(decryptHubField(hub.encryptedName, hub.id, hub.name))
-    setDescription(decryptHubField(hub.encryptedDescription, hub.id, hub.description))
+    setName(hub.name || '')
+    setDescription(hub.description || '')
     setPhoneNumber(hub.phoneNumber || '')
   }, [hub])
 

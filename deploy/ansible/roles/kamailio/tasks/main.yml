@@ -1,0 +1,45 @@
+---
+# Kamailio SIP proxy — optional role for multi-PBX load balancing
+#
+# All tasks are guarded by kamailio_enabled. When disabled (default),
+# this role is a no-op.
+
+- name: Create Kamailio config directory
+  ansible.builtin.file:
+    path: "{{ app_dir }}/kamailio"
+    state: directory
+    owner: "{{ deploy_user }}"
+    group: "{{ deploy_group }}"
+    mode: "0750"
+  when: kamailio_enabled | default(false) | bool
+
+- name: Template kamailio.cfg
+  ansible.builtin.template:
+    src: kamailio.cfg.j2
+    dest: "{{ app_dir }}/kamailio/kamailio.cfg"
+    owner: "{{ deploy_user }}"
+    group: "{{ deploy_group }}"
+    mode: "0640"
+  when: kamailio_enabled | default(false) | bool
+  notify: restart kamailio
+
+- name: Template dispatcher.list
+  ansible.builtin.template:
+    src: dispatcher.list.j2
+    dest: "{{ app_dir }}/kamailio/dispatcher.list"
+    owner: "{{ deploy_user }}"
+    group: "{{ deploy_group }}"
+    mode: "0640"
+  when: kamailio_enabled | default(false) | bool
+  notify: restart kamailio
+
+- name: Create Kamailio TLS directory
+  ansible.builtin.file:
+    path: "{{ app_dir }}/kamailio/tls"
+    state: directory
+    owner: "{{ deploy_user }}"
+    group: "{{ deploy_group }}"
+    mode: "0750"
+  when:
+    - kamailio_enabled | default(false) | bool
+    - kamailio_tls_enabled | default(false) | bool

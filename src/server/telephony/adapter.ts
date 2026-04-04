@@ -55,12 +55,12 @@ export interface TelephonyAdapter {
   handleCaptchaResponse(params: CaptchaResponseParams): Promise<TelephonyResponse>
 
   /**
-   * Generate response when a volunteer answers — bridge the call via queue.
+   * Generate response when a user answers — bridge the call via queue.
    */
   handleCallAnswered(params: CallAnsweredParams): Promise<TelephonyResponse>
 
   /**
-   * Generate voicemail prompt when no volunteer answers.
+   * Generate voicemail prompt when no user answers.
    * Records caller's message for later transcription.
    */
   handleVoicemail(params: VoicemailParams): Promise<TelephonyResponse>
@@ -227,9 +227,9 @@ export interface VoicemailParams {
 export interface RingUsersParams {
   callSid: string
   callerNumber: string
-  volunteers: Array<{
+  users: Array<{
     pubkey: string
-    phone?: string // optional — browser-only volunteers have no phone
+    phone?: string // optional — browser-only users have no phone
     browserIdentity?: string // e.g., 'vol_abc123' — for <Client>/<User>/NCCO routing
   }>
   callbackUrl: string

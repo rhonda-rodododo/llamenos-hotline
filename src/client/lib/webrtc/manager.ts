@@ -11,6 +11,9 @@
  */
 
 import { getWebRtcToken } from '../api'
+import { createDebugLog } from '../debug-log'
+
+const log = createDebugLog('WebRTCManager')
 import { PlivoWebRTCAdapter } from './adapters/plivo'
 import { SipWebRTCAdapter } from './adapters/sip'
 import { TwilioWebRTCAdapter } from './adapters/twilio'
@@ -157,18 +160,18 @@ export async function initWebRtc(forceRefresh = false): Promise<void> {
 
     // Wire adapter events → state machine
     newAdapter.on('incoming', (callSid) => {
-      console.log('[WebRTCManager] Incoming call', callSid)
+      log('Incoming call', callSid)
       incomingCallSid = callSid
       setState('ringing')
     })
 
     newAdapter.on('connected', () => {
-      console.log('[WebRTCManager] Call connected')
+      log('Call connected')
       setState('connected')
     })
 
     newAdapter.on('disconnected', () => {
-      console.log('[WebRTCManager] Call disconnected')
+      log('Call disconnected')
       incomingCallSid = null
       setState('ended')
     })

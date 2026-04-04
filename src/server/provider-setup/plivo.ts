@@ -66,9 +66,9 @@ export class PlivoProvider {
     // Create Plivo Application
     const appBody: Record<string, unknown> = {
       app_name: `Llamenos - ${domain}`,
-      answer_url: `https://${domain}/api/telephony/incoming`,
+      answer_url: `https://${domain}/telephony/incoming`,
       answer_method: 'POST',
-      hangup_url: `https://${domain}/api/telephony/status`,
+      hangup_url: `https://${domain}/telephony/status`,
       hangup_method: 'POST',
     }
 

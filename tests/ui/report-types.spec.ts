@@ -79,7 +79,7 @@ test.describe('Report Types System', () => {
 
     const typeRow = adminPage.getByTestId('report-type-row').filter({ hasText: typeName })
     await expect(typeRow).toBeVisible({ timeout: 15000 })
-    await expect(typeRow.getByText('Default', { exact: true })).toBeVisible({ timeout: 10000 })
+    await expect(typeRow.getByTestId('default-badge')).toBeVisible({ timeout: 10000 })
   })
 
   test('admin can create a second report type without default', async ({ adminPage }) => {
@@ -113,11 +113,11 @@ test.describe('Report Types System', () => {
     await supportRow.getByTestId('set-default-btn').click()
 
     // Support should now have Default badge
-    await expect(supportRow.getByText('Default', { exact: true })).toBeVisible({ timeout: 5000 })
+    await expect(supportRow.getByTestId('default-badge')).toBeVisible({ timeout: 5000 })
 
     // Crisis should no longer have Default badge
     const crisisRow = adminPage.getByTestId('report-type-row').filter({ hasText: firstName })
-    await expect(crisisRow.getByText('Default', { exact: true })).not.toBeVisible()
+    await expect(crisisRow.getByTestId('default-badge')).not.toBeVisible()
   })
 
   test('admin can archive a report type', async ({ adminPage }) => {

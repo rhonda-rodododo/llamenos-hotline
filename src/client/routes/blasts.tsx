@@ -6,10 +6,12 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { useAuth } from '@/lib/auth'
 import { useConfig } from '@/lib/config'
-import { decryptHubField } from '@/lib/hub-field-crypto'
+
 import { useBlasts, useCancelBlast, useDeleteBlast, useSendBlast } from '@/lib/queries/blasts'
+import { queryKeys } from '@/lib/queries/keys'
 import { useToast } from '@/lib/toast'
 import type { Blast } from '@shared/types'
+import { useQueryClient } from '@tanstack/react-query'
 import { createFileRoute } from '@tanstack/react-router'
 import { Megaphone, Plus, Send, Settings2, Trash2, Users, XCircle } from 'lucide-react'
 import { useState } from 'react'
@@ -25,6 +27,7 @@ function BlastsPage() {
   const { currentHubId } = useConfig()
   const hubId = currentHubId ?? 'global'
   const { toast } = useToast()
+  const queryClient = useQueryClient()
 
   // Access control — require blasts:read permission
   if (!hasPermission('blasts:read')) {
@@ -176,9 +179,7 @@ function BlastsPage() {
                       }`}
                     >
                       <div className="flex items-center justify-between">
-                        <p className="text-sm font-medium truncate">
-                          {decryptHubField(blast.encryptedName, hubId, blast.name)}
-                        </p>
+                        <p className="text-sm font-medium truncate">{blast.name}</p>
                         <Badge className={statusColors[blast.status] || ''} variant="outline">
                           {t(`blasts.status.${blast.status}`)}
                         </Badge>
@@ -215,6 +216,7 @@ function BlastsPage() {
               onCreated={(blast) => {
                 setShowComposer(false)
                 setSelectedBlast(blast)
+                void queryClient.invalidateQueries({ queryKey: queryKeys.blasts.all })
               }}
               onCancel={() => setShowComposer(false)}
             />
@@ -222,9 +224,7 @@ function BlastsPage() {
             <Card>
               <CardHeader>
                 <div className="flex items-center justify-between">
-                  <CardTitle>
-                    {decryptHubField(selectedBlast.encryptedName, hubId, selectedBlast.name)}
-                  </CardTitle>
+                  <CardTitle>{selectedBlast.name}</CardTitle>
                   <Badge className={statusColors[selectedBlast.status] || ''} variant="outline">
                     {t(`blasts.status.${selectedBlast.status}`)}
                   </Badge>

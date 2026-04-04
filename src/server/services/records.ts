@@ -263,6 +263,16 @@ export class RecordsService {
     return rows[0] ? this.#rowToCallRecord(rows[0]) : null
   }
 
+  /** Find a call record by ID across all hubs. Returns hubId for webhook hub resolution. */
+  async findCallRecordHubId(id: string): Promise<string | null> {
+    const rows = await this.db
+      .select({ hubId: callRecords.hubId })
+      .from(callRecords)
+      .where(eq(callRecords.id, id))
+      .limit(1)
+    return rows[0]?.hubId ?? null
+  }
+
   async updateCallRecord(
     id: string,
     hubId: string,
@@ -610,14 +620,14 @@ export class RecordsService {
         'passkeyRegistered',
         'deviceLinked',
       ],
-      volunteers: [
-        'volunteerAdded',
-        'volunteerRemoved',
-        'volunteerRoleChanged',
-        'volunteerActivated',
-        'volunteerDeactivated',
-        'volunteerOnBreak',
-        'volunteerOffBreak',
+      users: [
+        'userAdded',
+        'userRemoved',
+        'userRoleChanged',
+        'userActivated',
+        'userDeactivated',
+        'userOnBreak',
+        'userOffBreak',
         'inviteCreated',
         'inviteRedeemed',
       ],

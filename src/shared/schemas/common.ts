@@ -21,10 +21,18 @@ export const MessageDeliveryStatusSchema = z.enum([
 ])
 export type MessageDeliveryStatus = z.infer<typeof MessageDeliveryStatusSchema>
 
-export const MessagingChannelTypeSchema = z.enum(['sms', 'whatsapp', 'signal', 'rcs'])
+export const MessagingChannelTypeSchema = z.enum(['sms', 'whatsapp', 'signal', 'rcs', 'telegram'])
 export type MessagingChannelType = z.infer<typeof MessagingChannelTypeSchema>
 
-export const ChannelTypeSchema = z.enum(['voice', 'sms', 'whatsapp', 'signal', 'rcs', 'reports'])
+export const ChannelTypeSchema = z.enum([
+  'voice',
+  'sms',
+  'whatsapp',
+  'signal',
+  'rcs',
+  'telegram',
+  'reports',
+])
 export type ChannelType = z.infer<typeof ChannelTypeSchema>
 
 export const CustomFieldContextSchema = z.enum([

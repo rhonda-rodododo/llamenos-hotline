@@ -27,6 +27,11 @@ export const SignalWireConfigSchema = BaseProviderSchema.extend({
   accountSid: z.string().min(1),
   authToken: z.string().min(1),
   signalwireSpace: z.string().min(1, 'Space name is required (e.g., "myspace")'),
+  // WebRTC support — SignalWire uses Twilio-compatible access tokens
+  webrtcEnabled: z.boolean().optional(),
+  apiKeySid: z.string().optional(),
+  apiKeySecret: z.string().optional(),
+  twimlAppSid: z.string().optional(),
 })
 export type SignalWireConfig = z.infer<typeof SignalWireConfigSchema>
 
@@ -68,6 +73,30 @@ export const TelnyxConfigSchema = BaseProviderSchema.extend({
 })
 export type TelnyxConfig = z.infer<typeof TelnyxConfigSchema>
 
+export const BandwidthConfigSchema = BaseProviderSchema.extend({
+  type: z.literal('bandwidth'),
+  accountId: z.string().min(1),
+  apiToken: z.string().min(1),
+  apiSecret: z.string().min(1),
+  applicationId: z.string().min(1),
+  webrtcEnabled: z.boolean().optional(),
+})
+export type BandwidthConfig = z.infer<typeof BandwidthConfigSchema>
+
+export const FreeSwitchConfigSchema = BaseProviderSchema.extend({
+  type: z.literal('freeswitch'),
+  eslUrl: z.string().url(),
+  eslPassword: z.string().min(1),
+  bridgeCallbackUrl: z.string().url().optional(),
+  bridgeSecret: z.string().optional(),
+  freeswitchDomain: z.string().optional(),
+  vertoWssPort: z.number().optional(),
+  stunServer: z.string().optional(),
+  turnServer: z.string().optional(),
+  turnSecret: z.string().optional(),
+})
+export type FreeSwitchConfig = z.infer<typeof FreeSwitchConfigSchema>
+
 // ── Discriminated union of all telephony providers ──
 export const TelephonyProviderConfigSchema = z.discriminatedUnion('type', [
   TwilioConfigSchema,
@@ -76,6 +105,8 @@ export const TelephonyProviderConfigSchema = z.discriminatedUnion('type', [
   PlivoConfigSchema,
   AsteriskConfigSchema,
   TelnyxConfigSchema,
+  BandwidthConfigSchema,
+  FreeSwitchConfigSchema,
 ])
 export type TelephonyProviderConfig = z.infer<typeof TelephonyProviderConfigSchema>
 
@@ -119,3 +150,13 @@ export const RCSConfigSchema = z.object({
   afterHoursResponse: z.string().optional(),
 })
 export type RCSConfig = z.infer<typeof RCSConfigSchema>
+
+export const TelegramConfigSchema = z.object({
+  enabled: z.boolean(),
+  botToken: z.string().min(1),
+  webhookSecret: z.string().optional(),
+  botUsername: z.string().optional(),
+  autoResponse: z.string().optional(),
+  afterHoursResponse: z.string().optional(),
+})
+export type TelegramConfig = z.infer<typeof TelegramConfigSchema>

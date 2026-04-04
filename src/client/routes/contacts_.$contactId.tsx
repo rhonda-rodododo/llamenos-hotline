@@ -21,7 +21,7 @@ import {
 import { Skeleton } from '@/components/ui/skeleton'
 import { useAuth } from '@/lib/auth'
 import { useConfig } from '@/lib/config'
-import { decryptHubField } from '@/lib/hub-field-crypto'
+
 import {
   useContact,
   useContactRelationships,
@@ -556,7 +556,7 @@ function ContactTeamBadges({
           <SelectContent>
             {teams.map((team) => (
               <SelectItem key={team.id} value={team.id}>
-                {decryptHubField(team.encryptedName, hubId, '[encrypted]')}
+                {team.name || '[encrypted]'}
               </SelectItem>
             ))}
           </SelectContent>
@@ -593,7 +593,7 @@ function ContactTeamBadge({
       className="text-xs flex items-center gap-1"
       data-testid={`team-badge-${team.id}`}
     >
-      {decryptHubField(team.encryptedName, hubId, '[encrypted]')}
+      {team.name || '[encrypted]'}
       {canManage && (
         <button
           type="button"

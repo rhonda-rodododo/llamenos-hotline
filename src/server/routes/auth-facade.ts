@@ -3,6 +3,12 @@ import { Hono } from 'hono'
 import { getCookie, setCookie } from 'hono/cookie'
 import { createMiddleware } from 'hono/factory'
 import { resolvePermissions } from '../../shared/permissions'
+import {
+  DemoLoginSchema,
+  InviteAcceptSchema,
+  WebAuthnLoginVerifySchema,
+  WebAuthnRegisterVerifySchema,
+} from '../../shared/schemas/auth'
 import type { IdPAdapter } from '../idp/adapter'
 import { hashIP } from '../lib/crypto-service'
 import { uint8ArrayToBase64URL } from '../lib/helpers'
@@ -178,7 +184,11 @@ authFacade.post('/webauthn/login-verify', async (c) => {
     return c.json({ error: 'Too many requests. Try again later.' }, 429)
   }
 
-  const body = (await c.req.json()) as { assertion: unknown; challengeId: string }
+  const parseResult = WebAuthnLoginVerifySchema.safeParse(await c.req.json())
+  if (!parseResult.success) {
+    return c.json({ error: 'Invalid request body' }, 400)
+  }
+  const body = parseResult.data
   const origin = c.env.AUTH_WEBAUTHN_ORIGIN
   const rpID = c.env.AUTH_WEBAUTHN_RP_ID
 
@@ -230,8 +240,11 @@ authFacade.post('/webauthn/login-verify', async (c) => {
 // POST /invite/accept
 authFacade.post('/invite/accept', async (c) => {
   const identity = c.get('identity')
-  const body = (await c.req.json()) as { code: string }
-  if (!body.code) return c.json({ error: 'Missing invite code' }, 400)
+  const parseResult = InviteAcceptSchema.safeParse(await c.req.json())
+  if (!parseResult.success) {
+    return c.json({ error: 'Invalid request body' }, 400)
+  }
+  const body = parseResult.data
 
   const result = await identity.validateInvite(body.code)
   if (!result.valid) {
@@ -257,8 +270,11 @@ authFacade.post('/demo-login', async (c) => {
   if (!envDemo && !dbDemo) {
     return c.json({ error: 'Demo mode is not enabled' }, 403)
   }
-  const body = (await c.req.json()) as { pubkey: string }
-  if (!body.pubkey) return c.json({ error: 'Missing pubkey' }, 400)
+  const parseResult = DemoLoginSchema.safeParse(await c.req.json())
+  if (!parseResult.success) {
+    return c.json({ error: 'Invalid request body' }, 400)
+  }
+  const body = parseResult.data
 
   const identity = c.get('identity')
   const user = await identity.getUser(body.pubkey)
@@ -309,11 +325,11 @@ authFacade.post('/webauthn/register-verify', async (c) => {
   const identity = c.get('identity')
   const pubkey = c.get('pubkey')
 
-  const body = (await c.req.json()) as {
-    attestation: unknown
-    label: string
-    challengeId: string
+  const parseResult = WebAuthnRegisterVerifySchema.safeParse(await c.req.json())
+  if (!parseResult.success) {
+    return c.json({ error: 'Invalid request body' }, 400)
   }
+  const body = parseResult.data
   const origin = c.env.AUTH_WEBAUTHN_ORIGIN
   const rpID = c.env.AUTH_WEBAUTHN_RP_ID
 

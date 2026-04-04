@@ -79,7 +79,7 @@ Comprehensive security audit of the entire application, covering authentication,
     - Captured signed webhooks replayable indefinitely
     - Fix: Added 5-minute timestamp window validation
 
-18. **Asterisk bridge bound to 0.0.0.0** (`asterisk-bridge/src/index.ts`)
+18. **Asterisk bridge bound to 0.0.0.0** (`sip-bridge/src/index.ts`)
     - Bridge commands internet-accessible without firewall
     - Fix: Added `hostname: '127.0.0.1'` to `Bun.serve()`
 
@@ -117,4 +117,4 @@ These are known limitations documented for operational awareness:
 - `src/client/lib/backup.ts` — Per-backup PBKDF2 salt
 - `src/client/lib/api.ts` — Invite redemption with signature
 - `src/client/routes/onboarding.tsx` — Encrypted backup, signed invite redemption
-- `asterisk-bridge/src/index.ts` — Localhost binding
+- `sip-bridge/src/index.ts` — Localhost binding

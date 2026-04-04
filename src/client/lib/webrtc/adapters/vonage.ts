@@ -6,7 +6,10 @@
  * provider-agnostic WebRTC manager listens to.
  */
 
+import { createDebugLog } from '../../debug-log'
 import type { WebRTCAdapter, WebRtcEvent, WebRtcEventHandler } from '../types'
+
+const log = createDebugLog('VonageWebRTCAdapter')
 
 // Minimal types from @vonage/client-sdk
 interface VonageClientInstance {
@@ -65,7 +68,7 @@ export class VonageWebRTCAdapter implements WebRTCAdapter {
     client.on('callInvite', (...args: unknown[]) => {
       const callId = args[0] as string
       const from = args[1] as string
-      console.log('[VonageWebRTCAdapter] Incoming call', callId, 'from', from)
+      log('Incoming call', callId, 'from', from)
       this.#activeCallId = callId
       this.#muted = false
       this.#emit('incoming', callId)
@@ -73,7 +76,7 @@ export class VonageWebRTCAdapter implements WebRTCAdapter {
 
     client.on('callHangup', (...args: unknown[]) => {
       const callId = args[0] as string
-      console.log('[VonageWebRTCAdapter] Call hangup', callId)
+      log('Call hangup', callId)
       if (this.#activeCallId === callId) {
         this.#activeCallId = null
         this.#muted = false
@@ -84,7 +87,7 @@ export class VonageWebRTCAdapter implements WebRTCAdapter {
     client.on('callInviteCancel', (...args: unknown[]) => {
       const callId = args[0] as string
       const reason = args[1]
-      console.log('[VonageWebRTCAdapter] Call invite cancelled', callId, reason)
+      log('Call invite cancelled', callId, reason)
       if (this.#activeCallId === callId) {
         this.#activeCallId = null
         this.#muted = false
@@ -94,7 +97,7 @@ export class VonageWebRTCAdapter implements WebRTCAdapter {
 
     this.#client = client
     await client.createSession(token)
-    console.log('[VonageWebRTCAdapter] Session created')
+    log('Session created')
 
     // callHangup/callInviteCancel don't signal 'connected' — we emit that on accept
   }

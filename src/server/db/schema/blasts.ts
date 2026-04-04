@@ -4,7 +4,7 @@ import { jsonb } from '../bun-jsonb'
 import { ciphertext } from '../crypto-columns'
 
 interface SubscriberChannel {
-  type: 'sms' | 'whatsapp' | 'signal' | 'rcs'
+  type: 'sms' | 'whatsapp' | 'signal' | 'rcs' | 'telegram'
   verified: boolean
 }
 

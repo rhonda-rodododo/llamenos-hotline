@@ -19,7 +19,7 @@ test.describe('Hub access control UI', () => {
   const testHubName = `access-ctrl-ui-${Date.now()}`
 
   test.beforeAll(async ({ request }) => {
-    // Pre-create the hub via API so UI tests can reference it
+    // Pre-create the hub via API — use admin storage state (matches UI-bootstrapped admin)
     const authedApi = createAdminApiFromStorageState(request)
     const createRes = await authedApi.post('/api/hubs', { name: testHubName })
     if (!createRes.ok()) {

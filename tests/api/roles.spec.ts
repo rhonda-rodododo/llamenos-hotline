@@ -1,11 +1,11 @@
 import { expect, test } from '@playwright/test'
-import { nip19 } from 'nostr-tools'
 import { generateSecretKey, getPublicKey } from 'nostr-tools/pure'
 import { ADMIN_NSEC, uniquePhone } from '../helpers'
 import {
   type AuthedRequest,
   createAuthedRequest,
   createAuthedRequestFromNsec,
+  enrollInAuthentik,
 } from '../helpers/authed-request'
 
 // --- Role CRUD via API ---
@@ -168,22 +168,26 @@ test.describe('Permission Enforcement', () => {
     // Create a user (default role: volunteer)
     userSk = generateSecretKey()
     const userPubkey = getPublicKey(userSk)
-    await setupApi.post('/api/users', {
+    const userRes = await setupApi.post('/api/users', {
       name: 'PBAC Vol',
       phone: uniquePhone(),
       pubkey: userPubkey,
       roleIds: ['role-volunteer'],
     })
+    expect(userRes.ok(), `create vol: ${userRes.status()}`).toBe(true)
+    await enrollInAuthentik(setupApi, userPubkey)
 
     // Create a reporter: create as user, then change role to reporter
     repSk = generateSecretKey()
     const repPubkey = getPublicKey(repSk)
-    await setupApi.post('/api/users', {
+    const repRes = await setupApi.post('/api/users', {
       name: 'PBAC Reporter',
       phone: uniquePhone(),
       pubkey: repPubkey,
       roleIds: ['role-volunteer'],
     })
+    expect(repRes.ok(), `create rep: ${repRes.status()}`).toBe(true)
+    await enrollInAuthentik(setupApi, repPubkey)
     await setupApi.patch(`/api/users/${repPubkey}`, {
       roles: ['role-reporter'],
     })
@@ -313,12 +317,14 @@ test.describe('Multi-role users', () => {
     // Create a user
     multiRoleSk = generateSecretKey()
     const pubkey = getPublicKey(multiRoleSk)
-    await setupApi.post('/api/users', {
+    const res = await setupApi.post('/api/users', {
       name: 'Multi-Role User',
       phone: uniquePhone(),
       pubkey,
       roleIds: ['role-volunteer'],
     })
+    expect(res.ok(), `create multi-role: ${res.status()}`).toBe(true)
+    await enrollInAuthentik(setupApi, pubkey)
 
     // Assign both user AND reviewer roles
     await setupApi.patch(`/api/users/${pubkey}`, {
@@ -384,12 +390,14 @@ test.describe('Custom role with specific permissions', () => {
     // Create a user
     customSk = generateSecretKey()
     const pubkey = getPublicKey(customSk)
-    await setupApi.post('/api/users', {
+    const userRes = await setupApi.post('/api/users', {
       name: 'Shift Viewer User',
       phone: uniquePhone(),
       pubkey,
       roleIds: ['role-volunteer'],
     })
+    expect(userRes.ok(), `create custom-role user: ${userRes.status()}`).toBe(true)
+    await enrollInAuthentik(setupApi, pubkey)
 
     // Assign custom role
     await setupApi.patch(`/api/users/${pubkey}`, {
@@ -486,12 +494,14 @@ test.describe('Wildcard permission resolution', () => {
     // Create user and assign the custom role
     wildcardSk = generateSecretKey()
     const pubkey = getPublicKey(wildcardSk)
-    await setupApi.post('/api/users', {
+    const userRes = await setupApi.post('/api/users', {
       name: 'Ban Manager User',
       phone: uniquePhone(),
       pubkey,
       roleIds: ['role-volunteer'],
     })
+    expect(userRes.ok(), `create wildcard user: ${userRes.status()}`).toBe(true)
+    await enrollInAuthentik(setupApi, pubkey)
     await setupApi.patch(`/api/users/${pubkey}`, {
       roles: [roleBody.id],
     })

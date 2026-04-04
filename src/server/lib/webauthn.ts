@@ -9,7 +9,7 @@ import {
 import type { WebAuthnCredential } from '../types'
 
 export async function generateRegOptions(
-  volunteer: { pubkey: string; name: string },
+  user: { pubkey: string; name: string },
   existingCreds: WebAuthnCredential[],
   rpID: string,
   rpName: string
@@ -17,8 +17,8 @@ export async function generateRegOptions(
   return generateRegistrationOptions({
     rpName,
     rpID,
-    userName: volunteer.name || volunteer.pubkey.slice(0, 16),
-    userID: new TextEncoder().encode(volunteer.pubkey) as Uint8Array<ArrayBuffer>,
+    userName: user.name || user.pubkey.slice(0, 16),
+    userID: new TextEncoder().encode(user.pubkey) as Uint8Array<ArrayBuffer>,
     attestationType: 'none',
     authenticatorSelection: {
       residentKey: 'preferred',

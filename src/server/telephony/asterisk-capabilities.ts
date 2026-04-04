@@ -90,8 +90,8 @@ export const asteriskCapabilities: ProviderCapabilities<AsteriskConfig> = {
   getWebhookUrls(baseUrl: string, hubId?: string): WebhookUrlSet {
     const qs = hubId ? `?hub=${hubId}` : ''
     return {
-      voiceIncoming: `${baseUrl}/api/telephony/incoming${qs}`,
-      voiceStatus: `${baseUrl}/api/telephony/call-status${qs}`,
+      voiceIncoming: `${baseUrl}/telephony/incoming${qs}`,
+      voiceStatus: `${baseUrl}/telephony/call-status${qs}`,
     }
   },
 }

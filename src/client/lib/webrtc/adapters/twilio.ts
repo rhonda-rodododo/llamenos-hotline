@@ -6,7 +6,10 @@
  * provider-agnostic WebRTC manager listens to.
  */
 
+import { createDebugLog } from '../../debug-log'
 import type { WebRTCAdapter, WebRtcEvent, WebRtcEventHandler } from '../types'
+
+const log = createDebugLog('TwilioWebRTCAdapter')
 
 // Minimal types we need from @twilio/voice-sdk
 interface TwilioDevice {
@@ -76,11 +79,11 @@ export class TwilioWebRTCAdapter implements WebRTCAdapter {
     })
 
     device.on('registered', () => {
-      console.log('[TwilioWebRTCAdapter] Device registered')
+      log('Device registered')
     })
 
     device.on('unregistered', () => {
-      console.log('[TwilioWebRTCAdapter] Device unregistered')
+      log('Device unregistered')
     })
 
     device.on('error', (...args: unknown[]) => {
@@ -92,7 +95,7 @@ export class TwilioWebRTCAdapter implements WebRTCAdapter {
     device.on('incoming', (...args: unknown[]) => {
       const conn = args[0] as TwilioConnection
       const callSid = conn.parameters.CallSid ?? ''
-      console.log('[TwilioWebRTCAdapter] Incoming call', callSid)
+      log('Incoming call', callSid)
       this.#activeConnection = conn
 
       conn.on('accept', () => {

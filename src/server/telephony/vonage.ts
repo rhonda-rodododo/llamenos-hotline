@@ -142,7 +142,7 @@ export class VonageAdapter implements TelephonyAdapter {
         {
           action: 'notify',
           payload: { lang, auto: true },
-          eventUrl: [`/api/telephony/language-selected?auto=1&forceLang=${lang}${hp}`],
+          eventUrl: [`/telephony/language-selected?auto=1&forceLang=${lang}${hp}`],
           eventMethod: 'POST',
         },
       ])
@@ -162,7 +162,7 @@ export class VonageAdapter implements TelephonyAdapter {
         action: 'input',
         type: ['dtmf'],
         dtmf: { maxDigits: 1, timeOut: 8 },
-        eventUrl: [`/api/telephony/language-selected${hubQPFirst(params.hubId)}`],
+        eventUrl: [`/telephony/language-selected${hubQPFirst(params.hubId)}`],
         eventMethod: 'POST',
       },
       ...talkActions,
@@ -193,7 +193,7 @@ export class VonageAdapter implements TelephonyAdapter {
           action: 'input',
           type: ['dtmf'],
           dtmf: { maxDigits: 4, timeOut: 10 },
-          eventUrl: [`/api/telephony/captcha?callSid=${params.callSid}&lang=${lang}${hp}`],
+          eventUrl: [`/telephony/captcha?callSid=${params.callSid}&lang=${lang}${hp}`],
           eventMethod: 'POST',
         },
       ])
@@ -208,7 +208,7 @@ export class VonageAdapter implements TelephonyAdapter {
         name: params.callSid,
         startOnEnter: false,
         endOnExit: false,
-        musicOnHoldUrl: [`/api/telephony/wait-music?lang=${lang}${hp}`],
+        musicOnHoldUrl: [`/telephony/wait-music?lang=${lang}${hp}`],
       },
     ])
   }
@@ -225,7 +225,7 @@ export class VonageAdapter implements TelephonyAdapter {
           name: params.callSid,
           startOnEnter: false,
           endOnExit: false,
-          musicOnHoldUrl: [`/api/telephony/wait-music?lang=${lang}${hp}`],
+          musicOnHoldUrl: [`/telephony/wait-music?lang=${lang}${hp}`],
         },
       ])
     }
@@ -240,7 +240,7 @@ export class VonageAdapter implements TelephonyAdapter {
           action: 'input',
           type: ['dtmf'],
           dtmf: { maxDigits: 4, timeOut: 10 },
-          eventUrl: [`/api/telephony/captcha?callSid=${params.callSid}&lang=${lang}${hp}`],
+          eventUrl: [`/telephony/captcha?callSid=${params.callSid}&lang=${lang}${hp}`],
           eventMethod: 'POST',
         },
       ])
@@ -259,7 +259,7 @@ export class VonageAdapter implements TelephonyAdapter {
         endOnExit: true,
         record: true,
         eventUrl: [
-          `${params.callbackUrl}/api/telephony/call-recording?parentCallSid=${params.parentCallSid}&pubkey=${params.userPubkey}${hp}`,
+          `${params.callbackUrl}/telephony/call-recording?parentCallSid=${params.parentCallSid}&pubkey=${params.userPubkey}${hp}`,
         ],
         eventMethod: 'POST',
       },
@@ -302,7 +302,7 @@ export class VonageAdapter implements TelephonyAdapter {
         beepStart: true,
         timeOut: params.maxRecordingSeconds ?? 120,
         eventUrl: [
-          `${params.callbackUrl}/api/telephony/voicemail-recording?callSid=${params.callSid}${hp}`,
+          `${params.callbackUrl}/telephony/voicemail-recording?callSid=${params.callSid}${hp}`,
         ],
         eventMethod: 'POST',
       },
@@ -331,7 +331,7 @@ export class VonageAdapter implements TelephonyAdapter {
       to: Array<Record<string, string>>
       machineDetection?: string
     }> = []
-    for (const vol of params.volunteers) {
+    for (const vol of params.users) {
       if (vol.phone) {
         outboundTargets.push({
           pubkey: vol.pubkey,
@@ -353,11 +353,11 @@ export class VonageAdapter implements TelephonyAdapter {
           to: target.to,
           from: { type: 'phone', number: this.phoneNumber.replace('+', '') },
           answer_url: [
-            `${params.callbackUrl}/api/telephony/user-answer?parentCallSid=${params.callSid}&pubkey=${target.pubkey}${hubParam}`,
+            `${params.callbackUrl}/telephony/user-answer?parentCallSid=${params.callSid}&pubkey=${target.pubkey}${hubParam}`,
           ],
           answer_method: 'POST',
           event_url: [
-            `${params.callbackUrl}/api/telephony/call-status?parentCallSid=${params.callSid}&pubkey=${target.pubkey}${hubParam}`,
+            `${params.callbackUrl}/telephony/call-status?parentCallSid=${params.callSid}&pubkey=${target.pubkey}${hubParam}`,
           ],
           event_method: 'POST',
           ringing_timer: 30,
@@ -595,14 +595,78 @@ export class VonageAdapter implements TelephonyAdapter {
     _phoneNumber: string,
     expectedBaseUrl: string
   ): Promise<WebhookVerificationResult> {
-    // Vonage webhook verification requires the Application API with JWT auth,
-    // which needs the private key for signing. The Numbers API does not expose
-    // voice webhook URLs directly. Return a warning for now.
-    return {
-      configured: true,
-      expectedUrl: `${expectedBaseUrl}/api/telephony/incoming`,
-      warning:
-        'Vonage webhook verification not yet implemented — please verify webhook URL in the Vonage Dashboard',
+    const expectedVoiceUrl = `${expectedBaseUrl}/telephony/incoming`
+
+    if (!this.privateKey) {
+      return {
+        configured: false,
+        expectedUrl: expectedVoiceUrl,
+        warning:
+          'Vonage private key not configured — cannot verify webhook URLs via Application API',
+      }
     }
+
+    try {
+      const jwt = await this.signApplicationJwt()
+      const res = await fetch(`https://api.nexmo.com/v2/applications/${this.applicationId}`, {
+        method: 'GET',
+        headers: { Authorization: `Bearer ${jwt}` },
+      })
+
+      if (!res.ok) {
+        return {
+          configured: false,
+          expectedUrl: expectedVoiceUrl,
+          warning: `Failed to query Vonage Application API: ${res.status} ${res.statusText}`,
+        }
+      }
+
+      const data = (await res.json()) as {
+        capabilities?: {
+          voice?: {
+            webhooks?: {
+              answer_url?: { address?: string }
+              event_url?: { address?: string }
+            }
+          }
+        }
+      }
+
+      const answerUrl = data.capabilities?.voice?.webhooks?.answer_url?.address ?? ''
+      const configured = answerUrl.startsWith(expectedBaseUrl)
+
+      return {
+        configured,
+        expectedUrl: expectedVoiceUrl,
+        actualUrl: answerUrl || undefined,
+        warning: configured
+          ? undefined
+          : 'Voice answer webhook URL does not point to this application',
+      }
+    } catch (err) {
+      return {
+        configured: false,
+        expectedUrl: expectedVoiceUrl,
+        warning: `Vonage Application API error: ${err instanceof Error ? err.message : String(err)}`,
+      }
+    }
+  }
+
+  /**
+   * Sign a short-lived JWT for Vonage Application API authentication.
+   * Uses RS256 with the application's private key.
+   */
+  private async signApplicationJwt(): Promise<string> {
+    const { signJwtRs256 } = await import('./webrtc-tokens')
+    const now = Math.floor(Date.now() / 1000)
+    const jti = crypto.randomUUID()
+    const header = { typ: 'JWT', alg: 'RS256' }
+    const payload = {
+      iat: now,
+      exp: now + 60, // 1 minute — only needed for a single API call
+      jti,
+      application_id: this.applicationId,
+    }
+    return signJwtRs256(header, payload, this.privateKey!)
   }
 }

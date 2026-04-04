@@ -31,7 +31,7 @@ rustfs:
   enabled: true
   image:
     repository: rustfs/rustfs
-    tag: "latest"
+    tag: "latest@sha256:0725587f6fcca83c1898f321424327d6e6da5e01ea20382905dd258ed5af3be4"
   persistence:
     size: 50Gi
     storageClass: ""
@@ -70,11 +70,11 @@ asterisk:
     repository: andrius/asterisk
     tag: "20.11"
 
-# Asterisk bridge
-asteriskBridge:
+# SIP bridge
+sipBridge:
   enabled: false
   image:
-    repository: ghcr.io/your-org/llamenos-asterisk-bridge
+    repository: ghcr.io/your-org/llamenos-sip-bridge
     tag: ""
   # REQUIRED if using Asterisk: set a strong random secret
   bridgeSecret: ""
@@ -84,6 +84,38 @@ asteriskBridge:
   sipProvider: ""   # e.g. sip.telnyx.com or sip.twilio.com
   sipUsername: ""   # SIP username / account SID
   sipPassword: ""   # SIP password / auth token
+
+# Kamailio SIP proxy (optional — for multi-PBX load balancing)
+kamailio:
+  enabled: false
+  image:
+    repository: kamailio/kamailio
+    tag: "5.7"
+  ports:
+    sip: 5060           # UDP + TCP
+    sipTls: 5061         # TLS (only when tls.enabled)
+    jsonrpc: 5064        # JSONRPC over HTTP (for sip-bridge KamailioClient)
+  dispatcher:
+    setId: 1
+    algorithm: 4         # 0=hash-callid, 4=round-robin, 10=weight, 12=random
+    pingInterval: 10
+    pingThreshold: 3
+  pbxInstances:
+    - uri: "sip:asterisk:5060"
+      flags: 0
+      priority: 0
+      attrs: "weight=50"
+  tls:
+    enabled: false
+    secretName: ""       # K8s TLS secret with tls.crt and tls.key
+  logLevel: 4            # 0=ALERT … 6=DEBUG
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 500m
+      memory: 256Mi
 
 # Identity Provider (Authentik)
 idp:
@@ -95,7 +127,7 @@ nostr:
   relayUrl: "ws://strfry:7777"
   image:
     repository: dockurr/strfry
-    tag: "latest"
+    tag: "latest@sha256:df140472554e5a0b5bbe08ec417805d283098621833e44827d8018c98b74243d"
   persistence:
     size: 5Gi
     storageClass: ""

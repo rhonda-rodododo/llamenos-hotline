@@ -1,0 +1,41 @@
+import type { Ciphertext } from '@shared/crypto-types'
+import type { RecipientEnvelope } from '@shared/types'
+import { hp, request } from './client'
+
+// --- Types ---
+
+export interface BanEntry {
+  phone: string
+  reason: string
+  bannedBy: string
+  bannedAt: string
+  // E2EE envelope-encrypted fields (Phase 2D)
+  encryptedPhone?: Ciphertext
+  phoneEnvelopes?: RecipientEnvelope[]
+  encryptedReason?: Ciphertext
+  reasonEnvelopes?: RecipientEnvelope[]
+}
+
+// --- Ban List ---
+
+export async function listBans() {
+  return request<{ bans: BanEntry[] }>(hp('/bans'))
+}
+
+export async function addBan(data: { phone: string; reason: string }) {
+  return request<{ ban: BanEntry }>(hp('/bans'), {
+    method: 'POST',
+    body: JSON.stringify(data),
+  })
+}
+
+export async function removeBan(phone: string) {
+  return request<{ ok: true }>(hp(`/bans/${encodeURIComponent(phone)}`), { method: 'DELETE' })
+}
+
+export async function bulkAddBans(data: { phones: string[]; reason: string }) {
+  return request<{ count: number }>(hp('/bans/bulk'), {
+    method: 'POST',
+    body: JSON.stringify(data),
+  })
+}

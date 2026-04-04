@@ -61,7 +61,7 @@ src/
     crypto-labels.ts   # Domain separation constants
 tests/                 # Playwright tests (API + UI E2E)
 site/                  # Marketing site (Astro + Tailwind)
-asterisk-bridge/       # ARI bridge service (standalone Bun service)
+sip-bridge/            # Unified SIP bridge service (Asterisk/FreeSWITCH/Kamailio, standalone Bun service)
 deploy/                # Docker Compose + Ansible deployment configs
 ```
 

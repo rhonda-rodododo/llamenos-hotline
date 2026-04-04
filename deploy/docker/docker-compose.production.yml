@@ -63,8 +63,8 @@ services:
     environment:
       # Only watch containers with the watchtower.enable=true label
       - WATCHTOWER_LABEL_ENABLE=true
-      # Check interval (seconds). 86400 = every 24 hours.
-      - WATCHTOWER_POLL_INTERVAL=${WATCHTOWER_POLL_INTERVAL:-86400}
+      # Cron schedule for update checks (default: 04:00 UTC daily)
+      - WATCHTOWER_SCHEDULE=${WATCHTOWER_SCHEDULE:-0 0 4 * * *}
       # Remove old images after updating
       - WATCHTOWER_CLEANUP=true
       # Log level: info | debug | warn | error | trace
@@ -73,6 +73,16 @@ services:
       # Watchtower reads standard Docker registry env vars:
       - REPO_USER=${GHCR_USERNAME:-}
       - REPO_PASS=${GHCR_TOKEN:-}
+      # ── Notifications (optional) ──
+      # Shoutrrr URL for update notifications. Examples:
+      #   Slack:    slack://token-a/token-b/token-c
+      #   Discord:  discord://token@id
+      #   Email:    smtp://user:pass@host:port/?from=x&to=y
+      #   Gotify:   gotify://host/token
+      # See https://containrrr.dev/shoutrrr/latest/services/overview/
+      - WATCHTOWER_NOTIFICATION_URL=${WATCHTOWER_NOTIFICATION_URL:-}
+      # Go template for notification messages (optional)
+      # - WATCHTOWER_NOTIFICATION_TEMPLATE={{range .}}{{.Message}}{{println}}{{end}}
     logging:
       driver: json-file
       options:

@@ -4,12 +4,12 @@
 #
 # Usage: ./scripts/dev-certs.sh
 #
-# Generates certs in asterisk-bridge/dev-certs/ for:
+# Generates certs in sip-bridge/dev-certs/ for:
 # - Asterisk WSS (localhost, 127.0.0.1)
 
 set -euo pipefail
 
-CERT_DIR="asterisk-bridge/dev-certs"
+CERT_DIR="sip-bridge/dev-certs"
 
 if ! command -v mkcert &>/dev/null; then
   echo "Error: mkcert is not installed."

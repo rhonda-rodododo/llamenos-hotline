@@ -70,11 +70,11 @@ export class VonageProvider {
         voice: {
           webhooks: {
             answer_url: {
-              address: `https://${domain}/api/telephony/incoming`,
+              address: `https://${domain}/telephony/incoming`,
               http_method: 'POST',
             },
             event_url: {
-              address: `https://${domain}/api/telephony/status`,
+              address: `https://${domain}/telephony/status`,
               http_method: 'POST',
             },
           },

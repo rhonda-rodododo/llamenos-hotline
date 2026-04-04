@@ -25,8 +25,8 @@ The registry lives in the **main repo** (not in worktrees) so all worktrees shar
       "strfry": 7778,
       "registeredAt": "2026-03-31T18:00:00Z"
     },
-    "/media/rikki/recover2/projects/llamenos-hotline-asterisk-bridge-fix": {
-      "branch": "fix/asterisk-bridge-dev",
+    "/media/rikki/recover2/projects/llamenos-hotline-sip-bridge-fix": {
+      "branch": "fix/sip-bridge-dev",
       "devServer": 3010,
       "vite": 5183,
       "postgres": 5433,

@@ -91,7 +91,7 @@ function ReportsPage() {
             </p>
             <p className="mt-1 text-sm text-muted-foreground">
               {t('reports.noReportsHint', {
-                defaultValue: 'Reports submitted by volunteers and reporters will appear here.',
+                defaultValue: 'Reports submitted by users will appear here.',
               })}
             </p>
           </CardContent>

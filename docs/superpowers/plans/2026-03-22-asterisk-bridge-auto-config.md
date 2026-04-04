@@ -2,9 +2,9 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax for tracking.
 
-**Goal:** When `asterisk-bridge` starts with SIP credentials in the environment, it automatically configures the Asterisk PJSIP trunk via ARI's dynamic config REST API and reloads the PJSIP module — no manual `pjsip.conf` editing required.
+**Goal:** When `sip-bridge` starts with SIP credentials in the environment, it automatically configures the Asterisk PJSIP trunk via ARI's dynamic config REST API and reloads the PJSIP module — no manual `pjsip.conf` editing required.
 
-**Architecture:** `asterisk-bridge` gains a `PjsipConfigurator` class that calls `PUT /ari/asterisk/config/dynamic/{configClass}/{objectType}/{id}` for four PJSIP objects (auth, aor, endpoint, registration), then calls `PUT /ari/asterisk/modules/res_pjsip.so`. `AriClient` gains two public methods (`configureDynamic`, `reloadModule`) that delegate to its existing `private request<T>()`. The static `pjsip.conf` is stripped to transport-only stanzas; all trunk config is managed at runtime.
+**Architecture:** `sip-bridge` gains a `PjsipConfigurator` class that calls `PUT /ari/asterisk/config/dynamic/{configClass}/{objectType}/{id}` for four PJSIP objects (auth, aor, endpoint, registration), then calls `PUT /ari/asterisk/modules/res_pjsip.so`. `AriClient` gains two public methods (`configureDynamic`, `reloadModule`) that delegate to its existing `private request<T>()`. The static `pjsip.conf` is stripped to transport-only stanzas; all trunk config is managed at runtime.
 
 **Tech Stack:** Bun, TypeScript, Asterisk ARI REST API, Docker Compose, Ansible, Playwright E2E tests
 
@@ -14,12 +14,12 @@
 
 | File | Action | Responsibility |
 |------|--------|----------------|
-| `asterisk-bridge/src/pjsip-configurator.ts` | **Create** | `PjsipConfigurator` class — writes 4 PJSIP objects + reloads module |
-| `asterisk-bridge/src/ari-client.ts` | **Modify** | Add `configureDynamic()` and `reloadModule()` public methods |
-| `asterisk-bridge/src/types.ts` | **Modify** | Add `sipProvider?`, `sipUsername?`, `sipPassword?` to `BridgeConfig` |
-| `asterisk-bridge/src/index.ts` | **Modify** | Read SIP env vars; call configurator after ARI connects; expose `sipConfigured`/`sipConfigSkipped` in `/health` |
-| `asterisk-bridge/asterisk-config/pjsip.conf` | **Modify** | Remove trunk stanzas; keep `transport-udp` and `transport-tcp` only |
-| `deploy/docker/docker-compose.yml` | **Modify** | Add `ARI_REST_URL`, `SIP_PROVIDER`, `SIP_USERNAME`, `SIP_PASSWORD`, `HOTLINE_NUMBER` to `asterisk-bridge` env |
+| `sip-bridge/src/pjsip-configurator.ts` | **Create** | `PjsipConfigurator` class — writes 4 PJSIP objects + reloads module |
+| `sip-bridge/src/ari-client.ts` | **Modify** | Add `configureDynamic()` and `reloadModule()` public methods |
+| `sip-bridge/src/types.ts` | **Modify** | Add `sipProvider?`, `sipUsername?`, `sipPassword?` to `BridgeConfig` |
+| `sip-bridge/src/index.ts` | **Modify** | Read SIP env vars; call configurator after ARI connects; expose `sipConfigured`/`sipConfigSkipped` in `/health` |
+| `sip-bridge/asterisk-config/pjsip.conf` | **Modify** | Remove trunk stanzas; keep `transport-udp` and `transport-tcp` only |
+| `deploy/docker/docker-compose.yml` | **Modify** | Add `ARI_REST_URL`, `SIP_PROVIDER`, `SIP_USERNAME`, `SIP_PASSWORD`, `HOTLINE_NUMBER` to `sip-bridge` env |
 | `deploy/ansible/vars.example.yml` | **Modify** | Add SIP trunk section with comments |
 | `deploy/ansible/roles/llamenos/tasks/main.yml` | **Modify** | Pass new SIP env vars to docker-compose |
 | `tests/asterisk-auto-config.spec.ts` | **Create** | E2E tests using a mock ARI HTTP server |
@@ -104,7 +104,7 @@ The test must fail before implementation because `sipConfigured` and `sipConfigS
 ### Task 2: Add SIP fields to `BridgeConfig` type
 
 **Files:**
-- Modify: `asterisk-bridge/src/types.ts`
+- Modify: `sip-bridge/src/types.ts`
 
 - [x] Add three optional fields to the `BridgeConfig` interface (after the existing `stasisApp` field):
   ```typescript
@@ -116,14 +116,14 @@ The test must fail before implementation because `sipConfigured` and `sipConfigS
   sipPassword?: string
   ```
 
-- [x] Run `cd asterisk-bridge && bun run typecheck` (if a typecheck script exists) or `bunx tsc --noEmit` — must pass
+- [x] Run `cd sip-bridge && bun run typecheck` (if a typecheck script exists) or `bunx tsc --noEmit` — must pass
 
 ---
 
 ### Task 3: Add `configureDynamic` and `reloadModule` to `AriClient`
 
 **Files:**
-- Modify: `asterisk-bridge/src/ari-client.ts`
+- Modify: `sip-bridge/src/ari-client.ts`
 
 - [x] Read the existing `private request<T>()` method signature to understand its call convention
 - [x] Add after the existing public channel/bridge methods:
@@ -154,14 +154,14 @@ The test must fail before implementation because `sipConfigured` and `sipConfigS
   ```
 
 - [x] Verify the `request<void>` call is consistent with how `void` returns are handled in the existing method (check if it expects a JSON body or not, handle 204 responses correctly)
-- [x] Run `cd asterisk-bridge && bunx tsc --noEmit` — must pass with no new errors
+- [x] Run `cd sip-bridge && bunx tsc --noEmit` — must pass with no new errors
 
 ---
 
 ### Task 4: Create `PjsipConfigurator`
 
 **Files:**
-- Create: `asterisk-bridge/src/pjsip-configurator.ts`
+- Create: `sip-bridge/src/pjsip-configurator.ts`
 
 - [x] Create the file:
   ```typescript
@@ -226,14 +226,14 @@ The test must fail before implementation because `sipConfigured` and `sipConfigS
   }
   ```
 
-- [x] Run `cd asterisk-bridge && bunx tsc --noEmit` — must pass
+- [x] Run `cd sip-bridge && bunx tsc --noEmit` — must pass
 
 ---
 
 ### Task 5: Wire auto-config into `index.ts`
 
 **Files:**
-- Modify: `asterisk-bridge/src/index.ts`
+- Modify: `sip-bridge/src/index.ts`
 
 - [x] In `loadConfig()`, add optional SIP field reads after `stasisApp`:
   ```typescript
@@ -283,14 +283,14 @@ The test must fail before implementation because `sipConfigured` and `sipConfigS
   })
   ```
 
-- [x] Run `cd asterisk-bridge && bunx tsc --noEmit` — must pass
+- [x] Run `cd sip-bridge && bunx tsc --noEmit` — must pass
 
 ---
 
 ### Task 6: Simplify `pjsip.conf`
 
 **Files:**
-- Modify: `asterisk-bridge/asterisk-config/pjsip.conf`
+- Modify: `sip-bridge/asterisk-config/pjsip.conf`
 
 - [x] Read the current file to identify all existing stanzas
 - [x] Replace the file content with transport-only config:
@@ -298,7 +298,7 @@ The test must fail before implementation because `sipConfigured` and `sipConfigS
   ; pjsip.conf — Transport configuration only.
   ;
   ; Trunk, auth, AOR, and registration objects are configured dynamically
-  ; at startup by asterisk-bridge via the ARI dynamic config API
+  ; at startup by sip-bridge via the ARI dynamic config API
   ; (PUT /ari/asterisk/config/dynamic/res_pjsip/...).
   ;
   ; To configure the SIP trunk, set these environment variables:
@@ -324,7 +324,7 @@ The test must fail before implementation because `sipConfigured` and `sipConfigS
 **Files:**
 - Modify: `deploy/docker/docker-compose.yml`
 
-- [x] Read the current `asterisk-bridge` service `environment` block
+- [x] Read the current `sip-bridge` service `environment` block
 - [x] Add the following entries (preserving existing entries):
   ```yaml
   - ARI_REST_URL=http://asterisk:8088/ari
@@ -349,7 +349,7 @@ The test must fail before implementation because `sipConfigured` and `sipConfigS
 - [x] Add to `vars.example.yml`:
   ```yaml
   # ─── SIP Trunk (Asterisk PJSIP auto-config) ──────────────────
-  # When set, asterisk-bridge configures the PJSIP trunk at startup via
+  # When set, sip-bridge configures the PJSIP trunk at startup via
   # the ARI dynamic config API. Leave blank to manage pjsip.conf manually.
   sip_provider: ""          # SIP provider hostname — OPTIONAL (e.g. sip.twilio.com)
   sip_username: ""          # SIP account username — OPTIONAL
@@ -367,13 +367,13 @@ The test must fail before implementation because `sipConfigured` and `sipConfigS
 - [x] Run the full E2E test file: `bunx playwright test tests/asterisk-auto-config.spec.ts`
   - All three tests (auto-config present, auto-config skipped, idempotency) must pass
 
-- [x] Run full typecheck: `cd asterisk-bridge && bunx tsc --noEmit`
+- [x] Run full typecheck: `cd sip-bridge && bunx tsc --noEmit`
   - Must pass with zero errors
 
 - [x] Run root typecheck: `bun run typecheck`
   - Must pass (confirms no shared type regressions)
 
-- [x] Manual smoke check: start `docker compose -f deploy/docker/docker-compose.yml up asterisk asterisk-bridge` with `SIP_PROVIDER`, `SIP_USERNAME`, `SIP_PASSWORD` set in `.env`. Check bridge logs for:
+- [x] Manual smoke check: start `docker compose -f deploy/docker/docker-compose.yml up asterisk sip-bridge` with `SIP_PROVIDER`, `SIP_USERNAME`, `SIP_PASSWORD` set in `.env`. Check bridge logs for:
   ```
   [pjsip] Auto-configuring PJSIP trunk...
   [pjsip] Configuring auth/trunk-auth...
@@ -385,4 +385,4 @@ The test must fail before implementation because `sipConfigured` and `sipConfigS
   [bridge] PJSIP trunk configured successfully
   ```
 
-- [x] Commit: `git add asterisk-bridge/src/ asterisk-bridge/asterisk-config/pjsip.conf deploy/ tests/asterisk-auto-config.spec.ts && git commit -m "feat(asterisk-bridge): auto-configure PJSIP trunk at startup via ARI dynamic config"`
+- [x] Commit: `git add sip-bridge/src/ sip-bridge/asterisk-config/pjsip.conf deploy/ tests/asterisk-auto-config.spec.ts && git commit -m "feat(sip-bridge): auto-configure PJSIP trunk at startup via ARI dynamic config"`

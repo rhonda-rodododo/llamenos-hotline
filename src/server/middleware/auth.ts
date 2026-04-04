@@ -12,7 +12,17 @@ export const auth = createMiddleware<AppEnv>(async (c, next) => {
   }
 
   // Load all roles from SettingsService (cached per-request)
-  const allRoles: Role[] = await services.settings.listRoles()
+  let allRoles: Role[] = await services.settings.listRoles()
+
+  // If user has role IDs not found in the cached list (e.g. recently created custom role),
+  // fetch missing roles directly from DB and merge them in
+  const missingIds = authResult.user.roles.filter((rid) => !allRoles.find((r) => r.id === rid))
+  if (missingIds.length > 0) {
+    const fetched = await services.settings.getRolesByIds(missingIds)
+    if (fetched.length > 0) {
+      allRoles = [...allRoles, ...fetched]
+    }
+  }
 
   // Resolve effective permissions from user's role IDs
   const permissions = resolvePermissions(authResult.user.roles, allRoles)

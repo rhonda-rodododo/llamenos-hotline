@@ -33,13 +33,15 @@ test.describe('Telephony Provider Settings', () => {
 
     const select = adminPage.getByTestId('telephony-provider-select')
     const options = select.locator('option')
-    await expect(options).toHaveCount(6)
+    await expect(options).toHaveCount(8)
     await expect(options.nth(0)).toHaveText('Twilio')
     await expect(options.nth(1)).toHaveText('SignalWire')
     await expect(options.nth(2)).toHaveText('Vonage')
     await expect(options.nth(3)).toHaveText('Plivo')
     await expect(options.nth(4)).toHaveText('Asterisk (Self-Hosted)')
     await expect(options.nth(5)).toHaveText('Telnyx')
+    await expect(options.nth(6)).toHaveText('Bandwidth')
+    await expect(options.nth(7)).toHaveText('FreeSWITCH (Self-Hosted)')
   })
 
   test('changing provider updates credential form fields', async ({ adminPage }) => {
@@ -147,8 +149,11 @@ test.describe('Telephony Provider Settings', () => {
     // Should show current provider
     await expect(adminPage.getByText(/current provider/i)).toBeVisible()
 
-    // Account SID should be pre-filled (could be ours or overwritten by a parallel test)
-    await expect(adminPage.getByPlaceholder('AC...')).not.toHaveValue('')
+    // Account SID should be pre-filled (could be ours or overwritten by a parallel test).
+    // Wait for the field to appear — config must load and sync to draft first.
+    const accountSidInput = adminPage.getByPlaceholder('AC...')
+    await expect(accountSidInput).toBeVisible({ timeout: 10000 })
+    await expect(accountSidInput).not.toHaveValue('')
   })
 
   test('admin can save SignalWire provider config', async ({ adminPage }) => {

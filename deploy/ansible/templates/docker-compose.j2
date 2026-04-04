@@ -187,8 +187,8 @@ services:
     security_opt:
       - no-new-privileges:true
 
-  asterisk-bridge:
-    image: {{ llamenos_image }}-asterisk-bridge
+  sip-bridge:
+    image: {{ llamenos_image }}-sip-bridge
     restart: unless-stopped
     environment:
       - ARI_URL=ws://asterisk:8088/ari/events
@@ -346,7 +346,6 @@ services:
     restart: unless-stopped
     environment:
       - MODE=json-rpc
-      - AUTO_RECEIVE_SCHEDULE=0 * * * *
     volumes:
       - signal-data:/home/.local/share/signal-cli
     networks:

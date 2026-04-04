@@ -39,6 +39,8 @@ export interface ProviderCapabilities<T extends TelephonyProviderConfig = Teleph
 }
 
 import { asteriskCapabilities } from './asterisk-capabilities'
+import { bandwidthCapabilities } from './bandwidth-capabilities'
+import { freeswitchCapabilities } from './freeswitch-capabilities'
 import { plivoCapabilities } from './plivo-capabilities'
 import { signalwireCapabilities } from './signalwire-capabilities'
 import { telnyxCapabilities } from './telnyx-capabilities'
@@ -53,4 +55,6 @@ export const TELEPHONY_CAPABILITIES: Record<TelephonyProviderType, ProviderCapab
   plivo: plivoCapabilities,
   asterisk: asteriskCapabilities,
   telnyx: telnyxCapabilities,
+  bandwidth: bandwidthCapabilities,
+  freeswitch: freeswitchCapabilities,
 }

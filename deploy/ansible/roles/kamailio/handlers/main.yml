@@ -1,0 +1,9 @@
+---
+- name: restart kamailio
+  community.docker.docker_compose_v2:
+    project_src: "{{ app_dir }}"
+    services:
+      - kamailio
+    state: restarted
+    recreate: always
+  when: kamailio_enabled | default(false) | bool

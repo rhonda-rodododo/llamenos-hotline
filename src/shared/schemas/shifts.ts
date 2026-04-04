@@ -7,7 +7,7 @@ export const ShiftScheduleSchema = z.object({
   startTime: z.string().regex(/^\d{2}:\d{2}$/),
   endTime: z.string().regex(/^\d{2}:\d{2}$/),
   days: z.array(z.number().int().min(0).max(6)),
-  volunteerPubkeys: z.array(z.string()),
+  userPubkeys: z.array(z.string()),
   ringGroupId: z.string().optional(),
   createdAt: z.iso.datetime(),
 })
@@ -18,7 +18,7 @@ export const CreateShiftScheduleSchema = z.object({
   startTime: z.string().regex(/^\d{2}:\d{2}$/),
   endTime: z.string().regex(/^\d{2}:\d{2}$/),
   days: z.array(z.number().int().min(0).max(6)),
-  volunteerPubkeys: z.array(z.string()),
+  userPubkeys: z.array(z.string()),
   ringGroupId: z.string().optional(),
   hubId: z.string().optional(),
 })
@@ -35,7 +35,7 @@ export const UpdateShiftScheduleSchema = z.object({
     .regex(/^\d{2}:\d{2}$/)
     .optional(),
   days: z.array(z.number().int().min(0).max(6)).optional(),
-  volunteerPubkeys: z.array(z.string()).optional(),
+  userPubkeys: z.array(z.string()).optional(),
   ringGroupId: z.string().optional(),
   hubId: z.string().optional(),
 })
@@ -45,14 +45,14 @@ export const RingGroupSchema = z.object({
   id: z.uuid(),
   hubId: z.string(),
   name: z.string(),
-  volunteerPubkeys: z.array(z.string()),
+  userPubkeys: z.array(z.string()),
   createdAt: z.iso.datetime(),
 })
 export type RingGroup = z.infer<typeof RingGroupSchema>
 
 export const CreateRingGroupSchema = z.object({
   name: z.string().min(1).max(100),
-  volunteerPubkeys: z.array(z.string()),
+  userPubkeys: z.array(z.string()),
   hubId: z.string().optional(),
 })
 export type CreateRingGroupInput = z.infer<typeof CreateRingGroupSchema>
@@ -71,6 +71,6 @@ export const ShiftOverrideSchema = z.object({
   scheduleId: z.string().optional(),
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   type: z.enum(['cancel', 'substitute']),
-  volunteerPubkeys: z.array(z.string()).optional(),
+  userPubkeys: z.array(z.string()).optional(),
 })
 export type ShiftOverride = z.infer<typeof ShiftOverrideSchema>

@@ -108,7 +108,7 @@ Stage 3 used `npm install --production` without any lockfile, causing supply cha
 
 #### ~~H-6: Asterisk Bridge `ARI_PASSWORD` Has No Required Override~~ — FIXED
 
-**File**: `asterisk-bridge/Dockerfile`, `deploy/docker/docker-compose.yml`, `deploy/docker/.env.example`
+**File**: `sip-bridge/Dockerfile`, `deploy/docker/docker-compose.yml`, `deploy/docker/.env.example`
 
 The `ARI_PASSWORD` defaulted to `changeme` with no required override in compose.
 
@@ -193,13 +193,13 @@ Neither CI workflow runs `bun audit` or equivalent. The Trivy scan on Docker ima
 
 #### M-9: Floating Base Image Tags in Dockerfiles — FIXED
 
-**Files**: `deploy/docker/Dockerfile` (`oven/bun:1`, `node:22-slim`), `asterisk-bridge/Dockerfile` (`oven/bun:latest`)
+**Files**: `deploy/docker/Dockerfile` (`oven/bun:1`, `node:22-slim`), `sip-bridge/Dockerfile` (`oven/bun:latest`)
 
-Mutable image tags allow supply chain drift. The asterisk-bridge using `bun:latest` is especially concerning.
+Mutable image tags allow supply chain drift. The sip-bridge using `bun:latest` is especially concerning.
 
 **Recommendation**: Pin all base images to specific digests (`image@sha256:...`).
 
-**Fix**: Pinned all Docker base images to SHA256 digests in Dockerfile (4 stages), asterisk-bridge/Dockerfile (2 stages), and docker-compose.yml (5 of 6 services; whisper server image tag pending verification). Also pinned Helm values.yaml image tags.
+**Fix**: Pinned all Docker base images to SHA256 digests in Dockerfile (4 stages), sip-bridge/Dockerfile (2 stages), and docker-compose.yml (5 of 6 services; whisper server image tag pending verification). Also pinned Helm values.yaml image tags.
 
 #### M-10: Helm NetworkPolicy Missing PostgreSQL Egress Rule — FIXED
 

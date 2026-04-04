@@ -2,9 +2,15 @@ import {
   RCSConfigSchema,
   SMSConfigSchema,
   SignalBridgeConfigSchema,
+  TelegramConfigSchema,
   WhatsAppConfigSchema,
 } from '@shared/schemas/providers'
-import type { RCSConfig, SignalBridgeConfig, WhatsAppConfig } from '@shared/schemas/providers'
+import type {
+  RCSConfig,
+  SignalBridgeConfig,
+  TelegramConfig,
+  WhatsAppConfig,
+} from '@shared/schemas/providers'
 import type {
   AutoConfigResult,
   ConnectionTestResult,
@@ -177,9 +183,88 @@ const rcsCapabilities: MessagingChannelCapabilities<RCSConfig> = {
   },
 }
 
+const telegramCapabilities: MessagingChannelCapabilities<TelegramConfig> = {
+  channelType: 'telegram',
+  displayName: 'Telegram',
+  description: 'Telegram messaging via Bot API',
+  credentialSchema: TelegramConfigSchema,
+  supportsWebhookAutoConfig: true,
+  async testConnection(config: TelegramConfig): Promise<ConnectionTestResult> {
+    if (!config.botToken) {
+      return {
+        connected: false,
+        latencyMs: 0,
+        error: 'Bot token is required',
+        errorType: 'invalid_credentials',
+      }
+    }
+    const start = Date.now()
+    try {
+      const res = await fetch(`https://api.telegram.org/bot${config.botToken}/getMe`, {
+        signal: AbortSignal.timeout(10_000),
+      })
+      const latencyMs = Date.now() - start
+      if (!res.ok) {
+        return {
+          connected: false,
+          latencyMs,
+          error: `HTTP ${res.status}`,
+          errorType: res.status === 401 ? 'invalid_credentials' : 'unknown',
+        }
+      }
+      const data = (await res.json()) as { ok: boolean; result?: { username?: string } }
+      return {
+        connected: data.ok,
+        latencyMs,
+        accountName: data.result?.username ? `@${data.result.username}` : undefined,
+      }
+    } catch (err) {
+      return {
+        connected: false,
+        latencyMs: Date.now() - start,
+        error: String(err),
+        errorType: 'network_error',
+      }
+    }
+  },
+  getWebhookUrls(baseUrl: string, hubId?: string): WebhookUrlSet {
+    const qs = hubId ? `?hub=${hubId}` : ''
+    return { telegramIncoming: `${baseUrl}/api/messaging/telegram/webhook${qs}` }
+  },
+  async configureWebhooks(
+    config: TelegramConfig,
+    webhookUrls: WebhookUrlSet
+  ): Promise<AutoConfigResult> {
+    const url = webhookUrls.telegramIncoming
+    if (!url) {
+      return { ok: false, error: 'Missing telegram webhook URL' }
+    }
+
+    try {
+      const body: Record<string, unknown> = { url }
+      if (config.webhookSecret) body.secret_token = config.webhookSecret
+
+      const res = await fetch(`https://api.telegram.org/bot${config.botToken}/setWebhook`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+        signal: AbortSignal.timeout(10_000),
+      })
+      const data = (await res.json()) as { ok: boolean; description?: string }
+      if (!data.ok) {
+        return { ok: false, error: data.description ?? `HTTP ${res.status}` }
+      }
+      return { ok: true, details: { telegramIncoming: url } }
+    } catch (err) {
+      return { ok: false, error: String(err) }
+    }
+  },
+}
+
 export const MESSAGING_CAPABILITIES: Record<MessagingChannelType, MessagingChannelCapabilities> = {
   sms: smsCapabilities,
   whatsapp: whatsappCapabilities,
   signal: signalCapabilities,
   rcs: rcsCapabilities,
+  telegram: telegramCapabilities,
 }
