@@ -453,12 +453,18 @@ async function handleFirehoseMessage(
     LABEL_FIREHOSE_BUFFER_ENCRYPT
   )
 
-  // Buffer the message
+  // Buffer the message — store full envelope JSON so the agent can decrypt
   const ttlMs = connection.bufferTtlDays * 24 * 60 * 60 * 1000
   await services.firehose.addBufferMessage(connection.id, {
     signalTimestamp: new Date(incoming.timestamp),
-    encryptedContent: encrypted.encrypted as string,
-    encryptedSenderInfo: encryptedSender.encrypted as string,
+    encryptedContent: JSON.stringify({
+      encrypted: encrypted.encrypted,
+      envelopes: encrypted.envelopes,
+    }),
+    encryptedSenderInfo: JSON.stringify({
+      encrypted: encryptedSender.encrypted,
+      envelopes: encryptedSender.envelopes,
+    }),
     expiresAt: new Date(Date.now() + ttlMs),
   })
 

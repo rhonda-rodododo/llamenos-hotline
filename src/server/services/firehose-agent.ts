@@ -1,0 +1,530 @@
+import { hexToBytes } from '@noble/hashes/utils.js'
+import { LABEL_FIREHOSE_BUFFER_ENCRYPT, LABEL_FIREHOSE_REPORT_WRAP } from '@shared/crypto-labels'
+import type { Ciphertext } from '@shared/crypto-types'
+import { KIND_FIREHOSE_REPORT } from '@shared/nostr-events'
+import type { RecipientEnvelope } from '@shared/types'
+import type { Database } from '../db'
+import { getNostrPublisher } from '../lib/adapters'
+import type { CryptoService } from '../lib/crypto-service'
+import type { ConversationService } from './conversations'
+import type { FirehoseService } from './firehose'
+import type {
+  CustomFieldDef,
+  DecryptedFirehoseMessage,
+  ExtractionResult,
+  FirehoseInferenceClient,
+  MessageCluster,
+} from './firehose-inference'
+import type { IdentityService } from './identity'
+import type { RecordsService } from './records'
+import type { SettingsService } from './settings'
+
+/** Parsed envelope JSON stored in the buffer's text columns */
+interface BufferEnvelopeJson {
+  encrypted: string
+  envelopes: RecipientEnvelope[]
+}
+
+/** In-memory state for a running extraction agent */
+interface AgentInstance {
+  connectionId: string
+  hubId: string
+  agentPubkey: string
+  nsecBytes: Uint8Array
+  intervalHandle: ReturnType<typeof setInterval>
+  inferenceClient: FirehoseInferenceClient
+}
+
+/** Minimum messages before attempting extraction */
+const MIN_CLUSTER_SIZE = 2
+/** Time window (ms) for heuristic clustering — 5 minutes */
+const CLUSTER_WINDOW_MS = 5 * 60 * 1000
+/** Default inference endpoint if none configured per-connection */
+const DEFAULT_INFERENCE_ENDPOINT = 'http://localhost:8000/v1'
+/** Default inference model */
+const DEFAULT_INFERENCE_MODEL = 'Qwen/Qwen3.5-9B'
+
+export class FirehoseAgentService {
+  private agents = new Map<string, AgentInstance>()
+  private inferenceClients = new Map<string, FirehoseInferenceClient>()
+
+  constructor(
+    private readonly db: Database,
+    private readonly crypto: CryptoService,
+    private readonly firehose: FirehoseService,
+    private readonly conversations: ConversationService,
+    private readonly identity: IdentityService,
+    private readonly records: RecordsService,
+    private readonly settings: SettingsService,
+    private readonly sealKey: string,
+    private readonly env: {
+      SERVER_NOSTR_SECRET?: string
+      NOSTR_RELAY_URL?: string
+      ADMIN_PUBKEY?: string
+      ADMIN_DECRYPTION_PUBKEY?: string
+    }
+  ) {}
+
+  // ---------------------------------------------------------------------------
+  // Lifecycle
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Load all active connections from DB, unseal their agent nsecs, and start
+   * extraction loops.
+   */
+  async init(): Promise<void> {
+    const connections = await this.firehose.listActiveConnections()
+    console.log(`[firehose-agent] Initializing ${connections.length} active agents`)
+
+    for (const conn of connections) {
+      try {
+        await this.startAgent(conn.id)
+      } catch (err) {
+        console.error(`[firehose-agent] Failed to start agent for ${conn.id}:`, err)
+      }
+    }
+  }
+
+  /**
+   * Start an extraction agent for the given connection.
+   * Unseals the agent nsec, creates an inference client, and begins the
+   * periodic extraction loop.
+   */
+  async startAgent(connectionId: string): Promise<void> {
+    if (this.agents.has(connectionId)) {
+      console.warn(`[firehose-agent] Agent already running for ${connectionId}`)
+      return
+    }
+
+    const conn = await this.firehose.getConnection(connectionId)
+    if (!conn) {
+      throw new Error(`Connection ${connectionId} not found`)
+    }
+    if (conn.status !== 'active') {
+      throw new Error(`Connection ${connectionId} is not active (status: ${conn.status})`)
+    }
+
+    // Unseal the agent's nsec
+    const nsecHex = this.firehose.unsealAgentNsec(
+      connectionId,
+      conn.encryptedAgentNsec,
+      this.sealKey
+    )
+    const nsecBytes = hexToBytes(nsecHex)
+
+    // Get or create inference client for this endpoint
+    const endpoint = conn.inferenceEndpoint || DEFAULT_INFERENCE_ENDPOINT
+    const inferenceClient = this.getOrCreateInferenceClient(endpoint)
+
+    // Start extraction loop
+    const intervalMs = (conn.extractionIntervalSec ?? 60) * 1000
+    const intervalHandle = setInterval(() => {
+      this.runExtractionLoop(connectionId).catch((err) => {
+        console.error(`[firehose-agent] Extraction loop error for ${connectionId}:`, err)
+      })
+    }, intervalMs)
+
+    this.agents.set(connectionId, {
+      connectionId,
+      hubId: conn.hubId,
+      agentPubkey: conn.agentPubkey,
+      nsecBytes,
+      intervalHandle,
+      inferenceClient,
+    })
+
+    console.log(
+      `[firehose-agent] Started agent for ${connectionId} (interval: ${conn.extractionIntervalSec}s)`
+    )
+  }
+
+  /**
+   * Stop an extraction agent: clear the interval, zero the nsec, and remove
+   * from the active map.
+   */
+  stopAgent(connectionId: string): void {
+    const agent = this.agents.get(connectionId)
+    if (!agent) return
+
+    clearInterval(agent.intervalHandle)
+    // Zero nsec from memory
+    agent.nsecBytes.fill(0)
+    this.agents.delete(connectionId)
+
+    console.log(`[firehose-agent] Stopped agent for ${connectionId}`)
+  }
+
+  /**
+   * Graceful shutdown — stop all running agents.
+   */
+  shutdown(): void {
+    console.log(`[firehose-agent] Shutting down ${this.agents.size} agents`)
+    for (const connectionId of this.agents.keys()) {
+      this.stopAgent(connectionId)
+    }
+    this.inferenceClients.clear()
+  }
+
+  /** Check if an agent is currently running for a connection */
+  isRunning(connectionId: string): boolean {
+    return this.agents.has(connectionId)
+  }
+
+  // ---------------------------------------------------------------------------
+  // Extraction Loop
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Core extraction loop for a single connection:
+   * 1. Fetch unextracted buffer messages
+   * 2. Decrypt them using the agent's nsec
+   * 3. Cluster by time proximity (heuristic)
+   * 4. Optionally refine clusters with LLM
+   * 5. Extract structured reports from each cluster
+   * 6. Submit reports as E2EE conversations
+   */
+  async runExtractionLoop(connectionId: string): Promise<void> {
+    const agent = this.agents.get(connectionId)
+    if (!agent) return
+
+    // 1. Get unextracted messages
+    const bufferMessages = await this.firehose.getUnextractedMessages(connectionId)
+    if (bufferMessages.length < MIN_CLUSTER_SIZE) return
+
+    // 2. Decrypt messages using the agent's pubkey to find its envelope
+    const agentPubkey = agent.agentPubkey
+    const decrypted: DecryptedFirehoseMessage[] = []
+    for (const msg of bufferMessages) {
+      try {
+        const parsed = this.parseBufferEnvelope(msg.encryptedContent)
+        const senderParsed = this.parseBufferEnvelope(msg.encryptedSenderInfo)
+
+        // Find the agent's envelope
+        const contentEnvelope = parsed.envelopes.find((e) => e.pubkey === agentPubkey)
+        const senderEnvelope = senderParsed.envelopes.find((e) => e.pubkey === agentPubkey)
+
+        if (!contentEnvelope || !senderEnvelope) {
+          console.warn(`[firehose-agent] No agent envelope found for message ${msg.id}`)
+          continue
+        }
+
+        const content = this.crypto.envelopeDecrypt(
+          parsed.encrypted as Ciphertext,
+          contentEnvelope,
+          agent.nsecBytes,
+          LABEL_FIREHOSE_BUFFER_ENCRYPT
+        )
+
+        const senderJson = this.crypto.envelopeDecrypt(
+          senderParsed.encrypted as Ciphertext,
+          senderEnvelope,
+          agent.nsecBytes,
+          LABEL_FIREHOSE_BUFFER_ENCRYPT
+        )
+
+        const sender = JSON.parse(senderJson) as {
+          identifier: string
+          identifierHash: string
+          username: string
+          timestamp: number
+        }
+
+        decrypted.push({
+          id: msg.id,
+          senderUsername: sender.username,
+          content,
+          timestamp: msg.signalTimestamp.toISOString(),
+        })
+      } catch (err) {
+        console.error(`[firehose-agent] Failed to decrypt message ${msg.id}:`, err)
+      }
+    }
+
+    if (decrypted.length < MIN_CLUSTER_SIZE) return
+
+    // 3. Heuristic clustering
+    const clusters = this.heuristicCluster(decrypted)
+
+    // 4. Load connection for metadata
+    const conn = await this.firehose.getConnection(connectionId)
+    if (!conn) return
+
+    // 5. For each cluster, attempt LLM extraction and submit report
+    for (const cluster of clusters) {
+      if (cluster.messages.length < MIN_CLUSTER_SIZE) continue
+
+      try {
+        // Load custom fields for the report type's schema
+        const fieldDefs = await this.getFieldDefsForReportType(conn.hubId, conn.reportTypeId)
+        const schema = agent.inferenceClient.buildJsonSchemaFromFields(fieldDefs)
+
+        // Extract report via LLM
+        const extraction = await agent.inferenceClient.extractReport(
+          cluster.messages,
+          schema,
+          conn.geoContext ?? undefined,
+          conn.systemPromptSuffix ?? undefined
+        )
+
+        // Skip low-confidence extractions
+        if (extraction.confidence < 0.3) {
+          console.log(
+            `[firehose-agent] Skipping low-confidence extraction (${extraction.confidence}) for cluster ${cluster.id}`
+          )
+          continue
+        }
+
+        // Submit as E2EE report
+        const reportId = await this.submitExtractedReport(conn, cluster, extraction)
+
+        // Mark buffer messages as extracted
+        const messageIds = cluster.messages.map((m) => m.id)
+        await this.firehose.markMessagesExtracted(messageIds, reportId, cluster.id)
+
+        console.log(
+          `[firehose-agent] Extracted report ${reportId} from ${messageIds.length} messages (confidence: ${extraction.confidence})`
+        )
+      } catch (err) {
+        console.error(`[firehose-agent] Extraction failed for cluster ${cluster.id}:`, err)
+      }
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Heuristic Clustering
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Group messages by time proximity — messages within 5-minute windows form
+   * a cluster. This is a simple first-pass before optional LLM refinement.
+   */
+  heuristicCluster(messages: DecryptedFirehoseMessage[]): MessageCluster[] {
+    if (messages.length === 0) return []
+
+    // Sort by timestamp
+    const sorted = [...messages].sort(
+      (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+    )
+
+    const clusters: MessageCluster[] = []
+    let currentCluster: DecryptedFirehoseMessage[] = [sorted[0]]
+
+    for (let i = 1; i < sorted.length; i++) {
+      const prevTime = new Date(sorted[i - 1].timestamp).getTime()
+      const currTime = new Date(sorted[i].timestamp).getTime()
+
+      if (currTime - prevTime <= CLUSTER_WINDOW_MS) {
+        currentCluster.push(sorted[i])
+      } else {
+        clusters.push({
+          id: crypto.randomUUID(),
+          messages: currentCluster,
+          confidence: 0.7, // heuristic baseline
+        })
+        currentCluster = [sorted[i]]
+      }
+    }
+
+    // Push final cluster
+    if (currentCluster.length > 0) {
+      clusters.push({
+        id: crypto.randomUUID(),
+        messages: currentCluster,
+        confidence: 0.7,
+      })
+    }
+
+    return clusters
+  }
+
+  // ---------------------------------------------------------------------------
+  // Report Submission
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Submit an extracted report as an E2EE conversation following the existing
+   * report creation pattern (see src/server/routes/reports.ts).
+   */
+  private async submitExtractedReport(
+    conn: { id: string; hubId: string; reportTypeId: string; agentPubkey: string },
+    cluster: MessageCluster,
+    extraction: ExtractionResult
+  ): Promise<string> {
+    // Build report content
+    const reportContent = JSON.stringify({
+      extractedFields: extraction.fields,
+      confidence: extraction.confidence,
+      sourceMessageCount: cluster.messages.length,
+      sourceMessageIds: cluster.messages.map((m) => m.id),
+      agentPubkey: conn.agentPubkey,
+      clusterId: cluster.id,
+      incidentTimestamp: cluster.messages[0]?.timestamp,
+      extractedAt: new Date().toISOString(),
+    })
+
+    // Get recipients for envelope encryption: admin pubkeys + users with reports:read-all
+    const adminPubkeys = await this.identity.getSuperAdminPubkeys()
+    const recipientPubkeys = [
+      ...new Set([conn.agentPubkey, ...adminPubkeys.filter((pk) => /^[0-9a-f]{64}$/i.test(pk))]),
+    ]
+
+    if (recipientPubkeys.length === 0) {
+      throw new Error('No valid recipient pubkeys for report envelope')
+    }
+
+    // Envelope-encrypt the report content
+    const { encrypted, envelopes } = this.crypto.envelopeEncrypt(
+      reportContent,
+      recipientPubkeys,
+      LABEL_FIREHOSE_REPORT_WRAP
+    )
+
+    // Create conversation with report metadata (follows reports.ts pattern)
+    const conversation = await this.conversations.createConversation({
+      hubId: conn.hubId,
+      channelType: 'web',
+      contactIdentifierHash: conn.agentPubkey,
+      skipDedup: true,
+      status: 'waiting',
+      metadata: {
+        type: 'report',
+        reportTitle: `Firehose extraction — ${new Date().toISOString()}`,
+        reportCategory: 'firehose-extraction',
+        firehoseConnectionId: conn.id,
+        firehoseClusterId: cluster.id,
+        firehoseConfidence: extraction.confidence,
+        extractedAt: new Date().toISOString(),
+      },
+      reportTypeId: conn.reportTypeId,
+    })
+
+    // Add the encrypted report as the first message
+    await this.conversations.addMessage({
+      conversationId: conversation.id,
+      direction: 'inbound',
+      authorPubkey: conn.agentPubkey,
+      encryptedContent: encrypted as string,
+      readerEnvelopes: envelopes,
+      hasAttachments: false,
+      status: 'delivered',
+    })
+
+    // Publish Nostr event
+    try {
+      const publisher = getNostrPublisher(this.env)
+      publisher
+        .publish({
+          kind: KIND_FIREHOSE_REPORT,
+          created_at: Math.floor(Date.now() / 1000),
+          tags: [
+            ['d', conn.hubId],
+            ['t', 'llamenos:event'],
+            ['c', conn.id],
+          ],
+          content: JSON.stringify({
+            type: 'firehose:report',
+            connectionId: conn.id,
+            conversationId: conversation.id,
+            confidence: extraction.confidence,
+          }),
+        })
+        .catch((err) => console.error('[firehose-agent] Nostr publish failed:', err))
+    } catch {
+      // Nostr not configured
+    }
+
+    // Audit log
+    await this.records.addAuditEntry(conn.hubId, 'firehoseReportExtracted', conn.agentPubkey, {
+      conversationId: conversation.id,
+      connectionId: conn.id,
+      clusterId: cluster.id,
+      confidence: extraction.confidence,
+      sourceMessageCount: cluster.messages.length,
+    })
+
+    return conversation.id
+  }
+
+  // ---------------------------------------------------------------------------
+  // Helpers
+  // ---------------------------------------------------------------------------
+
+  /** Parse a buffer column's JSON envelope format */
+  private parseBufferEnvelope(json: string): BufferEnvelopeJson {
+    const parsed = JSON.parse(json) as BufferEnvelopeJson
+    if (!parsed.encrypted || !Array.isArray(parsed.envelopes)) {
+      throw new Error('Invalid buffer envelope format')
+    }
+    return parsed
+  }
+
+  /** Get or create a cached inference client for an endpoint URL */
+  private getOrCreateInferenceClient(endpoint: string): FirehoseInferenceClient {
+    const existing = this.inferenceClients.get(endpoint)
+    if (existing) return existing
+    // Import is eager since firehose-agent is only loaded when FIREHOSE_AGENT_SEAL_KEY is set
+    const { FirehoseInferenceClient: ClientClass } = require('./firehose-inference') as {
+      FirehoseInferenceClient: new (baseURL: string, model?: string) => FirehoseInferenceClient
+    }
+    const client = new ClientClass(endpoint, DEFAULT_INFERENCE_MODEL)
+    this.inferenceClients.set(endpoint, client)
+    return client
+  }
+
+  /**
+   * Convert custom field definitions from the DB into the inference client's
+   * CustomFieldDef format.
+   */
+  private async getFieldDefsForReportType(
+    hubId: string,
+    reportTypeId: string
+  ): Promise<CustomFieldDef[]> {
+    // Get custom fields for this hub's reports context
+    const allFields = await this.settings.getCustomFields('admin', hubId)
+
+    // Filter to fields that apply to this report type
+    const relevant = allFields.filter((f) => {
+      if (f.context !== 'reports') return false
+      // If field has reportTypeIds, check if this report type is included
+      if (f.reportTypeIds && f.reportTypeIds.length > 0) {
+        return f.reportTypeIds.includes(reportTypeId)
+      }
+      // No reportTypeIds means it applies to all report types
+      return true
+    })
+
+    // Map to inference-compatible format
+    return relevant.map((f) => ({
+      name: f.name || f.id,
+      label: f.label || f.name || f.id,
+      type: this.mapFieldType(f.type),
+      required: f.required,
+      options: f.options ?? [],
+    }))
+  }
+
+  /** Map app field types to inference-compatible subset */
+  private mapFieldType(
+    type: string
+  ): 'text' | 'select' | 'multiselect' | 'checkbox' | 'date' | 'number' | 'location' {
+    switch (type) {
+      case 'select':
+        return 'select'
+      case 'checkbox':
+        return 'checkbox'
+      case 'number':
+        return 'number'
+      case 'location':
+        return 'location'
+      case 'textarea':
+        return 'text'
+      case 'file':
+      case 'contact':
+      case 'contacts':
+        return 'text'
+      default:
+        return 'text'
+    }
+  }
+}

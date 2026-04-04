@@ -7,6 +7,7 @@ import { ContactService } from './contacts'
 import { ConversationService } from './conversations'
 import { FilesService } from './files'
 import { FirehoseService } from './firehose'
+import type { FirehoseAgentService } from './firehose-agent'
 import { GdprService } from './gdpr'
 import { IdentityService } from './identity'
 import { IntakesService } from './intakes'
@@ -22,6 +23,7 @@ import { TeamsService } from './teams'
 export type {
   BlastService,
   FirehoseService,
+  FirehoseAgentService,
   CallService,
   ContactService,
   ConversationService,
@@ -56,6 +58,7 @@ export interface Services {
   tags: TagsService
   teams: TeamsService
   firehose: FirehoseService
+  firehoseAgent?: FirehoseAgentService
   providerHealth?: ProviderHealthService
   storage: StorageManager | null
   crypto: CryptoService
