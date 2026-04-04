@@ -296,6 +296,32 @@ services:
       asterisk:
         condition: service_healthy
 
+  # ── Optional: Kamailio SIP Proxy ─────────────────────────
+  # Load balancer for multi-PBX HA deployments.
+  # Sits in front of Asterisk/FreeSWITCH instances.
+  kamailio:
+    image: kamailio/kamailio:5.7
+    profiles: ["kamailio"]
+    restart: unless-stopped
+    ports:
+      - "${KAMAILIO_SIP_PORT:-5060}:5060/udp"
+      - "${KAMAILIO_SIP_PORT:-5060}:5060/tcp"
+      - "${KAMAILIO_SIP_TLS_PORT:-5061}:5061/tcp"
+    volumes:
+      - ./kamailio/kamailio.cfg:/etc/kamailio/kamailio.cfg:ro
+      - ./kamailio/dispatcher.list:/etc/kamailio/dispatcher.list:ro
+    networks:
+      - internal
+    depends_on:
+      asterisk:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "kamcmd", "core.version"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
   # ── Optional: Signal Messaging ───────────────────────────
   signal-cli:
     image: bbernhard/signal-cli-rest-api:0.92@sha256:702db336aa1a87611595e66755c9ccf65b24c25589857301eabef1d46056b3c5

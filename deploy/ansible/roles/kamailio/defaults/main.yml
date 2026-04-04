@@ -1,0 +1,54 @@
+# Kamailio SIP proxy / load balancer
+#
+# Kamailio is OPTIONAL — Asterisk is the default PBX for all deployments.
+# Enable Kamailio only for high-availability setups where multiple PBX
+# instances need load balancing and failover.
+#
+# Kamailio sits in front of one or more Asterisk (or FreeSWITCH) instances,
+# distributing SIP traffic via the dispatcher module with OPTIONS-based
+# health probing.
+
+kamailio_enabled: false
+kamailio_image: kamailio/kamailio:5.7
+
+# ─── SIP Ports ───────────────────────────────────────────────
+kamailio_sip_port: 5060          # UDP + TCP
+kamailio_sip_tls_port: 5061      # TLS (only when tls_enabled)
+kamailio_jsonrpc_port: 5064      # JSONRPC over HTTP (for sip-bridge KamailioClient)
+
+# ─── SIP Domain ─────────────────────────────────────────────
+# The SIP domain used in From/To headers and the server alias.
+# Defaults to the inventory hostname if not set.
+kamailio_sip_domain: "{{ domain | default(inventory_hostname) }}"
+
+# ─── Dispatcher (Load Balancing) ─────────────────────────────
+# set_id: dispatcher set identifier (integer)
+# algorithm: 0=hash over callid, 4=round-robin, 10=weight-based, 12=random
+# ping_interval: seconds between OPTIONS probes to PBX instances
+# ping_threshold: consecutive failures before marking destination inactive
+kamailio_dispatcher:
+  set_id: 1
+  algorithm: 4
+  ping_interval: 10
+  ping_threshold: 3
+
+# PBX backend instances for dispatcher to load-balance across.
+# Each entry: uri, flags, priority, attrs (space-separated in dispatcher.list)
+# flags: 0=active, 1=inactive, 2=probing
+# attrs: freeform string, typically weight=N
+kamailio_pbx_instances:
+  - uri: "sip:asterisk:5060"
+    flags: 0
+    priority: 0
+    attrs: "weight=50"
+
+# ─── TLS ─────────────────────────────────────────────────────
+kamailio_tls_enabled: false
+# When TLS is enabled, provide cert/key paths on the host.
+# These are mounted into the container at /etc/kamailio/tls/
+kamailio_tls_cert: ""
+kamailio_tls_key: ""
+
+# ─── Logging ─────────────────────────────────────────────────
+# 0=ALERT, 1=CRITICAL, 2=ERROR, 3=WARN, 4=NOTICE, 5=INFO, 6=DEBUG
+kamailio_log_level: 4

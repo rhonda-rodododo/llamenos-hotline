@@ -85,6 +85,38 @@ sipBridge:
   sipUsername: ""   # SIP username / account SID
   sipPassword: ""   # SIP password / auth token
 
+# Kamailio SIP proxy (optional — for multi-PBX load balancing)
+kamailio:
+  enabled: false
+  image:
+    repository: kamailio/kamailio
+    tag: "5.7"
+  ports:
+    sip: 5060           # UDP + TCP
+    sipTls: 5061         # TLS (only when tls.enabled)
+    jsonrpc: 5064        # JSONRPC over HTTP (for sip-bridge KamailioClient)
+  dispatcher:
+    setId: 1
+    algorithm: 4         # 0=hash-callid, 4=round-robin, 10=weight, 12=random
+    pingInterval: 10
+    pingThreshold: 3
+  pbxInstances:
+    - uri: "sip:asterisk:5060"
+      flags: 0
+      priority: 0
+      attrs: "weight=50"
+  tls:
+    enabled: false
+    secretName: ""       # K8s TLS secret with tls.crt and tls.key
+  logLevel: 4            # 0=ALERT … 6=DEBUG
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 500m
+      memory: 256Mi
+
 # Identity Provider (Authentik)
 idp:
   adapter: authentik

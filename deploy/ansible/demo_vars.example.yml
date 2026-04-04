@@ -106,7 +106,7 @@ twilio_phone_number: ""
 
 # ─── Optional Profiles ──────────────────────────────────────────
 # Enable optional Docker Compose profiles
-# Options: transcription, asterisk, signal
+# Options: transcription, asterisk, kamailio, signal
 compose_profiles: []
 
 # Whisper transcription settings (only used if 'transcription' profile enabled)
@@ -128,6 +128,24 @@ turn_secret: ""
 
 # coturn Docker image
 coturn_image: coturn/coturn:4.6
+
+# ─── Kamailio SIP Proxy (when kamailio profile enabled) ──────
+# Kamailio is OPTIONAL — only needed for multi-PBX load balancing.
+# Asterisk remains the default/flagship PBX for all deployments.
+# kamailio_enabled: false
+# kamailio_image: kamailio/kamailio:5.7
+# kamailio_sip_domain: demo.llamenos-hotline.com
+# kamailio_log_level: 4
+# kamailio_dispatcher:
+#   set_id: 1
+#   algorithm: 4          # 0=hash-callid, 4=round-robin, 10=weight, 12=random
+#   ping_interval: 10
+#   ping_threshold: 3
+# kamailio_pbx_instances:
+#   - uri: "sip:asterisk:5060"
+#     flags: 0
+#     priority: 0
+#     attrs: "weight=50"
 
 # ─── IdP Auth (Authentik) ───────────────────────────────────────
 # Secret key for Authentik (generate with: openssl rand -hex 32, must be >= 50 chars)

@@ -1,0 +1,8 @@
+# Kamailio dispatcher list — managed by Ansible
+# Do not edit directly; changes will be overwritten on next deploy.
+#
+# Format: setid destination flags priority attributes
+# See: https://kamailio.org/docs/modules/5.7.x/modules/dispatcher.html
+{% for instance in kamailio_pbx_instances %}
+{{ kamailio_dispatcher.set_id | default(1) }} {{ instance.uri }} {{ instance.flags | default(0) }} {{ instance.priority | default(0) }} {{ instance.attrs | default('') }}
+{% endfor %}

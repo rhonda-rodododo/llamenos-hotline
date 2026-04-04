@@ -1,6 +1,6 @@
 # v1 dev port offsets — avoids conflicts with llamenos v2 (~/projects/llamenos)
 # v2 uses: postgres:5432, rustfs:9000/9001, strfry:7777
-# v1 uses: postgres:5433, rustfs:9002/9003, strfry:7778, asterisk-ari:8089, asterisk-sip:5062, asterisk-wss:8090, coturn:3478
+# v1 uses: postgres:5433, rustfs:9002/9003, strfry:7778, asterisk-ari:8089, asterisk-sip:5062, asterisk-wss:8090, kamailio-sip:5070, kamailio-tls:5071, kamailio-jsonrpc:5074, coturn:3478
 #
 # Asterisk + bridge are enabled via --profile asterisk in the dev:docker script.
 #
@@ -68,6 +68,14 @@ services:
     depends_on:
       asterisk:
         condition: service_healthy
+
+  # Kamailio SIP proxy — dev port offsets
+  kamailio:
+    ports:
+      - "5070:5060/udp"   # SIP UDP (offset from default 5060)
+      - "5070:5060/tcp"   # SIP TCP
+      - "5071:5061/tcp"   # SIP TLS
+      - "5074:5064"       # JSONRPC (for sip-bridge KamailioClient)
 
   coturn:
     image: coturn/coturn:4.6

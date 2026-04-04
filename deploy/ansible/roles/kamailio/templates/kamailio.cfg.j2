@@ -1,0 +1,211 @@
+#!KAMAILIO
+# Kamailio config — managed by Ansible
+# Do not edit directly; changes will be overwritten on next deploy.
+#
+# Role: SIP proxy / load balancer for multi-PBX high-availability
+# Distributes INVITE/REGISTER to PBX backends via dispatcher module
+
+####### Global Parameters #########
+
+#!define DBURL "text:///etc/kamailio/dispatcher.list"
+
+debug={{ kamailio_log_level | default(4) }}
+log_stderror=no
+memdbg=5
+memlog=5
+
+children=4
+auto_aliases=no
+dns=no
+rev_dns=no
+tcp_connection_lifetime=3605
+tcp_max_connections=2048
+
+listen=udp:0.0.0.0:{{ kamailio_sip_port | default(5060) }}
+listen=tcp:0.0.0.0:{{ kamailio_sip_port | default(5060) }}
+{% if kamailio_tls_enabled | default(false) | bool %}
+listen=tls:0.0.0.0:{{ kamailio_sip_tls_port | default(5061) }}
+{% endif %}
+
+alias={{ kamailio_sip_domain }}
+
+####### Modules Section ###########
+
+# Core modules
+loadmodule "jsonrpcs.so"
+loadmodule "kex.so"
+loadmodule "corex.so"
+loadmodule "tm.so"
+loadmodule "tmx.so"
+loadmodule "sl.so"
+loadmodule "rr.so"
+loadmodule "pv.so"
+loadmodule "maxfwd.so"
+loadmodule "textops.so"
+loadmodule "siputils.so"
+loadmodule "xlog.so"
+loadmodule "sanity.so"
+loadmodule "ctl.so"
+loadmodule "nathelper.so"
+loadmodule "dispatcher.so"
+loadmodule "xhttp.so"
+{% if kamailio_tls_enabled | default(false) | bool %}
+loadmodule "tls.so"
+{% endif %}
+
+####### Module Parameters ##########
+
+# ── jsonrpcs: expose JSONRPC over HTTP on port {{ kamailio_jsonrpc_port | default(5064) }}
+modparam("jsonrpcs", "pretty_format", 1)
+modparam("jsonrpcs", "transport", 6)
+
+# ── xhttp: handle HTTP requests for JSONRPC
+modparam("xhttp", "url_match", "^/RPC")
+
+# ── tm: transaction module
+modparam("tm", "failure_reply_mode", 3)
+modparam("tm", "fr_timer", 30000)
+modparam("tm", "fr_inv_timer", 120000)
+
+# ── rr: record-route
+modparam("rr", "enable_full_lr", 0)
+modparam("rr", "append_fromtag", 0)
+
+# ── dispatcher: SIP load balancer
+modparam("dispatcher", "list_file", "/etc/kamailio/dispatcher.list")
+modparam("dispatcher", "ds_ping_method", "OPTIONS")
+modparam("dispatcher", "ds_ping_interval", {{ kamailio_dispatcher.ping_interval | default(10) }})
+modparam("dispatcher", "ds_probing_threshold", {{ kamailio_dispatcher.ping_threshold | default(3) }})
+modparam("dispatcher", "ds_probing_mode", 1)
+modparam("dispatcher", "ds_ping_from", "sip:kamailio@{{ kamailio_sip_domain }}")
+modparam("dispatcher", "flags", 2)
+
+{% if kamailio_tls_enabled | default(false) | bool %}
+# ── tls
+modparam("tls", "config", "/etc/kamailio/tls.cfg")
+{% endif %}
+
+####### Routing Logic ##############
+
+request_route {
+    # ── Max-Forwards check
+    if (!mf_process_maxfwd_header("10")) {
+        sl_send_reply("483", "Too Many Hops");
+        exit;
+    }
+
+    # ── Sanity check
+    if (!sanity_check("17895", "7")) {
+        xlog("L_WARN", "Malformed SIP message from $si:$sp\n");
+        exit;
+    }
+
+    # ── Record-Route for in-dialog requests
+    if (is_method("INVITE|SUBSCRIBE")) {
+        record_route();
+    }
+
+    # ── In-dialog requests (sequential)
+    if (has_totag()) {
+        if (loose_route()) {
+            if (is_method("BYE")) {
+                xlog("L_INFO", "BYE from $fU to $rU\n");
+            }
+            route(RELAY);
+            exit;
+        } else {
+            if (is_method("ACK")) {
+                if (t_check_trans()) {
+                    route(RELAY);
+                    exit;
+                } else {
+                    exit;
+                }
+            }
+            sl_send_reply("404", "Not Found");
+            exit;
+        }
+    }
+
+    # ── CANCEL handling
+    if (is_method("CANCEL")) {
+        if (t_check_trans()) {
+            t_relay();
+        }
+        exit;
+    }
+
+    # ── Retransmission guard
+    t_check_trans();
+
+    # ── OPTIONS keepalive — reply 200 OK
+    if (is_method("OPTIONS") && uri==myself) {
+        sl_send_reply("200", "OK");
+        exit;
+    }
+
+    # ── INVITE and REGISTER → dispatch to PBX backends
+    if (is_method("INVITE|REGISTER")) {
+        route(DISPATCH);
+        exit;
+    }
+
+    # ── Other requests to this server
+    if (uri==myself) {
+        sl_send_reply("404", "Not Here");
+        exit;
+    }
+
+    # ── Forward anything else
+    route(RELAY);
+}
+
+# ── DISPATCH: select PBX backend via dispatcher
+route[DISPATCH] {
+    if (!ds_select_dst("{{ kamailio_dispatcher.set_id | default(1) }}", "{{ kamailio_dispatcher.algorithm | default(4) }}")) {
+        xlog("L_ERR", "No active PBX destinations in dispatcher set {{ kamailio_dispatcher.set_id | default(1) }}\n");
+        sl_send_reply("503", "Service Unavailable");
+        exit;
+    }
+
+    xlog("L_INFO", "Dispatching $rm from $fU to $du\n");
+    t_on_failure("PBX_FAILOVER");
+    route(RELAY);
+}
+
+# ── RELAY: forward via transaction module
+route[RELAY] {
+    if (!t_relay()) {
+        sl_reply_error();
+    }
+}
+
+# ── PBX_FAILOVER: try next PBX backend on failure
+failure_route[PBX_FAILOVER] {
+    if (t_is_canceled()) {
+        exit;
+    }
+
+    if (t_check_status("(5[0-9][0-9])|(408)")) {
+        xlog("L_WARN", "PBX failure ($T_reply_code) for $rm from $fU — trying next\n");
+
+        if (ds_next_dst()) {
+            xlog("L_INFO", "Failover to $du\n");
+            t_on_failure("PBX_FAILOVER");
+            route(RELAY);
+            exit;
+        }
+
+        xlog("L_ERR", "All PBX backends exhausted for $rm from $fU\n");
+        t_reply("503", "Service Unavailable");
+    }
+}
+
+# ── JSONRPC over HTTP (xhttp event route)
+event_route[xhttp:request] {
+    if ($hu =~ "^/RPC") {
+        jsonrpc_dispatch();
+        exit;
+    }
+    xhttp_reply("200", "OK", "text/plain", "Kamailio SIP Proxy\n");
+}
