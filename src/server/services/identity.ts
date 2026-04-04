@@ -1,6 +1,6 @@
 import { LABEL_USER_PII } from '@shared/crypto-labels'
 import type { Ciphertext } from '@shared/crypto-types'
-import { and, eq, isNull } from 'drizzle-orm'
+import { and, eq, isNull, sql } from 'drizzle-orm'
 import type { MessagingChannelType } from '../../shared/types'
 import type { Database } from '../db'
 import {
@@ -270,17 +270,22 @@ export class IdentityService {
     const vol = await this.getUser(data.pubkey)
     if (!vol) throw new AppError(404, 'User not found')
 
-    const hubRoles = vol.hubRoles ?? []
-    const idx = hubRoles.findIndex((hr) => hr.hubId === data.hubId)
-    if (idx >= 0) {
-      hubRoles[idx].roleIds = data.roleIds
-    } else {
-      hubRoles.push({ hubId: data.hubId, roleIds: data.roleIds })
-    }
-
+    // Atomic JSONB update: remove existing entry for this hub, then append new one.
+    // Prevents lost-update race when concurrent setHubRole calls modify the same user.
+    const newEntry = JSON.stringify({ hubId: data.hubId, roleIds: data.roleIds })
     const [row] = await this.db
       .update(users)
-      .set({ hubRoles })
+      .set({
+        hubRoles: sql`(
+          SELECT jsonb_agg(elem)
+          FROM (
+            SELECT elem FROM jsonb_array_elements(COALESCE(${users.hubRoles}, '[]'::jsonb)) AS elem
+            WHERE elem->>'hubId' != ${data.hubId}
+            UNION ALL
+            SELECT ${newEntry}::jsonb
+          ) sub
+        )`,
+      })
       .where(eq(users.pubkey, data.pubkey))
       .returning()
     return this.#rowToUser(row)
@@ -290,12 +295,19 @@ export class IdentityService {
     const vol = await this.getUser(pubkey)
     if (!vol) throw new AppError(404, 'User not found')
 
-    const hubRoles = (vol.hubRoles ?? []).filter((hr) => hr.hubId !== hubId)
+    // Atomic JSONB filter: removes the entry for this hub without read-modify-write.
     const [row] = await this.db
       .update(users)
-      .set({ hubRoles })
+      .set({
+        hubRoles: sql`(
+          SELECT COALESCE(jsonb_agg(elem), '[]'::jsonb)
+          FROM jsonb_array_elements(COALESCE(${users.hubRoles}, '[]'::jsonb)) AS elem
+          WHERE elem->>'hubId' != ${hubId}
+        )`,
+      })
       .where(eq(users.pubkey, pubkey))
       .returning()
+    if (!row) throw new AppError(404, 'User not found')
     return this.#rowToUser(row)
   }
 

@@ -1,10 +1,41 @@
 import type { Ciphertext, HmacHash } from '@shared/crypto-types'
 import type { RecipientEnvelope } from '@shared/types'
 import { Hono } from 'hono'
+import { z } from 'zod'
 import { requirePermission } from '../middleware/permission-guard'
 import type { AppEnv } from '../types'
 
 const contactImport = new Hono<AppEnv>()
+
+const RecipientEnvelopeSchema = z.object({
+  recipientPubkey: z.string(),
+  encryptedKey: z.string(),
+  ephemeralPubkey: z.string().optional(),
+})
+
+const ContactImportSchema = z.object({
+  contacts: z
+    .array(
+      z.object({
+        contactType: z.string(),
+        riskLevel: z.string(),
+        tags: z.array(z.string()).optional(),
+        encryptedDisplayName: z.string(),
+        displayNameEnvelopes: z.array(RecipientEnvelopeSchema),
+        encryptedFullName: z.string().optional(),
+        fullNameEnvelopes: z.array(RecipientEnvelopeSchema).optional(),
+        encryptedPhone: z.string().optional(),
+        phoneEnvelopes: z.array(RecipientEnvelopeSchema).optional(),
+        identifierHash: z.string().optional(),
+        encryptedPII: z.string().optional(),
+        piiEnvelopes: z.array(RecipientEnvelopeSchema).optional(),
+      })
+    )
+    .min(1, 'contacts array is required')
+    .max(500, 'Maximum 500 contacts per batch'),
+})
+
+const MergeSchema = z.object({ secondaryId: z.string().min(1, 'secondaryId is required') })
 
 // POST /contacts/import — batch import contacts
 contactImport.post(
@@ -15,7 +46,12 @@ contactImport.post(
     const hubId = c.get('hubId') ?? 'global'
     const pubkey = c.get('pubkey')
 
-    const body = await c.req.json<{
+    const raw = await c.req.json()
+    const parsed = ContactImportSchema.safeParse(raw)
+    if (!parsed.success) {
+      return c.json({ error: 'Invalid request body', details: parsed.error.flatten() }, 400)
+    }
+    const body = parsed.data as unknown as {
       contacts: Array<{
         contactType: string
         riskLevel: string
@@ -30,14 +66,6 @@ contactImport.post(
         encryptedPII?: Ciphertext
         piiEnvelopes?: RecipientEnvelope[]
       }>
-    }>()
-
-    if (!body.contacts?.length) {
-      return c.json({ error: 'contacts array is required' }, 400)
-    }
-
-    if (body.contacts.length > 500) {
-      return c.json({ error: 'Maximum 500 contacts per batch' }, 400)
     }
 
     let created = 0
@@ -90,10 +118,12 @@ contactImport.post(
     const hubId = c.get('hubId') ?? 'global'
     const primaryId = c.req.param('primaryId')
 
-    const body = await c.req.json<{ secondaryId: string }>()
-    if (!body.secondaryId) {
-      return c.json({ error: 'secondaryId is required' }, 400)
+    const raw = await c.req.json()
+    const parsed = MergeSchema.safeParse(raw)
+    if (!parsed.success) {
+      return c.json({ error: 'Invalid request body', details: parsed.error.flatten() }, 400)
     }
+    const body = parsed.data
 
     const primary = await services.contacts.getContact(primaryId, hubId)
     if (!primary) return c.json({ error: 'Primary contact not found' }, 404)

@@ -838,6 +838,7 @@ export class RecordsService {
   #rowToNote(r: typeof noteEnvelopes.$inferSelect): EncryptedNote {
     return {
       id: r.id,
+      hubId: r.hubId,
       callId: r.callId ?? undefined,
       conversationId: r.conversationId ?? undefined,
       contactHash: r.contactHash ?? undefined,

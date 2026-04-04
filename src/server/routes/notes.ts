@@ -209,6 +209,10 @@ const updateRoute = createRoute({
       description: 'Note updated',
       content: { 'application/json': { schema: z.object({ note: NoteResponseSchema }) } },
     },
+    404: {
+      description: 'Note not found or not in current hub',
+      content: { 'application/json': { schema: z.object({ error: z.string() }) } },
+    },
   },
 })
 
@@ -218,6 +222,11 @@ notes.openapi(updateRoute, async (c) => {
   const pubkey = c.get('pubkey')
   const { id } = c.req.valid('param')
   const body = c.req.valid('json')
+  // Verify the note belongs to the current hub before allowing update
+  const existing = await services.records.getNote(id)
+  if (!existing || existing.hubId !== (hubId ?? 'global')) {
+    return c.json({ error: 'Note not found' }, 404)
+  }
   const updated = await services.records.updateNote(id, { ...body, authorPubkey: pubkey })
   await services.records.addAuditEntry(hubId ?? 'global', 'noteEdited', pubkey, { noteId: id })
   return c.json({ note: updated }, 200)

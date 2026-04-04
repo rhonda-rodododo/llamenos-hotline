@@ -1,4 +1,5 @@
 import { Hono } from 'hono'
+import { z } from 'zod'
 import type { SignalRegistrationPending } from '../../../shared/types'
 import { validateExternalUrl } from '../../lib/ssrf-guard'
 import { completeSignalRegistration } from '../../messaging/signal/registration'
@@ -7,6 +8,16 @@ import type { AppEnv } from '../../types'
 
 const signalRegistration = new Hono<AppEnv>()
 
+const RegisterSchema = z.object({
+  bridgeUrl: z.string().min(1),
+  registeredNumber: z.string().min(1),
+  useVoice: z.boolean().optional(),
+})
+
+const VerifySchema = z.object({
+  code: z.string().regex(/^\d{6}$/, 'Code must be exactly 6 digits'),
+})
+
 /**
  * POST /api/messaging/signal/register
  * Initiate Signal number registration via the bridge.
@@ -14,21 +25,19 @@ const signalRegistration = new Hono<AppEnv>()
 signalRegistration.post('/register', requirePermission('settings:manage'), async (c) => {
   const services = c.get('services')
 
-  const body = await c.req.json<{
-    bridgeUrl?: string
-    registeredNumber?: string
-    useVoice?: boolean
-  }>()
-
-  const { bridgeUrl, registeredNumber, useVoice } = body
-
-  if (!bridgeUrl || !registeredNumber) {
-    return c.json({ error: 'bridgeUrl and registeredNumber are required' }, 400)
+  const raw = await c.req.json()
+  const parsed = RegisterSchema.safeParse(raw)
+  if (!parsed.success) {
+    return c.json(
+      { error: 'bridgeUrl and registeredNumber are required', details: parsed.error.flatten() },
+      400
+    )
   }
+  const { bridgeUrl, registeredNumber, useVoice } = parsed.data
 
   try {
-    const parsed = new URL(bridgeUrl)
-    if (parsed.protocol !== 'https:') {
+    const parsedUrl = new URL(bridgeUrl)
+    if (parsedUrl.protocol !== 'https:') {
       return c.json({ error: 'Bridge URL must use HTTPS' }, 400)
     }
   } catch {
@@ -120,12 +129,12 @@ signalRegistration.get('/registration-status', requirePermission('settings:manag
 signalRegistration.post('/verify', requirePermission('settings:manage'), async (c) => {
   const services = c.get('services')
 
-  const body = await c.req.json<{ code?: string }>()
-  const { code } = body
-
-  if (!code || !/^\d{6}$/.test(code)) {
-    return c.json({ error: 'Code must be exactly 6 digits' }, 400)
+  const raw = await c.req.json()
+  const parsed = VerifySchema.safeParse(raw)
+  if (!parsed.success) {
+    return c.json({ error: 'Code must be exactly 6 digits', details: parsed.error.flatten() }, 400)
   }
+  const { code } = parsed.data
 
   const pending = await services.settings.getSignalRegistrationPending()
 

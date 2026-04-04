@@ -2,6 +2,7 @@ import { OpenAPIHono } from '@hono/zod-openapi'
 import { Scalar } from '@scalar/hono-api-reference'
 import { Hono } from 'hono'
 import { createMiddleware } from 'hono/factory'
+import { z } from 'zod'
 import type { IdPAdapter } from './idp/adapter'
 import messagingRoutes from './messaging/router'
 import { auth } from './middleware/auth'
@@ -183,13 +184,24 @@ api.get('/messaging/preferences', async (c) => {
   })
 })
 
+const PreferencesUpdateSchema = z.object({
+  status: z.enum(['active', 'unsubscribed']).optional(),
+  language: z.string().max(10).optional(),
+  tags: z.array(z.string().max(100)).max(50).optional(),
+})
+
 api.patch('/messaging/preferences', async (c) => {
   const token = c.req.query('token')
   if (!token) return c.json({ error: 'Token required' }, 400)
   const services = c.get('services')
   const subscriber = await services.blasts.getSubscriberByPreferenceToken(token)
   if (!subscriber) return c.json({ error: 'Invalid token' }, 404)
-  const body = await c.req.json<{ status?: string; language?: string; tags?: string[] }>()
+  const raw = await c.req.json()
+  const parsed = PreferencesUpdateSchema.safeParse(raw)
+  if (!parsed.success) {
+    return c.json({ error: 'Invalid request body', details: parsed.error.flatten() }, 400)
+  }
+  const body = parsed.data
   const updated = await services.blasts.updateSubscriber(subscriber.id, {
     ...(body.status !== undefined ? { status: body.status } : {}),
     ...(body.language !== undefined ? { language: body.language } : {}),

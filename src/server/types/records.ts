@@ -2,6 +2,7 @@ import type { KeyEnvelope, RecipientEnvelope } from '../../shared/types'
 
 export interface EncryptedNote {
   id: string
+  hubId: string
   callId?: string // links to a voice call
   conversationId?: string // links to a conversation (Epic 123)
   contactHash?: string // links to a contact for contact-level view (Epic 123)
