@@ -252,7 +252,7 @@ deploy/
   docker/          # Docker Compose deployment (Dockerfile, Caddyfile, .env.example)
   ansible/         # Ansible deployment for VPS
   helm/            # Kubernetes Helm chart
-asterisk-bridge/   # Standalone ARI bridge for self-hosted Asterisk
+sip-bridge/        # Unified SIP bridge for self-hosted PBX (Asterisk default, FreeSWITCH/Kamailio also supported)
 site/              # Marketing site (Astro + Tailwind, Cloudflare Pages)
 ```
 

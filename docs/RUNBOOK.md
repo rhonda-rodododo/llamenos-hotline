@@ -218,7 +218,7 @@ docker compose exec asterisk sed -i \
   "s|^password=.*|password=${NEW_ARI_PASSWORD}|" /etc/asterisk/ari.conf
 
 # Restart all affected services
-docker compose restart asterisk asterisk-bridge app
+docker compose restart asterisk sip-bridge app
 ```
 
 ---

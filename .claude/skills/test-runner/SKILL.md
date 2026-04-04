@@ -43,13 +43,13 @@ Previous crashed runs leave behind bun processes that can balloon to 30GB+ and f
 
 ```bash
 # Detect orphans
-ps aux | grep -E 'bun.*(server\.ts|index\.ts|asterisk-bridge)' | grep -v grep
+ps aux | grep -E 'bun.*(server\.ts|index\.ts|sip-bridge)' | grep -v grep
 ```
 
 If found, kill them:
 
 ```bash
-ps -eo pid,args | grep -E 'bun.*(src/server/server\.ts|asterisk-bridge)' | grep -v grep | awk '{print $1}' | xargs -r kill
+ps -eo pid,args | grep -E 'bun.*(src/server/server\.ts|sip-bridge)' | grep -v grep | awk '{print $1}' | xargs -r kill
 ```
 
 ### 2. Start Services (Integration/API/UI only)
@@ -172,7 +172,7 @@ Count actual pass/fail numbers. Don't assume from partial output. Warnings matte
 ### Verify No Orphans Left
 
 ```bash
-ps aux | grep -E 'bun.*(server\.ts|index\.ts|asterisk-bridge)' | grep -v grep
+ps aux | grep -E 'bun.*(server\.ts|index\.ts|sip-bridge)' | grep -v grep
 ```
 
 The `globalTeardown` in `tests/global-teardown.ts` handles this for clean Playwright exits,
