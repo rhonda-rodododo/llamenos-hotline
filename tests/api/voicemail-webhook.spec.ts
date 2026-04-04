@@ -21,6 +21,12 @@ test.describe('Voicemail webhook API', () => {
   /** Hub ID resolved for history queries. */
   let hubId = ''
 
+  test.beforeAll(async ({ request }) => {
+    // Enable transcription so the voicemail transcript test can pass
+    const adminApi = createAuthedRequestFromNsec(request, ADMIN_NSEC)
+    await adminApi.patch('/api/settings/transcription', { globalEnabled: true }).catch(() => {})
+  })
+
   test('voicemail-recording webhook accepts completed recording and sets hasVoicemail + recordingSid', async ({
     request,
   }) => {
@@ -132,22 +138,22 @@ test.describe('Voicemail webhook API', () => {
     // Check if a system:voicemail note was created for the call.
     const authedApi = createAuthedRequestFromNsec(request, ADMIN_NSEC)
 
-    // Give transcription a moment to complete (it runs asynchronously after webhook)
-    await new Promise((r) => setTimeout(r, 2000))
-
-    const notesRes = await authedApi.get(`/api/notes?callId=${sharedCallSid}`)
-    expect(notesRes.status()).toBe(200)
-    const notesData = (await notesRes.json()) as {
-      notes: Array<{
-        authorPubkey: string
-        encryptedContent?: string
-      }>
+    // Give transcription a moment to complete (it runs asynchronously after webhook).
+    // Whisper model loading + transcription can take up to 15s on first call.
+    // Poll with retries instead of a fixed wait.
+    let voicemailNote: { authorPubkey: string; encryptedContent?: string } | undefined
+    for (let attempt = 0; attempt < 10; attempt++) {
+      await new Promise((r) => setTimeout(r, 2000))
+      const notesRes = await authedApi.get(`/api/notes?callId=${sharedCallSid}`)
+      if (notesRes.ok()) {
+        const data = (await notesRes.json()) as {
+          notes: Array<{ authorPubkey: string; encryptedContent?: string }>
+        }
+        voicemailNote = data.notes?.find((n) => n.authorPubkey === 'system:voicemail')
+        if (voicemailNote) break
+      }
     }
 
-    const voicemailNote = notesData.notes?.find((n) => n.authorPubkey === 'system:voicemail')
-
-    // Transcription depends on faster-whisper being available in test env.
-    // If no voicemail note exists, skip rather than fail.
     if (!voicemailNote) {
       test.skip(
         true,

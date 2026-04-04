@@ -215,15 +215,25 @@ export class TestAdapter implements TelephonyAdapter {
     return true
   }
 
-  // --- Recording (not available in test) ---
+  // --- Recording (returns test WAV file in dev/test) ---
 
   deletedRecordings: string[] = []
 
-  async getCallRecording(_callSid: string): Promise<ArrayBuffer | null> {
+  private async loadTestAudio(): Promise<ArrayBuffer | null> {
+    try {
+      const file = Bun.file('tests/fixtures/test-voicemail.wav')
+      if (await file.exists()) return file.arrayBuffer()
+    } catch {
+      /* fixture not found */
+    }
     return null
   }
+
+  async getCallRecording(_callSid: string): Promise<ArrayBuffer | null> {
+    return this.loadTestAudio()
+  }
   async getRecordingAudio(_recordingSid: string): Promise<ArrayBuffer | null> {
-    return null
+    return this.loadTestAudio()
   }
   async deleteRecording(recordingSid: string): Promise<void> {
     this.deletedRecordings.push(recordingSid)
