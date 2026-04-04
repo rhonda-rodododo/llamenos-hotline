@@ -272,17 +272,18 @@ export class IdentityService {
 
     // Atomic JSONB update: remove existing entry for this hub, then append new one.
     // Prevents lost-update race when concurrent setHubRole calls modify the same user.
-    const newEntry = JSON.stringify({ hubId: data.hubId, roleIds: data.roleIds })
+    // Build the new entry via jsonb_build_object to avoid parameter-encoding issues.
+    const roleIdsJson = JSON.stringify(data.roleIds)
     const [row] = await this.db
       .update(users)
       .set({
         hubRoles: sql`(
           SELECT jsonb_agg(elem)
           FROM (
-            SELECT elem FROM jsonb_array_elements(COALESCE(${users.hubRoles}, '[]'::jsonb)) AS elem
-            WHERE elem->>'hubId' != ${data.hubId}
+            SELECT value AS elem FROM jsonb_array_elements(COALESCE(${users.hubRoles}, '[]'::jsonb))
+            WHERE value->>'hubId' != ${data.hubId}
             UNION ALL
-            SELECT ${newEntry}::jsonb
+            SELECT jsonb_build_object('hubId', ${data.hubId}::text, 'roleIds', ${roleIdsJson}::jsonb)
           ) sub
         )`,
       })
@@ -300,9 +301,9 @@ export class IdentityService {
       .update(users)
       .set({
         hubRoles: sql`(
-          SELECT COALESCE(jsonb_agg(elem), '[]'::jsonb)
-          FROM jsonb_array_elements(COALESCE(${users.hubRoles}, '[]'::jsonb)) AS elem
-          WHERE elem->>'hubId' != ${hubId}
+          SELECT COALESCE(jsonb_agg(value), '[]'::jsonb)
+          FROM jsonb_array_elements(COALESCE(${users.hubRoles}, '[]'::jsonb))
+          WHERE value->>'hubId' != ${hubId}
         )`,
       })
       .where(eq(users.pubkey, pubkey))

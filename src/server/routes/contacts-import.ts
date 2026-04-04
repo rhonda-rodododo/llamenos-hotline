@@ -8,9 +8,9 @@ import type { AppEnv } from '../types'
 const contactImport = new Hono<AppEnv>()
 
 const RecipientEnvelopeSchema = z.object({
-  recipientPubkey: z.string(),
-  encryptedKey: z.string(),
-  ephemeralPubkey: z.string().optional(),
+  pubkey: z.string(),
+  wrappedKey: z.string(),
+  ephemeralPubkey: z.string(),
 })
 
 const ContactImportSchema = z.object({
