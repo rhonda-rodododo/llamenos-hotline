@@ -143,6 +143,22 @@ messaging.post('/:channel/webhook', async (c) => {
       }
       // Still forward to conversation for logging
     } else {
+      // Firehose notification opt-out detection (STOP-{8-char connection shortcode})
+      const firehoseOptoutMatch = normalizedBody.match(/^STOP-([A-Z0-9]{8})$/)
+      if (firehoseOptoutMatch) {
+        const shortCode = firehoseOptoutMatch[1]
+        const connections = await services.firehose.listConnections(hId)
+        const conn = connections.find((c) => c.id.slice(0, 8).toUpperCase() === shortCode)
+        if (conn) {
+          // Map sender to user — requires identity lookup by phone hash which is complex.
+          // For now, log the opt-out request. Future: find user by Signal phone hash,
+          // then call services.firehose.addOptout(conn.id, userId).
+          console.log(
+            `[firehose] Opt-out request for connection ${conn.id} from ${incoming.senderIdentifierHash}`
+          )
+        }
+      }
+
       // Check if it matches the subscribe keyword
       try {
         const config = await services.settings.getMessagingConfig(hId)

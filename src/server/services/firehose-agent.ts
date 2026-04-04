@@ -443,7 +443,96 @@ export class FirehoseAgentService {
       sourceMessageCount: cluster.messages.length,
     })
 
+    // Notify admins about the new report
+    await this.notifyAdmins(conn, conversation.id, extraction.confidence)
+
     return conversation.id
+  }
+
+  /**
+   * Notify admins of a newly extracted firehose report.
+   *
+   * Always publishes a Nostr KIND_FIREHOSE_REPORT event. If the connection has
+   * `notifyViaSignal` enabled, also logs that a Signal DM would be sent to each
+   * non-opted-out admin user.
+   *
+   * TODO: Wire up actual Signal DM sending via MessagingAdapter once the
+   * identity→Signal phone mapping is available in IdentityService.
+   */
+  private async notifyAdmins(
+    conn: { id: string; hubId: string; reportTypeId: string },
+    reportId: string,
+    confidence: number
+  ): Promise<void> {
+    // Fetch the full connection record to get display name and notifyViaSignal flag
+    const connection = await this.firehose.getConnection(conn.id)
+    if (!connection) return
+
+    // Publish Nostr notification event
+    try {
+      const publisher = getNostrPublisher(this.env)
+      publisher
+        .publish({
+          kind: KIND_FIREHOSE_REPORT,
+          created_at: Math.floor(Date.now() / 1000),
+          tags: [
+            ['d', conn.hubId],
+            ['t', 'llamenos:event'],
+            ['c', conn.id],
+          ],
+          content: JSON.stringify({
+            type: 'firehose:report:notify',
+            connectionId: conn.id,
+            reportId,
+            confidence,
+          }),
+        })
+        .catch((err) => console.error('[firehose-agent] Nostr notify publish failed:', err))
+    } catch {
+      // Nostr not configured — skip
+    }
+
+    // Signal DM notifications (if enabled for this connection)
+    if (!connection.notifyViaSignal) return
+
+    const shortCode = connection.id.slice(0, 8).toUpperCase()
+    const connectionDisplayName =
+      connection.displayName || connection.encryptedDisplayName || connection.id
+    // Report type name would need hub-key decryption — use ID as fallback
+    const reportTypeName = connection.reportTypeId
+
+    const message = [
+      `[Llamenos] Firehose report submitted from "${connectionDisplayName}"`,
+      `Report type: ${reportTypeName} | Confidence: ${confidence.toFixed(2)}`,
+      `Reply STOP-${shortCode} to disable Signal notifications for this connection.`,
+    ].join('\n')
+
+    // Get all admin pubkeys to check opt-out status
+    const adminPubkeys = await this.identity.getSuperAdminPubkeys()
+
+    for (const pubkey of adminPubkeys) {
+      try {
+        const optedOut = await this.firehose.isOptedOut(connection.id, pubkey)
+        if (optedOut) {
+          console.log(
+            `[firehose-agent] Skipping Signal DM for opted-out admin ${pubkey.slice(0, 8)} on connection ${connection.id}`
+          )
+          continue
+        }
+
+        // TODO: Send actual Signal DM via MessagingAdapter once admin Signal phone
+        // mapping is available. Requires IdentityService.getSignalIdentifierForUser(pubkey)
+        // and a configured Signal MessagingAdapter for this hub.
+        console.log(
+          `[firehose-agent] Would send Signal DM to admin ${pubkey.slice(0, 8)} for connection ${connection.id}:\n${message}`
+        )
+      } catch (err) {
+        console.error(
+          `[firehose-agent] Failed to check opt-out for admin ${pubkey.slice(0, 8)}:`,
+          err
+        )
+      }
+    }
   }
 
   // ---------------------------------------------------------------------------
