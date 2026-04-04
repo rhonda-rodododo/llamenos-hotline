@@ -18,7 +18,7 @@ import {
 import type { Ciphertext } from '@shared/crypto-types'
 import type { BlastContent, NotePayload } from '@shared/types'
 import { generateSecretKey, getPublicKey, nip19 } from 'nostr-tools'
-import { getCryptoWorker } from './crypto-worker-client'
+import { cryptoWorker } from './crypto-worker-client'
 
 function randomBytes(n: number): Uint8Array {
   const buf = new Uint8Array(n)
@@ -137,7 +137,7 @@ export function eciesWrapKey(
  * Delegates to the crypto worker — the secret key never touches the main thread.
  */
 export async function eciesUnwrapKey(envelope: KeyEnvelope, label: string): Promise<Uint8Array> {
-  const worker = getCryptoWorker()
+  const worker = cryptoWorker
   const resultHex = await worker.decrypt(envelope.ephemeralPubkey, envelope.wrappedKey, label)
   return hexToBytes(resultHex)
 }
@@ -509,11 +509,7 @@ export async function decryptTranscription(
   try {
     // The worker's decrypt performs the same ECIES unwrap:
     // ECDH(secretKey, ephemeralPub) → SHA-256(label || sharedX) → XChaCha20-Poly1305
-    const resultHex = await getCryptoWorker().decrypt(
-      ephemeralPubkeyHex,
-      packed,
-      LABEL_TRANSCRIPTION
-    )
+    const resultHex = await cryptoWorker.decrypt(ephemeralPubkeyHex, packed, LABEL_TRANSCRIPTION)
     return new TextDecoder().decode(hexToBytes(resultHex))
   } catch {
     return null

@@ -107,9 +107,6 @@ export interface TelephonyProviderDraft {
 
 export type { CallPreference } from '@shared/schemas/common'
 
-// PROVIDER_REQUIRED_FIELDS removed — use ProviderCapabilities.credentialSchema instead
-// See src/server/telephony/capabilities.ts
-
 // --- Geocoding / Location Types ---
 
 export type { LocationPrecision } from '@shared/schemas/common'

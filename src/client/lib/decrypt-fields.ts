@@ -11,7 +11,7 @@
 
 import { LABEL_USER_PII } from '@shared/crypto-labels'
 import type { RecipientEnvelope } from '@shared/types'
-import { getCryptoWorker } from './crypto-worker-client'
+import { cryptoWorker } from './crypto-worker-client'
 
 // ---------------------------------------------------------------------------
 // DecryptCache
@@ -134,7 +134,7 @@ export async function decryptObjectFields<T extends Record<string, unknown>>(
   const refs = resolveEncryptedFields(obj, readerPubkey)
   if (refs.length === 0) return obj
 
-  const worker = getCryptoWorker()
+  const worker = cryptoWorker
 
   await Promise.all(
     refs.map(async ({ plaintextKey, ciphertext, envelope }) => {

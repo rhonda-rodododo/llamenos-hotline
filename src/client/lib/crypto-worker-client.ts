@@ -227,8 +227,3 @@ export class CryptoWorkerClient {
 /** Singleton instance — shared by key-manager and decrypt-fields. */
 export const cryptoWorker =
   typeof Worker !== 'undefined' ? new CryptoWorkerClient() : (null as unknown as CryptoWorkerClient)
-
-/** @deprecated Use `cryptoWorker` directly. Kept for backward compatibility. */
-export function getCryptoWorker(): CryptoWorkerClient {
-  return cryptoWorker
-}
