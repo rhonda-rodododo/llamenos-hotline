@@ -43,6 +43,8 @@ const CLUSTER_WINDOW_MS = 5 * 60 * 1000
 const DEFAULT_INFERENCE_ENDPOINT = 'http://localhost:8000/v1'
 /** Default inference model */
 const DEFAULT_INFERENCE_MODEL = 'Qwen/Qwen3.5-9B'
+/** Minimum confidence score to accept an extraction */
+const CONFIDENCE_THRESHOLD = 0.3
 
 export class FirehoseAgentService {
   private agents = new Map<string, AgentInstance>()
@@ -83,6 +85,16 @@ export class FirehoseAgentService {
       } catch (err) {
         console.error(`[firehose-agent] Failed to start agent for ${conn.id}:`, err)
       }
+    }
+
+    const started = this.agents.size
+    const failed = connections.length - started
+    if (failed > 0) {
+      console.warn(
+        `[firehose-agent] ${started}/${connections.length} agents started (${failed} failed)`
+      )
+    } else {
+      console.log(`[firehose-agent] All ${started} agents started successfully`)
     }
   }
 
@@ -238,6 +250,14 @@ export class FirehoseAgentService {
         })
       } catch (err) {
         console.error(`[firehose-agent] Failed to decrypt message ${msg.id}:`, err)
+        // Audit so admins can see decryption issues in the UI
+        this.records
+          .addAuditEntry(agent.hubId, 'firehoseDecryptionFailed', agent.agentPubkey, {
+            messageId: msg.id,
+            connectionId: connectionId,
+            error: err instanceof Error ? err.message : String(err),
+          })
+          .catch(() => {})
       }
     }
 
@@ -268,7 +288,7 @@ export class FirehoseAgentService {
         )
 
         // Skip low-confidence extractions
-        if (extraction.confidence < 0.3) {
+        if (extraction.confidence < CONFIDENCE_THRESHOLD) {
           console.log(
             `[firehose-agent] Skipping low-confidence extraction (${extraction.confidence}) for cluster ${cluster.id}`
           )
@@ -430,8 +450,11 @@ export class FirehoseAgentService {
           }),
         })
         .catch((err) => console.error('[firehose-agent] Nostr publish failed:', err))
-    } catch {
-      // Nostr not configured
+    } catch (err) {
+      // Only log unexpected errors — missing publisher config is expected in some envs
+      if (err instanceof Error && !err.message.includes('not configured')) {
+        console.error('[firehose-agent] Unexpected Nostr error:', err)
+      }
     }
 
     // Audit log
@@ -466,7 +489,10 @@ export class FirehoseAgentService {
   ): Promise<void> {
     // Fetch the full connection record to get display name and notifyViaSignal flag
     const connection = await this.firehose.getConnection(conn.id)
-    if (!connection) return
+    if (!connection) {
+      console.warn(`[firehose-agent] Connection ${conn.id} disappeared during notification`)
+      return
+    }
 
     // Publish Nostr notification event
     try {
@@ -488,8 +514,11 @@ export class FirehoseAgentService {
           }),
         })
         .catch((err) => console.error('[firehose-agent] Nostr notify publish failed:', err))
-    } catch {
-      // Nostr not configured — skip
+    } catch (err) {
+      // Only log unexpected errors — missing publisher config is expected in some envs
+      if (err instanceof Error && !err.message.includes('not configured')) {
+        console.error('[firehose-agent] Unexpected Nostr error:', err)
+      }
     }
 
     // Signal DM notifications (if enabled for this connection)
@@ -600,12 +629,16 @@ export class FirehoseAgentService {
     switch (type) {
       case 'select':
         return 'select'
+      case 'multiselect':
+        return 'multiselect'
       case 'checkbox':
         return 'checkbox'
       case 'number':
         return 'number'
       case 'location':
         return 'location'
+      case 'date':
+        return 'date'
       case 'textarea':
         return 'text'
       case 'file':
