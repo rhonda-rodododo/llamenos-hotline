@@ -382,14 +382,22 @@ export class VonageAdapter implements TelephonyAdapter {
     for (const result of calls) {
       if (result.status === 'fulfilled') {
         callSids.push(result.value)
+      } else {
+        console.error('[telephony:vonage] Failed to ring volunteer:', result.reason)
       }
+    }
+
+    if (callSids.length === 0 && outboundTargets.length > 0) {
+      console.error(
+        `[telephony:vonage] CRITICAL: All ${outboundTargets.length} outbound calls failed — no volunteers are being rung`
+      )
     }
 
     return callSids
   }
 
   async cancelRinging(callSids: string[], exceptSid?: string): Promise<void> {
-    await Promise.allSettled(
+    const results = await Promise.allSettled(
       callSids
         .filter((sid) => sid !== exceptSid)
         .map((sid) =>
@@ -399,6 +407,11 @@ export class VonageAdapter implements TelephonyAdapter {
           })
         )
     )
+    for (const result of results) {
+      if (result.status === 'rejected') {
+        console.warn('[telephony:vonage] Failed to cancel ringing:', result.reason)
+      }
+    }
   }
 
   async validateWebhook(request: Request): Promise<boolean> {
@@ -459,7 +472,12 @@ export class VonageAdapter implements TelephonyAdapter {
     // Vonage provides recording URL in the recording webhook
     // Fetch from the Vonage recordings API
     const res = await this.vonageApi(`/v1/calls/${callSid}`, { method: 'GET' })
-    if (!res.ok) return null
+    if (!res.ok) {
+      console.error(
+        `[telephony:vonage] Failed to get call info for ${callSid}: ${res.status} ${res.statusText}`
+      )
+      return null
+    }
 
     const data = (await res.json()) as { recording_url?: string }
     if (!data.recording_url) return null
@@ -467,7 +485,12 @@ export class VonageAdapter implements TelephonyAdapter {
     const audioRes = await fetch(data.recording_url, {
       headers: { Authorization: `Basic ${btoa(`${this.apiKey}:${this.apiSecret}`)}` },
     })
-    if (!audioRes.ok) return null
+    if (!audioRes.ok) {
+      console.error(
+        `[telephony:vonage] Failed to get recording audio for call ${callSid}: ${audioRes.status} ${audioRes.statusText}`
+      )
+      return null
+    }
     return audioRes.arrayBuffer()
   }
 
@@ -476,7 +499,12 @@ export class VonageAdapter implements TelephonyAdapter {
     const audioRes = await fetch(recordingSid, {
       headers: { Authorization: `Basic ${btoa(`${this.apiKey}:${this.apiSecret}`)}` },
     })
-    if (!audioRes.ok) return null
+    if (!audioRes.ok) {
+      console.error(
+        `[telephony:vonage] Failed to get recording audio ${recordingSid}: ${audioRes.status} ${audioRes.statusText}`
+      )
+      return null
+    }
     return audioRes.arrayBuffer()
   }
 

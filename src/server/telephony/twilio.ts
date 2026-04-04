@@ -319,14 +319,22 @@ export class TwilioAdapter implements TelephonyAdapter {
     for (const result of calls) {
       if (result.status === 'fulfilled') {
         callSids.push(result.value)
+      } else {
+        console.error('[telephony:twilio] Failed to ring volunteer:', result.reason)
       }
+    }
+
+    if (callSids.length === 0 && outboundTargets.length > 0) {
+      console.error(
+        `[telephony:twilio] CRITICAL: All ${outboundTargets.length} outbound calls failed — no volunteers are being rung`
+      )
     }
 
     return callSids
   }
 
   async cancelRinging(callSids: string[], exceptSid?: string): Promise<void> {
-    await Promise.allSettled(
+    const results = await Promise.allSettled(
       callSids
         .filter((sid) => sid !== exceptSid)
         .map((sid) =>
@@ -336,6 +344,11 @@ export class TwilioAdapter implements TelephonyAdapter {
           })
         )
     )
+    for (const result of results) {
+      if (result.status === 'rejected') {
+        console.warn('[telephony:twilio] Failed to cancel ringing:', result.reason)
+      }
+    }
   }
 
   async validateWebhook(request: Request): Promise<boolean> {
@@ -382,7 +395,12 @@ export class TwilioAdapter implements TelephonyAdapter {
     const res = await this.twilioApi(`/Calls/${callSid}/Recordings.json`, {
       method: 'GET',
     })
-    if (!res.ok) return null
+    if (!res.ok) {
+      console.error(
+        `[telephony:twilio] Failed to get recordings for call ${callSid}: ${res.status} ${res.statusText}`
+      )
+      return null
+    }
 
     const data = (await res.json()) as { recordings?: Array<{ sid: string }> }
     if (!data.recordings?.length) return null
@@ -394,7 +412,12 @@ export class TwilioAdapter implements TelephonyAdapter {
       },
     })
 
-    if (!audioRes.ok) return null
+    if (!audioRes.ok) {
+      console.error(
+        `[telephony:twilio] Failed to get recording audio ${recordingSid}: ${audioRes.status} ${audioRes.statusText}`
+      )
+      return null
+    }
     return audioRes.arrayBuffer()
   }
 
@@ -404,7 +427,12 @@ export class TwilioAdapter implements TelephonyAdapter {
         Authorization: `Basic ${btoa(`${this.accountSid}:${this.authToken}`)}`,
       },
     })
-    if (!audioRes.ok) return null
+    if (!audioRes.ok) {
+      console.error(
+        `[telephony:twilio] Failed to get recording audio ${recordingSid}: ${audioRes.status} ${audioRes.statusText}`
+      )
+      return null
+    }
     return audioRes.arrayBuffer()
   }
 

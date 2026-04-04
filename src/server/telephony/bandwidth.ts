@@ -375,14 +375,22 @@ export class BandwidthAdapter implements TelephonyAdapter {
     for (const result of calls) {
       if (result.status === 'fulfilled') {
         callIds.push(result.value)
+      } else {
+        console.error('[telephony:bandwidth] Failed to ring volunteer:', result.reason)
       }
+    }
+
+    if (callIds.length === 0 && outboundTargets.length > 0) {
+      console.error(
+        `[telephony:bandwidth] CRITICAL: All ${outboundTargets.length} outbound calls failed — no volunteers are being rung`
+      )
     }
 
     return callIds
   }
 
   async cancelRinging(callSids: string[], exceptSid?: string): Promise<void> {
-    await Promise.allSettled(
+    const results = await Promise.allSettled(
       callSids
         .filter((sid) => sid !== exceptSid)
         .map((sid) =>
@@ -393,13 +401,23 @@ export class BandwidthAdapter implements TelephonyAdapter {
           })
         )
     )
+    for (const result of results) {
+      if (result.status === 'rejected') {
+        console.warn('[telephony:bandwidth] Failed to cancel ringing:', result.reason)
+      }
+    }
   }
 
   // --- Recording Methods ---
 
   async getCallRecording(callSid: string): Promise<ArrayBuffer | null> {
     const res = await this.bandwidthApi(`/calls/${callSid}/recordings`, { method: 'GET' })
-    if (!res.ok) return null
+    if (!res.ok) {
+      console.error(
+        `[telephony:bandwidth] Failed to get recordings for call ${callSid}: ${res.status} ${res.statusText}`
+      )
+      return null
+    }
 
     const data = (await res.json()) as Array<{ recordingId: string; mediaUrl?: string }>
     if (!data.length) return null
@@ -411,7 +429,12 @@ export class BandwidthAdapter implements TelephonyAdapter {
   async getRecordingAudio(recordingSid: string): Promise<ArrayBuffer | null> {
     // Bandwidth recording media URL pattern
     const audioRes = await this.bandwidthApi(`/recordings/${recordingSid}/media`, { method: 'GET' })
-    if (!audioRes.ok) return null
+    if (!audioRes.ok) {
+      console.error(
+        `[telephony:bandwidth] Failed to get recording audio ${recordingSid}: ${audioRes.status} ${audioRes.statusText}`
+      )
+      return null
+    }
     return audioRes.arrayBuffer()
   }
 
