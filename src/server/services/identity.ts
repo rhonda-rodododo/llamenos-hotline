@@ -522,24 +522,33 @@ export class IdentityService {
   }
 
   async updateWebAuthnCounter(data: UpdateWebAuthnCounterData): Promise<void> {
-    const rows = await this.db
-      .select({ id: webauthnCredentials.id, counter: webauthnCredentials.counter })
-      .from(webauthnCredentials)
-      .where(
-        and(eq(webauthnCredentials.pubkey, data.pubkey), eq(webauthnCredentials.id, data.credId))
-      )
-      .limit(1)
-    const existing = rows[0]
-    if (!existing) throw new AppError(404, 'Credential not found')
-    if (data.counter <= Number(existing.counter)) {
-      throw new AppError(409, 'Counter replay detected — possible authenticator replay attack')
-    }
-    await this.db
+    // Atomic conditional UPDATE to avoid TOCTOU race between SELECT and UPDATE.
+    // Two concurrent auths must not both observe N and both write N+1.
+    const updated = await this.db
       .update(webauthnCredentials)
       .set({ counter: String(data.counter), lastUsedAt: new Date(data.lastUsedAt) })
       .where(
-        and(eq(webauthnCredentials.pubkey, data.pubkey), eq(webauthnCredentials.id, data.credId))
+        and(
+          eq(webauthnCredentials.pubkey, data.pubkey),
+          eq(webauthnCredentials.id, data.credId),
+          sql`CAST(${webauthnCredentials.counter} AS BIGINT) < ${data.counter}`
+        )
       )
+      .returning({ id: webauthnCredentials.id })
+
+    if (updated.length === 0) {
+      // Either the credential doesn't exist or the counter condition failed.
+      // Distinguish between the two for a clearer error.
+      const existing = await this.db
+        .select({ id: webauthnCredentials.id })
+        .from(webauthnCredentials)
+        .where(
+          and(eq(webauthnCredentials.pubkey, data.pubkey), eq(webauthnCredentials.id, data.credId))
+        )
+        .limit(1)
+      if (!existing[0]) throw new AppError(404, 'Credential not found')
+      throw new AppError(409, 'Counter replay detected — possible authenticator replay attack')
+    }
   }
 
   // ------------------------------------------------------------------ WebAuthn Challenges
@@ -692,6 +701,22 @@ export class IdentityService {
   async isSuperAdmin(pubkey: string): Promise<boolean> {
     const superAdmins = await this.getSuperAdminPubkeys()
     return superAdmins.includes(pubkey)
+  }
+
+  // ------------------------------------------------------------------ JWT Revocations
+
+  /**
+   * Check whether a JWT (by its jti claim) has been revoked.
+   * Revoked access tokens must be rejected even if cryptographically valid
+   * and not yet expired.
+   */
+  async isJtiRevoked(jti: string): Promise<boolean> {
+    const rows = await this.db
+      .select({ jti: jwtRevocations.jti })
+      .from(jwtRevocations)
+      .where(eq(jwtRevocations.jti, jti))
+      .limit(1)
+    return rows.length > 0
   }
 
   // ------------------------------------------------------------------ Test Reset
