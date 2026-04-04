@@ -295,6 +295,13 @@
       "when": 1743984000000,
       "tag": "0040_note_replies_envelope_jsonb",
       "breakpoints": true
+    },
+    {
+      "idx": 41,
+      "version": "7",
+      "when": 1743984000001,
+      "tag": "0041_firehose_tables",
+      "breakpoints": true
     }
   ]
 }
