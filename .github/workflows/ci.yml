@@ -340,6 +340,11 @@ jobs:
         env:
           PLAYWRIGHT_BASE_URL: http://localhost:3000
           JWT_SECRET: ${{ env.TEST_JWT_SECRET }}
+          TEST_ASTERISK_BRIDGE: '1'
+          ASTERISK_BRIDGE_URL: http://localhost:3001
+          ASTERISK_BRIDGE_SECRET: dev-bridge-secret
+          ASTERISK_DOMAIN: localhost
+          ASTERISK_WSS_PORT: '8090'
         run: bunx playwright test --project=api-setup --project=api --workers=6
 
       - name: API test report
