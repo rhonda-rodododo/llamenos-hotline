@@ -133,7 +133,7 @@ export const TelephonyConfigSchema = TelephonyProviderConfigSchema
 export type TelephonyConfig = z.infer<typeof TelephonyConfigSchema>
 
 export const MessagingChannelConfigSchema = z.object({
-  channel: z.enum(['sms', 'whatsapp', 'signal', 'rcs']),
+  channel: z.enum(['sms', 'whatsapp', 'signal', 'rcs', 'telegram']),
   enabled: z.boolean(),
   config: z.record(z.string(), z.unknown()).optional(),
 })
@@ -172,6 +172,7 @@ export const EnabledChannelsSchema = z.object({
   whatsapp: z.boolean(),
   signal: z.boolean(),
   rcs: z.boolean(),
+  telegram: z.boolean(),
   reports: z.boolean(),
 })
 export type EnabledChannels = z.infer<typeof EnabledChannelsSchema>

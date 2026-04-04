@@ -101,8 +101,8 @@ tags.openapi(createTagRoute, async (c) => {
 
   const body = c.req.valid('json')
 
-  if (!body.name || !body.encryptedLabel) {
-    return c.json({ error: 'name and encryptedLabel are required' }, 400)
+  if (!body.name && !body.encryptedLabel) {
+    return c.json({ error: 'Either name or encryptedLabel must be provided' }, 400)
   }
 
   // Check if strictTags prevents this user from creating (admins with settings:manage-fields bypass)
@@ -117,7 +117,7 @@ tags.openapi(createTagRoute, async (c) => {
     const tag = await services.tags.createTag({
       hubId,
       name: body.name,
-      encryptedLabel: body.encryptedLabel as import('@shared/crypto-types').Ciphertext,
+      encryptedLabel: body.encryptedLabel as import('@shared/crypto-types').Ciphertext | undefined,
       color: body.color,
       encryptedCategory:
         (body.encryptedCategory as import('@shared/crypto-types').Ciphertext | undefined) ?? null,

@@ -1,10 +1,11 @@
 import { z } from 'zod/v4'
+import { ContactTypeSchema, RiskLevelSchema } from './common'
 import { RecipientEnvelopeSchema } from './records'
 
 // ── Create Contact ──
 export const CreateContactSchema = z.object({
-  contactType: z.string().min(1),
-  riskLevel: z.string().min(1),
+  contactType: ContactTypeSchema,
+  riskLevel: RiskLevelSchema,
   tags: z.array(z.string()).optional(),
   identifierHash: z.string().optional(),
   assignedTo: z.string().optional(),
@@ -23,8 +24,8 @@ export type CreateContactInput = z.infer<typeof CreateContactSchema>
 
 // ── Update Contact ──
 export const UpdateContactSchema = z.object({
-  contactType: z.string().optional(),
-  riskLevel: z.string().optional(),
+  contactType: ContactTypeSchema.optional(),
+  riskLevel: RiskLevelSchema.optional(),
   tags: z.array(z.string()).optional(),
   identifierHash: z.string().optional(),
   assignedTo: z.string().nullable().optional(),
@@ -53,7 +54,7 @@ export const BulkUpdateContactsSchema = z.object({
   contactIds: z.array(z.string().min(1)).min(1),
   addTags: z.array(z.string()).optional(),
   removeTags: z.array(z.string()).optional(),
-  riskLevel: z.string().optional(),
+  riskLevel: RiskLevelSchema.optional(),
 })
 export type BulkUpdateContactsInput = z.infer<typeof BulkUpdateContactsSchema>
 
