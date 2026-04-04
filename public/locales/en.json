@@ -36,7 +36,8 @@
     "off": "off",
     "on": "on",
     "remove": "Remove",
-    "retry": "Retry"
+    "retry": "Retry",
+    "accessDenied": "Access denied"
   },
   "auth": {
     "login": "Log in",
@@ -186,6 +187,7 @@
     "callIdPlaceholder": "Call ID or reference",
     "export": "Export",
     "exportEncrypted": "Export encrypted — decrypt with your nsec key",
+    "exportComplete": "Notes exported successfully",
     "viewNotes": "Notes",
     "activeCallNote": "Note attached to your active call",
     "draftSaved": "Draft saved",

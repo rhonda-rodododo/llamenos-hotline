@@ -440,7 +440,12 @@ function ReportDetail({
         <div className="border-t border-border px-4 py-3">
           <FileUpload
             conversationId={report.id}
-            recipientPubkeys={[publicKey]}
+            recipientPubkeys={[
+              publicKey,
+              ...(adminDecryptionPubkey && adminDecryptionPubkey !== publicKey
+                ? [adminDecryptionPubkey]
+                : []),
+            ]}
             onUploadComplete={handleFileUploadComplete}
           />
         </div>
