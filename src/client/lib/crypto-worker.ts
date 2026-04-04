@@ -195,6 +195,7 @@ function handleUnlock(kekHex: string, nonceHex: string, ciphertextHex: string): 
   // The encrypted blob stores nsecHex (64 ASCII hex chars).
   // Decode the hex string to get the raw 32-byte secret key.
   const nsecHex = new TextDecoder().decode(decrypted)
+  decrypted.fill(0)
   secretKey = hexToBytes(nsecHex)
   // Derive x-only public key via schnorr (returns hex string)
   publicKeyHex = bytesToHex(schnorr.getPublicKey(secretKey))
@@ -269,6 +270,7 @@ function handleReEncrypt(newKekHex: string): { nonce: string; ciphertext: string
   // so that handleUnlock can decode it consistently
   const nsecHexBytes = new TextEncoder().encode(bytesToHex(secretKey))
   const ciphertext = cipher.encrypt(nsecHexBytes)
+  nsecHexBytes.fill(0)
 
   return {
     nonce: bytesToHex(nonce),

@@ -41,6 +41,7 @@ interface ProvisionNsecResult {
 interface PendingRequest {
   resolve: (value: unknown) => void
   reject: (reason: Error) => void
+  timeoutId: ReturnType<typeof setTimeout>
 }
 
 export class CryptoWorkerClient {
@@ -59,6 +60,7 @@ export class CryptoWorkerClient {
       if (!pending) return
 
       this.pending.delete(resp.id)
+      clearTimeout(pending.timeoutId)
 
       if (resp.type === 'error') {
         pending.reject(new Error(resp.error))
@@ -71,6 +73,7 @@ export class CryptoWorkerClient {
       // Reject all pending requests on unhandled worker error
       const error = new Error(`Worker error: ${event.message}`)
       for (const [id, pending] of this.pending) {
+        clearTimeout(pending.timeoutId)
         pending.reject(error)
         this.pending.delete(id)
       }
@@ -84,7 +87,13 @@ export class CryptoWorkerClient {
   private call(message: Record<string, unknown>): Promise<unknown> {
     const id = this.nextId()
     return new Promise<unknown>((resolve, reject) => {
-      this.pending.set(id, { resolve, reject })
+      const timeoutId = setTimeout(() => {
+        if (this.pending.has(id)) {
+          this.pending.delete(id)
+          reject(new Error('Crypto worker request timed out'))
+        }
+      }, 30_000)
+      this.pending.set(id, { resolve, reject, timeoutId })
       this.worker.postMessage({ ...message, id })
     })
   }
