@@ -541,20 +541,7 @@ export class RecordsService {
     const hId = hubId ?? 'global'
     const now = new Date()
 
-    // Get last entry hash for chain
-    const lastRows = await this.db
-      .select({ entryHash: auditLog.entryHash })
-      .from(auditLog)
-      .where(eq(auditLog.hubId, hId))
-      .orderBy(desc(auditLog.createdAt))
-      .limit(1)
-    const previousEntryHash = lastRows[0]?.entryHash ?? null
-
-    // Compute hash chain
-    const payload = `${event}${actorPubkey}${JSON.stringify(details ?? {})}${previousEntryHash ?? ''}${now.toISOString()}`
-    const entryHash = bytesToHex(sha256(utf8ToBytes(payload)))
-
-    // Encrypt event and details with server-key (plaintext kept for transition)
+    // Encrypt event and details with server-key (done outside transaction to minimize hold time)
     const encryptedEvent = this.crypto.serverEncrypt(event, LABEL_AUDIT_EVENT)
     const encryptedDetails = this.crypto.serverEncrypt(
       JSON.stringify(details ?? {}),
@@ -562,19 +549,37 @@ export class RecordsService {
     )
 
     const id = crypto.randomUUID()
-    const [row] = await this.db
-      .insert(auditLog)
-      .values({
-        id,
-        hubId: hId,
-        actorPubkey,
-        encryptedEvent,
-        encryptedDetails,
-        previousEntryHash,
-        entryHash,
-        createdAt: now,
-      })
-      .returning()
+
+    // Wrap SELECT + INSERT in a transaction to prevent hash chain branching under concurrency
+    const row = await this.db.transaction(async (tx) => {
+      // Get last entry hash for chain (within transaction for consistency)
+      const lastRows = await tx
+        .select({ entryHash: auditLog.entryHash })
+        .from(auditLog)
+        .where(eq(auditLog.hubId, hId))
+        .orderBy(desc(auditLog.createdAt))
+        .limit(1)
+      const previousEntryHash = lastRows[0]?.entryHash ?? null
+
+      // Compute hash chain
+      const payload = `${event}${actorPubkey}${JSON.stringify(details ?? {})}${previousEntryHash ?? ''}${now.toISOString()}`
+      const entryHash = bytesToHex(sha256(utf8ToBytes(payload)))
+
+      const [inserted] = await tx
+        .insert(auditLog)
+        .values({
+          id,
+          hubId: hId,
+          actorPubkey,
+          encryptedEvent,
+          encryptedDetails,
+          previousEntryHash,
+          entryHash,
+          createdAt: now,
+        })
+        .returning()
+      return inserted
+    })
 
     return {
       id: row.id,
