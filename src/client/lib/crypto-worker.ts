@@ -15,6 +15,7 @@ import { hkdf } from '@noble/hashes/hkdf.js'
 import { sha256 } from '@noble/hashes/sha2.js'
 import { bytesToHex, hexToBytes } from '@noble/hashes/utils.js'
 import { LABEL_DEVICE_PROVISION, SAS_INFO, SAS_SALT } from '@shared/crypto-labels'
+import { unbiasedSixDigitCode } from '@shared/crypto-primitives'
 
 // ---- Message protocol types ----
 
@@ -312,9 +313,7 @@ function handleProvisionNsec(recipientEphemeralPubkeyHex: string): {
   // Derive SAS (Short Authentication String) from the shared secret
   // Both devices compute this independently — matching codes confirm no MITM
   const sasBytes = hkdf(sha256, sharedX, utf8ToBytes(SAS_SALT), utf8ToBytes(SAS_INFO), 4)
-  const sasNum =
-    ((sasBytes[0] << 24) | (sasBytes[1] << 16) | (sasBytes[2] << 8) | sasBytes[3]) >>> 0
-  const sasCode = (sasNum % 1_000_000).toString().padStart(6, '0')
+  const sasCode = unbiasedSixDigitCode(sasBytes)
   const sas = `${sasCode.slice(0, 3)} ${sasCode.slice(3)}`
 
   return {

@@ -1,7 +1,6 @@
 import { MessageStatusIcon } from '@/components/MessageStatusIcon'
 import type { ConversationMessage } from '@/lib/api'
 import { useAuth } from '@/lib/auth'
-import { decryptMessage } from '@/lib/crypto'
 import { ArrowDown, Loader2, Lock } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -10,41 +9,20 @@ interface ConversationThreadProps {
   conversationId: string
   messages: ConversationMessage[]
   isLoading: boolean
+  /** Pre-decrypted message content from React Query queryFn. Keyed by message ID. */
+  decryptedContent?: Map<string, string>
 }
 
 export function ConversationThread({
   conversationId,
   messages,
   isLoading,
+  decryptedContent = new Map(),
 }: ConversationThreadProps) {
   const { t } = useTranslation()
   const { hasNsec, publicKey } = useAuth()
-  const [decryptedContent, setDecryptedContent] = useState<Map<string, string>>(new Map())
   const scrollRef = useRef<HTMLDivElement>(null)
   const [showScrollDown, setShowScrollDown] = useState(false)
-
-  // Decrypt messages when they change
-  useEffect(() => {
-    if (messages.length === 0 || !publicKey || !hasNsec) return
-    ;(async () => {
-      const newDecrypted = new Map<string, string>()
-
-      for (const msg of messages) {
-        if (msg.encryptedContent && msg.readerEnvelopes?.length) {
-          const plaintext = await decryptMessage(
-            msg.encryptedContent,
-            msg.readerEnvelopes,
-            publicKey
-          )
-          if (plaintext !== null) {
-            newDecrypted.set(msg.id, plaintext)
-          }
-        }
-      }
-
-      setDecryptedContent(newDecrypted)
-    })()
-  }, [messages, publicKey, hasNsec])
 
   // Auto-scroll to bottom when new messages arrive
   // biome-ignore lint/correctness/useExhaustiveDependencies: messages is used as a trigger to run this effect when new messages arrive

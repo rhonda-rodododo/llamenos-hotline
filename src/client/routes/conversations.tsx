@@ -40,7 +40,7 @@ function ConversationsPage() {
   const selectedConv = conversations.find((c) => c.id === selectedId)
 
   const messagesQuery = useConversationMessages(selectedId)
-  const { messages = [] } = messagesQuery.data ?? {}
+  const { messages = [], decryptedContent = new Map<string, string>() } = messagesQuery.data ?? {}
   const messagesLoading = messagesQuery.isLoading
 
   const claimMutation = useClaimConversation()
@@ -222,6 +222,7 @@ function ConversationsPage() {
                   conversationId={selectedConv.id}
                   messages={messages}
                   isLoading={messagesLoading}
+                  decryptedContent={decryptedContent}
                 />
               </div>
 
