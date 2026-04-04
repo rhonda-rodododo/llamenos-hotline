@@ -1,6 +1,7 @@
 import { CallSettingsSection } from '@/components/admin-settings/call-settings-section'
 import { ChannelSettings } from '@/components/admin-settings/channel-settings'
 import { CustomFieldsSection } from '@/components/admin-settings/custom-fields-section'
+import { FirehoseSection } from '@/components/admin-settings/firehose-section'
 import { GeocodingSettingsSection } from '@/components/admin-settings/geocoding-settings-section'
 import { IvrLanguagesSection } from '@/components/admin-settings/ivr-languages-section'
 import { PasskeyPolicySection } from '@/components/admin-settings/passkey-policy-section'
@@ -401,6 +402,12 @@ function AdminSettingsPage() {
           }
         />
       )}
+
+      <FirehoseSection
+        expanded={expanded.has('firehose')}
+        onToggle={(open) => toggleSection('firehose', open)}
+        statusSummary={t('firehose.summary', { defaultValue: 'Manage intake feeds' })}
+      />
 
       <ConfirmDialog
         open={!!confirmToggle}
