@@ -154,10 +154,28 @@ export class FirehoseInferenceClient {
     })
 
     const content = response.choices[0]?.message?.content
-    if (!content) return candidates
+    if (!content) {
+      console.warn(
+        `[firehose-inference] LLM returned no content for incident detection (model: ${this.model}), using heuristic clusters`
+      )
+      return candidates
+    }
 
-    const parsed = JSON.parse(content) as {
-      clusters: Array<{ id: string; messageIds: string[]; confidence: number }>
+    let parsed: { clusters: Array<{ id: string; messageIds: string[]; confidence: number }> }
+    try {
+      parsed = JSON.parse(content)
+    } catch (parseErr) {
+      console.error(
+        `[firehose-inference] LLM returned invalid JSON for incident detection (model: ${this.model}, preview: ${content.slice(0, 200)})`
+      )
+      return candidates
+    }
+
+    if (!parsed.clusters || !Array.isArray(parsed.clusters)) {
+      console.error(
+        `[firehose-inference] LLM response missing clusters array (model: ${this.model})`
+      )
+      return candidates
     }
 
     return parsed.clusters.map((c) => ({
@@ -213,11 +231,27 @@ export class FirehoseInferenceClient {
     })
 
     const content = response.choices[0]?.message?.content
-    if (!content) throw new Error('No extraction response from LLM')
+    if (!content) {
+      const finishReason = response.choices[0]?.finish_reason ?? 'unknown'
+      throw new Error(
+        `No extraction response from LLM (model: ${this.model}, finish_reason: ${finishReason})`
+      )
+    }
 
-    const parsed = JSON.parse(content) as Record<string, string> & { confidence: number }
+    let parsed: Record<string, unknown>
+    try {
+      parsed = JSON.parse(content)
+    } catch (parseErr) {
+      throw new Error(
+        `LLM returned invalid JSON for extraction (model: ${this.model}, preview: ${content.slice(0, 200)}): ${parseErr}`
+      )
+    }
+
     const confidence = typeof parsed.confidence === 'number' ? parsed.confidence : 0.5
-    const { confidence: _confidence, ...fields } = parsed
+    const { confidence: _confidence, ...rawFields } = parsed
+    const fields: Record<string, string> = Object.fromEntries(
+      Object.entries(rawFields).map(([k, v]) => [k, v != null ? String(v) : ''])
+    )
 
     return { fields, confidence }
   }
@@ -225,13 +259,17 @@ export class FirehoseInferenceClient {
   /**
    * Health check — ping the vLLM endpoint.
    */
-  async healthCheck(): Promise<{ ok: boolean; latencyMs: number }> {
+  async healthCheck(): Promise<{ ok: boolean; latencyMs: number; error?: string }> {
     const start = performance.now()
     try {
       await this.client.models.list()
       return { ok: true, latencyMs: Math.round(performance.now() - start) }
-    } catch {
-      return { ok: false, latencyMs: Math.round(performance.now() - start) }
+    } catch (err) {
+      return {
+        ok: false,
+        latencyMs: Math.round(performance.now() - start),
+        error: err instanceof Error ? err.message : String(err),
+      }
     }
   }
 }

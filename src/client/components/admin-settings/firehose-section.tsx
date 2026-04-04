@@ -96,7 +96,7 @@ export function FirehoseSection({ expanded, onToggle, statusSummary }: Props) {
   const { currentHubId } = useConfig()
   const hubId = currentHubId ?? 'global'
 
-  const { data: connections = [], isLoading: connectionsLoading } = useFirehoseConnections()
+  const { data: connections = [], isLoading: connectionsLoading } = useFirehoseConnections(hubId)
   const { data: healthList = [] } = useFirehoseStatus()
   const { data: reportTypes = [] } = useReportTypes(hubId)
 

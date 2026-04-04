@@ -2,8 +2,7 @@
  * React Query hooks for firehose connection management.
  *
  * Firehose connections use hub-key encryption for display names.
- * The query cache stores raw API responses; decryption happens in components
- * via decryptHubField() since display names are the only encrypted field.
+ * Decryption happens in the queryFn so the cache holds plaintext values.
  */
 
 import {
@@ -13,6 +12,7 @@ import {
   listFirehoseConnections,
   updateFirehoseConnection,
 } from '@/lib/api'
+import { decryptHubField } from '@/lib/hub-field-crypto'
 import type {
   CreateFirehoseConnectionInput,
   FirehoseConnection,
@@ -28,13 +28,17 @@ import { queryKeys } from './keys'
 
 /**
  * Fetch all firehose connections for the active hub.
+ * Display names are decrypted here so the cache holds plaintext values.
  */
-export const firehoseConnectionsOptions = () =>
+export const firehoseConnectionsOptions = (hubId: string) =>
   queryOptions({
     queryKey: queryKeys.firehose.list(),
     queryFn: async (): Promise<FirehoseConnection[]> => {
       const { connections } = await listFirehoseConnections()
-      return connections
+      return connections.map((c) => ({
+        ...c,
+        displayName: decryptHubField(c.encryptedDisplayName, hubId, c.displayName),
+      }))
     },
     staleTime: 30_000,
   })
@@ -43,8 +47,8 @@ export const firehoseConnectionsOptions = () =>
 // useFirehoseConnections
 // ---------------------------------------------------------------------------
 
-export function useFirehoseConnections() {
-  return useQuery(firehoseConnectionsOptions())
+export function useFirehoseConnections(hubId: string) {
+  return useQuery(firehoseConnectionsOptions(hubId))
 }
 
 // ---------------------------------------------------------------------------
@@ -58,8 +62,8 @@ export const firehoseStatusOptions = () =>
   queryOptions({
     queryKey: queryKeys.firehose.status(),
     queryFn: async (): Promise<FirehoseConnectionHealth[]> => {
-      const { health } = await getFirehoseStatus()
-      return health
+      const { statuses } = await getFirehoseStatus()
+      return statuses
     },
     staleTime: 30_000,
     refetchInterval: 30_000,

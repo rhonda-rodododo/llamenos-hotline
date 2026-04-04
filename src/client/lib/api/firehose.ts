@@ -15,19 +15,19 @@ export type { FirehoseConnection, FirehoseConnectionHealth }
 export async function listFirehoseConnections(): Promise<{
   connections: FirehoseConnection[]
 }> {
-  return request(hp('/firehose/connections'))
+  return request(hp('/firehose'))
 }
 
 export async function getFirehoseConnection(id: string): Promise<{
   connection: FirehoseConnection
 }> {
-  return request(hp(`/firehose/connections/${id}`))
+  return request(hp(`/firehose/${id}`))
 }
 
 export async function createFirehoseConnection(
   data: CreateFirehoseConnectionInput
 ): Promise<{ connection: FirehoseConnection }> {
-  return request(hp('/firehose/connections'), {
+  return request(hp('/firehose'), {
     method: 'POST',
     body: JSON.stringify(data),
   })
@@ -37,14 +37,14 @@ export async function updateFirehoseConnection(
   id: string,
   data: UpdateFirehoseConnectionInput
 ): Promise<{ connection: FirehoseConnection }> {
-  return request(hp(`/firehose/connections/${id}`), {
+  return request(hp(`/firehose/${id}`), {
     method: 'PATCH',
     body: JSON.stringify(data),
   })
 }
 
-export async function deleteFirehoseConnection(id: string): Promise<{ success: boolean }> {
-  return request(hp(`/firehose/connections/${id}`), {
+export async function deleteFirehoseConnection(id: string): Promise<{ ok: boolean }> {
+  return request(hp(`/firehose/${id}`), {
     method: 'DELETE',
   })
 }
@@ -54,7 +54,7 @@ export async function deleteFirehoseConnection(id: string): Promise<{ success: b
 // ---------------------------------------------------------------------------
 
 export async function getFirehoseStatus(): Promise<{
-  health: FirehoseConnectionHealth[]
+  statuses: FirehoseConnectionHealth[]
 }> {
   return request(hp('/firehose/status'))
 }
