@@ -83,6 +83,15 @@ export class SessionService {
     return row
   }
 
+  async hasSeenIpHash(userPubkey: string, ipHash: string): Promise<boolean> {
+    const rows = await this.db
+      .select({ id: userSessions.id })
+      .from(userSessions)
+      .where(and(eq(userSessions.userPubkey, userPubkey), eq(userSessions.ipHash, ipHash)))
+      .limit(1)
+    return rows.length > 0
+  }
+
   async listForUser(userPubkey: string): Promise<UserSessionRow[]> {
     return this.db
       .select()

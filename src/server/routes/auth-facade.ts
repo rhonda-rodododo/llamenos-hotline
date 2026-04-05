@@ -33,7 +33,7 @@ import type { AuthEventsService } from '../services/auth-events'
 import type { IdentityService } from '../services/identity'
 import type { RecordsService } from '../services/records'
 import type { SecurityPrefsService } from '../services/security-prefs'
-import { sessionExpiry } from '../services/sessions'
+import { formatUserAgent, sessionExpiry } from '../services/sessions'
 import type { SessionService } from '../services/sessions'
 import type { SettingsService } from '../services/settings'
 import type { SignalContactsService } from '../services/signal-contacts'
@@ -277,6 +277,7 @@ authFacade.post('/webauthn/login-verify', async (c) => {
     )
 
     const userAgent = c.req.header('User-Agent') || ''
+    const seenBefore = await c.get('sessions').hasSeenIpHash(matched.ownerPubkey, ipHash)
     const { sessionId, token } = await createUserSession({
       pubkey: matched.ownerPubkey,
       credentialId: matched.id,
@@ -289,8 +290,12 @@ authFacade.post('/webauthn/login-verify', async (c) => {
     })
 
     // Emit login auth event (non-fatal on failure)
+    let geoCity = ''
+    let geoCountry = ''
     try {
       const geo = await lookupIp(clientIp, GEOIP_DB_PATH)
+      geoCity = geo.city
+      geoCountry = geo.country
       await c.get('authEvents').record({
         userPubkey: matched.ownerPubkey,
         eventType: 'login',
@@ -306,6 +311,21 @@ authFacade.post('/webauthn/login-verify', async (c) => {
       })
     } catch {
       // Non-fatal — auth event logging should not block login
+    }
+
+    // Fire new-device alert on first sighting of this IP hash (non-fatal, fire-and-forget)
+    if (!seenBefore) {
+      const notifications = c.get('userNotifications')
+      void notifications
+        .sendAlert(matched.ownerPubkey, {
+          type: 'new_device',
+          city: geoCity,
+          country: geoCountry,
+          userAgent: formatUserAgent(userAgent),
+        })
+        .catch(() => {
+          /* non-fatal */
+        })
     }
 
     setCookie(c, 'llamenos-refresh', token, {
@@ -481,6 +501,13 @@ authFacade.post('/webauthn/register-verify', async (c) => {
     } catch {
       /* non-fatal */
     }
+
+    void c
+      .get('userNotifications')
+      .sendAlert(pubkey, { type: 'passkey_added', credentialLabel: newCred.label })
+      .catch(() => {
+        /* non-fatal */
+      })
 
     return c.json({ ok: true })
   } catch {
@@ -831,16 +858,25 @@ authFacade.delete('/passkeys/:id', async (c) => {
   const pubkey = c.get('pubkey')
   const credId = decodeURIComponent(c.req.param('id'))
   if (!credId) return c.json({ error: 'Invalid credential ID' }, 400)
+  const existing = (await identity.getWebAuthnCredentials(pubkey)).find((cr) => cr.id === credId)
   try {
     await identity.deleteWebAuthnCredential(pubkey, credId)
     try {
       await c.get('authEvents').record({
         userPubkey: pubkey,
         eventType: 'passkey_removed',
-        payload: { credentialId: credId },
+        payload: { credentialId: credId, credentialLabel: existing?.label },
       })
     } catch {
       /* non-fatal */
+    }
+    if (existing) {
+      void c
+        .get('userNotifications')
+        .sendAlert(pubkey, { type: 'passkey_removed', credentialLabel: existing.label })
+        .catch(() => {
+          /* non-fatal */
+        })
     }
     return c.json({ ok: true })
   } catch {
@@ -855,16 +891,25 @@ authFacade.delete('/devices/:id', async (c) => {
   const credId = decodeURIComponent(c.req.param('id'))
   if (!credId) return c.json({ error: 'Invalid credential ID' }, 400)
 
+  const existing = (await identity.getWebAuthnCredentials(pubkey)).find((cr) => cr.id === credId)
   try {
     await identity.deleteWebAuthnCredential(pubkey, credId)
     try {
       await c.get('authEvents').record({
         userPubkey: pubkey,
         eventType: 'passkey_removed',
-        payload: { credentialId: credId },
+        payload: { credentialId: credId, credentialLabel: existing?.label },
       })
     } catch {
       /* non-fatal */
+    }
+    if (existing) {
+      void c
+        .get('userNotifications')
+        .sendAlert(pubkey, { type: 'passkey_removed', credentialLabel: existing.label })
+        .catch(() => {
+          /* non-fatal */
+        })
     }
     return c.json({ ok: true })
   } catch {
