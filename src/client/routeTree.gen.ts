@@ -34,6 +34,7 @@ import { Route as UsersPubkeyRouteImport } from './routes/users_.$pubkey'
 import { Route as SecuritySessionsRouteImport } from './routes/security.sessions'
 import { Route as SecurityPasskeysRouteImport } from './routes/security.passkeys'
 import { Route as SecurityHistoryRouteImport } from './routes/security.history'
+import { Route as SecurityFactorsRouteImport } from './routes/security.factors'
 import { Route as NotesNoteIdRouteImport } from './routes/notes.$noteId'
 import { Route as ContactsContactIdRouteImport } from './routes/contacts_.$contactId'
 import { Route as CallsCallIdRouteImport } from './routes/calls.$callId'
@@ -165,6 +166,11 @@ const SecurityHistoryRoute = SecurityHistoryRouteImport.update({
   path: '/history',
   getParentRoute: () => SecurityRoute,
 } as any)
+const SecurityFactorsRoute = SecurityFactorsRouteImport.update({
+  id: '/factors',
+  path: '/factors',
+  getParentRoute: () => SecurityRoute,
+} as any)
 const NotesNoteIdRoute = NotesNoteIdRouteImport.update({
   id: '/$noteId',
   path: '/$noteId',
@@ -218,6 +224,7 @@ export interface FileRoutesByFullPath {
   '/calls/$callId': typeof CallsCallIdRoute
   '/contacts/$contactId': typeof ContactsContactIdRoute
   '/notes/$noteId': typeof NotesNoteIdRoute
+  '/security/factors': typeof SecurityFactorsRoute
   '/security/history': typeof SecurityHistoryRoute
   '/security/passkeys': typeof SecurityPasskeysRoute
   '/security/sessions': typeof SecuritySessionsRoute
@@ -250,6 +257,7 @@ export interface FileRoutesByTo {
   '/calls/$callId': typeof CallsCallIdRoute
   '/contacts/$contactId': typeof ContactsContactIdRoute
   '/notes/$noteId': typeof NotesNoteIdRoute
+  '/security/factors': typeof SecurityFactorsRoute
   '/security/history': typeof SecurityHistoryRoute
   '/security/passkeys': typeof SecurityPasskeysRoute
   '/security/sessions': typeof SecuritySessionsRoute
@@ -283,6 +291,7 @@ export interface FileRoutesById {
   '/calls/$callId': typeof CallsCallIdRoute
   '/contacts_/$contactId': typeof ContactsContactIdRoute
   '/notes/$noteId': typeof NotesNoteIdRoute
+  '/security/factors': typeof SecurityFactorsRoute
   '/security/history': typeof SecurityHistoryRoute
   '/security/passkeys': typeof SecurityPasskeysRoute
   '/security/sessions': typeof SecuritySessionsRoute
@@ -317,6 +326,7 @@ export interface FileRouteTypes {
     | '/calls/$callId'
     | '/contacts/$contactId'
     | '/notes/$noteId'
+    | '/security/factors'
     | '/security/history'
     | '/security/passkeys'
     | '/security/sessions'
@@ -349,6 +359,7 @@ export interface FileRouteTypes {
     | '/calls/$callId'
     | '/contacts/$contactId'
     | '/notes/$noteId'
+    | '/security/factors'
     | '/security/history'
     | '/security/passkeys'
     | '/security/sessions'
@@ -381,6 +392,7 @@ export interface FileRouteTypes {
     | '/calls/$callId'
     | '/contacts_/$contactId'
     | '/notes/$noteId'
+    | '/security/factors'
     | '/security/history'
     | '/security/passkeys'
     | '/security/sessions'
@@ -592,6 +604,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SecurityHistoryRouteImport
       parentRoute: typeof SecurityRoute
     }
+    '/security/factors': {
+      id: '/security/factors'
+      path: '/factors'
+      fullPath: '/security/factors'
+      preLoaderRoute: typeof SecurityFactorsRouteImport
+      parentRoute: typeof SecurityRoute
+    }
     '/notes/$noteId': {
       id: '/notes/$noteId'
       path: '/$noteId'
@@ -651,12 +670,14 @@ const NotesRouteChildren: NotesRouteChildren = {
 const NotesRouteWithChildren = NotesRoute._addFileChildren(NotesRouteChildren)
 
 interface SecurityRouteChildren {
+  SecurityFactorsRoute: typeof SecurityFactorsRoute
   SecurityHistoryRoute: typeof SecurityHistoryRoute
   SecurityPasskeysRoute: typeof SecurityPasskeysRoute
   SecuritySessionsRoute: typeof SecuritySessionsRoute
 }
 
 const SecurityRouteChildren: SecurityRouteChildren = {
+  SecurityFactorsRoute: SecurityFactorsRoute,
   SecurityHistoryRoute: SecurityHistoryRoute,
   SecurityPasskeysRoute: SecurityPasskeysRoute,
   SecuritySessionsRoute: SecuritySessionsRoute,
