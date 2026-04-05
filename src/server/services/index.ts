@@ -15,6 +15,7 @@ import type { ProviderHealthService } from './provider-health'
 import { PushService } from './push'
 import { RecordsService } from './records'
 import { ReportTypeService } from './report-types'
+import { SessionService } from './sessions'
 import { SettingsService } from './settings'
 import { ShiftService } from './shifts'
 import { TagsService } from './tags'
@@ -34,6 +35,7 @@ export type {
   PushService,
   RecordsService,
   ReportTypeService,
+  SessionService,
   SettingsService,
   ShiftService,
   TagsService,
@@ -52,6 +54,7 @@ export interface Services {
   files: FilesService
   gdpr: GdprService
   reportTypes: ReportTypeService
+  sessions: SessionService
   push: PushService
   contacts: ContactService
   intakes: IntakesService
@@ -87,6 +90,7 @@ export function createServices(
     files: new FilesService(db, storage),
     gdpr: new GdprService(db, crypto),
     reportTypes: new ReportTypeService(db, crypto, settings),
+    sessions: new SessionService(db, process.env.HMAC_SECRET ?? ''),
     push: new PushService(db, crypto),
     contacts: contactService,
     intakes: new IntakesService(db, crypto),
