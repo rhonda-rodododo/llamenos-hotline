@@ -38,22 +38,7 @@ export class SignalContactsService {
   ) {}
 
   async upsert(input: UpsertSignalContactInput): Promise<UserSignalContactRow> {
-    const existing = await this.findByUser(input.userPubkey)
-    if (existing) {
-      const rows = await this.db
-        .update(userSignalContacts)
-        .set({
-          identifierHash: input.identifierHash,
-          identifierCiphertext: input.identifierCiphertext,
-          identifierEnvelope: input.identifierEnvelope,
-          identifierType: input.identifierType,
-          updatedAt: new Date(),
-          verifiedAt: new Date(),
-        })
-        .where(eq(userSignalContacts.userPubkey, input.userPubkey))
-        .returning()
-      return rows[0]
-    }
+    const now = new Date()
     const rows = await this.db
       .insert(userSignalContacts)
       .values({
@@ -62,7 +47,18 @@ export class SignalContactsService {
         identifierCiphertext: input.identifierCiphertext,
         identifierEnvelope: input.identifierEnvelope,
         identifierType: input.identifierType,
-        verifiedAt: new Date(),
+        verifiedAt: now,
+      })
+      .onConflictDoUpdate({
+        target: userSignalContacts.userPubkey,
+        set: {
+          identifierHash: input.identifierHash,
+          identifierCiphertext: input.identifierCiphertext,
+          identifierEnvelope: input.identifierEnvelope,
+          identifierType: input.identifierType,
+          updatedAt: now,
+          verifiedAt: now,
+        },
       })
       .returning()
     return rows[0]
