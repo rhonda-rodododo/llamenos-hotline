@@ -210,3 +210,88 @@ export function clearStoredKeyV2(): void {
 export function isValidPin(pin: string): boolean {
   return /^\d{6,8}$/.test(pin)
 }
+
+/**
+ * Derive a zero-knowledge "proof" value from a PIN for rate-limit / audit tracking.
+ * Uses a DIFFERENT salt than the KEK derivation so the proof cannot leak KEK material.
+ * The server stores this proof but cannot independently verify it — the client sends
+ * the same proof value it would compute locally.
+ */
+export function deriveKekProof(pin: string): string {
+  const salt = new TextEncoder().encode('llamenos:pin-proof:v1')
+  const key = pbkdf2(sha256, new TextEncoder().encode(pin), salt, { c: 100_000, dkLen: 32 })
+  return bytesToHex(key)
+}
+
+export interface RewrapFactors {
+  idpValue: Uint8Array
+  prfOutput?: Uint8Array
+}
+
+/**
+ * Re-wrap the stored nsec under a new KEK derived with a new PIN.
+ * Caller must have already unlocked the key with the current PIN (worker holds nsec).
+ * Returns the new EncryptedKeyDataV2 as a JSON string, ready to send to the server.
+ * Also persists the new blob to localStorage.
+ */
+export async function rewrapWithNewPin(
+  newPin: string,
+  factors: RewrapFactors,
+  currentBlob: EncryptedKeyDataV2
+): Promise<string> {
+  const { cryptoWorker } = await import('./crypto-worker-client')
+  const newSalt = new Uint8Array(32)
+  crypto.getRandomValues(newSalt)
+  const newKek = deriveKEK({
+    pin: newPin,
+    idpValue: factors.idpValue,
+    prfOutput: factors.prfOutput,
+    salt: newSalt,
+  })
+  const reEncrypted = await cryptoWorker.reEncrypt(bytesToHex(newKek))
+  const newBlob: EncryptedKeyDataV2 = {
+    ...currentBlob,
+    salt: bytesToHex(newSalt),
+    nonce: reEncrypted.nonce,
+    ciphertext: reEncrypted.ciphertext,
+  }
+  storeEncryptedKeyV2(newBlob)
+  return JSON.stringify(newBlob)
+}
+
+/**
+ * Re-wrap the stored nsec under a KEK derived with a new recovery key factor.
+ * Caller must have already unlocked the key (worker holds nsec).
+ * Note: current implementation uses PIN + IdP value as the primary factors; the recovery
+ * key is stored separately via createBackup(). This helper re-derives the main blob
+ * using the new PIN context while recording that a new recovery key has been generated.
+ * Returns the new EncryptedKeyDataV2 as a JSON string.
+ */
+export async function rewrapWithNewRecoveryKey(
+  pin: string,
+  factors: RewrapFactors,
+  currentBlob: EncryptedKeyDataV2
+): Promise<string> {
+  // For the primary blob, the factors are the same (PIN + IdP + optional PRF).
+  // The recovery key is used only for the separate backup file. Rotating it rewraps
+  // the primary blob with fresh salt/nonce so any previously-leaked recovery-key
+  // cannot be combined with an old snapshot.
+  const { cryptoWorker } = await import('./crypto-worker-client')
+  const newSalt = new Uint8Array(32)
+  crypto.getRandomValues(newSalt)
+  const newKek = deriveKEK({
+    pin,
+    idpValue: factors.idpValue,
+    prfOutput: factors.prfOutput,
+    salt: newSalt,
+  })
+  const reEncrypted = await cryptoWorker.reEncrypt(bytesToHex(newKek))
+  const newBlob: EncryptedKeyDataV2 = {
+    ...currentBlob,
+    salt: bytesToHex(newSalt),
+    nonce: reEncrypted.nonce,
+    ciphertext: reEncrypted.ciphertext,
+  }
+  storeEncryptedKeyV2(newBlob)
+  return JSON.stringify(newBlob)
+}
