@@ -8,8 +8,11 @@ import {
   UpdateFirehoseConnectionSchema,
 } from '@shared/schemas/firehose'
 import type { z as Zod } from 'zod/v4'
+import type { firehoseConnections } from '../db/schema/firehose'
 import { createRouter } from '../lib/openapi'
 import { requirePermission } from '../middleware/permission-guard'
+
+type FirehoseConnectionRow = typeof firehoseConnections.$inferSelect
 
 const firehoseRoutes = createRouter()
 
@@ -19,28 +22,9 @@ const IdParamSchema = z.object({
   id: z.string().openapi({ param: { name: 'id', in: 'path' }, example: 'conn-abc123' }),
 })
 
-// Map a DB row (with Date fields and string status) to the API response shape.
+// Map a DB row to the API response shape.
 // Strips encryptedAgentNsec — that field is never exposed via the API.
-function mapConnection(row: {
-  id: string
-  hubId: string
-  signalGroupId: string | null
-  displayName: string
-  encryptedDisplayName?: string | null
-  reportTypeId: string
-  agentPubkey: string
-  encryptedAgentNsec?: string
-  geoContext: string | null
-  geoContextCountryCodes: string[] | null
-  inferenceEndpoint: string | null
-  extractionIntervalSec: number
-  systemPromptSuffix: string | null
-  bufferTtlDays: number
-  notifyViaSignal: boolean
-  status: string
-  createdAt: Date | string
-  updatedAt: Date | string
-}): Zod.infer<typeof FirehoseConnectionSchema> {
+function mapConnection(row: FirehoseConnectionRow): Zod.infer<typeof FirehoseConnectionSchema> {
   return {
     id: row.id,
     hubId: row.hubId,
