@@ -91,13 +91,38 @@ export default defineConfig({
   ],
   webServer: process.env.PLAYWRIGHT_BASE_URL
     ? undefined
-    : {
-        command: "bun run build && bun run start",
-        url: "http://localhost:3000/api/health/ready",
-        reuseExistingServer: !process.env.CI,
-        env: {
-          ...process.env,
-          USE_TEST_ADAPTER: "true",
+    : [
+        {
+          command: "bun run build && bun run start",
+          url: "http://localhost:3000/api/health/ready",
+          reuseExistingServer: !process.env.CI,
+          env: {
+            ...process.env,
+            USE_TEST_ADAPTER: "true",
+          },
         },
-      },
+        // sip-bridge for Asterisk API tests. Skipped in CI (started via docker
+        // compose in the workflow) and when the bridge is already running.
+        ...(process.env.CI || process.env.SKIP_SIP_BRIDGE
+          ? []
+          : [
+              {
+                command: "bun run dev:bridge",
+                url: "http://localhost:3001/health",
+                reuseExistingServer: true,
+                env: {
+                  ...process.env,
+                  ARI_URL: process.env.ARI_URL ?? "ws://localhost:8089/ari/events",
+                  ARI_REST_URL: process.env.ARI_REST_URL ?? "http://localhost:8089/ari",
+                  ARI_USERNAME: process.env.ARI_USERNAME ?? "llamenos",
+                  ARI_PASSWORD: process.env.ARI_PASSWORD ?? "changeme",
+                  WORKER_WEBHOOK_URL: process.env.WORKER_WEBHOOK_URL ?? "http://localhost:3000",
+                  BRIDGE_SECRET: process.env.BRIDGE_SECRET ?? "dev-bridge-secret",
+                  BRIDGE_PORT: process.env.BRIDGE_PORT ?? "3001",
+                  STASIS_APP: process.env.STASIS_APP ?? "llamenos",
+                  PBX: process.env.PBX ?? "asterisk",
+                },
+              },
+            ]),
+      ],
 });
