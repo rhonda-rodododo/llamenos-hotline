@@ -1,7 +1,23 @@
-import { boolean, index, integer, pgTable, text, timestamp, uniqueIndex } from 'drizzle-orm/pg-core'
+import {
+  boolean,
+  index,
+  integer,
+  pgEnum,
+  pgTable,
+  text,
+  timestamp,
+  uniqueIndex,
+} from 'drizzle-orm/pg-core'
 import { ciphertext } from '../crypto-columns'
 import { reportTypes } from './report-types'
 import { hubs } from './settings'
+
+export const firehoseConnectionStatusEnum = pgEnum('firehose_connection_status', [
+  'pending',
+  'active',
+  'paused',
+  'disabled',
+])
 
 export const firehoseConnections = pgTable(
   'firehose_connections',
@@ -25,7 +41,7 @@ export const firehoseConnections = pgTable(
     systemPromptSuffix: text('system_prompt_suffix'),
     bufferTtlDays: integer('buffer_ttl_days').notNull().default(7),
     notifyViaSignal: boolean('notify_via_signal').notNull().default(true),
-    status: text('status').notNull().default('pending'),
+    status: firehoseConnectionStatusEnum('status').notNull().default('pending'),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },
