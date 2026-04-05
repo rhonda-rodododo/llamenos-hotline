@@ -10,6 +10,7 @@ import {
   WebAuthnLoginVerifySchema,
   WebAuthnRegisterVerifySchema,
 } from '../../shared/schemas/auth'
+import { PasskeyRenameSchema } from '../../shared/schemas/passkeys'
 import type { IdPAdapter } from '../idp/adapter'
 import { hashIP } from '../lib/crypto-service'
 import type { CryptoService } from '../lib/crypto-service'
@@ -30,6 +31,8 @@ import type { SettingsService } from '../services/settings'
 
 const GEOIP_DB_PATH = process.env.GEOIP_DB_PATH ?? './data/geoip/dbip-city.mmdb'
 const SESSION_COOKIE_MAX_AGE = 30 * 24 * 60 * 60 // 30 days in seconds
+import type { Ciphertext } from '../../shared/crypto-types'
+import type { RecipientEnvelope } from '../../shared/types'
 import type { WebAuthnCredential } from '../types'
 
 // ---------------------------------------------------------------------------
@@ -357,6 +360,8 @@ authFacade.use('/devices', jwtAuth)
 authFacade.use('/devices/*', jwtAuth)
 authFacade.use('/sessions', jwtAuth)
 authFacade.use('/sessions/*', jwtAuth)
+authFacade.use('/passkeys', jwtAuth)
+authFacade.use('/passkeys/*', jwtAuth)
 authFacade.use('/admin/*', jwtAuth)
 
 // POST /webauthn/register-options
@@ -659,6 +664,70 @@ authFacade.post('/enroll', jwtAuth, async (c) => {
   }
   const nsecSecret = await idpAdapter.getNsecSecret(pubkey)
   return c.json({ nsecSecret: Buffer.from(nsecSecret).toString('hex') })
+})
+
+// GET /passkeys — list credentials (preferred path)
+authFacade.get('/passkeys', async (c) => {
+  const identity = c.get('identity')
+  const pubkey = c.get('pubkey')
+  const credentials = await identity.getWebAuthnCredentials(pubkey)
+  return c.json({
+    credentials: credentials.map((cr) => ({
+      id: cr.id,
+      label: cr.label,
+      transports: cr.transports,
+      backedUp: cr.backedUp,
+      createdAt: cr.createdAt,
+      lastUsedAt: cr.lastUsedAt,
+      ...(cr.encryptedLabel && cr.labelEnvelopes
+        ? { encryptedLabel: cr.encryptedLabel, labelEnvelopes: cr.labelEnvelopes }
+        : {}),
+    })),
+    warning: credentials.length === 1 ? 'Register a backup device to prevent lockout' : undefined,
+  })
+})
+
+// PATCH /passkeys/:id — rename label
+authFacade.patch('/passkeys/:id', async (c) => {
+  const identity = c.get('identity')
+  const pubkey = c.get('pubkey')
+  const credId = decodeURIComponent(c.req.param('id'))
+
+  let body: unknown
+  try {
+    body = await c.req.json()
+  } catch {
+    return c.json({ error: 'Invalid JSON body' }, 400)
+  }
+  const parsed = PasskeyRenameSchema.safeParse(body)
+  if (!parsed.success) {
+    return c.json({ error: 'Invalid request body', details: parsed.error.flatten() }, 400)
+  }
+
+  try {
+    await identity.renameWebAuthnCredential(pubkey, credId, {
+      label: parsed.data.label,
+      encryptedLabel: parsed.data.encryptedLabel as Ciphertext | undefined,
+      labelEnvelopes: parsed.data.labelEnvelopes as RecipientEnvelope[] | undefined,
+    })
+    return c.json({ ok: true })
+  } catch {
+    return c.json({ error: 'Credential not found' }, 404)
+  }
+})
+
+// DELETE /passkeys/:id — mirrors /devices/:id
+authFacade.delete('/passkeys/:id', async (c) => {
+  const identity = c.get('identity')
+  const pubkey = c.get('pubkey')
+  const credId = decodeURIComponent(c.req.param('id'))
+  if (!credId) return c.json({ error: 'Invalid credential ID' }, 400)
+  try {
+    await identity.deleteWebAuthnCredential(pubkey, credId)
+    return c.json({ ok: true })
+  } catch {
+    return c.json({ error: 'Credential not found' }, 404)
+  }
 })
 
 // DELETE /devices/:id — delete a credential

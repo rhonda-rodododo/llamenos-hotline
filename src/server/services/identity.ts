@@ -522,6 +522,40 @@ export class IdentityService {
       .where(and(eq(webauthnCredentials.pubkey, pubkey), eq(webauthnCredentials.id, credId)))
   }
 
+  async renameWebAuthnCredential(
+    pubkey: string,
+    credId: string,
+    data: {
+      label?: string
+      encryptedLabel?: Ciphertext
+      labelEnvelopes?: import('../../shared/types').RecipientEnvelope[]
+    }
+  ): Promise<void> {
+    const updates: Record<string, unknown> = {}
+    if (data.encryptedLabel !== undefined) updates.encryptedLabel = data.encryptedLabel
+    if (data.labelEnvelopes !== undefined) updates.labelEnvelopes = data.labelEnvelopes
+    if (Object.keys(updates).length === 0) {
+      // No encrypted fields provided. We still need to confirm the credential exists.
+      const rows = await this.db
+        .select({ id: webauthnCredentials.id })
+        .from(webauthnCredentials)
+        .where(and(eq(webauthnCredentials.pubkey, pubkey), eq(webauthnCredentials.id, credId)))
+        .limit(1)
+      if (!rows[0]) throw new AppError(404, 'Credential not found')
+      return
+    }
+
+    const result = await this.db
+      .update(webauthnCredentials)
+      .set(updates)
+      .where(and(eq(webauthnCredentials.id, credId), eq(webauthnCredentials.pubkey, pubkey)))
+      .returning({ id: webauthnCredentials.id })
+
+    if (result.length === 0) {
+      throw new AppError(404, 'Credential not found')
+    }
+  }
+
   async updateWebAuthnCounter(data: UpdateWebAuthnCounterData): Promise<void> {
     // Atomic conditional UPDATE to avoid TOCTOU race between SELECT and UPDATE.
     // Two concurrent auths must not both observe N and both write N+1.
