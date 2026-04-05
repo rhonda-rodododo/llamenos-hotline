@@ -1,11 +1,16 @@
 import { hexToBytes } from '@noble/hashes/utils.js'
-import { LABEL_FIREHOSE_BUFFER_ENCRYPT, LABEL_FIREHOSE_REPORT_WRAP } from '@shared/crypto-labels'
+import {
+  LABEL_FIREHOSE_AGENT_SEAL,
+  LABEL_FIREHOSE_BUFFER_ENCRYPT,
+  LABEL_FIREHOSE_REPORT_WRAP,
+} from '@shared/crypto-labels'
 import type { Ciphertext } from '@shared/crypto-types'
 import { KIND_FIREHOSE_REPORT } from '@shared/nostr-events'
 import { type BufferEnvelopeJson, BufferEnvelopeJsonSchema } from '@shared/schemas/firehose'
 import type { RecipientEnvelope } from '@shared/types'
 import type { Database } from '../db'
 import { getNostrPublisher } from '../lib/adapters'
+import { unsealAgentNsec } from '../lib/agent-identity'
 import type { CryptoService } from '../lib/crypto-service'
 import type { ConversationService } from './conversations'
 import type { FirehoseService } from './firehose'
@@ -117,10 +122,11 @@ export class FirehoseAgentService {
     }
 
     // Unseal the agent's nsec
-    const nsecHex = this.firehose.unsealAgentNsec(
+    const nsecHex = unsealAgentNsec(
       connectionId,
       conn.encryptedAgentNsec,
-      this.sealKey
+      this.sealKey,
+      LABEL_FIREHOSE_AGENT_SEAL
     )
     const nsecBytes = hexToBytes(nsecHex)
 

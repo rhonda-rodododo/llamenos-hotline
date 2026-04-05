@@ -1,9 +1,3 @@
-import { xchacha20poly1305 } from '@noble/ciphers/chacha.js'
-import { schnorr } from '@noble/curves/secp256k1.js'
-import { hkdf } from '@noble/hashes/hkdf.js'
-import { sha256 } from '@noble/hashes/sha2.js'
-import { bytesToHex, hexToBytes } from '@noble/hashes/utils.js'
-import { LABEL_FIREHOSE_AGENT_SEAL } from '@shared/crypto-labels'
 import type { Ciphertext } from '@shared/crypto-types'
 import type { FirehoseConnectionStatus } from '@shared/schemas/firehose'
 import { and, eq, inArray, isNull, lt, sql } from 'drizzle-orm'
@@ -332,62 +326,5 @@ export class FirehoseService {
 
   async resetForTest(): Promise<void> {
     await this.db.delete(firehoseConnections)
-  }
-
-  // ---------------------------------------------------------------------------
-  // Agent Keypair Generation
-  // ---------------------------------------------------------------------------
-
-  generateAgentKeypair(
-    connectionId: string,
-    sealKey: string
-  ): { pubkey: string; encryptedNsec: string } {
-    // Generate random keypair
-    const nsecBytes = schnorr.utils.randomSecretKey()
-    const pubkeyBytes = schnorr.getPublicKey(nsecBytes)
-    const pubkey = bytesToHex(pubkeyBytes)
-    const nsecHex = bytesToHex(nsecBytes)
-
-    // Derive per-connection seal key via HKDF
-    const sealKeyBytes = hexToBytes(sealKey)
-    const derivedKey = hkdf(
-      sha256,
-      sealKeyBytes,
-      new TextEncoder().encode(connectionId),
-      new TextEncoder().encode(LABEL_FIREHOSE_AGENT_SEAL),
-      32
-    )
-
-    // Encrypt nsec with XChaCha20-Poly1305
-    const nonce = crypto.getRandomValues(new Uint8Array(24))
-    const cipher = xchacha20poly1305(derivedKey, nonce)
-    const sealed = cipher.encrypt(new TextEncoder().encode(nsecHex))
-
-    // Encode as hex: nonce || ciphertext
-    const encryptedNsec = bytesToHex(nonce) + bytesToHex(sealed)
-
-    // Zero nsec from memory
-    nsecBytes.fill(0)
-
-    return { pubkey, encryptedNsec }
-  }
-
-  unsealAgentNsec(connectionId: string, encryptedNsec: string, sealKey: string): string {
-    const sealKeyBytes = hexToBytes(sealKey)
-    const derivedKey = hkdf(
-      sha256,
-      sealKeyBytes,
-      new TextEncoder().encode(connectionId),
-      new TextEncoder().encode(LABEL_FIREHOSE_AGENT_SEAL),
-      32
-    )
-
-    const combined = hexToBytes(encryptedNsec)
-    const nonce = combined.slice(0, 24)
-    const ciphertext = combined.slice(24)
-
-    const cipher = xchacha20poly1305(derivedKey, nonce)
-    const decrypted = cipher.decrypt(ciphertext)
-    return new TextDecoder().decode(decrypted)
   }
 }

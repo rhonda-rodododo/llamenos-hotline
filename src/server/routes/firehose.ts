@@ -1,4 +1,5 @@
 import { createRoute, z } from '@hono/zod-openapi'
+import { LABEL_FIREHOSE_AGENT_SEAL } from '@shared/crypto-labels'
 import type { Ciphertext } from '@shared/crypto-types'
 import {
   CreateFirehoseConnectionSchema,
@@ -9,6 +10,7 @@ import {
 } from '@shared/schemas/firehose'
 import type { z as Zod } from 'zod/v4'
 import type { firehoseConnections } from '../db/schema/firehose'
+import { generateAgentKeypair } from '../lib/agent-identity'
 import { createRouter } from '../lib/openapi'
 import { requirePermission } from '../middleware/permission-guard'
 
@@ -155,9 +157,10 @@ firehoseRoutes.openapi(createRoute_, async (c) => {
   })
 
   // Generate keypair bound to the real connection ID
-  const { pubkey: agentPubkey, encryptedNsec } = services.firehose.generateAgentKeypair(
+  const { pubkey: agentPubkey, encryptedNsec } = generateAgentKeypair(
     raw.id,
-    sealKey
+    sealKey,
+    LABEL_FIREHOSE_AGENT_SEAL
   )
 
   const updated = await services.firehose.setAgentKeypair(raw.id, agentPubkey, encryptedNsec)
