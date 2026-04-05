@@ -24,7 +24,9 @@ import {
   verifyAuthResponse,
   verifyRegResponse,
 } from '../lib/webauthn'
+import type { AuthEventsService } from '../services/auth-events'
 import type { IdentityService } from '../services/identity'
+import type { RecordsService } from '../services/records'
 import { sessionExpiry } from '../services/sessions'
 import type { SessionService } from '../services/sessions'
 import type { SettingsService } from '../services/settings'
@@ -54,6 +56,8 @@ interface AuthFacadeEnv {
     idpAdapter: IdPAdapter
     settings: SettingsService
     sessions: SessionService
+    authEvents: AuthEventsService
+    records: RecordsService
     crypto: CryptoService
     /** Set by jwtAuth middleware on authenticated routes */
     pubkey: string

@@ -1,6 +1,7 @@
 import type { Database } from '../db'
 import type { CryptoService } from '../lib/crypto-service'
 import type { StorageManager } from '../types'
+import { AuthEventsService } from './auth-events'
 import { BlastService } from './blasts'
 import { CallService } from './calls'
 import { ContactService } from './contacts'
@@ -22,6 +23,7 @@ import { TagsService } from './tags'
 import { TeamsService } from './teams'
 
 export type {
+  AuthEventsService,
   BlastService,
   FirehoseService,
   FirehoseAgentService,
@@ -55,6 +57,7 @@ export interface Services {
   gdpr: GdprService
   reportTypes: ReportTypeService
   sessions: SessionService
+  authEvents: AuthEventsService
   push: PushService
   contacts: ContactService
   intakes: IntakesService
@@ -91,6 +94,7 @@ export function createServices(
     gdpr: new GdprService(db, crypto),
     reportTypes: new ReportTypeService(db, crypto, settings),
     sessions: new SessionService(db, process.env.HMAC_SECRET ?? ''),
+    authEvents: new AuthEventsService(db, crypto),
     push: new PushService(db, crypto),
     contacts: contactService,
     intakes: new IntakesService(db, crypto),
