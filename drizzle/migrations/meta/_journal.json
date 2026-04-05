@@ -337,6 +337,20 @@
       "when": 1775574000003,
       "tag": "0046_user_auth_events",
       "breakpoints": true
+    },
+    {
+      "idx": 47,
+      "version": "7",
+      "when": 1775574000004,
+      "tag": "0047_user_signal_contacts",
+      "breakpoints": true
+    },
+    {
+      "idx": 48,
+      "version": "7",
+      "when": 1775574000005,
+      "tag": "0048_user_security_prefs",
+      "breakpoints": true
     }
   ]
 }
