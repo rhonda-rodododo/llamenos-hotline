@@ -24,15 +24,10 @@ test.describe('Signal contact API', () => {
     expect(body.contact).toBeNull()
   })
 
-  test('GET /signal-contact/register-token returns token', async ({ request }) => {
+  test('GET /signal-contact/register-token is removed', async ({ request }) => {
     const authed = createAuthedRequest(request, generateSecretKey())
     const res = await authed.get('/api/auth/signal-contact/register-token')
-    expect(res.status()).toBe(200)
-    const body = await res.json()
-    expect(body.token).toBeTruthy()
-    expect(body.notifierUrl).toBeTruthy()
-    // Token format: pubkey:nonce:expiresAt:hmac
-    expect(body.token.split(':').length).toBe(4)
+    expect(res.status()).toBe(404)
   })
 
   test('GET /signal-contact/hmac-key returns per-user hex key', async ({ request }) => {
@@ -43,27 +38,27 @@ test.describe('Signal contact API', () => {
     expect(body.key).toMatch(/^[0-9a-f]{64}$/)
   })
 
-  test('POST /signal-contact rejects invalid token', async ({ request }) => {
+  test('POST /signal-contact rejects missing plaintextIdentifier', async ({ request }) => {
     const authed = createAuthedRequest(request, generateSecretKey())
     const res = await authed.post('/api/auth/signal-contact', {
       identifierHash: 'a'.repeat(64),
       identifierCiphertext: 'deadbeef',
       identifierEnvelope: [],
       identifierType: 'phone',
-      bridgeRegistrationToken: 'bogus:token:fields:here',
+      // no plaintextIdentifier
     })
-    expect(res.status()).toBe(401)
+    expect(res.status()).toBe(400)
   })
 
-  test('POST /signal-contact rejects malformed token', async ({ request }) => {
+  test('POST /signal-contact rejects invalid identifierType', async ({ request }) => {
     const authed = createAuthedRequest(request, generateSecretKey())
     const res = await authed.post('/api/auth/signal-contact', {
       identifierHash: 'a'.repeat(64),
       identifierCiphertext: 'deadbeef',
       identifierEnvelope: [],
-      identifierType: 'phone',
-      bridgeRegistrationToken: 'not-enough-parts',
+      identifierType: 'email',
+      plaintextIdentifier: '+15551234567',
     })
-    expect(res.status()).toBe(401)
+    expect(res.status()).toBe(400)
   })
 })

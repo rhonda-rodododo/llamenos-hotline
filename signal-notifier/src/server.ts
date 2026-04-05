@@ -12,24 +12,32 @@ const registeredNumber = process.env.SIGNAL_REGISTERED_NUMBER ?? ''
 const store = new IdentifierStore(dbPath)
 const app = new Hono()
 
-// Auth middleware for /notify + admin endpoints
-app.use('/notify', async (c, next) => {
+// App-server-only auth middleware. All endpoints require the shared API key;
+// clients never talk to the notifier directly. The app server proxies
+// registrations on the user's behalf.
+const requireApiKey = async (
+  c: Parameters<Parameters<typeof app.use>[1]>[0],
+  next: () => Promise<void>
+) => {
   const header = c.req.header('authorization')
   if (!apiKey || header !== `Bearer ${apiKey}`) {
     return c.json({ error: 'Unauthorized' }, 401)
   }
   await next()
-})
+}
+app.use('/notify', requireApiKey)
+app.use('/identities/register', requireApiKey)
+app.use('/identities/:hash', requireApiKey)
 
-// Public registration: client computes hash on-device and posts plaintext + registration token
+// App-server-only registration: the app server proxies the registration on
+// the user's behalf after authenticating them via JWT.
 app.post('/identities/register', async (c) => {
   const body = await c.req.json<{
     identifierHash: string
     plaintextIdentifier: string
     identifierType: 'phone' | 'username'
-    registrationToken: string
   }>()
-  if (!body.identifierHash || !body.plaintextIdentifier || !body.registrationToken) {
+  if (!body.identifierHash || !body.plaintextIdentifier) {
     return c.json({ error: 'Invalid body' }, 400)
   }
   if (body.identifierType !== 'phone' && body.identifierType !== 'username') {
@@ -64,10 +72,6 @@ app.post('/notify', async (c) => {
 
 // App-server-only: delete an identifier
 app.delete('/identities/:hash', async (c) => {
-  const header = c.req.header('authorization')
-  if (!apiKey || header !== `Bearer ${apiKey}`) {
-    return c.json({ error: 'Unauthorized' }, 401)
-  }
   const hash = c.req.param('hash')
   store.remove(hash)
   return c.json({ ok: true })

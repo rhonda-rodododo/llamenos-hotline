@@ -13,6 +13,7 @@ import {
   WebAuthnRegisterVerifySchema,
 } from '../../shared/schemas/auth'
 import { AuthEventListQuerySchema } from '../../shared/schemas/auth-events'
+import { EnrollRequestSchema } from '../../shared/schemas/enroll'
 import { LockdownRequestSchema } from '../../shared/schemas/lockdown'
 import { PasskeyRenameSchema } from '../../shared/schemas/passkeys'
 import { PinChangeSchema } from '../../shared/schemas/pin-change'
@@ -33,7 +34,7 @@ import {
   verifyRegResponse,
 } from '../lib/webauthn'
 import type { AuthEventsService } from '../services/auth-events'
-import type { IdentityService } from '../services/identity'
+import { IdentityService } from '../services/identity'
 import type { RecordsService } from '../services/records'
 import type { SecurityActionsService } from '../services/security-actions'
 import type { SecurityPrefsService } from '../services/security-prefs'
@@ -544,16 +545,47 @@ authFacade.post('/token/refresh', async (c) => {
 
   const sessions = c.get('sessions')
   const tokenHash = hashSessionToken(refreshCookie, c.env.HMAC_SECRET)
-  const session = await sessions.findByTokenHash(tokenHash)
-  if (!session) {
+  const found = await sessions.findByTokenHash(tokenHash)
+  if (!found) {
     return c.json({ error: 'Invalid or expired session' }, 401)
   }
+  const { session, viaPrev } = found
   if (session.revokedAt) {
     return c.json({ error: 'Session revoked' }, 401)
   }
   if (session.expiresAt < new Date()) {
     await sessions.revoke(session.id, 'expired')
     return c.json({ error: 'Session expired' }, 401)
+  }
+
+  // Replay detection: the token matched the previous hash (viaPrev=true) AND
+  // rotation happened more than 60s ago → treat as token theft. Revoke the
+  // session, record an auth event, notify the user, and reject.
+  const REPLAY_GRACE_MS = 60 * 1000
+  if (viaPrev) {
+    const lastSeen = session.lastSeenAt?.getTime() ?? 0
+    if (Date.now() - lastSeen > REPLAY_GRACE_MS) {
+      await sessions.revoke(session.id, 'replay')
+      try {
+        await c.get('authEvents').record({
+          userPubkey: session.userPubkey,
+          eventType: 'session_revoked',
+          payload: { sessionId: session.id, meta: { reason: 'replay' } },
+        })
+      } catch {
+        /* non-fatal */
+      }
+      const notifications = c.get('userNotifications')
+      if (notifications) {
+        void notifications.sendAlert(session.userPubkey, {
+          type: 'session_revoked_remote',
+          city: '',
+          country: '',
+        })
+      }
+      return c.json({ error: 'Session revoked' }, 401)
+    }
+    console.warn('[auth] refresh via prev_token_hash (grace window)', { sessionId: session.id })
   }
 
   // Rotate token (skip in test mode where storage-state fixtures reuse cookies).
@@ -595,6 +627,35 @@ authFacade.post('/token/refresh', async (c) => {
   })
 
   return c.json({ accessToken })
+})
+
+// GET /kek-proof/status — whether the server has a KEK proof hash stored
+authFacade.get('/kek-proof/status', async (c) => {
+  const pubkey = c.get('pubkey')
+  const identity = c.get('identity')
+  const stored = await identity.getKekProofHash(pubkey)
+  return c.json({ hasProof: stored !== null })
+})
+
+// POST /kek-proof — set the KEK proof hash (one-time, after first unlock post-migration)
+authFacade.post('/kek-proof', async (c) => {
+  const pubkey = c.get('pubkey')
+  const body = (await c.req.json().catch(() => null)) as { proof?: unknown } | null
+  if (!body || typeof body.proof !== 'string' || body.proof.length < 1) {
+    return c.json({ error: 'Invalid request body' }, 400)
+  }
+  const identity = c.get('identity')
+  const existing = await identity.getKekProofHash(pubkey)
+  if (existing) {
+    // Already set — require caller to prove they know the current KEK by
+    // matching it. This prevents a stolen JWT from overwriting the hash.
+    if (!(await identity.verifyKekProof(pubkey, body.proof))) {
+      return c.json({ error: 'Proof already set' }, 409)
+    }
+    return c.json({ ok: true })
+  }
+  await identity.setKekProofHash(pubkey, IdentityService.hashKekProof(body.proof))
+  return c.json({ ok: true })
 })
 
 // GET /userinfo — return pubkey + nsec secret for KEK derivation
@@ -741,6 +802,14 @@ authFacade.post('/sessions/lockdown', async (c) => {
   if (!parsed.success) {
     return c.json({ error: 'Invalid request', details: parsed.error.flatten() }, 400)
   }
+  const identity = c.get('identity')
+  const storedHash = await identity.getKekProofHash(pubkey)
+  if (!storedHash) {
+    return c.json({ error: 'Unlock with PIN first to enable lockdown' }, 409)
+  }
+  if (!(await identity.verifyKekProof(pubkey, parsed.data.pinProof))) {
+    return c.json({ error: 'Invalid PIN proof' }, 401)
+  }
   const securityActions = c.get('securityActions')
   const sessionIdCookie = getCookie(c, 'llamenos-session-id')
   const result = await securityActions.runLockdown(
@@ -777,10 +846,20 @@ authFacade.post('/pin/change', async (c) => {
   if (!parsed.success) {
     return c.json({ error: 'Invalid request body' }, 400)
   }
-  // Zero-knowledge: client has already verified PIN locally by unlocking the KEK.
-  // Server cannot independently verify the plaintext PIN — just stores the new ciphertext.
   const identity = c.get('identity')
+  // Verify the caller's current KEK proof against the stored hash to prevent
+  // JWT-only account hijack. If no proof hash is stored (pre-migration user),
+  // reject and require a PIN unlock first.
+  const currentHash = await identity.getKekProofHash(pubkey)
+  if (!currentHash) {
+    return c.json({ error: 'Unlock with PIN first to enable PIN change' }, 409)
+  }
+  if (!(await identity.verifyKekProof(pubkey, parsed.data.currentPinProof))) {
+    return c.json({ error: 'Invalid current PIN proof' }, 401)
+  }
   await identity.updateEncryptedSecretKey(pubkey, parsed.data.newEncryptedSecretKey)
+  // Rotate the stored proof hash to match the new PIN.
+  await identity.setKekProofHash(pubkey, IdentityService.hashKekProof(parsed.data.newKekProof))
   try {
     await c.get('authEvents').record({
       userPubkey: pubkey,
@@ -809,8 +888,16 @@ authFacade.post('/recovery/rotate', async (c) => {
   if (!parsed.success) {
     return c.json({ error: 'Invalid request body' }, 400)
   }
-  // Client generated the recovery key + re-wrapped the KEK. Server just stores.
   const identity = c.get('identity')
+  // Verify caller's current KEK proof before storing the re-wrapped secret.
+  const currentHash = await identity.getKekProofHash(pubkey)
+  if (!currentHash) {
+    return c.json({ error: 'Unlock with PIN first to enable recovery rotation' }, 409)
+  }
+  if (!(await identity.verifyKekProof(pubkey, parsed.data.currentPinProof))) {
+    return c.json({ error: 'Invalid current PIN proof' }, 401)
+  }
+  // Recovery rotation doesn't change the PIN, so the stored proof hash remains valid.
   await identity.updateEncryptedSecretKey(pubkey, parsed.data.newEncryptedSecretKey)
   try {
     await c.get('authEvents').record({
@@ -880,10 +967,11 @@ authFacade.post('/enroll', jwtAuth, async (c) => {
     return c.json({ error: 'Forbidden' }, 403)
   }
 
-  const { pubkey } = await c.req.json<{ pubkey: string }>()
-  if (!pubkey || !/^[0-9a-f]{64}$/i.test(pubkey)) {
+  const parsed = EnrollRequestSchema.safeParse(await c.req.json().catch(() => null))
+  if (!parsed.success) {
     return c.json({ error: 'Invalid pubkey' }, 400)
   }
+  const { pubkey } = parsed.data
 
   const idpAdapter = c.get('idpAdapter')
 
@@ -1134,20 +1222,6 @@ authFacade.get('/signal-contact', async (c) => {
   })
 })
 
-authFacade.get('/signal-contact/register-token', async (c) => {
-  const pubkey = c.get('pubkey')
-  const nonce = globalThis.crypto.randomUUID()
-  const expiresAt = Date.now() + 5 * 60 * 1000
-  const tokenBody = `${pubkey}:${nonce}:${expiresAt}`
-  const mac = hmac(sha256, utf8ToBytes(c.env.HMAC_SECRET), utf8ToBytes(tokenBody))
-  const token = `${tokenBody}:${bytesToHex(mac)}`
-  return c.json({
-    token,
-    expiresAt: new Date(expiresAt).toISOString(),
-    notifierUrl: process.env.SIGNAL_NOTIFIER_URL ?? 'http://signal-notifier:3100',
-  })
-})
-
 authFacade.get('/signal-contact/hmac-key', async (c) => {
   const pubkey = c.get('pubkey')
   const key = bytesToHex(
@@ -1158,18 +1232,41 @@ authFacade.get('/signal-contact/hmac-key', async (c) => {
 
 authFacade.post('/signal-contact', async (c) => {
   const pubkey = c.get('pubkey')
-  const parsed = SignalContactRegisterSchema.safeParse(await c.req.json())
+  if (isRateLimited(`signal-contact:${pubkey}`, 5, 60 * 60 * 1000)) {
+    return c.json({ error: 'Too many contact updates' }, 429)
+  }
+  const parsed = SignalContactRegisterSchema.safeParse(await c.req.json().catch(() => null))
   if (!parsed.success) {
     return c.json({ error: 'Invalid body' }, 400)
   }
-  const parts = parsed.data.bridgeRegistrationToken.split(':')
-  if (parts.length !== 4) return c.json({ error: 'Invalid token' }, 401)
-  const [tokenPubkey, nonce, expiresStr, macHex] = parts
-  if (tokenPubkey !== pubkey) return c.json({ error: 'Token mismatch' }, 401)
-  if (Number(expiresStr) < Date.now()) return c.json({ error: 'Token expired' }, 401)
-  const body = `${tokenPubkey}:${nonce}:${expiresStr}`
-  const expected = bytesToHex(hmac(sha256, utf8ToBytes(c.env.HMAC_SECRET), utf8ToBytes(body)))
-  if (expected !== macHex) return c.json({ error: 'Token invalid' }, 401)
+
+  // Proxy registration to the notifier sidecar using the app server's API key.
+  // The notifier will not accept registrations from unauthenticated clients.
+  const notifierUrl = (process.env.SIGNAL_NOTIFIER_URL ?? '').replace(/\/+$/, '')
+  const notifierApiKey = process.env.SIGNAL_NOTIFIER_API_KEY ?? ''
+  if (!notifierUrl || !notifierApiKey) {
+    return c.json({ error: 'Signal notifier not configured' }, 503)
+  }
+  try {
+    const res = await fetch(`${notifierUrl}/identities/register`, {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        authorization: `Bearer ${notifierApiKey}`,
+      },
+      body: JSON.stringify({
+        identifierHash: parsed.data.identifierHash,
+        plaintextIdentifier: parsed.data.plaintextIdentifier,
+        identifierType: parsed.data.identifierType,
+      }),
+      signal: AbortSignal.timeout(5000),
+    })
+    if (!res.ok) {
+      return c.json({ error: 'Notifier rejected registration' }, 502)
+    }
+  } catch {
+    return c.json({ error: 'Notifier unreachable' }, 502)
+  }
 
   const svc = c.get('signalContacts')
   await svc.upsert({
@@ -1201,6 +1298,7 @@ authFacade.delete('/signal-contact', async (c) => {
         {
           method: 'DELETE',
           headers: { authorization: `Bearer ${process.env.SIGNAL_NOTIFIER_API_KEY}` },
+          signal: AbortSignal.timeout(5000),
         }
       )
     } catch {

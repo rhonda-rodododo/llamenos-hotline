@@ -17,13 +17,7 @@ export const SignalContactRegisterSchema = z.object({
   identifierCiphertext: z.string(),
   identifierEnvelope: z.array(RecipientEnvelopeSchema),
   identifierType: SignalIdentifierTypeSchema,
-  bridgeRegistrationToken: z.string(),
-})
-
-export const RegisterTokenResponseSchema = z.object({
-  token: z.string(),
-  expiresAt: z.string(),
-  notifierUrl: z.string(),
+  plaintextIdentifier: z.string().min(3).max(64),
 })
 
 export type SignalContactResponse = z.infer<typeof SignalContactResponseSchema>
