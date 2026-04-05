@@ -504,15 +504,36 @@ authFacade.post('/rotation/confirm', async (c) => {
 // POST /session/revoke
 authFacade.post('/session/revoke', async (c) => {
   const pubkey = c.get('pubkey')
+  const sessions = c.get('sessions')
   const idpAdapter = c.get('idpAdapter')
-  await idpAdapter.revokeSession(pubkey)
 
-  // Clear refresh cookie
+  const sessionIdCookie = getCookie(c, 'llamenos-session-id')
+  if (sessionIdCookie) {
+    const session = await sessions.findByIdForUser(sessionIdCookie, pubkey)
+    if (session) {
+      await sessions.revoke(session.id, 'user')
+    }
+  }
+
+  // Also revoke IdP session if still applicable.
+  try {
+    await idpAdapter.revokeSession(pubkey)
+  } catch {
+    // IdP may have already expired; ignore.
+  }
+
   setCookie(c, 'llamenos-refresh', '', {
     httpOnly: true,
     secure: true,
     sameSite: 'Strict',
     path: '/api/auth/token',
+    maxAge: 0,
+  })
+  setCookie(c, 'llamenos-session-id', '', {
+    httpOnly: true,
+    secure: true,
+    sameSite: 'Strict',
+    path: '/',
     maxAge: 0,
   })
 
