@@ -208,3 +208,8 @@ export const LABEL_FIREHOSE_BUFFER_ENCRYPT = 'llamenos:firehose:buffer-encrypt'
 
 /** Firehose extracted report envelope wrapping */
 export const LABEL_FIREHOSE_REPORT_WRAP = 'llamenos:firehose:report-wrap'
+
+// --- User Auth Event History (Plan B) ---
+
+/** User-scoped auth event payload envelope */
+export const LABEL_AUTH_EVENT = 'llamenos:user-auth-event:v1'
