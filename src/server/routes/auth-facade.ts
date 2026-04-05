@@ -11,6 +11,7 @@ import {
 } from '../../shared/schemas/auth'
 import type { IdPAdapter } from '../idp/adapter'
 import { hashIP } from '../lib/crypto-service'
+import type { CryptoService } from '../lib/crypto-service'
 import { uint8ArrayToBase64URL } from '../lib/helpers'
 import { signAccessToken, verifyAccessToken } from '../lib/jwt'
 import {
@@ -20,6 +21,7 @@ import {
   verifyRegResponse,
 } from '../lib/webauthn'
 import type { IdentityService } from '../services/identity'
+import type { SessionService } from '../services/sessions'
 import type { SettingsService } from '../services/settings'
 import type { WebAuthnCredential } from '../types'
 
@@ -41,6 +43,8 @@ interface AuthFacadeEnv {
     identity: IdentityService
     idpAdapter: IdPAdapter
     settings: SettingsService
+    sessions: SessionService
+    crypto: CryptoService
     /** Set by jwtAuth middleware on authenticated routes */
     pubkey: string
     /** Set by jwtAuth middleware — permissions from the access token */
