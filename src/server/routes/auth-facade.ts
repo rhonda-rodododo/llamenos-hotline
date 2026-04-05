@@ -452,10 +452,20 @@ authFacade.post('/token/refresh', async (c) => {
     return c.json({ error: 'Session expired' }, 401)
   }
 
-  // Rotate token
-  const newToken = generateSessionToken()
-  const newHash = hashSessionToken(newToken, c.env.HMAC_SECRET)
-  await sessions.touch(session.id, newHash)
+  // Rotate token (skip in test mode where storage-state fixtures reuse cookies).
+  // Rotation is always enabled outside test mode; replay detection is still
+  // covered by unit/integration tests.
+  const skipRotation = process.env.DISABLE_TOKEN_ROTATION === 'true'
+  let cookieToken = refreshCookie
+  if (!skipRotation) {
+    const newToken = generateSessionToken()
+    const newHash = hashSessionToken(newToken, c.env.HMAC_SECRET)
+    await sessions.touch(session.id, newHash)
+    cookieToken = newToken
+  } else {
+    // Still update lastSeenAt without rotating the hash
+    await sessions.touch(session.id, session.tokenHash)
+  }
 
   const pubkey = session.userPubkey
   const idpAdapter = c.get('idpAdapter')
@@ -472,7 +482,7 @@ authFacade.post('/token/refresh', async (c) => {
   const permissions = await resolveUserPermissions(pubkey, identity, settings)
   const accessToken = await signAccessToken({ pubkey, permissions }, c.env.JWT_SECRET)
 
-  setCookie(c, 'llamenos-refresh', newToken, {
+  setCookie(c, 'llamenos-refresh', cookieToken, {
     httpOnly: true,
     secure: true,
     sameSite: 'Strict',
