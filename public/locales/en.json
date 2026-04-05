@@ -1530,5 +1530,12 @@
     "channelWeb": "Web",
     "channelsSaved": "Channel settings saved",
     "selectChannels": "Select channels"
+  },
+  "security": {
+    "title": "Security",
+    "tabs": {
+      "sessions": "Active sessions",
+      "passkeys": "Passkeys"
+    }
   }
 }
