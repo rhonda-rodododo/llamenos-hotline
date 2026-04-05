@@ -30,13 +30,15 @@ preferencesRoutes.get('/', async (c) => {
 preferencesRoutes.patch('/', async (c) => {
   const token = c.req.query('token')
   if (!token) return c.json({ error: 'Token required' }, 400)
-  const services = c.get('services')
-  const subscriber = await services.blasts.getSubscriberByPreferenceToken(token)
-  if (!subscriber) return c.json({ error: 'Invalid token' }, 404)
+  // Validate body BEFORE DB lookup to fail fast on malformed input and avoid
+  // hitting the subscribers table with bogus requests.
   const parsed = PreferencesUpdateSchema.safeParse(await c.req.json())
   if (!parsed.success) {
     return c.json({ error: 'Invalid request body', details: parsed.error.flatten() }, 400)
   }
+  const services = c.get('services')
+  const subscriber = await services.blasts.getSubscriberByPreferenceToken(token)
+  if (!subscriber) return c.json({ error: 'Invalid token' }, 404)
   const body = parsed.data
   const updated = await services.blasts.updateSubscriber(subscriber.id, {
     ...(body.status !== undefined ? { status: body.status } : {}),

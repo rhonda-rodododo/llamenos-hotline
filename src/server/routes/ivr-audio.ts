@@ -2,8 +2,9 @@
  * Public IVR audio endpoint (no auth required).
  *
  * Twilio fetches these audio files during calls to play recorded IVR prompts.
- * The path params are validated to prevent injection, and the response streams
- * raw audio bytes from the server's IVR audio store.
+ * Hub is optional — defaults to global if not provided. Telephony providers
+ * embed the hub ID as a query parameter on the webhook URL so the correct
+ * hub's IVR recordings are served.
  */
 
 import { Hono } from 'hono'
@@ -14,11 +15,9 @@ const ivrAudioRoutes = new Hono<AppEnv>()
 ivrAudioRoutes.get('/:promptType/:language', async (c) => {
   const promptType = c.req.param('promptType')
   const language = c.req.param('language')
-  // Hub is optional — defaults to global if not provided. Telephony providers
-  // embed the hub ID as a query parameter on the webhook URL so the correct
-  // hub's IVR recordings are served.
+  // hubId is supplied via query param since this is a public endpoint Twilio
+  // fetches without auth (the usual hub-context middleware requires auth).
   const hubId = c.req.query('hubId')
-  // Validate path params to prevent injection
   if (!/^[a-z_-]+$/.test(promptType) || !/^[a-z]{2,5}(-[A-Z]{2})?$/.test(language)) {
     return c.json({ error: 'Invalid parameters' }, 400)
   }

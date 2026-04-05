@@ -176,7 +176,7 @@ api.route('/messaging/preferences', preferencesRoutes)
 // Public VAPID key (browser needs this before authenticating to subscribe)
 api.route('/notifications', notificationsPublic)
 
-// Public IVR audio serve (Twilio fetches during calls)
+// Public IVR audio serve (Twilio fetches during calls; hubId via query param)
 api.route('/ivr-audio', ivrAudioRoutes)
 
 /**
