@@ -195,6 +195,9 @@ export const LABEL_EPHEMERAL_CALL = 'llamenos:ephemeral-call:v1'
 /** Server-key encryption of push notification credentials (endpoints, auth keys) */
 export const LABEL_PUSH_CREDENTIAL = 'llamenos:push-credential:v1'
 
+/** Session metadata envelope (IP, UA, location) — user-envelope encrypted */
+export const LABEL_SESSION_META = 'llamenos:session-meta:v1'
+
 // --- Firehose Report Agent ---
 
 /** Firehose agent nsec sealed encryption (per-connection, derived from deploy secret) */
