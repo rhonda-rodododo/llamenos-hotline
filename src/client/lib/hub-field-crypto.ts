@@ -24,24 +24,34 @@ import { decryptFromHub, encryptForHub } from './hub-key-manager'
  * @param placeholder - Fallback placeholder when decryption fails (default: empty string)
  * @returns Decrypted string, or placeholder
  */
+/**
+ * A real ciphertext is an even-length hex string of at least 48 chars
+ * (24-byte nonce + 16-byte poly1305 tag in hex). If the stored "encrypted"
+ * value is NOT a valid ciphertext, it's plaintext (fallback path on the server
+ * when the client has no hub key). Safe to surface to UI either way.
+ */
+function looksLikeCiphertext(s: string): boolean {
+  return s.length >= 48 && s.length % 2 === 0 && /^[0-9a-f]+$/i.test(s)
+}
+
 export function decryptHubField(
   encrypted: string | null | undefined,
   hubId: string,
   placeholder = ''
 ): string {
   if (!encrypted) return placeholder
-  const isDev = import.meta.env.DEV
   const hubKey = getHubKeyForId(hubId)
   if (!hubKey) {
-    // In dev/E2E the server may store plaintext as the "ciphertext"; surface it
-    // so tests remain readable. In production, never leak raw hex to the UI.
-    return isDev ? encrypted || placeholder : placeholder
+    // If the stored value looks like real ciphertext, we can't decrypt it without
+    // the key — show placeholder rather than leaking hex to the UI. If it's not
+    // ciphertext (plaintext server-fallback path), surface the readable value.
+    return looksLikeCiphertext(encrypted) ? placeholder : encrypted
   }
   const decrypted = decryptFromHub(encrypted as Ciphertext, hubKey)
   // Decryption succeeded → return plaintext.
-  // Decryption failed → surface raw value in dev (for E2E readability),
-  // placeholder in production to avoid leaking ciphertext.
-  return decrypted ?? (isDev ? encrypted : placeholder)
+  // Decryption failed on a ciphertext-looking value → placeholder (don't leak hex).
+  // Decryption failed on a plaintext value → surface it (test/plaintext fallback).
+  return decrypted ?? (looksLikeCiphertext(encrypted) ? placeholder : encrypted)
 }
 
 /**
