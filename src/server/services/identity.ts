@@ -873,6 +873,17 @@ export class IdentityService {
     }
   }
 
+  async updateEncryptedSecretKey(pubkey: string, newCiphertext: string): Promise<void> {
+    await this.db
+      .update(users)
+      .set({ encryptedSecretKey: newCiphertext })
+      .where(eq(users.pubkey, pubkey))
+  }
+
+  async setUserActive(pubkey: string, active: boolean): Promise<void> {
+    await this.db.update(users).set({ active }).where(eq(users.pubkey, pubkey))
+  }
+
   #rowToCredential(r: typeof webauthnCredentials.$inferSelect): WebAuthnCredential {
     const labelEnvelopes = (r.labelEnvelopes as import('@shared/types').RecipientEnvelope[]) ?? []
     return {
