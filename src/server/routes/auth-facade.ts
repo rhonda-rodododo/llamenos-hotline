@@ -355,6 +355,8 @@ authFacade.use('/rotation/confirm', jwtAuth)
 authFacade.use('/session/revoke', jwtAuth)
 authFacade.use('/devices', jwtAuth)
 authFacade.use('/devices/*', jwtAuth)
+authFacade.use('/sessions', jwtAuth)
+authFacade.use('/sessions/*', jwtAuth)
 authFacade.use('/admin/*', jwtAuth)
 
 // POST /webauthn/register-options
@@ -538,6 +540,48 @@ authFacade.post('/session/revoke', async (c) => {
   })
 
   return c.json({ ok: true })
+})
+
+// GET /sessions — list current user's active sessions
+authFacade.get('/sessions', async (c) => {
+  const pubkey = c.get('pubkey')
+  const sessions = c.get('sessions')
+  const sessionIdCookie = getCookie(c, 'llamenos-session-id')
+  const rows = await sessions.listForUser(pubkey)
+  return c.json({
+    sessions: rows.map((r) => ({
+      id: r.id,
+      createdAt: r.createdAt.toISOString(),
+      lastSeenAt: r.lastSeenAt.toISOString(),
+      expiresAt: r.expiresAt.toISOString(),
+      isCurrent: r.id === sessionIdCookie,
+      encryptedMeta: r.encryptedMeta,
+      metaEnvelope: r.metaEnvelope,
+      credentialId: r.credentialId,
+    })),
+  })
+})
+
+// DELETE /sessions/:id — revoke a specific session
+authFacade.delete('/sessions/:id', async (c) => {
+  const pubkey = c.get('pubkey')
+  const sessions = c.get('sessions')
+  const id = c.req.param('id')
+  const session = await sessions.findByIdForUser(id, pubkey)
+  if (!session) {
+    return c.json({ error: 'Session not found' }, 404)
+  }
+  await sessions.revoke(id, 'user')
+  return c.json({ ok: true })
+})
+
+// POST /sessions/revoke-others — revoke all except current
+authFacade.post('/sessions/revoke-others', async (c) => {
+  const pubkey = c.get('pubkey')
+  const sessions = c.get('sessions')
+  const sessionIdCookie = getCookie(c, 'llamenos-session-id')
+  const count = await sessions.revokeAllForUser(pubkey, 'user', sessionIdCookie ?? undefined)
+  return c.json({ revokedCount: count })
 })
 
 // GET /devices — list WebAuthn credentials
