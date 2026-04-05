@@ -304,10 +304,10 @@
       "breakpoints": true
     },
     {
-      "idx": 41,
+      "idx": 42,
       "version": "7",
       "when": 1744070400000,
-      "tag": "0041_firehose_status_enum",
+      "tag": "0042_firehose_status_enum",
       "breakpoints": true
     }
   ]
