@@ -32,6 +32,7 @@ import {
 import type { AuthEventsService } from '../services/auth-events'
 import type { IdentityService } from '../services/identity'
 import type { RecordsService } from '../services/records'
+import type { SecurityActionsService } from '../services/security-actions'
 import type { SecurityPrefsService } from '../services/security-prefs'
 import { formatUserAgent, sessionExpiry } from '../services/sessions'
 import type { SessionService } from '../services/sessions'
@@ -69,6 +70,7 @@ interface AuthFacadeEnv {
     crypto: CryptoService
     signalContacts: SignalContactsService
     securityPrefs: SecurityPrefsService
+    securityActions: SecurityActionsService
     userNotifications: UserNotificationsService
     /** Set by jwtAuth middleware on authenticated routes */
     pubkey: string

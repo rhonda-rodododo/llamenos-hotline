@@ -16,6 +16,7 @@ import type { ProviderHealthService } from './provider-health'
 import { PushService } from './push'
 import { RecordsService } from './records'
 import { ReportTypeService } from './report-types'
+import { SecurityActionsService } from './security-actions'
 import { SecurityPrefsService } from './security-prefs'
 import { SessionService } from './sessions'
 import { SettingsService } from './settings'
@@ -48,6 +49,7 @@ export type {
   ProviderHealthService,
   SignalContactsService,
   SecurityPrefsService,
+  SecurityActionsService,
   UserNotificationsService,
 }
 
@@ -76,6 +78,7 @@ export interface Services {
   crypto: CryptoService
   signalContacts: SignalContactsService
   securityPrefs: SecurityPrefsService
+  securityActions: SecurityActionsService
   userNotifications: UserNotificationsService
 }
 
@@ -103,9 +106,17 @@ export function createServices(
       notifierApiKey: process.env.SIGNAL_NOTIFIER_API_KEY ?? '',
     }
   )
+  const identity = new IdentityService(db, crypto)
+  const sessions = new SessionService(db, process.env.HMAC_SECRET ?? '')
+  const securityActions = new SecurityActionsService(
+    sessions,
+    identity,
+    authEvents,
+    userNotifications
+  )
 
   return {
-    identity: new IdentityService(db, crypto),
+    identity,
     settings,
     records: new RecordsService(db, crypto),
     shifts: new ShiftService(db, crypto, settings),
@@ -115,10 +126,11 @@ export function createServices(
     files: new FilesService(db, storage),
     gdpr: new GdprService(db, crypto),
     reportTypes: new ReportTypeService(db, crypto, settings),
-    sessions: new SessionService(db, process.env.HMAC_SECRET ?? ''),
+    sessions,
     authEvents,
     signalContacts,
     securityPrefs,
+    securityActions,
     userNotifications,
     push: new PushService(db, crypto),
     contacts: contactService,
