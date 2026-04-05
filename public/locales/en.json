@@ -73,7 +73,8 @@
     "contacts": "Contacts",
     "conversations": "Conversations",
     "help": "Help",
-    "users": "Users"
+    "users": "Users",
+    "security": "Security"
   },
   "dashboard": {
     "title": "Dashboard",
