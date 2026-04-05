@@ -213,3 +213,8 @@ export const LABEL_FIREHOSE_REPORT_WRAP = 'llamenos:firehose:report-wrap'
 
 /** User-scoped auth event payload envelope */
 export const LABEL_AUTH_EVENT = 'llamenos:user-auth-event:v1'
+
+// --- Signal Notification Layer (Plan C) ---
+
+/** Signal contact identifier envelope (user-scoped) */
+export const LABEL_SIGNAL_CONTACT = 'llamenos:signal-contact:v1'
