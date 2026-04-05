@@ -1545,6 +1545,17 @@
       "unknownLocation": "Unknown location",
       "lastSeen": "Last active",
       "revoke": "Revoke"
+    },
+    "passkeys": {
+      "backedUp": "Synced",
+      "createdAt": "Added",
+      "lastUsedAt": "Last used",
+      "rename": "Rename",
+      "transport": {
+        "usb": "USB",
+        "internal": "Built-in",
+        "hybrid": "Cross-device"
+      }
     }
   }
 }
