@@ -13,6 +13,7 @@ import { Route as UsersRouteImport } from './routes/users'
 import { Route as ShiftsRouteImport } from './routes/shifts'
 import { Route as SetupRouteImport } from './routes/setup'
 import { Route as SettingsRouteImport } from './routes/settings'
+import { Route as SecurityRouteImport } from './routes/security'
 import { Route as ReportsRouteImport } from './routes/reports'
 import { Route as ProfileSetupRouteImport } from './routes/profile-setup'
 import { Route as PreferencesRouteImport } from './routes/preferences'
@@ -30,6 +31,7 @@ import { Route as BansRouteImport } from './routes/bans'
 import { Route as AuditRouteImport } from './routes/audit'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as UsersPubkeyRouteImport } from './routes/users_.$pubkey'
+import { Route as SecuritySessionsRouteImport } from './routes/security.sessions'
 import { Route as NotesNoteIdRouteImport } from './routes/notes.$noteId'
 import { Route as ContactsContactIdRouteImport } from './routes/contacts_.$contactId'
 import { Route as CallsCallIdRouteImport } from './routes/calls.$callId'
@@ -54,6 +56,11 @@ const SetupRoute = SetupRouteImport.update({
 const SettingsRoute = SettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SecurityRoute = SecurityRouteImport.update({
+  id: '/security',
+  path: '/security',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ReportsRoute = ReportsRouteImport.update({
@@ -141,6 +148,11 @@ const UsersPubkeyRoute = UsersPubkeyRouteImport.update({
   path: '/users/$pubkey',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SecuritySessionsRoute = SecuritySessionsRouteImport.update({
+  id: '/sessions',
+  path: '/sessions',
+  getParentRoute: () => SecurityRoute,
+} as any)
 const NotesNoteIdRoute = NotesNoteIdRouteImport.update({
   id: '/$noteId',
   path: '/$noteId',
@@ -184,6 +196,7 @@ export interface FileRoutesByFullPath {
   '/preferences': typeof PreferencesRoute
   '/profile-setup': typeof ProfileSetupRoute
   '/reports': typeof ReportsRoute
+  '/security': typeof SecurityRouteWithChildren
   '/settings': typeof SettingsRoute
   '/setup': typeof SetupRoute
   '/shifts': typeof ShiftsRoute
@@ -193,6 +206,7 @@ export interface FileRoutesByFullPath {
   '/calls/$callId': typeof CallsCallIdRoute
   '/contacts/$contactId': typeof ContactsContactIdRoute
   '/notes/$noteId': typeof NotesNoteIdRoute
+  '/security/sessions': typeof SecuritySessionsRoute
   '/users/$pubkey': typeof UsersPubkeyRoute
 }
 export interface FileRoutesByTo {
@@ -212,6 +226,7 @@ export interface FileRoutesByTo {
   '/preferences': typeof PreferencesRoute
   '/profile-setup': typeof ProfileSetupRoute
   '/reports': typeof ReportsRoute
+  '/security': typeof SecurityRouteWithChildren
   '/settings': typeof SettingsRoute
   '/setup': typeof SetupRoute
   '/shifts': typeof ShiftsRoute
@@ -221,6 +236,7 @@ export interface FileRoutesByTo {
   '/calls/$callId': typeof CallsCallIdRoute
   '/contacts/$contactId': typeof ContactsContactIdRoute
   '/notes/$noteId': typeof NotesNoteIdRoute
+  '/security/sessions': typeof SecuritySessionsRoute
   '/users/$pubkey': typeof UsersPubkeyRoute
 }
 export interface FileRoutesById {
@@ -241,6 +257,7 @@ export interface FileRoutesById {
   '/preferences': typeof PreferencesRoute
   '/profile-setup': typeof ProfileSetupRoute
   '/reports': typeof ReportsRoute
+  '/security': typeof SecurityRouteWithChildren
   '/settings': typeof SettingsRoute
   '/setup': typeof SetupRoute
   '/shifts': typeof ShiftsRoute
@@ -250,6 +267,7 @@ export interface FileRoutesById {
   '/calls/$callId': typeof CallsCallIdRoute
   '/contacts_/$contactId': typeof ContactsContactIdRoute
   '/notes/$noteId': typeof NotesNoteIdRoute
+  '/security/sessions': typeof SecuritySessionsRoute
   '/users_/$pubkey': typeof UsersPubkeyRoute
 }
 export interface FileRouteTypes {
@@ -271,6 +289,7 @@ export interface FileRouteTypes {
     | '/preferences'
     | '/profile-setup'
     | '/reports'
+    | '/security'
     | '/settings'
     | '/setup'
     | '/shifts'
@@ -280,6 +299,7 @@ export interface FileRouteTypes {
     | '/calls/$callId'
     | '/contacts/$contactId'
     | '/notes/$noteId'
+    | '/security/sessions'
     | '/users/$pubkey'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -299,6 +319,7 @@ export interface FileRouteTypes {
     | '/preferences'
     | '/profile-setup'
     | '/reports'
+    | '/security'
     | '/settings'
     | '/setup'
     | '/shifts'
@@ -308,6 +329,7 @@ export interface FileRouteTypes {
     | '/calls/$callId'
     | '/contacts/$contactId'
     | '/notes/$noteId'
+    | '/security/sessions'
     | '/users/$pubkey'
   id:
     | '__root__'
@@ -327,6 +349,7 @@ export interface FileRouteTypes {
     | '/preferences'
     | '/profile-setup'
     | '/reports'
+    | '/security'
     | '/settings'
     | '/setup'
     | '/shifts'
@@ -336,6 +359,7 @@ export interface FileRouteTypes {
     | '/calls/$callId'
     | '/contacts_/$contactId'
     | '/notes/$noteId'
+    | '/security/sessions'
     | '/users_/$pubkey'
   fileRoutesById: FileRoutesById
 }
@@ -356,6 +380,7 @@ export interface RootRouteChildren {
   PreferencesRoute: typeof PreferencesRoute
   ProfileSetupRoute: typeof ProfileSetupRoute
   ReportsRoute: typeof ReportsRoute
+  SecurityRoute: typeof SecurityRouteWithChildren
   SettingsRoute: typeof SettingsRoute
   SetupRoute: typeof SetupRoute
   ShiftsRoute: typeof ShiftsRoute
@@ -394,6 +419,13 @@ declare module '@tanstack/react-router' {
       path: '/settings'
       fullPath: '/settings'
       preLoaderRoute: typeof SettingsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/security': {
+      id: '/security'
+      path: '/security'
+      fullPath: '/security'
+      preLoaderRoute: typeof SecurityRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/reports': {
@@ -515,6 +547,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof UsersPubkeyRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/security/sessions': {
+      id: '/security/sessions'
+      path: '/sessions'
+      fullPath: '/security/sessions'
+      preLoaderRoute: typeof SecuritySessionsRouteImport
+      parentRoute: typeof SecurityRoute
+    }
     '/notes/$noteId': {
       id: '/notes/$noteId'
       path: '/$noteId'
@@ -573,6 +612,18 @@ const NotesRouteChildren: NotesRouteChildren = {
 
 const NotesRouteWithChildren = NotesRoute._addFileChildren(NotesRouteChildren)
 
+interface SecurityRouteChildren {
+  SecuritySessionsRoute: typeof SecuritySessionsRoute
+}
+
+const SecurityRouteChildren: SecurityRouteChildren = {
+  SecuritySessionsRoute: SecuritySessionsRoute,
+}
+
+const SecurityRouteWithChildren = SecurityRoute._addFileChildren(
+  SecurityRouteChildren,
+)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuditRoute: AuditRoute,
@@ -590,6 +641,7 @@ const rootRouteChildren: RootRouteChildren = {
   PreferencesRoute: PreferencesRoute,
   ProfileSetupRoute: ProfileSetupRoute,
   ReportsRoute: ReportsRoute,
+  SecurityRoute: SecurityRouteWithChildren,
   SettingsRoute: SettingsRoute,
   SetupRoute: SetupRoute,
   ShiftsRoute: ShiftsRoute,

@@ -1536,6 +1536,15 @@
     "tabs": {
       "sessions": "Active sessions",
       "passkeys": "Passkeys"
+    },
+    "sessions": {
+      "none": "No active sessions.",
+      "signOutEverywhere": "Sign out everywhere else",
+      "current": "Current",
+      "unknownBrowser": "Unknown browser",
+      "unknownLocation": "Unknown location",
+      "lastSeen": "Last active",
+      "revoke": "Revoke"
     }
   }
 }
