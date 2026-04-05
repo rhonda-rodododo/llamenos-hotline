@@ -1,7 +1,7 @@
 import { LABEL_SESSION_META } from '@shared/crypto-labels'
 import type { Ciphertext } from '@shared/crypto-types'
 import type { RecipientEnvelope } from '@shared/types'
-import { and, desc, eq, isNull, lt, ne, or } from 'drizzle-orm'
+import { and, desc, eq, isNull, lt, ne } from 'drizzle-orm'
 import type { Database } from '../db'
 import { type UserSessionRow, userSessions } from '../db/schema/sessions'
 
@@ -100,17 +100,26 @@ export class SessionService {
       .orderBy(desc(userSessions.lastSeenAt))
   }
 
-  async findByTokenHash(tokenHash: string): Promise<UserSessionRow | null> {
-    // Accept either the current or previous rotation hash to tolerate concurrent
-    // refreshes (two tabs calling /refresh simultaneously) and provide a one-
-    // rotation grace window. If the session is found by prev_token_hash, callers
-    // may treat it as a replay/race signal.
-    const rows = await this.db
+  async findByTokenHash(
+    tokenHash: string
+  ): Promise<{ session: UserSessionRow; viaPrev: boolean } | null> {
+    // Try the current token hash first.
+    const current = await this.db
       .select()
       .from(userSessions)
-      .where(or(eq(userSessions.tokenHash, tokenHash), eq(userSessions.prevTokenHash, tokenHash)))
+      .where(eq(userSessions.tokenHash, tokenHash))
       .limit(1)
-    return rows[0] ?? null
+    if (current[0]) return { session: current[0], viaPrev: false }
+    // Fall back to the previous hash for a one-rotation grace window
+    // (concurrent refreshes from two tabs). Callers may treat this as a
+    // replay/race signal when the grace window has elapsed.
+    const prev = await this.db
+      .select()
+      .from(userSessions)
+      .where(eq(userSessions.prevTokenHash, tokenHash))
+      .limit(1)
+    if (prev[0]) return { session: prev[0], viaPrev: true }
+    return null
   }
 
   async findByIdForUser(id: string, userPubkey: string): Promise<UserSessionRow | null> {

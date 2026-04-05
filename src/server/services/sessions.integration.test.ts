@@ -60,7 +60,8 @@ describe('SessionService integration', () => {
     const input = createInput('s2', fakeUser, 'hash2')
     await service.create(input)
     const found = await service.findByTokenHash('hash2')
-    expect(found?.id).toBe(input.id)
+    expect(found?.session.id).toBe(input.id)
+    expect(found?.viaPrev).toBe(false)
   })
 
   test('findByTokenHash returns null for missing hash', async () => {
@@ -96,11 +97,13 @@ describe('SessionService integration', () => {
     await new Promise((r) => setTimeout(r, 10))
     await service.touch(input.id, 'h7-rotated')
     const found = await service.findByTokenHash('h7-rotated')
-    expect(found?.id).toBe(input.id)
+    expect(found?.session.id).toBe(input.id)
+    expect(found?.viaPrev).toBe(false)
     // Old hash is still accepted once via prev_token_hash (grace window for
     // concurrent refreshes / multi-tab).
     const byPrev = await service.findByTokenHash('h7')
-    expect(byPrev?.id).toBe(input.id)
+    expect(byPrev?.session.id).toBe(input.id)
+    expect(byPrev?.viaPrev).toBe(true)
     // After a second rotation, the original hash is no longer valid.
     await service.touch(input.id, 'h7-rotated-2')
     const stale = await service.findByTokenHash('h7')
