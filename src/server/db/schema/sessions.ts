@@ -9,6 +9,12 @@ export const userSessions = pgTable(
     id: text('id').primaryKey(),
     userPubkey: text('user_pubkey').notNull(),
     tokenHash: text('token_hash').notNull(),
+    /**
+     * Previous token hash — accepted on refresh as a one-rotation grace window,
+     * to tolerate concurrent refreshes (e.g. two tabs) and provide a minimal
+     * replay-detection signal if a stale token is presented.
+     */
+    prevTokenHash: text('prev_token_hash'),
     ipHash: text('ip_hash').notNull(),
     credentialId: text('credential_id'),
     encryptedMeta: ciphertext('encrypted_meta').notNull(),
@@ -22,6 +28,7 @@ export const userSessions = pgTable(
   (table) => [
     index('user_sessions_user_pubkey_idx').on(table.userPubkey),
     index('user_sessions_token_hash_idx').on(table.tokenHash),
+    index('user_sessions_prev_token_hash_idx').on(table.prevTokenHash),
     index('user_sessions_expires_at_idx').on(table.expiresAt),
   ]
 )

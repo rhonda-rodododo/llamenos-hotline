@@ -1,7 +1,7 @@
 import { LABEL_SESSION_META } from '@shared/crypto-labels'
 import type { Ciphertext } from '@shared/crypto-types'
 import type { RecipientEnvelope } from '@shared/types'
-import { and, desc, eq, isNull, lt, ne } from 'drizzle-orm'
+import { and, desc, eq, isNull, lt, ne, or } from 'drizzle-orm'
 import type { Database } from '../db'
 import { type UserSessionRow, userSessions } from '../db/schema/sessions'
 
@@ -92,10 +92,14 @@ export class SessionService {
   }
 
   async findByTokenHash(tokenHash: string): Promise<UserSessionRow | null> {
+    // Accept either the current or previous rotation hash to tolerate concurrent
+    // refreshes (two tabs calling /refresh simultaneously) and provide a one-
+    // rotation grace window. If the session is found by prev_token_hash, callers
+    // may treat it as a replay/race signal.
     const rows = await this.db
       .select()
       .from(userSessions)
-      .where(eq(userSessions.tokenHash, tokenHash))
+      .where(or(eq(userSessions.tokenHash, tokenHash), eq(userSessions.prevTokenHash, tokenHash)))
       .limit(1)
     return rows[0] ?? null
   }
@@ -110,9 +114,20 @@ export class SessionService {
   }
 
   async touch(id: string, tokenHash: string): Promise<void> {
+    // Move current hash into prev_token_hash so concurrent refreshes still succeed,
+    // then set the new hash as current.
+    const [existing] = await this.db
+      .select({ tokenHash: userSessions.tokenHash })
+      .from(userSessions)
+      .where(eq(userSessions.id, id))
+      .limit(1)
     await this.db
       .update(userSessions)
-      .set({ lastSeenAt: new Date(), tokenHash })
+      .set({
+        lastSeenAt: new Date(),
+        tokenHash,
+        prevTokenHash: existing?.tokenHash ?? null,
+      })
       .where(eq(userSessions.id, id))
   }
 

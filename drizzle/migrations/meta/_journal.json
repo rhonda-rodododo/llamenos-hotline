@@ -323,6 +323,13 @@
       "when": 1775574000001,
       "tag": "0044_drop_jwt_revocations",
       "breakpoints": true
+    },
+    {
+      "idx": 45,
+      "version": "7",
+      "when": 1775574000002,
+      "tag": "0045_session_prev_token_hash",
+      "breakpoints": true
     }
   ]
 }
