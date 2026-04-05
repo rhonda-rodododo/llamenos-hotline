@@ -8,6 +8,7 @@ export const users = pgTable('users', {
   roles: jsonb<string[]>()('roles').notNull().default([]),
   hubRoles: jsonb<Array<{ hubId: string; roleIds: string[] }>>()('hub_roles').notNull().default([]),
   encryptedSecretKey: text('encrypted_secret_key').notNull().default(''),
+  kekProofHash: text('kek_proof_hash'),
   active: boolean('active').notNull().default(true),
   transcriptionEnabled: boolean('transcription_enabled').notNull().default(true),
   spokenLanguages: jsonb<string[]>()('spoken_languages').notNull().default([]),

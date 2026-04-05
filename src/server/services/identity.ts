@@ -1,3 +1,5 @@
+import { sha256 } from '@noble/hashes/sha2.js'
+import { bytesToHex, utf8ToBytes } from '@noble/hashes/utils.js'
 import { LABEL_USER_PII } from '@shared/crypto-labels'
 import type { Ciphertext } from '@shared/crypto-types'
 import { and, eq, isNull, sql } from 'drizzle-orm'
@@ -878,6 +880,43 @@ export class IdentityService {
       .update(users)
       .set({ encryptedSecretKey: newCiphertext })
       .where(eq(users.pubkey, pubkey))
+  }
+
+  /** Hex-encoded sha256 of the caller-supplied KEK proof. */
+  static hashKekProof(proof: string): string {
+    return bytesToHex(sha256(utf8ToBytes(proof)))
+  }
+
+  async setKekProofHash(pubkey: string, hash: string): Promise<void> {
+    await this.db.update(users).set({ kekProofHash: hash }).where(eq(users.pubkey, pubkey))
+  }
+
+  async getKekProofHash(pubkey: string): Promise<string | null> {
+    const rows = await this.db
+      .select({ kekProofHash: users.kekProofHash })
+      .from(users)
+      .where(eq(users.pubkey, pubkey))
+      .limit(1)
+    return rows[0]?.kekProofHash ?? null
+  }
+
+  /**
+   * Constant-time compare the sha256 of the caller-supplied proof against the
+   * stored hash. Returns false when no hash is stored yet (pre-migration users).
+   */
+  async verifyKekProof(pubkey: string, proof: string): Promise<boolean> {
+    const stored = await this.getKekProofHash(pubkey)
+    if (!stored) return false
+    const computed = IdentityService.hashKekProof(proof)
+    // Both sides are fixed-length hex strings (64 chars) — length-mismatch short
+    // circuit is acceptable and the remaining compare is constant-time on equal
+    // lengths via XOR.
+    if (computed.length !== stored.length) return false
+    let diff = 0
+    for (let i = 0; i < computed.length; i++) {
+      diff |= computed.charCodeAt(i) ^ stored.charCodeAt(i)
+    }
+    return diff === 0
   }
 
   async setUserActive(pubkey: string, active: boolean): Promise<void> {

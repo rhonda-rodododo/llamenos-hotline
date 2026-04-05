@@ -20,12 +20,13 @@ export async function triggerLockdown(
 
 export async function changePin(
   currentPinProof: string,
+  newKekProof: string,
   newEncryptedSecretKey: string
 ): Promise<{ ok: boolean }> {
   return request<{ ok: boolean }>('/auth/pin/change', {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ currentPinProof, newEncryptedSecretKey }),
+    body: JSON.stringify({ currentPinProof, newKekProof, newEncryptedSecretKey }),
   })
 }
 

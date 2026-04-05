@@ -23,22 +23,57 @@ test.describe('PIN change API', () => {
     expect(res.status()).toBe(400)
   })
 
-  test('valid body returns 200', async ({ request }) => {
+  test('returns 409 when no KEK proof hash is set', async ({ request }) => {
     const sk = generateSecretKey()
     const authed = createAuthedRequest(request, sk)
     const res = await authed.post('/api/auth/pin/change', {
       currentPinProof: 'a'.repeat(64),
+      newKekProof: 'b'.repeat(64),
+      newEncryptedSecretKey: 'ciphertext-stub',
+    })
+    expect(res.status()).toBe(409)
+  })
+
+  test('wrong current proof returns 401 after hash is set', async ({ request }) => {
+    const sk = generateSecretKey()
+    const authed = createAuthedRequest(request, sk)
+    // Seed the stored proof hash
+    const setRes = await authed.post('/api/auth/kek-proof', { proof: 'correct-proof' })
+    expect(setRes.status()).toBe(200)
+    const res = await authed.post('/api/auth/pin/change', {
+      currentPinProof: 'wrong-proof',
+      newKekProof: 'new-proof',
+      newEncryptedSecretKey: 'ciphertext-stub',
+    })
+    expect(res.status()).toBe(401)
+  })
+
+  test('correct proof returns 200 and rotates stored hash', async ({ request }) => {
+    const sk = generateSecretKey()
+    const authed = createAuthedRequest(request, sk)
+    const setRes = await authed.post('/api/auth/kek-proof', { proof: 'current' })
+    expect(setRes.status()).toBe(200)
+    const res = await authed.post('/api/auth/pin/change', {
+      currentPinProof: 'current',
+      newKekProof: 'next',
       newEncryptedSecretKey: 'ciphertext-stub',
     })
     expect(res.status()).toBe(200)
     const body = await res.json()
     expect(body.ok).toBe(true)
+    // Old proof is no longer valid
+    const retry = await authed.post('/api/auth/pin/change', {
+      currentPinProof: 'current',
+      newKekProof: 'another',
+      newEncryptedSecretKey: 'ciphertext-stub',
+    })
+    expect(retry.status()).toBe(401)
   })
 
   test('requires authentication', async ({ request }) => {
     const res = await request.post('/api/auth/pin/change', {
       headers: { 'content-type': 'application/json' },
-      data: { currentPinProof: 'x', newEncryptedSecretKey: 'y' },
+      data: { currentPinProof: 'x', newKekProof: 'y', newEncryptedSecretKey: 'z' },
     })
     expect(res.status()).toBe(401)
   })

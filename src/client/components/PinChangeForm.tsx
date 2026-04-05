@@ -51,8 +51,10 @@ export function PinChangeForm() {
       }
       const newCiphertext = await rewrapWithNewPin(newPin, { idpValue: userInfo.nsecSecret }, blob)
       const currentPinProof = deriveKekProof(currentPin)
+      const newKekProof = deriveKekProof(newPin)
       await change.mutateAsync({
         currentPinProof,
+        newKekProof,
         newEncryptedSecretKey: newCiphertext,
       })
       setSuccess(true)

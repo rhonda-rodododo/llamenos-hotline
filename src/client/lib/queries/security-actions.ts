@@ -18,11 +18,13 @@ export function useChangePin() {
   return useMutation({
     mutationFn: ({
       currentPinProof,
+      newKekProof,
       newEncryptedSecretKey,
     }: {
       currentPinProof: string
+      newKekProof: string
       newEncryptedSecretKey: string
-    }) => api.changePin(currentPinProof, newEncryptedSecretKey),
+    }) => api.changePin(currentPinProof, newKekProof, newEncryptedSecretKey),
   })
 }
 

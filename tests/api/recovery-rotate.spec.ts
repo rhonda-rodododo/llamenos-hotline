@@ -23,11 +23,33 @@ test.describe('Recovery rotate API', () => {
     expect(res.status()).toBe(400)
   })
 
-  test('valid body returns 200', async ({ request }) => {
+  test('returns 409 when no KEK proof hash is set', async ({ request }) => {
     const sk = generateSecretKey()
     const authed = createAuthedRequest(request, sk)
     const res = await authed.post('/api/auth/recovery/rotate', {
       currentPinProof: 'a'.repeat(64),
+      newEncryptedSecretKey: 'ciphertext-stub',
+    })
+    expect(res.status()).toBe(409)
+  })
+
+  test('wrong proof returns 401 after hash is set', async ({ request }) => {
+    const sk = generateSecretKey()
+    const authed = createAuthedRequest(request, sk)
+    await authed.post('/api/auth/kek-proof', { proof: 'right' })
+    const res = await authed.post('/api/auth/recovery/rotate', {
+      currentPinProof: 'wrong',
+      newEncryptedSecretKey: 'ciphertext-stub',
+    })
+    expect(res.status()).toBe(401)
+  })
+
+  test('correct proof returns 200', async ({ request }) => {
+    const sk = generateSecretKey()
+    const authed = createAuthedRequest(request, sk)
+    await authed.post('/api/auth/kek-proof', { proof: 'right' })
+    const res = await authed.post('/api/auth/recovery/rotate', {
+      currentPinProof: 'right',
       newEncryptedSecretKey: 'ciphertext-stub',
     })
     expect(res.status()).toBe(200)

@@ -40,13 +40,37 @@ test.describe('Lockdown API', () => {
     expect(res.status()).toBe(400)
   })
 
-  test('tier A runs lockdown and returns revokedSessions count', async ({ request }) => {
+  test('returns 409 when no KEK proof hash is set', async ({ request }) => {
     const sk = generateSecretKey()
     const authed = createAuthedRequest(request, sk)
     const res = await authed.post('/api/auth/sessions/lockdown', {
       tier: 'A',
       confirmation: 'LOCKDOWN',
       pinProof: 'any-proof',
+    })
+    expect(res.status()).toBe(409)
+  })
+
+  test('wrong proof returns 401 after hash is set', async ({ request }) => {
+    const sk = generateSecretKey()
+    const authed = createAuthedRequest(request, sk)
+    await authed.post('/api/auth/kek-proof', { proof: 'correct' })
+    const res = await authed.post('/api/auth/sessions/lockdown', {
+      tier: 'A',
+      confirmation: 'LOCKDOWN',
+      pinProof: 'wrong',
+    })
+    expect(res.status()).toBe(401)
+  })
+
+  test('tier A runs lockdown with correct proof', async ({ request }) => {
+    const sk = generateSecretKey()
+    const authed = createAuthedRequest(request, sk)
+    await authed.post('/api/auth/kek-proof', { proof: 'correct' })
+    const res = await authed.post('/api/auth/sessions/lockdown', {
+      tier: 'A',
+      confirmation: 'LOCKDOWN',
+      pinProof: 'correct',
     })
     expect(res.status()).toBe(200)
     const body = await res.json()
