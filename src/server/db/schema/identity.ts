@@ -24,17 +24,6 @@ export const users = pgTable('users', {
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 })
 
-export const jwtRevocations = pgTable('jwt_revocations', {
-  /** JWT ID (jti claim) */
-  jti: text('jti').primaryKey(),
-  /** Pubkey of the revoked user */
-  pubkey: text('pubkey').notNull(),
-  /** When the JWT expires (rows can be cleaned up after this) */
-  expiresAt: timestamp('expires_at').notNull(),
-  /** When this revocation was created */
-  createdAt: timestamp('created_at').defaultNow().notNull(),
-})
-
 export const webauthnCredentials = pgTable('webauthn_credentials', {
   id: text('id').primaryKey(), // base64url credential ID
   pubkey: text('pubkey').notNull(),

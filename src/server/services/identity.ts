@@ -5,7 +5,6 @@ import type { MessagingChannelType } from '../../shared/types'
 import type { Database } from '../db'
 import {
   inviteCodes,
-  jwtRevocations,
   provisionRooms,
   users,
   webauthnChallenges,
@@ -740,24 +739,9 @@ export class IdentityService {
 
   // ------------------------------------------------------------------ JWT Revocations
 
-  /**
-   * Check whether a JWT (by its jti claim) has been revoked.
-   * Revoked access tokens must be rejected even if cryptographically valid
-   * and not yet expired.
-   */
-  async isJtiRevoked(jti: string): Promise<boolean> {
-    const rows = await this.db
-      .select({ jti: jwtRevocations.jti })
-      .from(jwtRevocations)
-      .where(eq(jwtRevocations.jti, jti))
-      .limit(1)
-    return rows.length > 0
-  }
-
   // ------------------------------------------------------------------ Test Reset
 
   async resetForTest(): Promise<void> {
-    await this.db.delete(jwtRevocations)
     await this.db.delete(webauthnCredentials)
     await this.db.delete(webauthnChallenges)
     await this.db.delete(provisionRooms)

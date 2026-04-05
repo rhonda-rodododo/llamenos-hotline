@@ -316,6 +316,13 @@
       "when": 1775574000000,
       "tag": "0043_user_sessions",
       "breakpoints": true
+    },
+    {
+      "idx": 44,
+      "version": "7",
+      "when": 1775574000001,
+      "tag": "0044_drop_jwt_revocations",
+      "breakpoints": true
     }
   ]
 }
