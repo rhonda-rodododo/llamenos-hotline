@@ -15,12 +15,18 @@ const IdParamSchema = z.object({
   id: z.string().openapi({ param: { name: 'id', in: 'path' }, example: 'tag-abc123' }),
 })
 
-const CreateTagBodySchema = z.object({
-  name: z.string(),
-  encryptedLabel: z.string(),
-  color: z.string().optional(),
-  encryptedCategory: z.string().optional(),
-})
+// Hub-key-encrypted create: either name (plaintext fallback) OR encryptedLabel
+// (hub-key ciphertext) must be provided. See CreateTagSchema in shared/schemas/tags.ts.
+const CreateTagBodySchema = z
+  .object({
+    name: z.string().min(1).optional(),
+    encryptedLabel: z.string().min(1).optional(),
+    color: z.string().optional(),
+    encryptedCategory: z.string().optional(),
+  })
+  .refine((data) => data.name !== undefined || data.encryptedLabel !== undefined, {
+    message: 'Either name or encryptedLabel must be provided',
+  })
 
 const UpdateTagBodySchema = z.object({
   encryptedLabel: z.string().optional(),
