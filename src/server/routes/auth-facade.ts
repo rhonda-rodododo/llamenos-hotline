@@ -85,6 +85,10 @@ interface AuthFacadeEnv {
 
 const rateLimitStore = new Map<string, { count: number; expiresAt: number }>()
 
+const LIMIT_PIN_CHANGE_PER_HOUR = 5
+const LIMIT_RECOVERY_ROTATE_PER_DAY = 3
+const LIMIT_LOCKDOWN_PER_15MIN = 3
+
 function isRateLimited(key: string, maxPerWindow: number, windowMs = 5 * 60 * 1000): boolean {
   const now = Date.now()
   const entry = rateLimitStore.get(key)
