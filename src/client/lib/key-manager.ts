@@ -246,6 +246,28 @@ export async function unlock(pin: string): Promise<string | null> {
       if (isSynthetic) {
         await rotateSyntheticToReal(pin, blob, prfOutput)
       }
+
+      // One-time: if the server has no KEK proof hash stored yet, post ours
+      // so subsequent security actions (PIN change, recovery rotate, lockdown)
+      // can be authenticated. Non-fatal; errors are logged and ignored.
+      try {
+        const statusRes = await fetch('/api/auth/kek-proof/status', { credentials: 'include' })
+        if (statusRes.ok) {
+          const { hasProof } = (await statusRes.json()) as { hasProof: boolean }
+          if (!hasProof) {
+            const { deriveKekProof } = await import('./key-store-v2')
+            const proof = deriveKekProof(pin)
+            await fetch('/api/auth/kek-proof', {
+              method: 'POST',
+              credentials: 'include',
+              headers: { 'content-type': 'application/json' },
+              body: JSON.stringify({ proof }),
+            })
+          }
+        }
+      } catch (err) {
+        console.warn('[key-manager] kek-proof sync failed:', (err as Error)?.message)
+      }
     }
     return pubkey
   } catch (err) {
