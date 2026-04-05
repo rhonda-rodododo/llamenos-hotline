@@ -1,4 +1,6 @@
-import { bytesToHex } from '@noble/hashes/utils.js'
+import { hmac } from '@noble/hashes/hmac.js'
+import { sha256 } from '@noble/hashes/sha2.js'
+import { bytesToHex, utf8ToBytes } from '@noble/hashes/utils.js'
 import { Hono } from 'hono'
 import { getCookie, setCookie } from 'hono/cookie'
 import { createMiddleware } from 'hono/factory'
@@ -12,6 +14,8 @@ import {
 } from '../../shared/schemas/auth'
 import { AuthEventListQuerySchema } from '../../shared/schemas/auth-events'
 import { PasskeyRenameSchema } from '../../shared/schemas/passkeys'
+import { UpdateSecurityPrefsSchema } from '../../shared/schemas/security-prefs'
+import { SignalContactRegisterSchema } from '../../shared/schemas/signal-contact'
 import type { IdPAdapter } from '../idp/adapter'
 import { hashIP } from '../lib/crypto-service'
 import type { CryptoService } from '../lib/crypto-service'
@@ -407,6 +411,9 @@ authFacade.use('/passkeys/*', jwtAuth)
 authFacade.use('/admin/*', jwtAuth)
 authFacade.use('/events', jwtAuth)
 authFacade.use('/events/*', jwtAuth)
+authFacade.use('/signal-contact', jwtAuth)
+authFacade.use('/signal-contact/*', jwtAuth)
+authFacade.use('/security-prefs', jwtAuth)
 
 // POST /webauthn/register-options
 authFacade.post('/webauthn/register-options', async (c) => {
@@ -937,6 +944,140 @@ authFacade.post('/events/:id/report', async (c) => {
     /* non-fatal */
   }
   return c.json({ ok: true })
+})
+
+// ---------------------------------------------------------------------------
+// Signal contact endpoints
+// ---------------------------------------------------------------------------
+
+authFacade.get('/signal-contact', async (c) => {
+  const pubkey = c.get('pubkey')
+  const svc = c.get('signalContacts')
+  const contact = await svc.findByUser(pubkey)
+  if (!contact) return c.json({ contact: null })
+  return c.json({
+    contact: {
+      identifierHash: contact.identifierHash,
+      identifierCiphertext: contact.identifierCiphertext,
+      identifierEnvelope: contact.identifierEnvelope,
+      identifierType: contact.identifierType,
+      verifiedAt: contact.verifiedAt?.toISOString() ?? null,
+      updatedAt: contact.updatedAt.toISOString(),
+    },
+  })
+})
+
+authFacade.get('/signal-contact/register-token', async (c) => {
+  const pubkey = c.get('pubkey')
+  const nonce = globalThis.crypto.randomUUID()
+  const expiresAt = Date.now() + 5 * 60 * 1000
+  const tokenBody = `${pubkey}:${nonce}:${expiresAt}`
+  const mac = hmac(sha256, utf8ToBytes(c.env.HMAC_SECRET), utf8ToBytes(tokenBody))
+  const token = `${tokenBody}:${bytesToHex(mac)}`
+  return c.json({
+    token,
+    expiresAt: new Date(expiresAt).toISOString(),
+    notifierUrl: process.env.SIGNAL_NOTIFIER_URL ?? 'http://signal-notifier:3100',
+  })
+})
+
+authFacade.get('/signal-contact/hmac-key', async (c) => {
+  const pubkey = c.get('pubkey')
+  const key = bytesToHex(
+    hmac(sha256, utf8ToBytes(c.env.HMAC_SECRET), utf8ToBytes(`signal-contact:${pubkey}`))
+  )
+  return c.json({ key })
+})
+
+authFacade.post('/signal-contact', async (c) => {
+  const pubkey = c.get('pubkey')
+  const parsed = SignalContactRegisterSchema.safeParse(await c.req.json())
+  if (!parsed.success) {
+    return c.json({ error: 'Invalid body' }, 400)
+  }
+  const parts = parsed.data.bridgeRegistrationToken.split(':')
+  if (parts.length !== 4) return c.json({ error: 'Invalid token' }, 401)
+  const [tokenPubkey, nonce, expiresStr, macHex] = parts
+  if (tokenPubkey !== pubkey) return c.json({ error: 'Token mismatch' }, 401)
+  if (Number(expiresStr) < Date.now()) return c.json({ error: 'Token expired' }, 401)
+  const body = `${tokenPubkey}:${nonce}:${expiresStr}`
+  const expected = bytesToHex(hmac(sha256, utf8ToBytes(c.env.HMAC_SECRET), utf8ToBytes(body)))
+  if (expected !== macHex) return c.json({ error: 'Token invalid' }, 401)
+
+  const svc = c.get('signalContacts')
+  await svc.upsert({
+    userPubkey: pubkey,
+    identifierHash: parsed.data.identifierHash,
+    identifierCiphertext: parsed.data.identifierCiphertext as Ciphertext,
+    identifierEnvelope: parsed.data.identifierEnvelope as RecipientEnvelope[],
+    identifierType: parsed.data.identifierType,
+  })
+
+  const authEvents = c.get('authEvents')
+  await authEvents.record({
+    userPubkey: pubkey,
+    eventType: 'signal_contact_changed',
+    payload: { meta: { identifierType: parsed.data.identifierType } },
+  })
+
+  return c.json({ ok: true })
+})
+
+authFacade.delete('/signal-contact', async (c) => {
+  const pubkey = c.get('pubkey')
+  const svc = c.get('signalContacts')
+  const contact = await svc.findByUser(pubkey)
+  if (contact) {
+    try {
+      await fetch(
+        `${(process.env.SIGNAL_NOTIFIER_URL ?? '').replace(/\/+$/, '')}/identities/${contact.identifierHash}`,
+        {
+          method: 'DELETE',
+          headers: { authorization: `Bearer ${process.env.SIGNAL_NOTIFIER_API_KEY}` },
+        }
+      )
+    } catch {
+      // best-effort
+    }
+    await svc.deleteByUser(pubkey)
+  }
+  return c.json({ ok: true })
+})
+
+// ---------------------------------------------------------------------------
+// Security prefs endpoints
+// ---------------------------------------------------------------------------
+
+authFacade.get('/security-prefs', async (c) => {
+  const pubkey = c.get('pubkey')
+  const svc = c.get('securityPrefs')
+  const row = await svc.get(pubkey)
+  return c.json({
+    lockDelayMs: row.lockDelayMs,
+    disappearingTimerDays: row.disappearingTimerDays,
+    digestCadence: row.digestCadence,
+    alertOnNewDevice: row.alertOnNewDevice,
+    alertOnPasskeyChange: row.alertOnPasskeyChange,
+    alertOnPinChange: row.alertOnPinChange,
+  })
+})
+
+authFacade.patch('/security-prefs', async (c) => {
+  const pubkey = c.get('pubkey')
+  const parsed = UpdateSecurityPrefsSchema.safeParse(await c.req.json())
+  if (!parsed.success) {
+    return c.json({ error: 'Invalid body' }, 400)
+  }
+  const svc = c.get('securityPrefs')
+  const row = await svc.update(pubkey, parsed.data)
+  return c.json({
+    lockDelayMs: row.lockDelayMs,
+    disappearingTimerDays: row.disappearingTimerDays,
+    digestCadence: row.digestCadence,
+    alertOnNewDevice: row.alertOnNewDevice,
+    alertOnPasskeyChange: row.alertOnPasskeyChange,
+    alertOnPinChange: row.alertOnPinChange,
+  })
 })
 
 export default authFacade
