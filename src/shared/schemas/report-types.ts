@@ -1,13 +1,17 @@
 import { z } from 'zod/v4'
 
 // ── Create Report Type ──
-export const CreateReportTypeSchema = z.object({
-  name: z.string().optional(),
-  encryptedName: z.string().optional(),
-  description: z.string().optional(),
-  encryptedDescription: z.string().optional(),
-  isDefault: z.boolean().optional(),
-})
+export const CreateReportTypeSchema = z
+  .object({
+    name: z.string().min(1).max(200).optional(),
+    encryptedName: z.string().optional(),
+    description: z.string().optional(),
+    encryptedDescription: z.string().optional(),
+    isDefault: z.boolean().optional(),
+  })
+  .refine((data) => data.name !== undefined || data.encryptedName !== undefined, {
+    message: 'Either name or encryptedName must be provided',
+  })
 export type CreateReportTypeInput = z.infer<typeof CreateReportTypeSchema>
 
 // ── Update Report Type ──

@@ -18,20 +18,22 @@ export class TagsService {
 
   async createTag(data: {
     hubId: string
-    name: string
-    encryptedLabel: Ciphertext
+    name?: string
+    encryptedLabel?: Ciphertext
     color?: string
     encryptedCategory?: Ciphertext | null
     createdBy: string
   }): Promise<TagRow> {
+    const encLabel = (data.encryptedLabel ?? data.name ?? '') as Ciphertext
+    const slug = (data.name ?? data.encryptedLabel ?? '').toLowerCase().replace(/[^a-z0-9-]/g, '-')
     const id = crypto.randomUUID()
     const [row] = await this.db
       .insert(tags)
       .values({
         id,
         hubId: data.hubId,
-        name: data.name.toLowerCase().replace(/[^a-z0-9-]/g, '-'),
-        encryptedLabel: data.encryptedLabel,
+        name: slug,
+        encryptedLabel: encLabel,
         color: data.color ?? '#6b7280',
         encryptedCategory: data.encryptedCategory ?? null,
         createdBy: data.createdBy,

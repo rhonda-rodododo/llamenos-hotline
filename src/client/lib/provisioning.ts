@@ -22,6 +22,7 @@ import { hkdf } from '@noble/hashes/hkdf.js'
 import { sha256 } from '@noble/hashes/sha2.js'
 import { bytesToHex, hexToBytes } from '@noble/hashes/utils.js'
 import { LABEL_DEVICE_PROVISION, SAS_INFO, SAS_SALT } from '@shared/crypto-labels'
+import { unbiasedSixDigitCode } from '@shared/crypto-primitives'
 
 function randomBytes(n: number): Uint8Array {
   const buf = new Uint8Array(n)
@@ -46,8 +47,7 @@ function deriveSharedKey(sharedX: Uint8Array): Uint8Array {
  */
 export function computeProvisioningSAS(sharedX: Uint8Array): string {
   const sasBytes = hkdf(sha256, sharedX, utf8ToBytes(SAS_SALT), utf8ToBytes(SAS_INFO), 4)
-  const num = ((sasBytes[0] << 24) | (sasBytes[1] << 16) | (sasBytes[2] << 8) | sasBytes[3]) >>> 0
-  const code = (num % 1_000_000).toString().padStart(6, '0')
+  const code = unbiasedSixDigitCode(sasBytes)
   return `${code.slice(0, 3)} ${code.slice(3)}`
 }
 

@@ -1,3 +1,4 @@
+import { PinChallengeDialog } from '@/components/pin-challenge-dialog'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -11,6 +12,7 @@ import { useAuditLog } from '@/lib/queries/audit'
 import { useShifts } from '@/lib/queries/shifts'
 import { useUpdateUser, useUser } from '@/lib/queries/users'
 import { useToast } from '@/lib/toast'
+import { usePinChallenge } from '@/lib/use-pin-challenge'
 import { LANGUAGES } from '@shared/languages'
 import { Link, createFileRoute } from '@tanstack/react-router'
 import {
@@ -57,6 +59,7 @@ function UserProfilePage() {
   const [auditPage, setAuditPage] = useState(1)
   const [unmaskedPhone, setUnmaskedPhone] = useState<string | null>(null)
   const [savingChannels, setSavingChannels] = useState(false)
+  const pinChallenge = usePinChallenge()
   const auditLimit = 20
 
   // React Query: user (already decrypted by query fn), shifts, audit log
@@ -78,7 +81,7 @@ function UserProfilePage() {
   )
 
   if (!isAdmin) {
-    return <div className="text-muted-foreground">Access denied</div>
+    return <div className="text-muted-foreground">{t('common.accessDenied')}</div>
   }
 
   if (loading) {
@@ -183,8 +186,11 @@ function UserProfilePage() {
                       if (unmaskedPhone) {
                         setUnmaskedPhone(null)
                       } else {
-                        const res = await getUserUnmasked(user.pubkey)
-                        setUnmaskedPhone(res.user.phone)
+                        const ok = await pinChallenge.requirePin()
+                        if (ok) {
+                          const res = await getUserUnmasked(user.pubkey)
+                          setUnmaskedPhone(res.user.phone)
+                        }
                       }
                     }}
                     className="text-muted-foreground hover:text-foreground"
@@ -337,6 +343,13 @@ function UserProfilePage() {
           </div>
         )}
       </Card>
+      <PinChallengeDialog
+        open={pinChallenge.isOpen}
+        attempts={pinChallenge.attempts}
+        error={pinChallenge.error}
+        onComplete={pinChallenge.handleComplete}
+        onCancel={pinChallenge.handleCancel}
+      />
     </div>
   )
 }

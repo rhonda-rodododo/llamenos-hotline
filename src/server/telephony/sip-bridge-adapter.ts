@@ -82,7 +82,8 @@ export abstract class SipBridgeAdapter implements TelephonyAdapter {
         return bytes.buffer
       }
       return null
-    } catch {
+    } catch (err) {
+      console.error(`[telephony:sip-bridge] Failed to get recording for call ${callSid}:`, err)
       return null
     }
   }
@@ -98,7 +99,8 @@ export abstract class SipBridgeAdapter implements TelephonyAdapter {
         return bytes.buffer
       }
       return null
-    } catch {
+    } catch (err) {
+      console.error(`[telephony:sip-bridge] Failed to get recording audio ${recordingSid}:`, err)
       return null
     }
   }

@@ -330,18 +330,31 @@ export class PlivoAdapter implements TelephonyAdapter {
     for (const result of calls) {
       if (result.status === 'fulfilled') {
         callSids.push(result.value)
+      } else {
+        console.error('[telephony:plivo] Failed to ring volunteer:', result.reason)
       }
+    }
+
+    if (callSids.length === 0 && outboundTargets.length > 0) {
+      console.error(
+        `[telephony:plivo] CRITICAL: All ${outboundTargets.length} outbound calls failed — no volunteers are being rung`
+      )
     }
 
     return callSids
   }
 
   async cancelRinging(callSids: string[], exceptSid?: string): Promise<void> {
-    await Promise.allSettled(
+    const results = await Promise.allSettled(
       callSids
         .filter((sid) => sid !== exceptSid)
         .map((sid) => this.plivoApi(`/Call/${sid}/`, { method: 'DELETE' }))
     )
+    for (const result of results) {
+      if (result.status === 'rejected') {
+        console.warn('[telephony:plivo] Failed to cancel ringing:', result.reason)
+      }
+    }
   }
 
   async validateWebhook(request: Request): Promise<boolean> {
@@ -394,7 +407,12 @@ export class PlivoAdapter implements TelephonyAdapter {
   async getCallRecording(callSid: string): Promise<ArrayBuffer | null> {
     // Plivo recording lookup by call UUID
     const res = await this.plivoApi(`/Recording/?call_uuid=${callSid}`, { method: 'GET' })
-    if (!res.ok) return null
+    if (!res.ok) {
+      console.error(
+        `[telephony:plivo] Failed to get recordings for call ${callSid}: ${res.status} ${res.statusText}`
+      )
+      return null
+    }
 
     const data = (await res.json()) as { objects?: Array<{ recording_url: string }> }
     if (!data.objects?.length) return null
@@ -405,7 +423,12 @@ export class PlivoAdapter implements TelephonyAdapter {
         Authorization: `Basic ${btoa(`${this.authId}:${this.authToken}`)}`,
       },
     })
-    if (!audioRes.ok) return null
+    if (!audioRes.ok) {
+      console.error(
+        `[telephony:plivo] Failed to get recording audio for call ${callSid}: ${audioRes.status} ${audioRes.statusText}`
+      )
+      return null
+    }
     return audioRes.arrayBuffer()
   }
 
@@ -416,7 +439,12 @@ export class PlivoAdapter implements TelephonyAdapter {
         Authorization: `Basic ${btoa(`${this.authId}:${this.authToken}`)}`,
       },
     })
-    if (!audioRes.ok) return null
+    if (!audioRes.ok) {
+      console.error(
+        `[telephony:plivo] Failed to get recording audio ${recordingSid}: ${audioRes.status} ${audioRes.statusText}`
+      )
+      return null
+    }
     return audioRes.arrayBuffer()
   }
 

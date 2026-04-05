@@ -541,20 +541,7 @@ export class RecordsService {
     const hId = hubId ?? 'global'
     const now = new Date()
 
-    // Get last entry hash for chain
-    const lastRows = await this.db
-      .select({ entryHash: auditLog.entryHash })
-      .from(auditLog)
-      .where(eq(auditLog.hubId, hId))
-      .orderBy(desc(auditLog.createdAt))
-      .limit(1)
-    const previousEntryHash = lastRows[0]?.entryHash ?? null
-
-    // Compute hash chain
-    const payload = `${event}${actorPubkey}${JSON.stringify(details ?? {})}${previousEntryHash ?? ''}${now.toISOString()}`
-    const entryHash = bytesToHex(sha256(utf8ToBytes(payload)))
-
-    // Encrypt event and details with server-key (plaintext kept for transition)
+    // Encrypt event and details with server-key (done outside transaction to minimize hold time)
     const encryptedEvent = this.crypto.serverEncrypt(event, LABEL_AUDIT_EVENT)
     const encryptedDetails = this.crypto.serverEncrypt(
       JSON.stringify(details ?? {}),
@@ -562,19 +549,45 @@ export class RecordsService {
     )
 
     const id = crypto.randomUUID()
-    const [row] = await this.db
-      .insert(auditLog)
-      .values({
-        id,
-        hubId: hId,
-        actorPubkey,
-        encryptedEvent,
-        encryptedDetails,
-        previousEntryHash,
-        entryHash,
-        createdAt: now,
-      })
-      .returning()
+
+    // Wrap SELECT + INSERT in a transaction to prevent hash chain branching under concurrency.
+    // Default PostgreSQL isolation (READ COMMITTED) does NOT prevent two concurrent transactions
+    // from both reading the same "last entry" and then both inserting with identical
+    // previousEntryHash — branching the chain. We serialize per-hub via an advisory lock
+    // keyed on the hub id, which holds for the duration of the transaction.
+    const row = await this.db.transaction(async (tx) => {
+      // Acquire a transaction-scoped advisory lock keyed on hubId. Concurrent
+      // addAuditEntry calls for the same hub will wait here until the lock is released.
+      await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${hId}))`)
+
+      // Get last entry hash for chain (within transaction for consistency)
+      const lastRows = await tx
+        .select({ entryHash: auditLog.entryHash })
+        .from(auditLog)
+        .where(eq(auditLog.hubId, hId))
+        .orderBy(desc(auditLog.createdAt))
+        .limit(1)
+      const previousEntryHash = lastRows[0]?.entryHash ?? null
+
+      // Compute hash chain
+      const payload = `${event}${actorPubkey}${JSON.stringify(details ?? {})}${previousEntryHash ?? ''}${now.toISOString()}`
+      const entryHash = bytesToHex(sha256(utf8ToBytes(payload)))
+
+      const [inserted] = await tx
+        .insert(auditLog)
+        .values({
+          id,
+          hubId: hId,
+          actorPubkey,
+          encryptedEvent,
+          encryptedDetails,
+          previousEntryHash,
+          entryHash,
+          createdAt: now,
+        })
+        .returning()
+      return inserted
+    })
 
     return {
       id: row.id,
@@ -833,6 +846,7 @@ export class RecordsService {
   #rowToNote(r: typeof noteEnvelopes.$inferSelect): EncryptedNote {
     return {
       id: r.id,
+      hubId: r.hubId,
       callId: r.callId ?? undefined,
       conversationId: r.conversationId ?? undefined,
       contactHash: r.contactHash ?? undefined,

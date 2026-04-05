@@ -5,6 +5,7 @@
  * passed as a URL query parameter and forwarded to the API.
  */
 
+import { type PreferencesUpdateInput, PreferencesUpdateSchema } from '@shared/schemas/blasts'
 import { queryOptions, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { queryKeys } from './keys'
 
@@ -60,11 +61,17 @@ export function usePreferences(token: string) {
 export function useUpdatePreferences(token: string) {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: async (updates: Record<string, unknown>): Promise<SubscriberPrefs> => {
+    mutationFn: async (updates: PreferencesUpdateInput): Promise<SubscriberPrefs> => {
+      // Client-side validation: matches server-side schema so we fail fast
+      // before even making the network request.
+      const parsed = PreferencesUpdateSchema.safeParse(updates)
+      if (!parsed.success) {
+        throw new Error(`Invalid preferences: ${parsed.error.message}`)
+      }
       const res = await fetch(`/api/messaging/preferences?token=${encodeURIComponent(token)}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(updates),
+        body: JSON.stringify(parsed.data),
       })
       if (!res.ok) throw new Error('Update failed')
       return res.json() as Promise<SubscriberPrefs>

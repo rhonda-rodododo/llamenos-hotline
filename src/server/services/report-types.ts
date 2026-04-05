@@ -42,38 +42,42 @@ export class ReportTypeService {
     const id = crypto.randomUUID()
     const now = new Date()
 
-    // If this is set as default, clear existing defaults first
-    if (data.isDefault) {
-      await this.db
-        .update(reportTypes)
-        .set({ isDefault: false, updatedAt: now })
-        .where(
-          and(
-            eq(reportTypes.hubId, hubId),
-            eq(reportTypes.isDefault, true),
-            isNull(reportTypes.archivedAt)
-          )
-        )
-    }
-
     // Client provides hub-key encrypted name/description
     const encryptedName = (data.encryptedName ?? data.name) as Ciphertext
     const encryptedDescription = (data.encryptedDescription ??
       data.description ??
       null) as Ciphertext | null
 
-    const [row] = await this.db
-      .insert(reportTypes)
-      .values({
-        id,
-        hubId,
-        encryptedName,
-        encryptedDescription,
-        isDefault: data.isDefault ?? false,
-        createdAt: now,
-        updatedAt: now,
-      })
-      .returning()
+    // Wrap clear-default + insert in a transaction to prevent race where two
+    // concurrent creates both set isDefault: true
+    const row = await this.db.transaction(async (tx) => {
+      if (data.isDefault) {
+        await tx
+          .update(reportTypes)
+          .set({ isDefault: false, updatedAt: now })
+          .where(
+            and(
+              eq(reportTypes.hubId, hubId),
+              eq(reportTypes.isDefault, true),
+              isNull(reportTypes.archivedAt)
+            )
+          )
+      }
+
+      const [inserted] = await tx
+        .insert(reportTypes)
+        .values({
+          id,
+          hubId,
+          encryptedName,
+          encryptedDescription,
+          isDefault: data.isDefault ?? false,
+          createdAt: now,
+          updatedAt: now,
+        })
+        .returning()
+      return inserted
+    })
 
     return this.#rowToReportType(row)
   }

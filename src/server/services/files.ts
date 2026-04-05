@@ -15,11 +15,6 @@ export class FilesService {
     return this.storage !== null
   }
 
-  /** @deprecated Use hasStorage */
-  get hasBlob(): boolean {
-    return this.hasStorage
-  }
-
   // ------------------------------------------------------------------ DB: FileRecord CRUD
 
   async createFileRecord(

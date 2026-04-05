@@ -1,6 +1,6 @@
 import { LABEL_USER_PII } from '@shared/crypto-labels'
 import type { Ciphertext } from '@shared/crypto-types'
-import { and, eq, isNull } from 'drizzle-orm'
+import { and, eq, isNull, sql } from 'drizzle-orm'
 import type { MessagingChannelType } from '../../shared/types'
 import type { Database } from '../db'
 import {
@@ -270,17 +270,23 @@ export class IdentityService {
     const vol = await this.getUser(data.pubkey)
     if (!vol) throw new AppError(404, 'User not found')
 
-    const hubRoles = vol.hubRoles ?? []
-    const idx = hubRoles.findIndex((hr) => hr.hubId === data.hubId)
-    if (idx >= 0) {
-      hubRoles[idx].roleIds = data.roleIds
-    } else {
-      hubRoles.push({ hubId: data.hubId, roleIds: data.roleIds })
-    }
-
+    // Atomic JSONB update: remove existing entry for this hub, then append new one.
+    // Prevents lost-update race when concurrent setHubRole calls modify the same user.
+    // Build the new entry via jsonb_build_object to avoid parameter-encoding issues.
+    const roleIdsJson = JSON.stringify(data.roleIds)
     const [row] = await this.db
       .update(users)
-      .set({ hubRoles })
+      .set({
+        hubRoles: sql`(
+          SELECT jsonb_agg(elem)
+          FROM (
+            SELECT value AS elem FROM jsonb_array_elements(COALESCE(${users.hubRoles}, '[]'::jsonb))
+            WHERE value->>'hubId' != ${data.hubId}
+            UNION ALL
+            SELECT jsonb_build_object('hubId', ${data.hubId}::text, 'roleIds', ${roleIdsJson}::jsonb)
+          ) sub
+        )`,
+      })
       .where(eq(users.pubkey, data.pubkey))
       .returning()
     return this.#rowToUser(row)
@@ -290,12 +296,19 @@ export class IdentityService {
     const vol = await this.getUser(pubkey)
     if (!vol) throw new AppError(404, 'User not found')
 
-    const hubRoles = (vol.hubRoles ?? []).filter((hr) => hr.hubId !== hubId)
+    // Atomic JSONB filter: removes the entry for this hub without read-modify-write.
     const [row] = await this.db
       .update(users)
-      .set({ hubRoles })
+      .set({
+        hubRoles: sql`(
+          SELECT COALESCE(jsonb_agg(value), '[]'::jsonb)
+          FROM jsonb_array_elements(COALESCE(${users.hubRoles}, '[]'::jsonb))
+          WHERE value->>'hubId' != ${hubId}
+        )`,
+      })
       .where(eq(users.pubkey, pubkey))
       .returning()
+    if (!row) throw new AppError(404, 'User not found')
     return this.#rowToUser(row)
   }
 
@@ -510,24 +523,33 @@ export class IdentityService {
   }
 
   async updateWebAuthnCounter(data: UpdateWebAuthnCounterData): Promise<void> {
-    const rows = await this.db
-      .select({ id: webauthnCredentials.id, counter: webauthnCredentials.counter })
-      .from(webauthnCredentials)
-      .where(
-        and(eq(webauthnCredentials.pubkey, data.pubkey), eq(webauthnCredentials.id, data.credId))
-      )
-      .limit(1)
-    const existing = rows[0]
-    if (!existing) throw new AppError(404, 'Credential not found')
-    if (data.counter <= Number(existing.counter)) {
-      throw new AppError(409, 'Counter replay detected — possible authenticator replay attack')
-    }
-    await this.db
+    // Atomic conditional UPDATE to avoid TOCTOU race between SELECT and UPDATE.
+    // Two concurrent auths must not both observe N and both write N+1.
+    const updated = await this.db
       .update(webauthnCredentials)
       .set({ counter: String(data.counter), lastUsedAt: new Date(data.lastUsedAt) })
       .where(
-        and(eq(webauthnCredentials.pubkey, data.pubkey), eq(webauthnCredentials.id, data.credId))
+        and(
+          eq(webauthnCredentials.pubkey, data.pubkey),
+          eq(webauthnCredentials.id, data.credId),
+          sql`CAST(${webauthnCredentials.counter} AS BIGINT) < ${data.counter}`
+        )
       )
+      .returning({ id: webauthnCredentials.id })
+
+    if (updated.length === 0) {
+      // Either the credential doesn't exist or the counter condition failed.
+      // Distinguish between the two for a clearer error.
+      const existing = await this.db
+        .select({ id: webauthnCredentials.id })
+        .from(webauthnCredentials)
+        .where(
+          and(eq(webauthnCredentials.pubkey, data.pubkey), eq(webauthnCredentials.id, data.credId))
+        )
+        .limit(1)
+      if (!existing[0]) throw new AppError(404, 'Credential not found')
+      throw new AppError(409, 'Counter replay detected — possible authenticator replay attack')
+    }
   }
 
   // ------------------------------------------------------------------ WebAuthn Challenges
@@ -680,6 +702,22 @@ export class IdentityService {
   async isSuperAdmin(pubkey: string): Promise<boolean> {
     const superAdmins = await this.getSuperAdminPubkeys()
     return superAdmins.includes(pubkey)
+  }
+
+  // ------------------------------------------------------------------ JWT Revocations
+
+  /**
+   * Check whether a JWT (by its jti claim) has been revoked.
+   * Revoked access tokens must be rejected even if cryptographically valid
+   * and not yet expired.
+   */
+  async isJtiRevoked(jti: string): Promise<boolean> {
+    const rows = await this.db
+      .select({ jti: jwtRevocations.jti })
+      .from(jwtRevocations)
+      .where(eq(jwtRevocations.jti, jti))
+      .limit(1)
+    return rows.length > 0
   }
 
   // ------------------------------------------------------------------ Test Reset

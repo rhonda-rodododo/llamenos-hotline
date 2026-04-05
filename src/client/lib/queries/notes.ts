@@ -16,6 +16,7 @@ import {
   type EncryptedNote,
   createNote,
   getCustomFields,
+  getNote,
   listNotes,
   updateNote,
 } from '@/lib/api'
@@ -84,8 +85,8 @@ export const notesListOptions = (filters: NoteFilters | undefined, auth: NotesAu
           payload = { text }
         } else if (isTranscription && !note.ephemeralPubkey) {
           payload = { text: note.encryptedContent }
-        } else if (hasNsec && unlocked) {
-          const myPubkey = publicKey!
+        } else if (hasNsec && unlocked && publicKey) {
+          const myPubkey = publicKey
           const envelope = isAdmin
             ? (note.adminEnvelopes?.find((e) => e.pubkey === myPubkey) ?? note.adminEnvelopes?.[0])
             : note.authorEnvelope
@@ -125,6 +126,80 @@ export const notesListOptions = (filters: NoteFilters | undefined, auth: NotesAu
 export function useNotes(filters?: NoteFilters) {
   const { hasNsec, publicKey, isAdmin } = useAuth()
   return useQuery(notesListOptions(filters, { isAdmin, publicKey, hasNsec }))
+}
+
+// ---------------------------------------------------------------------------
+// noteDetailOptions
+// ---------------------------------------------------------------------------
+
+/**
+ * queryOptions factory for a single note detail (with custom fields).
+ * Fetches the note + custom field definitions and decrypts the note content
+ * in the queryFn — per the decrypt-on-fetch architecture.
+ */
+export const noteDetailOptions = (noteId: string, auth: NotesAuth) =>
+  queryOptions({
+    queryKey: queryKeys.notes.detail(noteId),
+    queryFn: async (): Promise<{
+      note: DecryptedNote
+      customFields: CustomFieldDefinition[]
+    }> => {
+      const { isAdmin, publicKey, hasNsec } = auth
+      const [res, cfRes] = await Promise.all([
+        getNote(noteId),
+        getCustomFields().catch(() => ({ fields: [] as CustomFieldDefinition[] })),
+      ])
+
+      const rawNote = res.note
+      const isTranscription = rawNote.authorPubkey.startsWith('system:transcription')
+      const unlocked = await keyManager.isUnlocked()
+      let payload: NotePayload
+
+      if (isTranscription && rawNote.ephemeralPubkey && hasNsec && unlocked) {
+        const text =
+          (await decryptTranscription(rawNote.encryptedContent, rawNote.ephemeralPubkey)) ||
+          '[Decryption failed]'
+        payload = { text }
+      } else if (isTranscription && !rawNote.ephemeralPubkey) {
+        payload = { text: rawNote.encryptedContent }
+      } else if (hasNsec && unlocked) {
+        const myPubkey = publicKey ?? ''
+        const envelope = isAdmin
+          ? (rawNote.adminEnvelopes?.find((e) => e.pubkey === myPubkey) ??
+            rawNote.adminEnvelopes?.[0])
+          : rawNote.authorEnvelope
+        if (envelope) {
+          payload = (await decryptNoteV2(rawNote.encryptedContent, envelope)) || {
+            text: '[Decryption failed]',
+          }
+        } else {
+          payload = { text: '[Decryption failed]' }
+        }
+      } else {
+        payload = { text: '[No key]' }
+      }
+
+      const note: DecryptedNote = {
+        ...rawNote,
+        decrypted: payload.text,
+        payload,
+        isTranscription,
+      }
+      return { note, customFields: cfRes.fields }
+    },
+    staleTime: 2 * 60 * 1000, // 2 minutes
+  })
+
+// ---------------------------------------------------------------------------
+// useNoteDetail
+// ---------------------------------------------------------------------------
+
+/**
+ * Fetch and decrypt a single note by id, along with custom field definitions.
+ */
+export function useNoteDetail(noteId: string) {
+  const { hasNsec, publicKey, isAdmin } = useAuth()
+  return useQuery(noteDetailOptions(noteId, { isAdmin, publicKey, hasNsec }))
 }
 
 // ---------------------------------------------------------------------------

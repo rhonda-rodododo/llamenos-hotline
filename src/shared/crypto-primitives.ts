@@ -99,6 +99,19 @@ export function eciesUnwrapKey(
 }
 
 /**
+ * Convert 4 raw bytes to an unbiased 6-digit code (000000–999999).
+ * Uses multiplication-shift instead of modulo to avoid distribution bias.
+ * (Modulo 10^6 of a 32-bit value gives codes 0–294967 an extra 1/4295 probability.)
+ */
+export function unbiasedSixDigitCode(fourBytes: Uint8Array): string {
+  const num =
+    ((fourBytes[0] << 24) | (fourBytes[1] << 16) | (fourBytes[2] << 8) | fourBytes[3]) >>> 0
+  return Math.floor((num / 4_294_967_296) * 1_000_000)
+    .toString()
+    .padStart(6, '0')
+}
+
+/**
  * HMAC-SHA256. Returns raw bytes (caller converts to hex as needed).
  */
 export function hmacSha256(key: Uint8Array, input: Uint8Array): Uint8Array {

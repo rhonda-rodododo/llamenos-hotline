@@ -7,7 +7,7 @@ import { LABEL_FILE_KEY, LABEL_FILE_METADATA } from '@shared/crypto-labels'
 import type { Ciphertext } from '@shared/crypto-types'
 import type { EncryptedFileMetadata, EncryptedMetaItem, FileKeyEnvelope } from '@shared/types'
 import { eciesUnwrapKey, eciesWrapKey } from './crypto'
-import { getCryptoWorker } from './crypto-worker-client'
+import { cryptoWorker } from './crypto-worker-client'
 
 function randomBytes(n: number): Uint8Array {
   const buf = new Uint8Array(n)
@@ -74,7 +74,7 @@ export async function decryptFileMetadata(
 ): Promise<EncryptedFileMetadata | null> {
   try {
     // Delegate ECDH to the crypto worker — secret key never touches main thread
-    const worker = getCryptoWorker()
+    const worker = cryptoWorker
     const resultHex = await worker.decrypt(
       ephemeralPubkeyHex,
       encryptedContentHex,

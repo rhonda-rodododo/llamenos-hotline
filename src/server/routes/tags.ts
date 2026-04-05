@@ -15,12 +15,18 @@ const IdParamSchema = z.object({
   id: z.string().openapi({ param: { name: 'id', in: 'path' }, example: 'tag-abc123' }),
 })
 
-const CreateTagBodySchema = z.object({
-  name: z.string(),
-  encryptedLabel: z.string(),
-  color: z.string().optional(),
-  encryptedCategory: z.string().optional(),
-})
+// Hub-key-encrypted create: either name (plaintext fallback) OR encryptedLabel
+// (hub-key ciphertext) must be provided. See CreateTagSchema in shared/schemas/tags.ts.
+const CreateTagBodySchema = z
+  .object({
+    name: z.string().min(1).optional(),
+    encryptedLabel: z.string().min(1).optional(),
+    color: z.string().optional(),
+    encryptedCategory: z.string().optional(),
+  })
+  .refine((data) => data.name !== undefined || data.encryptedLabel !== undefined, {
+    message: 'Either name or encryptedLabel must be provided',
+  })
 
 const UpdateTagBodySchema = z.object({
   encryptedLabel: z.string().optional(),
@@ -101,8 +107,8 @@ tags.openapi(createTagRoute, async (c) => {
 
   const body = c.req.valid('json')
 
-  if (!body.name || !body.encryptedLabel) {
-    return c.json({ error: 'name and encryptedLabel are required' }, 400)
+  if (!body.name && !body.encryptedLabel) {
+    return c.json({ error: 'Either name or encryptedLabel must be provided' }, 400)
   }
 
   // Check if strictTags prevents this user from creating (admins with settings:manage-fields bypass)
@@ -117,7 +123,7 @@ tags.openapi(createTagRoute, async (c) => {
     const tag = await services.tags.createTag({
       hubId,
       name: body.name,
-      encryptedLabel: body.encryptedLabel as import('@shared/crypto-types').Ciphertext,
+      encryptedLabel: body.encryptedLabel as import('@shared/crypto-types').Ciphertext | undefined,
       color: body.color,
       encryptedCategory:
         (body.encryptedCategory as import('@shared/crypto-types').Ciphertext | undefined) ?? null,

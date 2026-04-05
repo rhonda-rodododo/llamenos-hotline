@@ -1,9 +1,10 @@
 import { afterAll, beforeAll, describe, expect, test } from 'bun:test'
 import path from 'node:path'
 import { createDatabase } from '@server/db'
-import { webauthnCredentials } from '@server/db/schema'
+import { users, webauthnCredentials } from '@server/db/schema'
 import { CryptoService } from '@server/lib/crypto-service'
 import { IdentityService } from '@server/services/identity'
+import type { Ciphertext } from '@shared/crypto-types'
 import { eq } from 'drizzle-orm'
 import { migrate } from 'drizzle-orm/bun-sql/migrator'
 
@@ -37,8 +38,11 @@ beforeAll(async () => {
   })
 })
 
+const HUB_ROLE_TEST_PUBKEY = `test-hubrole-user-${crypto.randomUUID().slice(0, 8)}`
+
 afterAll(async () => {
   await db.delete(webauthnCredentials).where(eq(webauthnCredentials.id, TEST_CRED_ID))
+  await db.delete(users).where(eq(users.pubkey, HUB_ROLE_TEST_PUBKEY))
 })
 
 describe('webauthn-counter', () => {
@@ -96,5 +100,96 @@ describe('webauthn-counter', () => {
         lastUsedAt: new Date().toISOString(),
       })
     ).rejects.toThrow()
+  })
+
+  test('concurrent updateWebAuthnCounter — only one succeeds (atomic counter)', async () => {
+    // Seed a fresh credential at counter=5
+    const credId = `test-cred-concurrent-${crypto.randomUUID().slice(0, 8)}`
+    const pubkey = `test-wa-concurrent-${crypto.randomUUID().slice(0, 8)}`
+    await db.insert(webauthnCredentials).values({
+      id: credId,
+      pubkey,
+      publicKey: 'fake-public-key-bytes',
+      counter: '5',
+      transports: [],
+      backedUp: false,
+      lastUsedAt: new Date(),
+    })
+
+    try {
+      // Two concurrent increments to the exact same target counter=6.
+      // Atomic WHERE counter < newCounter guarantees exactly one will succeed.
+      const results = await Promise.allSettled([
+        service.updateWebAuthnCounter({
+          pubkey,
+          credId,
+          counter: 6,
+          lastUsedAt: new Date().toISOString(),
+        }),
+        service.updateWebAuthnCounter({
+          pubkey,
+          credId,
+          counter: 6,
+          lastUsedAt: new Date().toISOString(),
+        }),
+      ])
+
+      const fulfilled = results.filter((r) => r.status === 'fulfilled')
+      const rejected = results.filter((r) => r.status === 'rejected')
+      expect(fulfilled.length).toBe(1)
+      expect(rejected.length).toBe(1)
+
+      // Final counter must be 6
+      const [row] = await db
+        .select({ counter: webauthnCredentials.counter })
+        .from(webauthnCredentials)
+        .where(eq(webauthnCredentials.id, credId))
+      expect(row.counter).toBe('6')
+    } finally {
+      await db.delete(webauthnCredentials).where(eq(webauthnCredentials.id, credId))
+    }
+  })
+})
+
+describe('setHubRole — atomic JSONB update under concurrency', () => {
+  test('concurrent setHubRole for 3 different hubs — no lost updates', async () => {
+    // Create a user row with empty hubRoles
+    await db.insert(users).values({
+      pubkey: HUB_ROLE_TEST_PUBKEY,
+      roles: [],
+      hubRoles: [],
+      encryptedName: '' as Ciphertext,
+      encryptedPhone: '' as Ciphertext,
+    })
+
+    const hubIds = [
+      `${HUB_ROLE_TEST_PUBKEY}-hub-1`,
+      `${HUB_ROLE_TEST_PUBKEY}-hub-2`,
+      `${HUB_ROLE_TEST_PUBKEY}-hub-3`,
+    ]
+
+    // Fire 3 concurrent setHubRole calls — naive read-modify-write would lose entries.
+    await Promise.all(
+      hubIds.map((hubId, i) =>
+        service.setHubRole({
+          pubkey: HUB_ROLE_TEST_PUBKEY,
+          hubId,
+          roleIds: [`role-${i}`],
+        })
+      )
+    )
+
+    // Re-read and assert all 3 entries are present
+    const [row] = await db
+      .select({ hubRoles: users.hubRoles })
+      .from(users)
+      .where(eq(users.pubkey, HUB_ROLE_TEST_PUBKEY))
+
+    const hubRoles = row.hubRoles as Array<{ hubId: string; roleIds: string[] }>
+    expect(hubRoles.length).toBe(3)
+    for (const hubId of hubIds) {
+      const match = hubRoles.find((hr) => hr.hubId === hubId)
+      expect(match).toBeDefined()
+    }
   })
 })

@@ -75,6 +75,31 @@ describe('computeProvisioningSAS', () => {
     // We can't guarantee a hit in 200 tries, but the length check is authoritative
     expect(found || true).toBe(true)
   })
+
+  test('1000 random shared secrets all produce valid 6-digit codes with no extreme bias', () => {
+    const seen = new Set<string>()
+
+    for (let i = 0; i < 1000; i++) {
+      const secret = new Uint8Array(32)
+      crypto.getRandomValues(secret)
+      const sas = computeProvisioningSAS(secret)
+
+      // Format: "XXX XXX"
+      expect(sas).toMatch(/^\d{3} \d{3}$/)
+
+      // Numeric value within 000000-999999
+      const numeric = sas.replace(' ', '')
+      const num = Number.parseInt(numeric, 10)
+      expect(num).toBeGreaterThanOrEqual(0)
+      expect(num).toBeLessThanOrEqual(999999)
+
+      seen.add(sas)
+    }
+
+    // Distribution check: 1M possible codes, 1000 samples should yield high variety
+    // (no extreme bias — if biased, many would collide)
+    expect(seen.size).toBeGreaterThan(900)
+  })
 })
 
 // ---------------------------------------------------------------------------

@@ -450,18 +450,31 @@ export class TelnyxAdapter implements TelephonyAdapter {
     for (const result of calls) {
       if (result.status === 'fulfilled') {
         callControlIds.push(result.value)
+      } else {
+        console.error('[telephony:telnyx] Failed to ring volunteer:', result.reason)
       }
+    }
+
+    if (callControlIds.length === 0 && outboundTargets.length > 0) {
+      console.error(
+        `[telephony:telnyx] CRITICAL: All ${outboundTargets.length} outbound calls failed — no volunteers are being rung`
+      )
     }
 
     return callControlIds
   }
 
   async cancelRinging(callSids: string[], exceptSid?: string): Promise<void> {
-    await Promise.allSettled(
+    const results = await Promise.allSettled(
       callSids
         .filter((sid) => sid !== exceptSid)
         .map((sid) => this.client.command(sid, 'hangup', {}))
     )
+    for (const result of results) {
+      if (result.status === 'rejected') {
+        console.warn('[telephony:telnyx] Failed to cancel ringing:', result.reason)
+      }
+    }
   }
 
   // --- Recording Methods ---
@@ -476,7 +489,8 @@ export class TelnyxAdapter implements TelephonyAdapter {
   async getRecordingAudio(recordingSid: string): Promise<ArrayBuffer | null> {
     try {
       return await this.client.getRecording(recordingSid)
-    } catch {
+    } catch (err) {
+      console.error(`[telephony:telnyx] Failed to get recording audio ${recordingSid}:`, err)
       return null
     }
   }

@@ -38,9 +38,6 @@ export interface RecipientEnvelope {
 /** @deprecated Use RecipientEnvelope instead. Kept for gradual migration. */
 export type KeyEnvelope = Omit<RecipientEnvelope, 'pubkey'>
 
-/** @deprecated Use RecipientEnvelope instead. */
-export type RecipientKeyEnvelope = RecipientEnvelope
-
 // --- Telephony Provider Config ---
 
 export type TelephonyProviderType =
@@ -109,9 +106,6 @@ export interface TelephonyProviderDraft {
 // --- Call Preference (re-exported from schema) ---
 
 export type { CallPreference } from '@shared/schemas/common'
-
-// PROVIDER_REQUIRED_FIELDS removed — use ProviderCapabilities.credentialSchema instead
-// See src/server/telephony/capabilities.ts
 
 // --- Geocoding / Location Types ---
 

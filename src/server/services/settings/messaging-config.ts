@@ -105,6 +105,7 @@ export async function getEnabledChannels(
     whatsapp: mConfig.enabledChannels.includes('whatsapp'),
     signal: mConfig.enabledChannels.includes('signal'),
     rcs: mConfig.enabledChannels.includes('rcs'),
+    telegram: mConfig.enabledChannels.includes('telegram'),
     reports: sState.selectedChannels.includes('reports'),
   }
 }

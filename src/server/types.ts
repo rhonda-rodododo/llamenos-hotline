@@ -130,9 +130,6 @@ export interface Env {
   DATABASE_URL?: string
 }
 
-/** @deprecated Use roles array + permission system instead */
-export type UserRole = 'volunteer' | 'admin' | 'reporter'
-
 export interface User {
   pubkey: string
   name: string
@@ -237,6 +234,7 @@ export interface CallRecordMetadata {
 
 export interface EncryptedNote {
   id: string
+  hubId: string
   callId?: string // links to a voice call
   conversationId?: string // links to a conversation (Epic 123)
   contactHash?: string // links to a contact for contact-level view (Epic 123)
@@ -386,9 +384,6 @@ export interface EncryptedMessage {
   retryCount: number
   createdAt: Date
 }
-
-/** @deprecated Use RecipientEnvelope from @shared/types instead. */
-export type MessageKeyEnvelope = RecipientEnvelope
 
 // --- Blast Queue ---
 

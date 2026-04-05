@@ -186,7 +186,7 @@ function NotesPage() {
     a.download = `notes-export-${new Date().toISOString().slice(0, 10)}.json`
     a.click()
     URL.revokeObjectURL(url)
-    toast(t('notes.exportEncrypted'), 'success')
+    toast(t('notes.exportComplete'), 'success')
   }
 
   return (

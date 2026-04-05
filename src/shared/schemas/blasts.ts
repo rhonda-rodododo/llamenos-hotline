@@ -97,3 +97,11 @@ export const BlastSettingsSchema = z.object({
   rateLimitPerSecond: z.number().int(),
 })
 export type BlastSettings = z.infer<typeof BlastSettingsSchema>
+
+// ── Subscriber Preferences (public, token-validated) ──
+export const PreferencesUpdateSchema = z.object({
+  status: z.enum(['active', 'unsubscribed']).optional(),
+  language: z.string().max(10).optional(),
+  tags: z.array(z.string().max(100)).max(50).optional(),
+})
+export type PreferencesUpdateInput = z.infer<typeof PreferencesUpdateSchema>

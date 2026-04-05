@@ -12,7 +12,9 @@ import type { Database } from '../db'
 import {
   activeShifts,
   auditLog,
+  callLegs,
   callRecords,
+  conversations,
   gdprConsents,
   gdprErasureRequests,
   jwtRevocations,
@@ -155,14 +157,16 @@ export class GdprService {
       startedAt: r.startedAt.toISOString(),
     }))
 
-    // Call records (ciphertext only — server cannot decrypt)
+    // Call records — only calls the user was involved in (via callLegs join)
     const callRows = await this.db
-      .select({
+      .selectDistinct({
         id: callRecords.id,
         startedAt: callRecords.startedAt,
         status: callRecords.status,
       })
       .from(callRecords)
+      .innerJoin(callLegs, eq(callLegs.callSid, callRecords.id))
+      .where(eq(callLegs.userPubkey, pubkey))
     const calls = callRows.map((r) => ({
       id: r.id,
       startedAt: r.startedAt.toISOString(),
@@ -435,25 +439,35 @@ export class GdprService {
 
     const deletedCalls = await this.db
       .delete(callRecords)
-      .where(lt(callRecords.startedAt, callCutoff))
+      .where(and(eq(callRecords.hubId, hId), lt(callRecords.startedAt, callCutoff)))
       .returning({ id: callRecords.id })
     const callRecordsDeleted = deletedCalls.length
 
     const deletedNotes = await this.db
       .delete(noteEnvelopes)
-      .where(lt(noteEnvelopes.createdAt, noteCutoff))
+      .where(and(eq(noteEnvelopes.hubId, hId), lt(noteEnvelopes.createdAt, noteCutoff)))
       .returning({ id: noteEnvelopes.id })
     const notesDeleted = deletedNotes.length
 
+    // messageEnvelopes doesn't have hubId — filter via conversations join
+    const hubConversationIds = this.db
+      .select({ id: conversations.id })
+      .from(conversations)
+      .where(eq(conversations.hubId, hId))
     const deletedMessages = await this.db
       .delete(messageEnvelopes)
-      .where(lt(messageEnvelopes.createdAt, msgCutoff))
+      .where(
+        and(
+          sql`${messageEnvelopes.conversationId} IN (${hubConversationIds})`,
+          lt(messageEnvelopes.createdAt, msgCutoff)
+        )
+      )
       .returning({ id: messageEnvelopes.id })
     const messagesDeleted = deletedMessages.length
 
     const deletedAudit = await this.db
       .delete(auditLog)
-      .where(lt(auditLog.createdAt, auditCutoff))
+      .where(and(eq(auditLog.hubId, hId), lt(auditLog.createdAt, auditCutoff)))
       .returning({ id: auditLog.id })
     const auditLogDeleted = deletedAudit.length
 

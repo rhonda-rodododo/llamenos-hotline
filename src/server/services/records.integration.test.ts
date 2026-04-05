@@ -104,4 +104,41 @@ describe('audit-chain', () => {
     // e2's previousEntryHash still points to the original (now-invalid) hash
     expect(e2.previousEntryHash).toBe(e1.entryHash)
   })
+
+  test('concurrent addAuditEntry calls maintain valid hash chain', async () => {
+    const hub = `${RUN_PREFIX}-concurrent-${crypto.randomUUID().slice(0, 8)}`
+
+    // Fire two entries concurrently — the transaction must serialize them
+    // so that the second entry's previousEntryHash is the first entry's entryHash
+    // (not null, and not a stale value).
+    const [a, b] = await Promise.all([
+      service.addAuditEntry(hub, 'concurrent.event.a', 'pubkey-c'),
+      service.addAuditEntry(hub, 'concurrent.event.b', 'pubkey-c'),
+    ])
+
+    // Both entries must exist
+    const { sql } = await import('drizzle-orm')
+    const rows = await db
+      .select({
+        id: auditLog.id,
+        entryHash: auditLog.entryHash,
+        previousEntryHash: auditLog.previousEntryHash,
+        createdAt: auditLog.createdAt,
+      })
+      .from(auditLog)
+      .where(sql`${auditLog.hubId} = ${hub}`)
+      .orderBy(auditLog.createdAt)
+    expect(rows.length).toBe(2)
+
+    // Both returned IDs must be in the DB
+    const ids = new Set([a.id, b.id])
+    expect(ids.has(rows[0].id)).toBe(true)
+    expect(ids.has(rows[1].id)).toBe(true)
+
+    // The chain: first row has null previousEntryHash, second references first's entryHash.
+    expect(rows[0].previousEntryHash).toBeNull()
+    expect(rows[1].previousEntryHash).toBe(rows[0].entryHash)
+    // Hash values must not collide
+    expect(rows[0].entryHash).not.toBe(rows[1].entryHash)
+  })
 })

@@ -115,6 +115,7 @@ export function encryptNsec(
   const cipher = xchacha20poly1305(kek, nonce)
   const plaintext = new TextEncoder().encode(nsecHex)
   const ciphertext = cipher.encrypt(plaintext)
+  plaintext.fill(0)
 
   // Hash pubkey for identification — never store plaintext pubkey alongside encrypted key
   const pubkeyHash = bytesToHex(
@@ -169,6 +170,17 @@ export function loadEncryptedKeyV2(): EncryptedKeyDataV2 | null {
       typeof parsed !== 'object' ||
       parsed === null ||
       (parsed as Record<string, unknown>).version !== 2
+    ) {
+      return null
+    }
+    const p = parsed as Record<string, unknown>
+    if (
+      typeof p.salt !== 'string' ||
+      typeof p.nonce !== 'string' ||
+      typeof p.ciphertext !== 'string' ||
+      typeof p.pubkeyHash !== 'string' ||
+      typeof p.kdf !== 'string' ||
+      typeof p.cipher !== 'string'
     ) {
       return null
     }

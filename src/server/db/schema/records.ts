@@ -95,7 +95,7 @@ export const noteReplies = pgTable('note_replies', {
   hubId: text('hub_id').notNull().default('global'),
   parentNoteId: text('parent_note_id').notNull(),
   encryptedContent: text('encrypted_content').notNull(),
-  authorEnvelope: text('author_envelope').notNull(),
+  authorEnvelope: jsonb<RecipientEnvelope>()('author_envelope').notNull(),
   adminEnvelopes: jsonb<RecipientEnvelope[]>()('admin_envelopes').notNull().default([]),
   authorPubkey: text('author_pubkey').notNull(),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),

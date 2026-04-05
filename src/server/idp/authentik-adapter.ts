@@ -73,10 +73,25 @@ export class AuthentikAdapter implements IdPAdapter {
   }
 
   async initialize(): Promise<void> {
-    const res = await this.apiCall('GET', '/api/v3/core/users/?page_size=1')
-    if (!res.ok) {
-      throw new Error(`Authentik API connectivity check failed: HTTP ${res.status}`)
+    // Authentik health-check can report ready before its API is fully bootstrapped
+    // (returns 503 during startup). Retry with backoff up to ~30s to handle this.
+    const maxAttempts = 10
+    let lastStatus = 0
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      const res = await this.apiCall('GET', '/api/v3/core/users/?page_size=1')
+      if (res.ok) return
+      lastStatus = res.status
+      // 503 = still starting up, retry. Other codes = fail fast.
+      if (res.status !== 503) {
+        throw new Error(`Authentik API connectivity check failed: HTTP ${res.status}`)
+      }
+      if (attempt < maxAttempts) {
+        await new Promise((resolve) => setTimeout(resolve, 3000))
+      }
     }
+    throw new Error(
+      `Authentik API connectivity check failed after ${maxAttempts} attempts: HTTP ${lastStatus}`
+    )
   }
 
   // --- User lifecycle ---
