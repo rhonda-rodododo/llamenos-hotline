@@ -1537,7 +1537,8 @@
     "tabs": {
       "sessions": "Active sessions",
       "passkeys": "Passkeys",
-      "history": "History"
+      "history": "History",
+      "factors": "Factors"
     },
     "history": {
       "description": "Security events on your account from the last 90 days.",
@@ -1564,11 +1565,56 @@
     "sessions": {
       "none": "No active sessions.",
       "signOutEverywhere": "Sign out everywhere else",
+      "lockdown": "Emergency lockdown",
       "current": "Current",
       "unknownBrowser": "Unknown browser",
       "unknownLocation": "Unknown location",
       "lastSeen": "Last active",
       "revoke": "Revoke"
+    },
+    "lockdown": {
+      "title": "Emergency lockdown",
+      "intro": "Choose the scope of the lockdown. This cannot be undone.",
+      "tierA": {
+        "title": "Sign out everywhere else",
+        "desc": "Revoke all other sessions. Passkeys are untouched."
+      },
+      "tierB": {
+        "title": "Remove other devices + passkeys",
+        "desc": "Revoke all other sessions and delete all passkeys except the one in use."
+      },
+      "tierC": {
+        "title": "Full lockdown",
+        "desc": "Revoke ALL sessions, delete ALL passkeys, deactivate account. Admin must reactivate."
+      },
+      "confirmLabel": "Type LOCKDOWN to confirm",
+      "pinLabel": "Enter your PIN",
+      "execute": "Execute lockdown",
+      "locking": "Locking\u2026",
+      "typeWord": "Type LOCKDOWN to confirm"
+    },
+    "pin": {
+      "title": "Change PIN",
+      "current": "Current PIN",
+      "new": "New PIN",
+      "confirm": "Confirm new PIN",
+      "save": "Change PIN",
+      "success": "PIN changed successfully",
+      "mismatch": "New PINs do not match",
+      "tooShort": "PIN must be at least 6 digits",
+      "locked": "Account is locked; unlock first"
+    },
+    "recovery": {
+      "title": "Rotate recovery key",
+      "rotate": "Rotate recovery key",
+      "download": "Download",
+      "warning": "Save this key now. It will not be shown again.",
+      "locked": "Unlock first"
+    },
+    "lock": {
+      "title": "Auto-lock delay",
+      "desc": "Lock the app after this long when the tab is hidden.",
+      "immediate": "Immediate"
     },
     "passkeys": {
       "backedUp": "Synced",

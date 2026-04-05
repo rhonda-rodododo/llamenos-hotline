@@ -1,6 +1,8 @@
+import { LockdownModal } from '@/components/LockdownModal'
 import { Button } from '@/components/ui/button'
 import { useRevokeOtherSessions, useRevokeSession, useSessions } from '@/lib/queries/security'
 import { createFileRoute } from '@tanstack/react-router'
+import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 export const Route = createFileRoute('/security/sessions')({
@@ -24,17 +26,32 @@ function SessionsPage() {
   const { data: sessions, isLoading } = useSessions()
   const revoke = useRevokeSession()
   const revokeOthers = useRevokeOtherSessions()
+  const [lockdownOpen, setLockdownOpen] = useState(false)
 
   if (isLoading) return <div>{t('common.loading', 'Loading...')}</div>
   if (!sessions || sessions.length === 0) {
-    return <div>{t('security.sessions.none', 'No active sessions.')}</div>
+    return (
+      <>
+        <div className="flex justify-end mb-4">
+          <Button
+            variant="destructive"
+            onClick={() => setLockdownOpen(true)}
+            data-testid="open-lockdown"
+          >
+            {t('security.sessions.lockdown', 'Emergency lockdown')}
+          </Button>
+        </div>
+        <div>{t('security.sessions.none', 'No active sessions.')}</div>
+        <LockdownModal open={lockdownOpen} onClose={() => setLockdownOpen(false)} />
+      </>
+    )
   }
 
   const hasOthers = sessions.some((s) => !s.isCurrent)
 
   return (
     <div data-testid="sessions-page">
-      <div className="flex justify-end mb-4">
+      <div className="flex justify-end gap-2 mb-4">
         <Button
           variant="destructive"
           disabled={!hasOthers || revokeOthers.isPending}
@@ -42,6 +59,13 @@ function SessionsPage() {
           data-testid="revoke-all-others"
         >
           {t('security.sessions.signOutEverywhere', 'Sign out everywhere else')}
+        </Button>
+        <Button
+          variant="destructive"
+          onClick={() => setLockdownOpen(true)}
+          data-testid="open-lockdown"
+        >
+          {t('security.sessions.lockdown', 'Emergency lockdown')}
         </Button>
       </div>
       <ul className="space-y-2">
@@ -82,6 +106,7 @@ function SessionsPage() {
           </li>
         ))}
       </ul>
+      <LockdownModal open={lockdownOpen} onClose={() => setLockdownOpen(false)} />
     </div>
   )
 }
