@@ -316,16 +316,18 @@ authFacade.post('/webauthn/login-verify', async (c) => {
     // Fire new-device alert on first sighting of this IP hash (non-fatal, fire-and-forget)
     if (!seenBefore) {
       const notifications = c.get('userNotifications')
-      void notifications
-        .sendAlert(matched.ownerPubkey, {
-          type: 'new_device',
-          city: geoCity,
-          country: geoCountry,
-          userAgent: formatUserAgent(userAgent),
-        })
-        .catch(() => {
-          /* non-fatal */
-        })
+      if (notifications) {
+        void notifications
+          .sendAlert(matched.ownerPubkey, {
+            type: 'new_device',
+            city: geoCity,
+            country: geoCountry,
+            userAgent: formatUserAgent(userAgent),
+          })
+          .catch(() => {
+            /* non-fatal */
+          })
+      }
     }
 
     setCookie(c, 'llamenos-refresh', token, {
@@ -502,12 +504,14 @@ authFacade.post('/webauthn/register-verify', async (c) => {
       /* non-fatal */
     }
 
-    void c
-      .get('userNotifications')
-      .sendAlert(pubkey, { type: 'passkey_added', credentialLabel: newCred.label })
-      .catch(() => {
-        /* non-fatal */
-      })
+    const notifications = c.get('userNotifications')
+    if (notifications) {
+      void notifications
+        .sendAlert(pubkey, { type: 'passkey_added', credentialLabel: newCred.label })
+        .catch(() => {
+          /* non-fatal */
+        })
+    }
 
     return c.json({ ok: true })
   } catch {
@@ -858,7 +862,10 @@ authFacade.delete('/passkeys/:id', async (c) => {
   const pubkey = c.get('pubkey')
   const credId = decodeURIComponent(c.req.param('id'))
   if (!credId) return c.json({ error: 'Invalid credential ID' }, 400)
-  const existing = (await identity.getWebAuthnCredentials(pubkey)).find((cr) => cr.id === credId)
+  const existing = await identity
+    .getWebAuthnCredentials(pubkey)
+    .then((creds) => creds?.find((cr) => cr.id === credId))
+    .catch(() => undefined)
   try {
     await identity.deleteWebAuthnCredential(pubkey, credId)
     try {
@@ -871,12 +878,14 @@ authFacade.delete('/passkeys/:id', async (c) => {
       /* non-fatal */
     }
     if (existing) {
-      void c
-        .get('userNotifications')
-        .sendAlert(pubkey, { type: 'passkey_removed', credentialLabel: existing.label })
-        .catch(() => {
-          /* non-fatal */
-        })
+      const notifications = c.get('userNotifications')
+      if (notifications) {
+        void notifications
+          .sendAlert(pubkey, { type: 'passkey_removed', credentialLabel: existing.label })
+          .catch(() => {
+            /* non-fatal */
+          })
+      }
     }
     return c.json({ ok: true })
   } catch {
@@ -891,7 +900,10 @@ authFacade.delete('/devices/:id', async (c) => {
   const credId = decodeURIComponent(c.req.param('id'))
   if (!credId) return c.json({ error: 'Invalid credential ID' }, 400)
 
-  const existing = (await identity.getWebAuthnCredentials(pubkey)).find((cr) => cr.id === credId)
+  const existing = await identity
+    .getWebAuthnCredentials(pubkey)
+    .then((creds) => creds?.find((cr) => cr.id === credId))
+    .catch(() => undefined)
   try {
     await identity.deleteWebAuthnCredential(pubkey, credId)
     try {
@@ -904,12 +916,14 @@ authFacade.delete('/devices/:id', async (c) => {
       /* non-fatal */
     }
     if (existing) {
-      void c
-        .get('userNotifications')
-        .sendAlert(pubkey, { type: 'passkey_removed', credentialLabel: existing.label })
-        .catch(() => {
-          /* non-fatal */
-        })
+      const notifications = c.get('userNotifications')
+      if (notifications) {
+        void notifications
+          .sendAlert(pubkey, { type: 'passkey_removed', credentialLabel: existing.label })
+          .catch(() => {
+            /* non-fatal */
+          })
+      }
     }
     return c.json({ ok: true })
   } catch {
