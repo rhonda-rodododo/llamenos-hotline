@@ -191,5 +191,6 @@ export const queryKeys = {
     all: ['security'] as const,
     sessions: () => ['security', 'sessions'] as const,
     passkeys: () => ['security', 'passkeys'] as const,
+    history: (params?: { limit?: number }) => ['security', 'history', params ?? {}] as const,
   },
 } as const
