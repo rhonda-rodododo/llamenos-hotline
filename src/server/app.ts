@@ -146,6 +146,9 @@ authFacadeBridge.use('*', async (c, next) => {
   ctx.set('authEvents', services.authEvents)
   ctx.set('records', services.records)
   ctx.set('crypto', services.crypto)
+  ctx.set('signalContacts', services.signalContacts)
+  ctx.set('securityPrefs', services.securityPrefs)
+  ctx.set('userNotifications', services.userNotifications)
   // Bridge env bindings that AuthFacadeEnv expects
   c.env.JWT_SECRET = c.env.JWT_SECRET ?? process.env.JWT_SECRET ?? ''
   c.env.AUTH_WEBAUTHN_RP_ID =

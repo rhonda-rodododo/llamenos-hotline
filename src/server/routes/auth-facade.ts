@@ -28,9 +28,12 @@ import {
 import type { AuthEventsService } from '../services/auth-events'
 import type { IdentityService } from '../services/identity'
 import type { RecordsService } from '../services/records'
+import type { SecurityPrefsService } from '../services/security-prefs'
 import { sessionExpiry } from '../services/sessions'
 import type { SessionService } from '../services/sessions'
 import type { SettingsService } from '../services/settings'
+import type { SignalContactsService } from '../services/signal-contacts'
+import type { UserNotificationsService } from '../services/user-notifications'
 
 const GEOIP_DB_PATH = process.env.GEOIP_DB_PATH ?? './data/geoip/dbip-city.mmdb'
 const SESSION_COOKIE_MAX_AGE = 30 * 24 * 60 * 60 // 30 days in seconds
@@ -60,6 +63,9 @@ interface AuthFacadeEnv {
     authEvents: AuthEventsService
     records: RecordsService
     crypto: CryptoService
+    signalContacts: SignalContactsService
+    securityPrefs: SecurityPrefsService
+    userNotifications: UserNotificationsService
     /** Set by jwtAuth middleware on authenticated routes */
     pubkey: string
     /** Set by jwtAuth middleware — permissions from the access token */

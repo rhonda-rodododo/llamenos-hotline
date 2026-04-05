@@ -16,11 +16,14 @@ import type { ProviderHealthService } from './provider-health'
 import { PushService } from './push'
 import { RecordsService } from './records'
 import { ReportTypeService } from './report-types'
+import { SecurityPrefsService } from './security-prefs'
 import { SessionService } from './sessions'
 import { SettingsService } from './settings'
 import { ShiftService } from './shifts'
+import { SignalContactsService } from './signal-contacts'
 import { TagsService } from './tags'
 import { TeamsService } from './teams'
+import { UserNotificationsService } from './user-notifications'
 
 export type {
   AuthEventsService,
@@ -43,6 +46,9 @@ export type {
   TagsService,
   TeamsService,
   ProviderHealthService,
+  SignalContactsService,
+  SecurityPrefsService,
+  UserNotificationsService,
 }
 
 export interface Services {
@@ -68,6 +74,9 @@ export interface Services {
   providerHealth?: ProviderHealthService
   storage: StorageManager | null
   crypto: CryptoService
+  signalContacts: SignalContactsService
+  securityPrefs: SecurityPrefsService
+  userNotifications: UserNotificationsService
 }
 
 export function createServices(
@@ -82,6 +91,19 @@ export function createServices(
   // Late-bind cross-service dependencies to avoid circular constructor coupling
   contactService.setTeamsService(teamsService)
 
+  const authEvents = new AuthEventsService(db, crypto)
+  const signalContacts = new SignalContactsService(db, process.env.HMAC_SECRET ?? '')
+  const securityPrefs = new SecurityPrefsService(db)
+  const userNotifications = new UserNotificationsService(
+    signalContacts,
+    securityPrefs,
+    authEvents,
+    {
+      notifierUrl: process.env.SIGNAL_NOTIFIER_URL ?? 'http://signal-notifier:3100',
+      notifierApiKey: process.env.SIGNAL_NOTIFIER_API_KEY ?? '',
+    }
+  )
+
   return {
     identity: new IdentityService(db, crypto),
     settings,
@@ -94,7 +116,10 @@ export function createServices(
     gdpr: new GdprService(db, crypto),
     reportTypes: new ReportTypeService(db, crypto, settings),
     sessions: new SessionService(db, process.env.HMAC_SECRET ?? ''),
-    authEvents: new AuthEventsService(db, crypto),
+    authEvents,
+    signalContacts,
+    securityPrefs,
+    userNotifications,
     push: new PushService(db, crypto),
     contacts: contactService,
     intakes: new IntakesService(db, crypto),
