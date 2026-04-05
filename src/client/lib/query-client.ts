@@ -41,6 +41,7 @@ const ENCRYPTED_QUERY_KEYS: QueryKeyDomain[] = [
   'hubs',
   'tags',
   'teams',
+  'firehose',
 ]
 
 /**

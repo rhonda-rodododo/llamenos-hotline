@@ -128,6 +128,9 @@ export interface Env {
 
   // DATABASE_URL for Drizzle connection (Node.js only)
   DATABASE_URL?: string
+
+  // Firehose agent seal key (hex-encoded 32 bytes) — used to encrypt agent nsec at rest
+  FIREHOSE_AGENT_SEAL_KEY?: string
 }
 
 export interface User {

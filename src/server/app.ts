@@ -23,6 +23,7 @@ import contactImportRoutes from './routes/contacts-import'
 import conversationsRoutes from './routes/conversations'
 import devRoutes from './routes/dev'
 import filesRoutes from './routes/files'
+import firehoseRoutes from './routes/firehose'
 import gdprRoutes from './routes/gdpr'
 import geocodingRoutes from './routes/geocoding'
 import healthRoutes from './routes/health'
@@ -108,6 +109,7 @@ api.doc('/openapi.json', {
     { name: 'Teams', description: 'Team management' },
     { name: 'Tags', description: 'Tag management' },
     { name: 'Intakes', description: 'Intake form management' },
+    { name: 'Firehose', description: 'Firehose report agent connections' },
   ],
 })
 
@@ -224,6 +226,8 @@ authenticated.use('/teams/*', requireHubOrSuperAdmin)
 authenticated.use('/teams', requireHubOrSuperAdmin)
 authenticated.use('/intakes/*', requireHubOrSuperAdmin)
 authenticated.use('/intakes', requireHubOrSuperAdmin)
+authenticated.use('/firehose/*', requireHubOrSuperAdmin)
+authenticated.use('/firehose', requireHubOrSuperAdmin)
 authenticated.route('/analytics', analyticsRoutes)
 authenticated.route('/shifts', shiftsRoutes)
 authenticated.route('/bans', bansRoutes)
@@ -246,6 +250,7 @@ authenticated.route('/contacts', contactImportRoutes)
 authenticated.route('/tags', tagsRoutes)
 authenticated.route('/teams', teamsRoutes)
 authenticated.route('/intakes', intakesRoutes)
+authenticated.route('/firehose', firehoseRoutes)
 authenticated.route('/gdpr', gdprRoutes)
 authenticated.route('/geocoding', geocodingRoutes)
 authenticated.route('/notifications', notificationsRoutes)
@@ -268,6 +273,7 @@ hubScoped.route('/contacts', contactImportRoutes)
 hubScoped.route('/tags', tagsRoutes)
 hubScoped.route('/teams', teamsRoutes)
 hubScoped.route('/intakes', intakesRoutes)
+hubScoped.route('/firehose', firehoseRoutes)
 
 authenticated.route('/hubs/:hubId', hubScoped)
 
@@ -311,6 +317,7 @@ const KNOWN_API_PREFIXES = new Set([
   'intakes',
   'gdpr',
   'geocoding',
+  'firehose',
 ])
 api.use('*', async (c, next) => {
   // Extract first path segment after /api/

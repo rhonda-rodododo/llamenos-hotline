@@ -37,6 +37,7 @@ export const PERMISSION_GROUP_LABELS: Record<string, string> = {
   audit: 'Audit Log',
   blasts: 'Blasts',
   voicemail: 'Voicemail',
+  firehose: 'Firehose Agents',
   gdpr: 'GDPR / Privacy',
   system: 'System',
 }
@@ -448,6 +449,18 @@ export const PERMISSION_CATALOG = {
     subgroup: 'actions',
   },
 
+  // --- Firehose ---
+  'firehose:manage': {
+    label: 'Create, update, and delete firehose connections',
+    group: 'firehose',
+    subgroup: 'actions',
+  },
+  'firehose:read': {
+    label: 'View firehose connection status and health',
+    group: 'firehose',
+    subgroup: 'actions',
+  },
+
   // --- GDPR: Actions ---
   'gdpr:consent': {
     label: 'Record and check own data processing consent',
@@ -558,6 +571,8 @@ export const DEFAULT_ROLES: Omit<Role, 'createdAt' | 'updatedAt'>[] = [
       'files:*',
       'contacts:*',
       'voicemail:*',
+      'firehose:manage',
+      'firehose:read',
       'gdpr:consent',
       'gdpr:export',
       'gdpr:erase-self',

@@ -101,3 +101,25 @@ services:
   whisper:
     ports:
       - "8085:8000"
+
+  # vLLM inference server — firehose report agent (optional)
+  vllm:
+    image: vllm/vllm-openai:latest
+    command: >
+      --model Qwen/Qwen3.5-9B
+      --max-model-len 8192
+      --guided-decoding-backend outlines
+      --structured-outputs-config.enable_in_reasoning=True
+    ports:
+      - "8000:8000"
+    profiles:
+      - firehose
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    networks:
+      - internal

@@ -34,6 +34,12 @@ export const KIND_SHIFT_UPDATE = 1020
 /** Settings changed (global or hub-scoped) */
 export const KIND_SETTINGS_CHANGED = 1030
 
+/** New firehose message received (for agent subscription) */
+export const KIND_FIREHOSE_MESSAGE = 1040
+
+/** Firehose report extracted and submitted */
+export const KIND_FIREHOSE_REPORT = 1041
+
 // --- Ephemeral Events (not persisted, broadcast only) ---
 
 /** User presence update — online counts, availability */

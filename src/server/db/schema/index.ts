@@ -17,3 +17,4 @@ export {
 export * from './teams'
 export * from './tags'
 export * from './intakes'
+export * from './firehose'

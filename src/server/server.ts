@@ -136,6 +136,35 @@ async function main() {
   const crypto = new CryptoService(env.SERVER_NOSTR_SECRET ?? '', env.HMAC_SECRET ?? '')
   const services = createServices(db, crypto, storage)
 
+  // Initialize firehose agents if seal key is configured
+  const firehoseSealKey = process.env.FIREHOSE_AGENT_SEAL_KEY
+  if (firehoseSealKey) {
+    try {
+      const { FirehoseAgentService } = await import('./services/firehose-agent')
+      const agentService = new FirehoseAgentService(
+        db,
+        crypto,
+        services.firehose,
+        services.conversations,
+        services.identity,
+        services.records,
+        services.settings,
+        firehoseSealKey,
+        {
+          SERVER_NOSTR_SECRET: env.SERVER_NOSTR_SECRET,
+          NOSTR_RELAY_URL: env.NOSTR_RELAY_URL,
+          ADMIN_PUBKEY: env.ADMIN_PUBKEY,
+          ADMIN_DECRYPTION_PUBKEY: env.ADMIN_DECRYPTION_PUBKEY,
+        }
+      )
+      services.firehoseAgent = agentService
+      await agentService.init()
+      console.log('[llamenos] Firehose agent service initialized')
+    } catch (err) {
+      console.error('[llamenos] Failed to initialize firehose agents:', err)
+    }
+  }
+
   // Provider health monitoring
   const providerHealth = new ProviderHealthService()
   services.providerHealth = providerHealth
@@ -241,6 +270,7 @@ async function main() {
   const shutdown = () => {
     console.log('[llamenos] Shutting down...')
 
+    services.firehoseAgent?.shutdown()
     providerHealth.stop()
     closeNostrPublisher()
     clearInterval(blastProcessorInterval)

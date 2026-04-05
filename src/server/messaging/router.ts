@@ -1,7 +1,11 @@
-import { LABEL_MESSAGE } from '@shared/crypto-labels'
+import { LABEL_FIREHOSE_BUFFER_ENCRYPT, LABEL_MESSAGE } from '@shared/crypto-labels'
 import type { Ciphertext } from '@shared/crypto-types'
 import { Hono } from 'hono'
-import { KIND_CONVERSATION_ASSIGNED, KIND_MESSAGE_NEW } from '../../shared/nostr-events'
+import {
+  KIND_CONVERSATION_ASSIGNED,
+  KIND_FIREHOSE_MESSAGE,
+  KIND_MESSAGE_NEW,
+} from '../../shared/nostr-events'
 import type { MessagingChannelType, MessagingConfig, WhatsAppConfig } from '../../shared/types'
 import { getMessagingAdapter, getNostrPublisher } from '../lib/adapters'
 import type { Services } from '../services'
@@ -112,6 +116,17 @@ messaging.post('/:channel/webhook', async (c) => {
     return c.json({ error: 'Failed to parse message' }, 400)
   }
 
+  // --- Firehose group detection ---
+  // If this is a Signal group message, check if it belongs to a firehose connection.
+  // If so, encrypt for the agent + admins and buffer it. Do NOT create a conversation.
+  if (incoming.channelType === 'signal' && incoming.metadata?.groupId) {
+    const firehoseResult = await handleFirehoseMessage(services, c.env, hubId ?? 'global', incoming)
+    if (firehoseResult) {
+      return c.json({ ok: true })
+    }
+    // Not a firehose group — continue normal flow
+  }
+
   // Keyword interception for blast subscribe/unsubscribe
   if (incoming.body) {
     const normalizedBody = incoming.body.trim().toUpperCase()
@@ -128,6 +143,22 @@ messaging.post('/:channel/webhook', async (c) => {
       }
       // Still forward to conversation for logging
     } else {
+      // Firehose notification opt-out detection (STOP-{8-char connection shortcode})
+      const firehoseOptoutMatch = normalizedBody.match(/^STOP-([A-Z0-9]{8})$/)
+      if (firehoseOptoutMatch) {
+        const shortCode = firehoseOptoutMatch[1]
+        const connections = await services.firehose.listConnections(hId)
+        const conn = connections.find((c) => c.id.slice(0, 8).toUpperCase() === shortCode)
+        if (conn) {
+          // Map sender to user — requires identity lookup by phone hash which is complex.
+          // For now, log the opt-out request. Future: find user by Signal phone hash,
+          // then call services.firehose.addOptout(conn.id, userId).
+          console.log(
+            `[firehose] Opt-out request for connection ${conn.id} from ${incoming.senderIdentifierHash}`
+          )
+        }
+      }
+
       // Check if it matches the subscribe keyword
       try {
         const config = await services.settings.getMessagingConfig(hId)
@@ -382,6 +413,104 @@ async function tryAutoAssign(
   } catch (err) {
     console.error('[messaging] Auto-assignment failed:', err)
   }
+}
+
+/**
+ * Check if an incoming Signal group message belongs to a firehose connection.
+ * If so, encrypt and buffer it for the agent. Returns true if handled.
+ */
+async function handleFirehoseMessage(
+  services: Services,
+  env: AppEnv['Bindings'],
+  hubId: string,
+  incoming: IncomingMessage
+): Promise<boolean> {
+  const groupId = incoming.metadata?.groupId
+  if (!groupId) return false
+
+  // Look up active firehose connection for this Signal group
+  const connection = await services.firehose.findConnectionBySignalGroup(groupId, hubId)
+  if (!connection) return false // No active connection for this group — not a firehose message
+
+  if (connection.status === 'disabled') return false
+
+  // Encrypt message body for the agent + admins
+  const adminPubkey = env.ADMIN_DECRYPTION_PUBKEY || env.ADMIN_PUBKEY
+  if (!adminPubkey) {
+    console.warn(
+      `[firehose] Cannot buffer message for connection ${connection.id}: ADMIN_DECRYPTION_PUBKEY and ADMIN_PUBKEY are both unconfigured`
+    )
+    return false
+  }
+
+  const readerPubkeys = [connection.agentPubkey, adminPubkey]
+  const encrypted = services.crypto.envelopeEncrypt(
+    incoming.body || '',
+    readerPubkeys,
+    LABEL_FIREHOSE_BUFFER_ENCRYPT
+  )
+
+  // Encrypt sender info separately
+  const senderInfo = JSON.stringify({
+    identifier: incoming.senderIdentifier,
+    identifierHash: incoming.senderIdentifierHash,
+    username: incoming.metadata?.senderName || incoming.senderIdentifier,
+    timestamp: incoming.timestamp,
+  })
+  const encryptedSender = services.crypto.envelopeEncrypt(
+    senderInfo,
+    [connection.agentPubkey, adminPubkey],
+    LABEL_FIREHOSE_BUFFER_ENCRYPT
+  )
+
+  // Buffer the message — store full envelope JSON so the agent can decrypt
+  const ttlMs = connection.bufferTtlDays * 24 * 60 * 60 * 1000
+  await services.firehose.addBufferMessage(connection.id, {
+    signalTimestamp: new Date(incoming.timestamp),
+    encryptedContent: JSON.stringify({
+      encrypted: encrypted.encrypted,
+      envelopes: encrypted.envelopes,
+    }),
+    encryptedSenderInfo: JSON.stringify({
+      encrypted: encryptedSender.encrypted,
+      envelopes: encryptedSender.envelopes,
+    }),
+    expiresAt: new Date(Date.now() + ttlMs),
+  })
+
+  // Publish Nostr event for agent subscription
+  try {
+    const publisher = getNostrPublisher(env)
+    publisher
+      .publish({
+        kind: KIND_FIREHOSE_MESSAGE,
+        created_at: Math.floor(Date.now() / 1000),
+        tags: [
+          ['d', hubId],
+          ['t', 'llamenos:event'],
+          ['c', connection.id],
+        ],
+        content: JSON.stringify({
+          type: 'firehose:message',
+          connectionId: connection.id,
+        }),
+      })
+      .catch((err) => console.error('[nostr] firehose event publish failed:', err))
+  } catch (err) {
+    if (err instanceof Error && !err.message.includes('not configured')) {
+      console.error('[firehose] Unexpected Nostr error:', err)
+    }
+  }
+
+  // Audit log
+  services.records
+    .addAuditEntry(hubId, 'firehoseMessageReceived', 'system', {
+      connectionId: connection.id,
+      senderHash: incoming.senderIdentifierHash,
+    })
+    .catch((err) => console.error('[background]', err))
+
+  return true
 }
 
 export default messaging
