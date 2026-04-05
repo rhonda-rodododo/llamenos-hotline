@@ -13,7 +13,10 @@ import {
   WebAuthnRegisterVerifySchema,
 } from '../../shared/schemas/auth'
 import { AuthEventListQuerySchema } from '../../shared/schemas/auth-events'
+import { LockdownRequestSchema } from '../../shared/schemas/lockdown'
 import { PasskeyRenameSchema } from '../../shared/schemas/passkeys'
+import { PinChangeSchema } from '../../shared/schemas/pin-change'
+import { RecoveryRotateSchema } from '../../shared/schemas/recovery-rotate'
 import { UpdateSecurityPrefsSchema } from '../../shared/schemas/security-prefs'
 import { SignalContactRegisterSchema } from '../../shared/schemas/signal-contact'
 import type { IdPAdapter } from '../idp/adapter'
@@ -435,6 +438,8 @@ authFacade.use('/devices/*', jwtAuth)
 authFacade.use('/sessions', jwtAuth)
 authFacade.use('/sessions/*', jwtAuth)
 authFacade.use('/passkeys', jwtAuth)
+authFacade.use('/pin/*', jwtAuth)
+authFacade.use('/recovery/*', jwtAuth)
 authFacade.use('/passkeys/*', jwtAuth)
 authFacade.use('/admin/*', jwtAuth)
 authFacade.use('/events', jwtAuth)
@@ -724,6 +729,103 @@ authFacade.post('/sessions/revoke-others', async (c) => {
     /* non-fatal */
   }
   return c.json({ revokedCount: count })
+})
+
+// POST /sessions/lockdown — tiered emergency lockdown (A/B/C)
+authFacade.post('/sessions/lockdown', async (c) => {
+  const pubkey = c.get('pubkey')
+  if (isRateLimited(`lockdown:${pubkey}`, LIMIT_LOCKDOWN_PER_15MIN, 15 * 60 * 1000)) {
+    return c.json({ error: 'Too many lockdown attempts' }, 429)
+  }
+  const parsed = LockdownRequestSchema.safeParse(await c.req.json().catch(() => null))
+  if (!parsed.success) {
+    return c.json({ error: 'Invalid request', details: parsed.error.flatten() }, 400)
+  }
+  const securityActions = c.get('securityActions')
+  const sessionIdCookie = getCookie(c, 'llamenos-session-id')
+  const result = await securityActions.runLockdown(
+    pubkey,
+    parsed.data.tier,
+    sessionIdCookie ?? null
+  )
+  if (parsed.data.tier === 'C') {
+    setCookie(c, 'llamenos-refresh', '', {
+      httpOnly: true,
+      secure: true,
+      sameSite: 'Strict',
+      path: '/api/auth/token',
+      maxAge: 0,
+    })
+    setCookie(c, 'llamenos-session-id', '', {
+      httpOnly: true,
+      secure: true,
+      sameSite: 'Strict',
+      path: '/',
+      maxAge: 0,
+    })
+  }
+  return c.json(result)
+})
+
+// POST /pin/change — store new encryptedSecretKey after client-side PIN rotation
+authFacade.post('/pin/change', async (c) => {
+  const pubkey = c.get('pubkey')
+  if (isRateLimited(`pin-change:${pubkey}`, LIMIT_PIN_CHANGE_PER_HOUR, 60 * 60 * 1000)) {
+    return c.json({ error: 'Too many PIN change attempts' }, 429)
+  }
+  const parsed = PinChangeSchema.safeParse(await c.req.json().catch(() => null))
+  if (!parsed.success) {
+    return c.json({ error: 'Invalid request body' }, 400)
+  }
+  // Zero-knowledge: client has already verified PIN locally by unlocking the KEK.
+  // Server cannot independently verify the plaintext PIN — just stores the new ciphertext.
+  const identity = c.get('identity')
+  await identity.updateEncryptedSecretKey(pubkey, parsed.data.newEncryptedSecretKey)
+  try {
+    await c.get('authEvents').record({
+      userPubkey: pubkey,
+      eventType: 'pin_changed',
+      payload: {},
+    })
+  } catch {
+    /* non-fatal */
+  }
+  const notifications = c.get('userNotifications')
+  if (notifications) {
+    void notifications.sendAlert(pubkey, { type: 'pin_changed' })
+  }
+  return c.json({ ok: true })
+})
+
+// POST /recovery/rotate — store new encryptedSecretKey after recovery key rotation
+authFacade.post('/recovery/rotate', async (c) => {
+  const pubkey = c.get('pubkey')
+  if (
+    isRateLimited(`recovery-rotate:${pubkey}`, LIMIT_RECOVERY_ROTATE_PER_DAY, 24 * 60 * 60 * 1000)
+  ) {
+    return c.json({ error: 'Too many rotation attempts' }, 429)
+  }
+  const parsed = RecoveryRotateSchema.safeParse(await c.req.json().catch(() => null))
+  if (!parsed.success) {
+    return c.json({ error: 'Invalid request body' }, 400)
+  }
+  // Client generated the recovery key + re-wrapped the KEK. Server just stores.
+  const identity = c.get('identity')
+  await identity.updateEncryptedSecretKey(pubkey, parsed.data.newEncryptedSecretKey)
+  try {
+    await c.get('authEvents').record({
+      userPubkey: pubkey,
+      eventType: 'recovery_rotated',
+      payload: {},
+    })
+  } catch {
+    /* non-fatal */
+  }
+  const notifications = c.get('userNotifications')
+  if (notifications) {
+    void notifications.sendAlert(pubkey, { type: 'recovery_rotated' })
+  }
+  return c.json({ ok: true })
 })
 
 // GET /devices — list WebAuthn credentials
