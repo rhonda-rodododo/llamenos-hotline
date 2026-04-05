@@ -195,6 +195,38 @@ async function main() {
   scheduleRetentionPurge(services)
   console.log('[llamenos] Data retention purge scheduled')
 
+  // Schedule Signal digest crons
+  const { runDigestCron } = await import('./services/digest-cron')
+  const dailyDigestInterval = setInterval(
+    () => {
+      runDigestCron(
+        db,
+        services.authEvents,
+        services.securityPrefs,
+        services.signalContacts,
+        services.userNotifications,
+        'daily'
+      ).catch((err) => console.error('[digest] daily digest failed:', err))
+    },
+    24 * 3600 * 1000
+  )
+  dailyDigestInterval.unref?.()
+  const weeklyDigestInterval = setInterval(
+    () => {
+      runDigestCron(
+        db,
+        services.authEvents,
+        services.securityPrefs,
+        services.signalContacts,
+        services.userNotifications,
+        'weekly'
+      ).catch((err) => console.error('[digest] weekly digest failed:', err))
+    },
+    7 * 24 * 3600 * 1000
+  )
+  weeklyDigestInterval.unref?.()
+  console.log('[llamenos] Signal digest crons scheduled')
+
   // Initialize IdP adapter (Authentik by default) — hard-fail on error; Docker restarts via restart: unless-stopped
   const { createIdPAdapter } = await import('./idp/index')
   const idpAdapter = await createIdPAdapter()
