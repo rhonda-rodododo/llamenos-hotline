@@ -332,7 +332,7 @@ const sendInviteRoute = createRoute({
         'application/json': {
           schema: z.object({
             recipientPhone: z.string(),
-            channel: z.enum(['signal', 'whatsapp', 'sms']),
+            channel: z.enum(['signal']),
             acknowledgedInsecure: z.boolean().optional(),
           }),
         },
@@ -347,6 +347,10 @@ const sendInviteRoute = createRoute({
           schema: z.object({ sent: z.boolean(), channel: z.string() }),
         },
       },
+    },
+    400: {
+      description: 'Invalid request (e.g. non-Signal channel)',
+      content: { 'application/json': { schema: z.object({ error: z.string() }) } },
     },
     404: {
       description: 'Invite not found',
@@ -374,10 +378,9 @@ invites.openapi(sendInviteRoute, async (c) => {
 
   const body = c.req.valid('json')
 
-  // Validate channel value
-  const validChannels: InviteDeliveryChannel[] = ['signal', 'whatsapp', 'sms']
-  if (!validChannels.includes(body.channel)) {
-    return c.json({ error: 'Invalid channel. Must be signal, whatsapp, or sms.' }, 422)
+  // User invites are Signal-only (encrypted, zero-knowledge notification path)
+  if (body.channel !== 'signal') {
+    return c.json({ error: 'User invites can only be delivered via Signal.' }, 400)
   }
 
   // Validate phone format
@@ -385,8 +388,8 @@ invites.openapi(sendInviteRoute, async (c) => {
     return c.json({ error: 'Invalid phone number. Use E.164 format (e.g. +12125551234)' }, 422)
   }
 
-  // SMS requires explicit insecure acknowledgment — it is not end-to-end encrypted
-  if (body.channel === 'sms' && !body.acknowledgedInsecure) {
+  // User invites are Signal-only. Kept for historical fallback, unreachable in practice.
+  if ((body.channel as string) === 'sms' && !body.acknowledgedInsecure) {
     return c.json(
       {
         error: 'SMS is not end-to-end encrypted. Set acknowledgedInsecure: true to proceed.',
