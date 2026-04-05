@@ -10,6 +10,7 @@ import {
   WebAuthnLoginVerifySchema,
   WebAuthnRegisterVerifySchema,
 } from '../../shared/schemas/auth'
+import { AuthEventListQuerySchema } from '../../shared/schemas/auth-events'
 import { PasskeyRenameSchema } from '../../shared/schemas/passkeys'
 import type { IdPAdapter } from '../idp/adapter'
 import { hashIP } from '../lib/crypto-service'
@@ -398,6 +399,8 @@ authFacade.use('/sessions/*', jwtAuth)
 authFacade.use('/passkeys', jwtAuth)
 authFacade.use('/passkeys/*', jwtAuth)
 authFacade.use('/admin/*', jwtAuth)
+authFacade.use('/events', jwtAuth)
+authFacade.use('/events/*', jwtAuth)
 
 // POST /webauthn/register-options
 authFacade.post('/webauthn/register-options', async (c) => {
@@ -854,6 +857,80 @@ authFacade.delete('/devices/:id', async (c) => {
   } catch {
     return c.json({ error: 'Credential not found' }, 404)
   }
+})
+
+// ---------------------------------------------------------------------------
+// Auth Event History endpoints
+// ---------------------------------------------------------------------------
+
+function serializeAuthEvent(r: {
+  id: string
+  eventType: string
+  encryptedPayload: string
+  payloadEnvelope: RecipientEnvelope[]
+  createdAt: Date
+  reportedSuspiciousAt: Date | null
+}) {
+  return {
+    id: r.id,
+    eventType: r.eventType,
+    encryptedPayload: r.encryptedPayload,
+    payloadEnvelope: r.payloadEnvelope,
+    createdAt: r.createdAt.toISOString(),
+    reportedSuspiciousAt: r.reportedSuspiciousAt?.toISOString() ?? null,
+  }
+}
+
+// GET /events?limit=&since=
+authFacade.get('/events', async (c) => {
+  const pubkey = c.get('pubkey')
+  const authEvents = c.get('authEvents')
+  const parsed = AuthEventListQuerySchema.safeParse({
+    limit: c.req.query('limit'),
+    since: c.req.query('since'),
+  })
+  if (!parsed.success) {
+    return c.json({ error: 'Invalid query params' }, 400)
+  }
+  const rows = await authEvents.listForUser(pubkey, {
+    limit: parsed.data.limit,
+    since: parsed.data.since ? new Date(parsed.data.since) : undefined,
+  })
+  return c.json({ events: rows.map(serializeAuthEvent) })
+})
+
+// GET /events/export — full JSON export (unpaginated up to 200)
+authFacade.get('/events/export', async (c) => {
+  const pubkey = c.get('pubkey')
+  const authEvents = c.get('authEvents')
+  const rows = await authEvents.listForUser(pubkey, { limit: 200 })
+  return c.json({
+    userPubkey: pubkey,
+    exportedAt: new Date().toISOString(),
+    events: rows.map(serializeAuthEvent),
+  })
+})
+
+// POST /events/:id/report — mark an event as suspicious; raise admin audit entry
+authFacade.post('/events/:id/report', async (c) => {
+  const pubkey = c.get('pubkey')
+  const authEvents = c.get('authEvents')
+  const id = c.req.param('id')
+  const updated = await authEvents.markSuspicious(id, pubkey)
+  if (!updated) {
+    return c.json({ error: 'Event not found' }, 404)
+  }
+  // Raise an admin audit entry so admins can investigate. Non-fatal.
+  try {
+    const records = c.get('records')
+    await records.addAuditEntry('global', 'user_reported_suspicious_event', pubkey, {
+      reportedEventId: id,
+      reportedEventType: updated.eventType,
+    })
+  } catch {
+    /* non-fatal */
+  }
+  return c.json({ ok: true })
 })
 
 export default authFacade
