@@ -2,6 +2,7 @@ import { hexToBytes } from '@noble/hashes/utils.js'
 import { LABEL_FIREHOSE_BUFFER_ENCRYPT, LABEL_FIREHOSE_REPORT_WRAP } from '@shared/crypto-labels'
 import type { Ciphertext } from '@shared/crypto-types'
 import { KIND_FIREHOSE_REPORT } from '@shared/nostr-events'
+import { type BufferEnvelopeJson, BufferEnvelopeJsonSchema } from '@shared/schemas/firehose'
 import type { RecipientEnvelope } from '@shared/types'
 import type { Database } from '../db'
 import { getNostrPublisher } from '../lib/adapters'
@@ -18,12 +19,6 @@ import type {
 import type { IdentityService } from './identity'
 import type { RecordsService } from './records'
 import type { SettingsService } from './settings'
-
-/** Parsed envelope JSON stored in the buffer's text columns */
-interface BufferEnvelopeJson {
-  encrypted: string
-  envelopes: RecipientEnvelope[]
-}
 
 /** In-memory state for a running extraction agent */
 interface AgentInstance {
@@ -230,14 +225,14 @@ export class FirehoseAgentService {
 
         const content = this.crypto.envelopeDecrypt(
           parsed.encrypted as Ciphertext,
-          contentEnvelope,
+          contentEnvelope as RecipientEnvelope,
           agent.nsecBytes,
           LABEL_FIREHOSE_BUFFER_ENCRYPT
         )
 
         const senderJson = this.crypto.envelopeDecrypt(
           senderParsed.encrypted as Ciphertext,
-          senderEnvelope,
+          senderEnvelope as RecipientEnvelope,
           agent.nsecBytes,
           LABEL_FIREHOSE_BUFFER_ENCRYPT
         )
@@ -599,13 +594,9 @@ export class FirehoseAgentService {
   // Helpers
   // ---------------------------------------------------------------------------
 
-  /** Parse a buffer column's JSON envelope format */
+  /** Parse and validate a buffer column's JSON envelope format */
   private parseBufferEnvelope(json: string): BufferEnvelopeJson {
-    const parsed = JSON.parse(json) as BufferEnvelopeJson
-    if (!parsed.encrypted || !Array.isArray(parsed.envelopes)) {
-      throw new Error('Invalid buffer envelope format')
-    }
-    return parsed
+    return BufferEnvelopeJsonSchema.parse(JSON.parse(json))
   }
 
   /** Get or create a cached inference client for an endpoint URL */

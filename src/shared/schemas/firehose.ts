@@ -1,4 +1,5 @@
 import { z } from 'zod/v4'
+import { RecipientEnvelopeSchema } from './records'
 
 // ── Firehose Connection ──
 
@@ -67,6 +68,14 @@ export const FirehoseConnectionHealthSchema = z.object({
   inferenceHealthMs: z.number().nullable(),
 })
 export type FirehoseConnectionHealth = z.infer<typeof FirehoseConnectionHealthSchema>
+
+// ── Buffer Envelope Types ──
+
+export const BufferEnvelopeJsonSchema = z.object({
+  encrypted: z.string(),
+  envelopes: z.array(RecipientEnvelopeSchema),
+})
+export type BufferEnvelopeJson = z.infer<typeof BufferEnvelopeJsonSchema>
 
 // ── Extraction Types (internal, not API-facing) ──
 
