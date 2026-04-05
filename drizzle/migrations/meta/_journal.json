@@ -288,6 +288,13 @@
       "when": 1743897600000,
       "tag": "0039_user_phone_envelopes",
       "breakpoints": true
+    },
+    {
+      "idx": 40,
+      "version": "7",
+      "when": 1743984000000,
+      "tag": "0040_note_replies_envelope_jsonb",
+      "breakpoints": true
     }
   ]
 }
