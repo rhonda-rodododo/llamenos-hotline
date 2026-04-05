@@ -69,14 +69,25 @@ test.describe('Firehose Extraction Integration', () => {
     adminApi = createAuthedRequestFromNsec(request, ADMIN_NSEC)
   })
 
-  test.afterAll(async () => {
-    // Clean up connection if it was created
+  test.afterAll(async ({ request }) => {
+    // Fresh request context — the per-test `request` fixtures used in beforeEach
+    // are disposed when each test ends, so adminApi's inner context is stale here.
+    const cleanupApi = createAuthedRequestFromNsec(request, ADMIN_NSEC)
+    // Clean up connection if it was created (hub deletion does not cascade to firehose_connections)
     if (sealKeyConfigured && connectionId) {
-      await adminApi.delete(ctx.hubPath(`/firehose/${connectionId}`))
+      try {
+        await cleanupApi.delete(ctx.hubPath(`/firehose/${connectionId}`))
+      } catch {
+        /* non-fatal */
+      }
     }
-    // Clean up report type
+    // Clean up report type (hub deletion does not cascade to report_types)
     if (reportTypeId) {
-      await adminApi.delete(ctx.hubPath(`/report-types/${reportTypeId}`))
+      try {
+        await cleanupApi.delete(ctx.hubPath(`/report-types/${reportTypeId}`))
+      } catch {
+        /* non-fatal */
+      }
     }
     await ctx.cleanup()
   })
