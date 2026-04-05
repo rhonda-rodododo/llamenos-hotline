@@ -2,7 +2,6 @@ import { OpenAPIHono } from '@hono/zod-openapi'
 import { Scalar } from '@scalar/hono-api-reference'
 import { Hono } from 'hono'
 import { createMiddleware } from 'hono/factory'
-import { z } from 'zod'
 import type { IdPAdapter } from './idp/adapter'
 import messagingRoutes from './messaging/router'
 import { auth } from './middleware/auth'
@@ -30,10 +29,13 @@ import healthRoutes from './routes/health'
 import hubRoutes from './routes/hubs'
 import intakesRoutes from './routes/intakes'
 import invitesRoutes from './routes/invites'
+import { ivrAudioRoutes } from './routes/ivr-audio'
+import { preferencesRoutes } from './routes/messaging/preferences'
 import signalRegistrationRoutes from './routes/messaging/signal-registration'
 import metricsRoutes, { httpMetrics } from './routes/metrics'
 import notesRoutes from './routes/notes'
 import notificationsRoutes from './routes/notifications'
+import { notificationsPublic } from './routes/notifications-public'
 import providerSetupRoutes from './routes/provider-setup'
 import provisioningRoutes from './routes/provisioning'
 import reportTypesRoutes from './routes/report-types'
@@ -168,76 +170,14 @@ api.route('/messaging/signal', signalAdmin)
 // Messaging webhooks (each adapter validates its own signature)
 api.route('/messaging', messagingRoutes)
 
-// Public preferences endpoint (no auth, token-validated)
-api.get('/messaging/preferences', async (c) => {
-  const token = c.req.query('token')
-  if (!token) return c.json({ error: 'Token required' }, 400)
-  const services = c.get('services')
-  const subscriber = await services.blasts.getSubscriberByPreferenceToken(token)
-  if (!subscriber) return c.json({ error: 'Invalid token' }, 404)
-  return c.json({
-    id: subscriber.id,
-    channels: subscriber.channels,
-    status: subscriber.status,
-    tags: subscriber.tags,
-    language: subscriber.language,
-  })
-})
+// Public preferences endpoints (no auth, token-validated)
+api.route('/messaging/preferences', preferencesRoutes)
 
-const PreferencesUpdateSchema = z.object({
-  status: z.enum(['active', 'unsubscribed']).optional(),
-  language: z.string().max(10).optional(),
-  tags: z.array(z.string().max(100)).max(50).optional(),
-})
-
-api.patch('/messaging/preferences', async (c) => {
-  const token = c.req.query('token')
-  if (!token) return c.json({ error: 'Token required' }, 400)
-  const services = c.get('services')
-  const subscriber = await services.blasts.getSubscriberByPreferenceToken(token)
-  if (!subscriber) return c.json({ error: 'Invalid token' }, 404)
-  const raw = await c.req.json()
-  const parsed = PreferencesUpdateSchema.safeParse(raw)
-  if (!parsed.success) {
-    return c.json({ error: 'Invalid request body', details: parsed.error.flatten() }, 400)
-  }
-  const body = parsed.data
-  const updated = await services.blasts.updateSubscriber(subscriber.id, {
-    ...(body.status !== undefined ? { status: body.status } : {}),
-    ...(body.language !== undefined ? { language: body.language } : {}),
-    ...(body.tags !== undefined ? { tags: body.tags } : {}),
-  })
-  return c.json({
-    id: updated.id,
-    channels: updated.channels,
-    status: updated.status,
-    tags: updated.tags,
-    language: updated.language,
-  })
-})
-
-// Public VAPID key endpoint (no auth — browser needs this before subscribing)
-api.get('/notifications/vapid-public-key', (c) => {
-  const key = c.env.VAPID_PUBLIC_KEY
-  if (!key) return c.json({ error: 'Push notifications not configured' }, 503)
-  return c.json({ publicKey: key })
-})
+// Public VAPID key (browser needs this before authenticating to subscribe)
+api.route('/notifications', notificationsPublic)
 
 // Public IVR audio serve (Twilio fetches during calls)
-api.get('/ivr-audio/:promptType/:language', async (c) => {
-  const promptType = c.req.param('promptType')
-  const language = c.req.param('language')
-  // Validate path params to prevent injection
-  if (!/^[a-z_-]+$/.test(promptType) || !/^[a-z]{2,5}(-[A-Z]{2})?$/.test(language)) {
-    return c.json({ error: 'Invalid parameters' }, 400)
-  }
-  const services = c.get('services')
-  const audio = await services.settings.getIvrAudio(promptType, language)
-  if (!audio) return c.json({ error: 'Audio not found' }, 404)
-  return new Response(audio.audioData, {
-    headers: { 'Content-Type': audio.mimeType },
-  })
-})
+api.route('/ivr-audio', ivrAudioRoutes)
 
 /**
  * MED-W1: Require hub context for non-super-admin requests on global resource routes.
