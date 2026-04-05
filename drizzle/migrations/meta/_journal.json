@@ -309,6 +309,13 @@
       "when": 1744070400000,
       "tag": "0042_firehose_status_enum",
       "breakpoints": true
+    },
+    {
+      "idx": 43,
+      "version": "7",
+      "when": 1775574000000,
+      "tag": "0043_user_sessions",
+      "breakpoints": true
     }
   ]
 }
