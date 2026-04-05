@@ -550,8 +550,16 @@ export class RecordsService {
 
     const id = crypto.randomUUID()
 
-    // Wrap SELECT + INSERT in a transaction to prevent hash chain branching under concurrency
+    // Wrap SELECT + INSERT in a transaction to prevent hash chain branching under concurrency.
+    // Default PostgreSQL isolation (READ COMMITTED) does NOT prevent two concurrent transactions
+    // from both reading the same "last entry" and then both inserting with identical
+    // previousEntryHash — branching the chain. We serialize per-hub via an advisory lock
+    // keyed on the hub id, which holds for the duration of the transaction.
     const row = await this.db.transaction(async (tx) => {
+      // Acquire a transaction-scoped advisory lock keyed on hubId. Concurrent
+      // addAuditEntry calls for the same hub will wait here until the lock is released.
+      await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${hId}))`)
+
       // Get last entry hash for chain (within transaction for consistency)
       const lastRows = await tx
         .select({ entryHash: auditLog.entryHash })
