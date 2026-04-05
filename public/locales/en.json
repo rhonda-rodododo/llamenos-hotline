@@ -1536,7 +1536,30 @@
     "title": "Security",
     "tabs": {
       "sessions": "Active sessions",
-      "passkeys": "Passkeys"
+      "passkeys": "Passkeys",
+      "history": "History"
+    },
+    "history": {
+      "description": "Security events on your account from the last 90 days.",
+      "export": "Export history",
+      "report": "Report suspicious",
+      "flagged": "Flagged",
+      "none": "No events yet.",
+      "eventType": {
+        "login": "Logged in",
+        "login_failed": "Login failed",
+        "logout": "Logged out",
+        "session_revoked": "Session revoked",
+        "sessions_revoked_others": "Signed out other sessions",
+        "passkey_added": "Passkey added",
+        "passkey_removed": "Passkey removed",
+        "passkey_renamed": "Passkey renamed",
+        "pin_changed": "PIN changed",
+        "recovery_rotated": "Recovery key rotated",
+        "lockdown_triggered": "Emergency lockdown triggered",
+        "alert_sent": "Alert sent",
+        "signal_contact_changed": "Signal contact updated"
+      }
     },
     "sessions": {
       "none": "No active sessions.",

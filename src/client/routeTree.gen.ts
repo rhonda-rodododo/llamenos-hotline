@@ -33,6 +33,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as UsersPubkeyRouteImport } from './routes/users_.$pubkey'
 import { Route as SecuritySessionsRouteImport } from './routes/security.sessions'
 import { Route as SecurityPasskeysRouteImport } from './routes/security.passkeys'
+import { Route as SecurityHistoryRouteImport } from './routes/security.history'
 import { Route as NotesNoteIdRouteImport } from './routes/notes.$noteId'
 import { Route as ContactsContactIdRouteImport } from './routes/contacts_.$contactId'
 import { Route as CallsCallIdRouteImport } from './routes/calls.$callId'
@@ -159,6 +160,11 @@ const SecurityPasskeysRoute = SecurityPasskeysRouteImport.update({
   path: '/passkeys',
   getParentRoute: () => SecurityRoute,
 } as any)
+const SecurityHistoryRoute = SecurityHistoryRouteImport.update({
+  id: '/history',
+  path: '/history',
+  getParentRoute: () => SecurityRoute,
+} as any)
 const NotesNoteIdRoute = NotesNoteIdRouteImport.update({
   id: '/$noteId',
   path: '/$noteId',
@@ -212,6 +218,7 @@ export interface FileRoutesByFullPath {
   '/calls/$callId': typeof CallsCallIdRoute
   '/contacts/$contactId': typeof ContactsContactIdRoute
   '/notes/$noteId': typeof NotesNoteIdRoute
+  '/security/history': typeof SecurityHistoryRoute
   '/security/passkeys': typeof SecurityPasskeysRoute
   '/security/sessions': typeof SecuritySessionsRoute
   '/users/$pubkey': typeof UsersPubkeyRoute
@@ -243,6 +250,7 @@ export interface FileRoutesByTo {
   '/calls/$callId': typeof CallsCallIdRoute
   '/contacts/$contactId': typeof ContactsContactIdRoute
   '/notes/$noteId': typeof NotesNoteIdRoute
+  '/security/history': typeof SecurityHistoryRoute
   '/security/passkeys': typeof SecurityPasskeysRoute
   '/security/sessions': typeof SecuritySessionsRoute
   '/users/$pubkey': typeof UsersPubkeyRoute
@@ -275,6 +283,7 @@ export interface FileRoutesById {
   '/calls/$callId': typeof CallsCallIdRoute
   '/contacts_/$contactId': typeof ContactsContactIdRoute
   '/notes/$noteId': typeof NotesNoteIdRoute
+  '/security/history': typeof SecurityHistoryRoute
   '/security/passkeys': typeof SecurityPasskeysRoute
   '/security/sessions': typeof SecuritySessionsRoute
   '/users_/$pubkey': typeof UsersPubkeyRoute
@@ -308,6 +317,7 @@ export interface FileRouteTypes {
     | '/calls/$callId'
     | '/contacts/$contactId'
     | '/notes/$noteId'
+    | '/security/history'
     | '/security/passkeys'
     | '/security/sessions'
     | '/users/$pubkey'
@@ -339,6 +349,7 @@ export interface FileRouteTypes {
     | '/calls/$callId'
     | '/contacts/$contactId'
     | '/notes/$noteId'
+    | '/security/history'
     | '/security/passkeys'
     | '/security/sessions'
     | '/users/$pubkey'
@@ -370,6 +381,7 @@ export interface FileRouteTypes {
     | '/calls/$callId'
     | '/contacts_/$contactId'
     | '/notes/$noteId'
+    | '/security/history'
     | '/security/passkeys'
     | '/security/sessions'
     | '/users_/$pubkey'
@@ -573,6 +585,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SecurityPasskeysRouteImport
       parentRoute: typeof SecurityRoute
     }
+    '/security/history': {
+      id: '/security/history'
+      path: '/history'
+      fullPath: '/security/history'
+      preLoaderRoute: typeof SecurityHistoryRouteImport
+      parentRoute: typeof SecurityRoute
+    }
     '/notes/$noteId': {
       id: '/notes/$noteId'
       path: '/$noteId'
@@ -632,11 +651,13 @@ const NotesRouteChildren: NotesRouteChildren = {
 const NotesRouteWithChildren = NotesRoute._addFileChildren(NotesRouteChildren)
 
 interface SecurityRouteChildren {
+  SecurityHistoryRoute: typeof SecurityHistoryRoute
   SecurityPasskeysRoute: typeof SecurityPasskeysRoute
   SecuritySessionsRoute: typeof SecuritySessionsRoute
 }
 
 const SecurityRouteChildren: SecurityRouteChildren = {
+  SecurityHistoryRoute: SecurityHistoryRoute,
   SecurityPasskeysRoute: SecurityPasskeysRoute,
   SecuritySessionsRoute: SecuritySessionsRoute,
 }

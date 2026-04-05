@@ -30,6 +30,13 @@ function SecurityLayout() {
         >
           {t('security.tabs.passkeys', 'Passkeys')}
         </Link>
+        <Link
+          to="/security/history"
+          className="px-3 py-2 [&.active]:border-b-2 [&.active]:border-primary"
+          data-testid="tab-history"
+        >
+          {t('security.tabs.history', 'History')}
+        </Link>
       </nav>
       <Outlet />
     </div>
