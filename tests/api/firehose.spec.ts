@@ -223,6 +223,42 @@ test.describe('Firehose Connections API', () => {
     expect(res.status()).toBe(403)
   })
 
+  // ─── API validation boundaries ───────────────────────────────────────────
+
+  test.describe('API validation boundaries', () => {
+    test('POST /firehose - rejects extractionIntervalSec below 30 with 400', async () => {
+      const res = await adminApi.post(ctx.hubPath('/firehose'), {
+        reportTypeId: reportTypeId ?? 'any-id',
+        extractionIntervalSec: 29,
+      })
+      expect(res.status()).toBe(400)
+    })
+
+    test('POST /firehose - rejects extractionIntervalSec above 300 with 400', async () => {
+      const res = await adminApi.post(ctx.hubPath('/firehose'), {
+        reportTypeId: reportTypeId ?? 'any-id',
+        extractionIntervalSec: 301,
+      })
+      expect(res.status()).toBe(400)
+    })
+
+    test('POST /firehose - rejects bufferTtlDays below 1 with 400', async () => {
+      const res = await adminApi.post(ctx.hubPath('/firehose'), {
+        reportTypeId: reportTypeId ?? 'any-id',
+        bufferTtlDays: 0,
+      })
+      expect(res.status()).toBe(400)
+    })
+
+    test('POST /firehose - rejects bufferTtlDays above 30 with 400', async () => {
+      const res = await adminApi.post(ctx.hubPath('/firehose'), {
+        reportTypeId: reportTypeId ?? 'any-id',
+        bufferTtlDays: 31,
+      })
+      expect(res.status()).toBe(400)
+    })
+  })
+
   // ─── POST returns 503 when seal key is missing ────────────────────────────
 
   test('POST /firehose - responds 503 when seal key not configured (env-dependent)', async () => {

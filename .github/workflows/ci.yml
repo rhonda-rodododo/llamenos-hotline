@@ -37,6 +37,8 @@ env:
   # IdP auth hardening — test-only secrets (NOT for production)
   TEST_JWT_SECRET: "0000000000000000000000000000000000000000000000000000000000000099"
   TEST_IDP_VALUE_ENCRYPTION_KEY: "0000000000000000000000000000000000000000000000000000000000000088"
+  # Firehose agent — test-only seal key (NOT for production)
+  TEST_FIREHOSE_AGENT_SEAL_KEY: "0000000000000000000000000000000000000000000000000000000000000001"
 
 jobs:
   # ─── Detect Changed Files ─────────────────────────────────────
@@ -328,6 +330,7 @@ jobs:
           AUTH_WEBAUTHN_RP_ID: localhost
           AUTH_WEBAUTHN_RP_NAME: Llamenos Test
           AUTH_WEBAUTHN_ORIGIN: http://localhost:3000
+          FIREHOSE_AGENT_SEAL_KEY: ${{ env.TEST_FIREHOSE_AGENT_SEAL_KEY }}
         run: |
           bun run start > /tmp/server.log 2>&1 &
           for i in $(seq 1 30); do
@@ -444,6 +447,7 @@ jobs:
           AUTH_WEBAUTHN_RP_ID: localhost
           AUTH_WEBAUTHN_RP_NAME: Llamenos Test
           AUTH_WEBAUTHN_ORIGIN: http://localhost:3000
+          FIREHOSE_AGENT_SEAL_KEY: ${{ env.TEST_FIREHOSE_AGENT_SEAL_KEY }}
         run: |
           bun run start > /tmp/server.log 2>&1 &
           for i in $(seq 1 30); do
