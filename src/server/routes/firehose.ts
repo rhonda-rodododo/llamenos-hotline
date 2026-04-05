@@ -176,10 +176,7 @@ firehoseRoutes.openapi(createRoute_, async (c) => {
     sealKey
   )
 
-  const updated = await services.firehose.updateConnection(raw.id, {
-    agentPubkey,
-    encryptedAgentNsec: encryptedNsec,
-  })
+  const updated = await services.firehose.setAgentKeypair(raw.id, agentPubkey, encryptedNsec)
 
   await services.records.addAuditEntry(hubId, 'firehoseConnectionCreated', pubkey, {
     connectionId: raw.id,

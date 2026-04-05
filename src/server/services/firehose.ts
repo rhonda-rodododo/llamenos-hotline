@@ -5,6 +5,7 @@ import { sha256 } from '@noble/hashes/sha2.js'
 import { bytesToHex, hexToBytes } from '@noble/hashes/utils.js'
 import { LABEL_FIREHOSE_AGENT_SEAL } from '@shared/crypto-labels'
 import type { Ciphertext } from '@shared/crypto-types'
+import type { FirehoseConnectionStatus } from '@shared/schemas/firehose'
 import { and, eq, inArray, isNull, lt, sql } from 'drizzle-orm'
 import type { Database } from '../db'
 import {
@@ -32,10 +33,19 @@ export type CreateConnectionData = {
   systemPromptSuffix?: string | null
   bufferTtlDays?: number
   notifyViaSignal?: boolean
-  status?: string
+  status?: FirehoseConnectionStatus
 }
 
-export type UpdateConnectionData = Partial<CreateConnectionData>
+/**
+ * Fields that may be updated via the public updateConnection method.
+ * Intentionally omits `agentPubkey` and `encryptedAgentNsec` — keypair
+ * fields are immutable after creation. Use setAgentKeypair for initial
+ * creation and any future keypair rotation.
+ */
+export type UpdateConnectionData = Omit<
+  Partial<CreateConnectionData>,
+  'agentPubkey' | 'encryptedAgentNsec'
+>
 
 export type AddBufferMessageData = {
   signalTimestamp: Date
@@ -122,10 +132,6 @@ export class FirehoseService {
           ? { encryptedDisplayName: data.encryptedDisplayName as Ciphertext | null }
           : {}),
         ...(data.reportTypeId !== undefined ? { reportTypeId: data.reportTypeId } : {}),
-        ...(data.agentPubkey !== undefined ? { agentPubkey: data.agentPubkey } : {}),
-        ...(data.encryptedAgentNsec !== undefined
-          ? { encryptedAgentNsec: data.encryptedAgentNsec }
-          : {}),
         ...(data.geoContext !== undefined ? { geoContext: data.geoContext } : {}),
         ...(data.geoContextCountryCodes !== undefined
           ? { geoContextCountryCodes: data.geoContextCountryCodes }
@@ -144,6 +150,25 @@ export class FirehoseService {
         ...(data.status !== undefined ? { status: data.status } : {}),
         updatedAt: now,
       })
+      .where(eq(firehoseConnections.id, id))
+      .returning()
+    return rows[0] ?? null
+  }
+
+  /**
+   * Set the agent keypair on a connection — used only during initial creation
+   * and any future keypair rotation. Deliberately separate from updateConnection
+   * so the public update path cannot accidentally mutate keypair fields.
+   */
+  async setAgentKeypair(
+    id: string,
+    pubkey: string,
+    encryptedNsec: string
+  ): Promise<FirehoseConnection | null> {
+    const now = new Date()
+    const rows = await this.db
+      .update(firehoseConnections)
+      .set({ agentPubkey: pubkey, encryptedAgentNsec: encryptedNsec, updatedAt: now })
       .where(eq(firehoseConnections.id, id))
       .returning()
     return rows[0] ?? null
