@@ -70,6 +70,15 @@ async function main() {
     }
   }
 
+  // Refuse to start in production with session token rotation disabled.
+  if (process.env.DISABLE_TOKEN_ROTATION === 'true' && process.env.NODE_ENV === 'production') {
+    console.error('FATAL: DISABLE_TOKEN_ROTATION must not be enabled in production')
+    process.exit(1)
+  }
+  if (process.env.DISABLE_TOKEN_ROTATION === 'true') {
+    console.warn('[auth] Session token rotation DISABLED (test/dev only)')
+  }
+
   // Phase 4: Startup diagnostics for optional env vars
   if (!env.APP_URL) {
     console.warn('[llamenos] ⚠  APP_URL not set — invite links and webhooks may use wrong base URL')
