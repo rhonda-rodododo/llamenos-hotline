@@ -45,10 +45,14 @@ const DEFAULT_INFERENCE_ENDPOINT = 'http://localhost:8000/v1'
 const DEFAULT_INFERENCE_MODEL = 'Qwen/Qwen3.5-9B'
 /** Minimum confidence score to accept an extraction */
 const CONFIDENCE_THRESHOLD = 0.3
+/** Consecutive extraction failures before auto-pausing a connection */
+const CIRCUIT_BREAKER_THRESHOLD = 3
 
 export class FirehoseAgentService {
   private agents = new Map<string, AgentInstance>()
   private inferenceClients = new Map<string, FirehoseInferenceClient>()
+  /** Consecutive extraction failure counts per connection */
+  private extractionFailureCounts = new Map<string, number>()
 
   constructor(
     private readonly db: Database,
@@ -145,6 +149,8 @@ export class FirehoseAgentService {
       intervalHandle,
       inferenceClient,
     })
+    // Reset circuit breaker state on (re)start
+    this.extractionFailureCounts.set(connectionId, 0)
 
     console.log(
       `[firehose-agent] Started agent for ${connectionId} (interval: ${conn.extractionIntervalSec}s)`
@@ -163,6 +169,7 @@ export class FirehoseAgentService {
     // Zero nsec from memory
     agent.nsecBytes.fill(0)
     this.agents.delete(connectionId)
+    this.extractionFailureCounts.delete(connectionId)
 
     console.log(`[firehose-agent] Stopped agent for ${connectionId}`)
   }
@@ -302,11 +309,35 @@ export class FirehoseAgentService {
         const messageIds = cluster.messages.map((m) => m.id)
         await this.firehose.markMessagesExtracted(messageIds, reportId, cluster.id)
 
+        // Reset circuit breaker on success
+        this.extractionFailureCounts.set(connectionId, 0)
+
         console.log(
           `[firehose-agent] Extracted report ${reportId} from ${messageIds.length} messages (confidence: ${extraction.confidence})`
         )
       } catch (err) {
         console.error(`[firehose-agent] Extraction failed for cluster ${cluster.id}:`, err)
+
+        // Circuit breaker: track consecutive failures and auto-pause after threshold
+        const failures = (this.extractionFailureCounts.get(connectionId) ?? 0) + 1
+        this.extractionFailureCounts.set(connectionId, failures)
+
+        if (failures >= CIRCUIT_BREAKER_THRESHOLD) {
+          console.warn(
+            `[firehose-agent] Circuit breaker tripped for connection ${connectionId} after ${failures} consecutive extraction failures — pausing`
+          )
+          this.stopAgent(connectionId)
+          await this.firehose.updateConnection(connectionId, { status: 'paused' })
+          await this.records
+            .addAuditEntry(agent.hubId, 'firehoseCircuitBreakerTripped', agent.agentPubkey, {
+              connectionId,
+              consecutiveFailures: failures,
+              lastError: err instanceof Error ? err.message : String(err),
+            })
+            .catch(() => {})
+          // Break out of cluster loop — agent is stopped
+          return
+        }
       }
     }
   }
