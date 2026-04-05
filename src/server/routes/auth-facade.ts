@@ -121,34 +121,59 @@ async function resolveUserPermissions(
 }
 
 // ---------------------------------------------------------------------------
-// Helper: sign a refresh token (JWT with type=refresh, 30-day expiry)
+// Helper: create a new opaque-token session and set refresh + session cookies.
+// Returns the session id + opaque token.
+// Used by login-verify, invite-accept, and dev bootstrap.
 // ---------------------------------------------------------------------------
 
-async function signRefreshToken(pubkey: string, secret: string): Promise<string> {
-  // Use the same signAccessToken but with type claim and longer expiry.
-  // We piggyback on jose directly for the extra claim.
-  const { SignJWT } = await import('jose')
-  const key = new TextEncoder().encode(secret)
-  return new SignJWT({ type: 'refresh' })
-    .setProtectedHeader({ alg: 'HS256' })
-    .setSubject(pubkey)
-    .setJti(crypto.randomUUID())
-    .setIssuedAt()
-    .setExpirationTime('30d')
-    .setIssuer('llamenos')
-    .sign(key)
+export interface CreateSessionParams {
+  pubkey: string
+  credentialId: string | null
+  clientIp: string
+  userAgent: string
+  ipHash: string
+  hmacSecret: string
+  sessions: SessionService
+  crypto: CryptoService
+  geoipDbPath?: string
 }
 
-async function verifyRefreshToken(token: string, secret: string): Promise<{ sub: string }> {
-  const { jwtVerify } = await import('jose')
-  const key = new TextEncoder().encode(secret)
-  const { payload } = await jwtVerify(token, key, {
-    issuer: 'llamenos',
-    algorithms: ['HS256'],
+export async function createUserSession(
+  params: CreateSessionParams
+): Promise<{ sessionId: string; token: string }> {
+  const geo = await lookupIp(params.clientIp, params.geoipDbPath ?? GEOIP_DB_PATH)
+
+  const metaPlain = JSON.stringify({
+    ip: params.clientIp,
+    userAgent: params.userAgent,
+    city: geo.city,
+    region: geo.region,
+    country: geo.country,
+    lat: geo.lat,
+    lon: geo.lon,
   })
-  if (payload.type !== 'refresh') throw new Error('Not a refresh token')
-  if (!payload.sub) throw new Error('Missing subject')
-  return { sub: payload.sub }
+  const { encrypted, envelopes } = params.crypto.envelopeEncrypt(
+    metaPlain,
+    [params.pubkey],
+    LABEL_SESSION_META
+  )
+
+  const token = generateSessionToken()
+  const tokenHash = hashSessionToken(token, params.hmacSecret)
+  const sessionId = crypto.randomUUID()
+
+  await params.sessions.create({
+    id: sessionId,
+    userPubkey: params.pubkey,
+    tokenHash,
+    ipHash: params.ipHash,
+    credentialId: params.credentialId,
+    encryptedMeta: encrypted,
+    metaEnvelope: envelopes,
+    expiresAt: sessionExpiry(),
+  })
+
+  return { sessionId, token }
 }
 
 // ---------------------------------------------------------------------------
@@ -233,39 +258,15 @@ authFacade.post('/webauthn/login-verify', async (c) => {
       c.env.JWT_SECRET
     )
 
-    const sessions = c.get('sessions')
-    const cryptoService = c.get('crypto')
-    const userAgent = c.req.header('User-Agent') || ''
-    const geo = await lookupIp(clientIp, GEOIP_DB_PATH)
-
-    const metaPlain = JSON.stringify({
-      ip: clientIp,
-      userAgent,
-      city: geo.city,
-      region: geo.region,
-      country: geo.country,
-      lat: geo.lat,
-      lon: geo.lon,
-    })
-    const { encrypted, envelopes } = cryptoService.envelopeEncrypt(
-      metaPlain,
-      [matched.ownerPubkey],
-      LABEL_SESSION_META
-    )
-
-    const token = generateSessionToken()
-    const tokenHash = hashSessionToken(token, c.env.HMAC_SECRET)
-    const sessionId = crypto.randomUUID()
-
-    await sessions.create({
-      id: sessionId,
-      userPubkey: matched.ownerPubkey,
-      tokenHash,
-      ipHash,
+    const { sessionId, token } = await createUserSession({
+      pubkey: matched.ownerPubkey,
       credentialId: matched.id,
-      encryptedMeta: encrypted,
-      metaEnvelope: envelopes,
-      expiresAt: sessionExpiry(),
+      clientIp,
+      userAgent: c.req.header('User-Agent') || '',
+      ipHash,
+      hmacSecret: c.env.HMAC_SECRET,
+      sessions: c.get('sessions'),
+      crypto: c.get('crypto'),
     })
 
     setCookie(c, 'llamenos-refresh', token, {
@@ -430,26 +431,48 @@ authFacade.post('/token/refresh', async (c) => {
     return c.json({ error: 'Missing refresh token' }, 401)
   }
 
-  let refreshPayload: { sub: string }
-  try {
-    refreshPayload = await verifyRefreshToken(refreshCookie, c.env.JWT_SECRET)
-  } catch {
-    return c.json({ error: 'Invalid or expired refresh token' }, 401)
+  const sessions = c.get('sessions')
+  const tokenHash = hashSessionToken(refreshCookie, c.env.HMAC_SECRET)
+  const session = await sessions.findByTokenHash(tokenHash)
+  if (!session) {
+    return c.json({ error: 'Invalid or expired session' }, 401)
+  }
+  if (session.revokedAt) {
+    return c.json({ error: 'Session revoked' }, 401)
+  }
+  if (session.expiresAt < new Date()) {
+    await sessions.revoke(session.id, 'expired')
+    return c.json({ error: 'Session expired' }, 401)
   }
 
-  const pubkey = refreshPayload.sub
+  // Rotate token
+  const newToken = generateSessionToken()
+  const newHash = hashSessionToken(newToken, c.env.HMAC_SECRET)
+  await sessions.touch(session.id, newHash)
+
+  const pubkey = session.userPubkey
   const idpAdapter = c.get('idpAdapter')
   const identity = c.get('identity')
 
   // Confirm user is still active in IdP
-  const session = await idpAdapter.refreshSession(pubkey)
-  if (!session.valid) {
+  const idpSession = await idpAdapter.refreshSession(pubkey)
+  if (!idpSession.valid) {
+    await sessions.revoke(session.id, 'admin')
     return c.json({ error: 'Session no longer valid' }, 401)
   }
 
   const settings = c.get('settings')
   const permissions = await resolveUserPermissions(pubkey, identity, settings)
   const accessToken = await signAccessToken({ pubkey, permissions }, c.env.JWT_SECRET)
+
+  setCookie(c, 'llamenos-refresh', newToken, {
+    httpOnly: true,
+    secure: true,
+    sameSite: 'Strict',
+    path: '/api/auth/token',
+    maxAge: SESSION_COOKIE_MAX_AGE,
+  })
+
   return c.json({ accessToken })
 })
 
@@ -591,4 +614,4 @@ authFacade.delete('/devices/:id', async (c) => {
 export default authFacade
 
 // Export for testing
-export { type AuthFacadeEnv, isRateLimited, rateLimitStore, signRefreshToken, verifyRefreshToken }
+export { type AuthFacadeEnv, isRateLimited, rateLimitStore }

@@ -162,13 +162,34 @@ invites.openapi(redeemRoute, async (c) => {
   )
 
   // Set refresh cookie so PIN unlock works after page reload (matches bootstrap pattern)
-  const { signRefreshToken } = await import('./auth-facade')
-  const refreshToken = await signRefreshToken(body.pubkey, c.env.JWT_SECRET)
+  const { createUserSession } = await import('./auth-facade')
+  const sessionIp =
+    c.req.header('X-Forwarded-For')?.split(',')[0]?.trim() ||
+    c.req.header('CF-Connecting-IP') ||
+    'unknown'
+  const { sessionId, token: refreshToken } = await createUserSession({
+    pubkey: body.pubkey,
+    credentialId: null,
+    clientIp: sessionIp,
+    userAgent: c.req.header('User-Agent') || '',
+    ipHash: hashIP(sessionIp, c.env.HMAC_SECRET),
+    hmacSecret: c.env.HMAC_SECRET,
+    sessions: services.sessions,
+    crypto: services.crypto,
+  })
+  const isSecure = c.env.ENVIRONMENT !== 'development'
   setCookie(c, 'llamenos-refresh', refreshToken, {
     httpOnly: true,
-    secure: c.env.ENVIRONMENT !== 'development',
+    secure: isSecure,
     sameSite: 'Strict',
     path: '/api/auth/token',
+    maxAge: 30 * 24 * 60 * 60,
+  })
+  setCookie(c, 'llamenos-session-id', sessionId, {
+    httpOnly: true,
+    secure: isSecure,
+    sameSite: 'Strict',
+    path: '/',
     maxAge: 30 * 24 * 60 * 60,
   })
 
