@@ -2,6 +2,7 @@ import { bytesToHex } from '@noble/hashes/utils.js'
 import { Hono } from 'hono'
 import { getCookie, setCookie } from 'hono/cookie'
 import { createMiddleware } from 'hono/factory'
+import { LABEL_SESSION_META } from '../../shared/crypto-labels'
 import { resolvePermissions } from '../../shared/permissions'
 import {
   DemoLoginSchema,
@@ -12,8 +13,10 @@ import {
 import type { IdPAdapter } from '../idp/adapter'
 import { hashIP } from '../lib/crypto-service'
 import type { CryptoService } from '../lib/crypto-service'
+import { lookupIp } from '../lib/geoip'
 import { uint8ArrayToBase64URL } from '../lib/helpers'
 import { signAccessToken, verifyAccessToken } from '../lib/jwt'
+import { generateSessionToken, hashSessionToken } from '../lib/session-tokens'
 import {
   generateAuthOptions,
   generateRegOptions,
@@ -21,8 +24,12 @@ import {
   verifyRegResponse,
 } from '../lib/webauthn'
 import type { IdentityService } from '../services/identity'
+import { sessionExpiry } from '../services/sessions'
 import type { SessionService } from '../services/sessions'
 import type { SettingsService } from '../services/settings'
+
+const GEOIP_DB_PATH = process.env.GEOIP_DB_PATH ?? './data/geoip/dbip-city.mmdb'
+const SESSION_COOKIE_MAX_AGE = 30 * 24 * 60 * 60 // 30 days in seconds
 import type { WebAuthnCredential } from '../types'
 
 // ---------------------------------------------------------------------------
@@ -226,13 +233,54 @@ authFacade.post('/webauthn/login-verify', async (c) => {
       c.env.JWT_SECRET
     )
 
-    const refreshToken = await signRefreshToken(matched.ownerPubkey, c.env.JWT_SECRET)
-    setCookie(c, 'llamenos-refresh', refreshToken, {
+    const sessions = c.get('sessions')
+    const cryptoService = c.get('crypto')
+    const userAgent = c.req.header('User-Agent') || ''
+    const geo = await lookupIp(clientIp, GEOIP_DB_PATH)
+
+    const metaPlain = JSON.stringify({
+      ip: clientIp,
+      userAgent,
+      city: geo.city,
+      region: geo.region,
+      country: geo.country,
+      lat: geo.lat,
+      lon: geo.lon,
+    })
+    const { encrypted, envelopes } = cryptoService.envelopeEncrypt(
+      metaPlain,
+      [matched.ownerPubkey],
+      LABEL_SESSION_META
+    )
+
+    const token = generateSessionToken()
+    const tokenHash = hashSessionToken(token, c.env.HMAC_SECRET)
+    const sessionId = crypto.randomUUID()
+
+    await sessions.create({
+      id: sessionId,
+      userPubkey: matched.ownerPubkey,
+      tokenHash,
+      ipHash,
+      credentialId: matched.id,
+      encryptedMeta: encrypted,
+      metaEnvelope: envelopes,
+      expiresAt: sessionExpiry(),
+    })
+
+    setCookie(c, 'llamenos-refresh', token, {
       httpOnly: true,
       secure: true,
       sameSite: 'Strict',
       path: '/api/auth/token',
-      maxAge: 30 * 24 * 60 * 60, // 30 days in seconds
+      maxAge: SESSION_COOKIE_MAX_AGE,
+    })
+    setCookie(c, 'llamenos-session-id', sessionId, {
+      httpOnly: true,
+      secure: true,
+      sameSite: 'Strict',
+      path: '/',
+      maxAge: SESSION_COOKIE_MAX_AGE,
     })
 
     return c.json({ accessToken, pubkey: matched.ownerPubkey })
