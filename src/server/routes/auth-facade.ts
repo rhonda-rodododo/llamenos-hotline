@@ -265,16 +265,37 @@ authFacade.post('/webauthn/login-verify', async (c) => {
       c.env.JWT_SECRET
     )
 
+    const userAgent = c.req.header('User-Agent') || ''
     const { sessionId, token } = await createUserSession({
       pubkey: matched.ownerPubkey,
       credentialId: matched.id,
       clientIp,
-      userAgent: c.req.header('User-Agent') || '',
+      userAgent,
       ipHash,
       hmacSecret: c.env.HMAC_SECRET,
       sessions: c.get('sessions'),
       crypto: c.get('crypto'),
     })
+
+    // Emit login auth event (non-fatal on failure)
+    try {
+      const geo = await lookupIp(clientIp, GEOIP_DB_PATH)
+      await c.get('authEvents').record({
+        userPubkey: matched.ownerPubkey,
+        eventType: 'login',
+        payload: {
+          sessionId,
+          ipHash,
+          city: geo.city,
+          country: geo.country,
+          userAgent,
+          credentialId: matched.id,
+          credentialLabel: matched.label,
+        },
+      })
+    } catch {
+      // Non-fatal — auth event logging should not block login
+    }
 
     setCookie(c, 'llamenos-refresh', token, {
       httpOnly: true,
@@ -293,6 +314,16 @@ authFacade.post('/webauthn/login-verify', async (c) => {
 
     return c.json({ accessToken, pubkey: matched.ownerPubkey })
   } catch {
+    // Emit login_failed event (non-fatal)
+    try {
+      await c.get('authEvents').record({
+        userPubkey: matched.ownerPubkey,
+        eventType: 'login_failed',
+        payload: { ipHash, credentialId: matched.id },
+      })
+    } catch {
+      /* ignore */
+    }
     return c.json({ error: 'Verification failed' }, 401)
   }
 })
@@ -424,6 +455,17 @@ authFacade.post('/webauthn/register-verify', async (c) => {
     }
 
     await identity.addWebAuthnCredential({ pubkey, credential: newCred })
+
+    try {
+      await c.get('authEvents').record({
+        userPubkey: pubkey,
+        eventType: 'passkey_added',
+        payload: { credentialId: regCred.id, credentialLabel: newCred.label },
+      })
+    } catch {
+      /* non-fatal */
+    }
+
     return c.json({ ok: true })
   } catch {
     return c.json({ error: 'Verification failed' }, 400)
@@ -536,6 +578,16 @@ authFacade.post('/session/revoke', async (c) => {
     }
   }
 
+  try {
+    await c.get('authEvents').record({
+      userPubkey: pubkey,
+      eventType: 'logout',
+      payload: { sessionId: sessionIdCookie ?? undefined },
+    })
+  } catch {
+    /* non-fatal */
+  }
+
   // Also revoke IdP session if still applicable.
   try {
     await idpAdapter.revokeSession(pubkey)
@@ -591,6 +643,15 @@ authFacade.delete('/sessions/:id', async (c) => {
     return c.json({ error: 'Session not found' }, 404)
   }
   await sessions.revoke(id, 'user')
+  try {
+    await c.get('authEvents').record({
+      userPubkey: pubkey,
+      eventType: 'session_revoked',
+      payload: { sessionId: id },
+    })
+  } catch {
+    /* non-fatal */
+  }
   return c.json({ ok: true })
 })
 
@@ -600,6 +661,15 @@ authFacade.post('/sessions/revoke-others', async (c) => {
   const sessions = c.get('sessions')
   const sessionIdCookie = getCookie(c, 'llamenos-session-id')
   const count = await sessions.revokeAllForUser(pubkey, 'user', sessionIdCookie ?? undefined)
+  try {
+    await c.get('authEvents').record({
+      userPubkey: pubkey,
+      eventType: 'sessions_revoked_others',
+      payload: { meta: { count } },
+    })
+  } catch {
+    /* non-fatal */
+  }
   return c.json({ revokedCount: count })
 })
 
@@ -724,6 +794,15 @@ authFacade.patch('/passkeys/:id', async (c) => {
       encryptedLabel: parsed.data.encryptedLabel as Ciphertext | undefined,
       labelEnvelopes: parsed.data.labelEnvelopes as RecipientEnvelope[] | undefined,
     })
+    try {
+      await c.get('authEvents').record({
+        userPubkey: pubkey,
+        eventType: 'passkey_renamed',
+        payload: { credentialId: credId },
+      })
+    } catch {
+      /* non-fatal */
+    }
     return c.json({ ok: true })
   } catch {
     return c.json({ error: 'Credential not found' }, 404)
@@ -738,6 +817,15 @@ authFacade.delete('/passkeys/:id', async (c) => {
   if (!credId) return c.json({ error: 'Invalid credential ID' }, 400)
   try {
     await identity.deleteWebAuthnCredential(pubkey, credId)
+    try {
+      await c.get('authEvents').record({
+        userPubkey: pubkey,
+        eventType: 'passkey_removed',
+        payload: { credentialId: credId },
+      })
+    } catch {
+      /* non-fatal */
+    }
     return c.json({ ok: true })
   } catch {
     return c.json({ error: 'Credential not found' }, 404)
@@ -753,6 +841,15 @@ authFacade.delete('/devices/:id', async (c) => {
 
   try {
     await identity.deleteWebAuthnCredential(pubkey, credId)
+    try {
+      await c.get('authEvents').record({
+        userPubkey: pubkey,
+        eventType: 'passkey_removed',
+        payload: { credentialId: credId },
+      })
+    } catch {
+      /* non-fatal */
+    }
     return c.json({ ok: true })
   } catch {
     return c.json({ error: 'Credential not found' }, 404)
